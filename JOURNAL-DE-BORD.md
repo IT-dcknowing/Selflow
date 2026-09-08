@@ -4859,6 +4859,212 @@ est renommé et la facture VTE-310826-005 repart — **certifiée
 Sept épreuves de plus (2 + 5). Suite entière : **1 190 épreuves, 1 190
 passantes, 4 748 vérifications.**
 
+### Lot 27 — Les factures reçues sortent de leur écran — **TERMINÉ le 07/09/2026**
+
+#### La première facture réelle
+
+`achats.js` lancé à la main sur le login `1864699A` a rapporté la **première
+facture reçue réelle** — les relevés précédents ne portaient que des jeux de
+démonstration :
+
+| | |
+|---|---|
+| Référence FNE | `1431650A26000000588` |
+| Émetteur | CENTRE IVOIRIEN D'ARCHIVAGE NUMERIQUE, NCC `1431650A` |
+| Date | 04/09/2026, `invoice` / `normal`, payée en espèces |
+| Montant | 244 000 F HT = 244 000 F TTC, **TVA nulle** — exonération conventionnelle (`TVAC`) |
+| Lignes | Tilapia 500/800 20KG ×4 @ 11 000 · Poisson Thon 30 KG ×10 @ 20 000 |
+
+La forme correspond trait pour trait à ce que `ImportFacturesRecuesService`
+attend. La chaîne complète — relevé, dépôt, import, écran — a donc été éprouvée
+de bout en bout sur une pièce que la DGI détient réellement.
+
+#### La clé d'API d'un tiers voyageait avec la facture
+
+Le portail joint à chaque facture reçue la **fiche entière de l'entreprise qui
+l'a émise** : sa clé d'API en clair (`apiKey`, avec `isApiKeyEnabled: true`), sa
+référence bancaire, son solde de compte, ses soldes de stickers. Rien n'a été
+demandé, rien ne s'en sert, et `contenu_brut` les conservait indéfiniment — de
+quoi facturer à la place du fournisseur.
+
+`SECRETS_DE_L_EMETTEUR` écarte ces dix champs du bloc `company` avant l'écriture.
+Le fourre-tout garde sa raison d'être — un champ nouveau du portail ne doit pas
+être perdu en silence — mais pas de quoi usurper un tiers. Le NCC, le nom et le
+RCCM, qui servent au rapprochement, restent intacts. La ligne déjà écrite le
+07/09 à 11 h 05, avant le correctif, a été nettoyée en base. **Rien n'était parti
+au dépôt** : `storage/app/.gitignore` ignore tout, `identifiants.json` aussi.
+
+#### Ce que le portail ne dit pas, et qu'on a failli croire
+
+Le relevé porte `clientEstablishment: "CIAN SIEGE"` et `clientPointOfSale:
+"FACTURATION SIEGE"` — et « FACTURATION SIEGE » **figure dans nos propres points
+de facturation**. La tentation était de lire là le point de vente de la facture.
+
+`FneService.php:193-194` tranche : quand c'est **nous** qui émettons, Selflow
+envoie `pointOfSale` = le nom de *notre* point de vente et `establishment` = *notre*
+raison sociale. Le portail les restitue préfixés `client*` dans la liste des
+pièces reçues. Ces deux champs décrivent donc **l'émetteur**, et la ressemblance
+est fortuite : « FACTURATION SIEGE » est un nom que deux entreprises emploient.
+
+**Le portail ne dit pas à quel site de chez nous une facture reçue se rattache.**
+La seule source honnête est l'achat auquel on la rapproche.
+
+#### Les deux écrans
+
+Les factures relevées n'étaient visibles que sur `/admin/achats/factures-recues`,
+un écran séparé que rien n'obligeait à ouvrir. Elles entrent désormais là où l'on
+regarde ses achats tous les jours :
+
+| Écran | Ce qui change | Le filtre par site |
+|---|---|---|
+| `/admin/achats/factures` | les pièces non rattachées ouvrent le tableau, en bleu, avec « Rattacher » (quand un achat correspond) ou « Rapprocher », « Écarter », et le sélecteur de site | **ne s'applique pas** — l'écran ne totalise rien, et les masquer les rendrait invisibles partout |
+| `/admin/fne/factures`, onglet Achats → « Factures Reçues » | mêmes pièces, badgées « Portail DGI » ; un achat retrouvé au portail est badgé « Rapprochée » et porte le numéro FNE du fournisseur | **s'applique au site affecté** — l'écran somme le HT et le TTC, et y verser des montants sans site fausserait le total de ce site |
+
+Deux règles différentes, et voulues : c'est la présence d'un total qui les
+sépare.
+
+**Aucun doublon.** Une facture du portail rattachée à un achat n'est pas rendue :
+c'est le même document, et le compter deux fois gonflerait le total TTC. C'est la
+ligne de l'achat qui le porte.
+
+**Aucune colonne gelée touchée.** `achats.numero_fne` et `achats.normalise`
+veulent dire « Selflow a émis cette pièce et la DGI l'a certifiée ». Une facture
+reçue a été certifiée par le fournisseur : le numéro FNE affiché vient de
+`portail_fne_factures_recues.reference`, lu à l'affichage, jamais écrit dans
+`achats`. Une épreuve le vérifie.
+
+#### Le site d'une facture reçue — demandé le même jour
+
+« Le point de vente Selflow est aligné sur la DGI, maintenant la facture achat
+doit être associée au PDV dans Selflow. » L'alignement des noms règle nos
+**émissions** ; il ne donne pas de site à une pièce **reçue**, pour la raison
+dite plus haut. La colonne porte donc **notre** décision, jamais le relevé —
+`2026_09_07_000001`, `portail_fne_factures_recues.point_de_vente_id`, nullable.
+
+Trois façons de la remplir, toutes sûres :
+
+| Quand | Qui décide | Où |
+|---|---|---|
+| l'entreprise n'a qu'un site | rien à trancher | `ImportFacturesRecuesService` |
+| la facture rejoint un achat | l'achat, c'est la même pièce | `FactureRecueControleur::rattacher()` |
+| plusieurs sites, pas d'achat | l'utilisateur, par un sélecteur | `::affecter()` |
+
+Nulle est une réponse : « personne n'a encore décidé ». Le site actif de celui
+qui regarde l'écran a été écarté comme source — la même facture serait rangée
+ailleurs selon qui la consulte, et une charge sous le mauvais établissement
+fausse le résultat par site sans que rien ne le signale.
+
+Un relevé ne défait pas une affectation faite à la main. Le rattachement, lui,
+l'écrase : il sait de quel achat il s'agit, ce que le choix antérieur ignorait.
+
+Conséquence sur l'écran FNE : un site précis rend maintenant **ce qui lui est
+affecté**, au lieu de ne rien rendre. Les pièces sans site restent sur « Tous ».
+
+DC-KNOWING CGA ayant cinq points de vente, ses cinq factures relevées affichent
+le sélecteur — c'est le comportement voulu, non un défaut.
+
+#### « Écarter » était une porte à sens unique
+
+Le 07/09/2026 à 12 h 35, la seule facture réelle du dossier a disparu de tous les
+écrans. Cause : le bouton « Écarter », une icône œil-barré sans confirmation,
+cliqué pour supprimer la pièce. Écarter la masque partout — c'est voulu — mais
+**rien ne permettait de revenir** : « Détacher » ne s'affiche que pour une pièce
+rattachée à un achat, et l'écran ne proposait rien d'autre. Il a fallu interroger
+la base pour comprendre pourquoi la facture n'apparaissait plus.
+
+Une charge que la DGI détient ne doit pas pouvoir quitter les écrans d'un clic
+sans recours. Deux correctifs :
+
+- `::reintegrer()` et son bouton « Remettre dans la liste », sur le filtre
+  « Écartées ». Le statut rendu est celui d'origine — `orpheline` sans NCC
+  d'émetteur, `a_rapprocher` sinon : présenter comme rapprochable une pièce dont
+  aucun fournisseur ne peut être retrouvé serait mentir ;
+- une confirmation sur les deux boutons « Écarter », qui dit ce que le geste
+  fait et où le défaire.
+
+#### « Voir » et « Télécharger » restaient vides
+
+Nos pièces certifiées reçoivent une adresse toute faite : la réponse de
+certification met dans `token` l'URL entière, que `fichier_fne_pdf_url` et
+`qr_code_data` recopient — `…/fr/verification/01a05e78-…`.
+
+`/ws/invoices?listing=received` n'en donne pas : il rend le `token` nu,
+`01a06bf8-8e1a-7000-8650-7ae311524dfc`, la même clé sans le chemin. Les deux
+boutons restaient donc inertes sur une pièce pourtant consultable.
+
+`PortailFneFactureRecue::urlDeVerification()` reconstruit l'adresse — hôte de la
+configuration API, moins `/ws`, plus `/fr/verification/<token>`. Un token déjà
+complet n'est pas préfixé deux fois ; sans token, aucun lien n'est inventé.
+
+**Rien ne part à la DGI** : c'est un lien d'affichage bâti sur ce que la
+plateforme a déjà rendu. `FneService`, `QrCodeFneService` et `qr_code_data` ne
+sont ni lus ni écrits.
+
+**Ce qui n'a pas pu être prouvé.** La page de vérification est une application
+cliente : les trois adresses essayées — celle de la facture reçue, celle d'une de
+nos ventes certifiées, et un identifiant nul de contrôle — rendent toutes 200 sur
+63 051 octets identiques. Le code HTTP ne dit donc rien de la validité du token,
+et le contenu n'arrive qu'après exécution du script. Le motif d'URL est celui que
+la DGI a elle-même produit pour nos pièces, et le token vient de son propre
+relevé : **un clic sur le bouton le confirmera, une requête depuis le serveur
+non.**
+
+#### La facture reçue se lit comme un document
+
+Les boutons ne menaient qu'à la page de vérification de la DGI : bon pour
+authentifier, inutile pour lire — une application cliente, hors de Selflow, dont
+rien ne reste au dossier. Demandé le 07/09/2026, après téléchargement du PDF
+`1431650A26000000588_2026-09-04.pdf` depuis le portail.
+
+`FactureRecueControleur::imprimer()` et
+`Vues/fne/facture-recue-impression.blade.php` rendent la pièce : émetteur et
+destinataire, lignes, totaux, TVA déductible ou non, et un bloc de vérification
+portant le code QR de l'adresse DGI.
+
+**Hors de `Vues/factures/`, et c'est le point.** Ce dossier est gelé et porte les
+documents que **Selflow émet** ; ses blocs de certification attestent que
+l'application a établi la pièce. Une facture reçue a été établie par le
+fournisseur et certifiée par la DGI. Sous le même gabarit, la copie se donnerait
+pour l'original — un fac-similé de pièce fiscale. D'où une vue à part, un bandeau
+qui dit ce que le document est, et un code QR dont la légende précise qu'il mène
+à la pièce de la DGI et **n'atteste rien de ce document-ci**. Deux épreuves le
+vérifient.
+
+`QrCodeFneService` est appelé, jamais modifié : encoder un jeton en image est son
+usage prévu.
+
+#### Les quatre pièces de démonstration retirées
+
+`portail_fne_factures_recues` portait quatre factures de jeu — FOURNITURES DEMO
+SARL (×2), GRANDS MOULINS DEMO, COOPERATIVE AGRICOLE DEMO — entrées par l'import
+du 31/08. Supprimées sur demande du propriétaire, avec leurs quatre lignes.
+Aucune n'était rattachée à un achat, et **aucun relevé sur disque ne les
+contient** — vérifié avant la suppression : les trois fichiers antérieurs au
+07/09 portent `factures: []`. Elles ne reviendront pas.
+
+Reste en base la seule pièce réelle, `1431650A26000000588`, affectée à
+**FACTURATION SIEGE**.
+
+#### Épreuves
+
+Vingt-huit de plus — vingt-trois dans `FacturesDuPortailAuxEcransAchatsTest`, quatre
+dans `ImportFacturesRecuesTest` (secrets de l'émetteur, affectation du site,
+choix laissé à l'utilisateur, affectation manuelle préservée), plus la route
+`factures_recues.affecter` et `factures_recues.reintegrer` classées dans
+`Habilitations` — que `HabilitationsTest` a réclamées aussitôt, comme prévu.
+Suite entière : **1 218 épreuves, 1 202 passantes, 4 788 vérifications.**
+
+Les **16 échecs sont antérieurs à ce lot** — vérifié en rejouant la suite sur
+`HEAD` sans les modifications : compte et tests identiques. Ils se répartissent en
+deux familles, toutes deux à traiter :
+
+| Famille | Tests | Symptôme |
+|---|---|---|
+| Accent perdu | `CycleFneTroisCasTest` (4), `EcranRejetsFneTest` (1) | attendu `FACTURATION SIÈGE`, obtenu `FACTURATION SIEGE` |
+| Chargement à la main | `LoadFileFneTest` (11) | 500 sur l'envoi, ou clé `succes` absente en session |
+
+Elles sont portées en section 6.
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
@@ -4905,6 +5111,27 @@ verrouillent les trois situations.
 ## 6. Anomalies constatées et non encore corrigées
 
 Elles sont documentées pour ne pas être redécouvertes.
+
+### Seize épreuves tombent, en deux familles — **constaté le 07/09/2026**
+
+Relevées au lot 27, et **antérieures à lui** : la suite rejouée sur `HEAD` sans
+les modifications du lot rend le même compte et les mêmes tests. Aucune ne touche
+le périmètre gelé.
+
+**Cinq perdent un accent.** `CycleFneTroisCasTest` (4 cas) et `EcranRejetsFneTest`
+(1) attendent `FACTURATION SIÈGE` et obtiennent `FACTURATION SIEGE`. Le point de
+vente est renommé d'après le portail : reste à savoir qui perd le `È` — le relevé,
+la comparaison de noms, ou l'encodage du poste. Tant que ce n'est pas tranché, on
+ignore si le défaut est dans l'épreuve ou dans la correction automatique des noms,
+et c'est cette dernière qui part à la DGI.
+
+**Onze portent sur le chargement à la main.** `LoadFileFneTest` : sept envois
+rendent 500 au lieu d'une redirection, quatre ne trouvent pas la clé `succes` en
+session. C'est l'écran qui permet de déposer un relevé quand le scraper ne peut
+pas tourner — le filet de sécurité, donc, et il est déchiré.
+
+Aucune des deux familles n'a été diagnostiquée : le lot 27 s'est arrêté au constat
+et à la preuve d'antériorité.
 
 ### Le planificateur n'était déclenché par rien — **corrigé en développement**
 

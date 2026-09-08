@@ -3,6 +3,7 @@
 namespace App\Modules\Admin\Services;
 
 use App\Modules\Admin\Modeles\Entreprise;
+use App\Modules\Admin\Modeles\PointDeVente;
 use App\Modules\Admin\Modeles\PortailFneFactureRecue;
 use App\Modules\Admin\Modeles\PortailFneFactureRecueLigne;
 use App\Modules\Admin\Modeles\PortailFneImport;
@@ -94,6 +95,35 @@ class ImportFacturesRecuesService
         'totalCustomTaxes' => 'autres_taxes',
         'totalAfterTaxes'  => 'montant_ttc',
         'totalDue'         => 'net_a_payer',
+    ];
+
+    /**
+     * Ce que le bloc `company` de l'émetteur porte, et qui ne nous regarde pas.
+     *
+     * Le relevé du 07/09/2026 l'a montré : le portail joint à chaque facture
+     * reçue la fiche complète de l'entreprise qui l'a émise, **clé d'API en
+     * clair comprise** (`apiKey`, avec `isApiKeyEnabled: true`), sa référence
+     * bancaire, son solde de compte et ses soldes de stickers. Rien de tout cela
+     * n'a été demandé et rien ne s'en sert : c'est le secret d'exploitation d'un
+     * tiers, que `contenu_brut` conserverait indéfiniment en base et sur disque.
+     *
+     * Le fourre-tout garde sa raison d'être — un champ nouveau du portail ne
+     * doit pas être perdu en silence. Il ne garde pas de quoi facturer à la
+     * place du fournisseur.
+     *
+     * @var array<int, string>
+     */
+    private const SECRETS_DE_L_EMETTEUR = [
+        'apiKey',
+        'isApiKeyEnabled',
+        'bankReference',
+        'availableFunds',
+        'availableInvoiceStickers',
+        'availableReceiptStickers',
+        'availableCashStickers',
+        'thresholdFundsLow',
+        'thresholdFundsCritical',
+        'fundsBlacklistedAt',
     ];
 
     /**
@@ -310,6 +340,18 @@ class ImportFacturesRecuesService
     {
         $compte = ['total' => 0, 'creees' => 0, 'modifiees' => 0];
 
+        // Le site, quand il n'y a rien à trancher : une entreprise à point de
+        // vente unique n'a pas à désigner à la main, facture après facture, le
+        // seul site qu'elle possède. Résolu une fois pour tout le relevé plutôt
+        // qu'à chaque ligne. Au-delà d'un point de vente, le portail ne dit pas
+        // lequel — voir la migration `2026_09_07_000001` — et c'est un
+        // utilisateur qui décide.
+        $siteUnique = null;
+        if ($import->entreprise_id) {
+            $points = PointDeVente::where('entreprise_id', $import->entreprise_id)->limit(2)->pluck('id');
+            $siteUnique = $points->count() === 1 ? (int) $points->first() : null;
+        }
+
         foreach ($factures as $brute) {
             $reference = trim((string) ($brute['reference'] ?? ''));
 
@@ -332,7 +374,16 @@ class ImportFacturesRecuesService
             ]);
 
             $existait = $facture->exists;
-            $facture->fill($valeurs)->save();
+            $facture->fill($valeurs);
+
+            // Jamais par-dessus une affectation déjà faite : un utilisateur qui
+            // a rangé cette facture sous un site ne doit pas voir son choix
+            // défait par le relevé de la nuit.
+            if ($siteUnique !== null && $facture->point_de_vente_id === null) {
+                $facture->point_de_vente_id = $siteUnique;
+            }
+
+            $facture->save();
 
             // Les lignes sont refaites plutôt que rapprochées une à une : le
             // portail ne garantit aucun ordre, et une facture certifiée ne voit
@@ -357,7 +408,7 @@ class ImportFacturesRecuesService
             'import_id'     => $import->id,
             'entreprise_id' => $import->entreprise_id,
             'date_scraping' => $import->date_scraping,
-            'contenu_brut'  => $brute,
+            'contenu_brut'  => $this->sansLesSecretsDeLEmetteur($brute),
         ];
 
         foreach (self::CHAMPS as $champ => $colonne) {
@@ -395,6 +446,30 @@ class ImportFacturesRecuesService
             : PortailFneFactureRecue::ORPHELINE;
 
         return $valeurs;
+    }
+
+    /**
+     * Le payload débarrassé des secrets d'exploitation de l'émetteur.
+     *
+     * Seul le bloc `company` est touché, et seules les clés énumérées : tout le
+     * reste part intact dans `contenu_brut`, y compris les champs que le portail
+     * ajouterait demain. Écarter au ras plutôt que retenir une liste blanche,
+     * parce que c'est la conservation qui doit se justifier, pas l'oubli.
+     *
+     * @param  array<string, mixed>  $brute
+     * @return array<string, mixed>
+     */
+    private function sansLesSecretsDeLEmetteur(array $brute): array
+    {
+        if (!is_array($brute['company'] ?? null)) {
+            return $brute;
+        }
+
+        foreach (self::SECRETS_DE_L_EMETTEUR as $secret) {
+            unset($brute['company'][$secret]);
+        }
+
+        return $brute;
     }
 
     /**

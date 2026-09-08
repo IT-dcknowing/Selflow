@@ -261,6 +261,98 @@ class ImportFacturesRecuesTest extends TestCase
         $this->assertNull(PortailFneFactureRecue::sole()->achat_id);
     }
 
+    public function test_un_site_unique_est_affecte_sans_rien_demander(): void
+    {
+        $entreprise = $this->uneEntreprise(['ncc' => '1864699A']);
+        $site       = $this->unPointDeVente($entreprise, 'FACTURATION SIEGE');
+
+        $this->poser('1864699A_20260827.json', $this->enveloppe([$this->uneFacture()]));
+
+        app(ImportFacturesRecuesService::class)->importerDossier($this->dossier);
+
+        // Une entreprise à site unique n'a rien à trancher : lui faire désigner
+        // facture après facture le seul site qu'elle possède serait une corvée
+        // sans décision.
+        $this->assertSame($site->id, PortailFneFactureRecue::sole()->point_de_vente_id);
+    }
+
+    public function test_plusieurs_sites_laissent_le_choix_a_l_utilisateur(): void
+    {
+        $entreprise = $this->uneEntreprise(['ncc' => '1864699A']);
+        $this->unPointDeVente($entreprise, 'FACTURATION SIEGE');
+        $this->unPointDeVente($entreprise, 'PDV-MARCORY');
+
+        $this->poser('1864699A_20260827.json', $this->enveloppe([$this->uneFacture()]));
+
+        app(ImportFacturesRecuesService::class)->importerDossier($this->dossier);
+
+        // Le portail ne dit pas lequel : son `clientPointOfSale` décrit
+        // l'émetteur. En choisir un au hasard rangerait une charge sous un
+        // établissement qui ne l'a pas supportée, et fausserait le résultat par
+        // site sans que rien ne le signale.
+        $this->assertNull(PortailFneFactureRecue::sole()->point_de_vente_id);
+    }
+
+    public function test_un_second_releve_ne_defait_pas_une_affectation_faite_a_la_main(): void
+    {
+        $entreprise = $this->uneEntreprise(['ncc' => '1864699A']);
+        $siege      = $this->unPointDeVente($entreprise, 'FACTURATION SIEGE');
+
+        $this->poser('1864699A_20260827.json', $this->enveloppe([$this->uneFacture()]));
+        app(ImportFacturesRecuesService::class)->importerDossier($this->dossier);
+
+        // Un second site apparaît, et l'utilisateur range la facture ailleurs.
+        $marcory = $this->unPointDeVente($entreprise, 'PDV-MARCORY');
+        PortailFneFactureRecue::sole()->update(['point_de_vente_id' => $marcory->id]);
+
+        // Le relevé du lendemain, au contenu changé pour qu'il soit bien relu.
+        $this->poser('1864699A_20260828.json', $this->enveloppe([
+            $this->uneFacture(['updatedAt' => '2026-08-28T09:00:00.000Z']),
+        ]));
+        app(ImportFacturesRecuesService::class)->importerDossier($this->dossier);
+
+        // Le choix d'un utilisateur ne se défait pas dans la nuit.
+        $this->assertSame($marcory->id, PortailFneFactureRecue::sole()->point_de_vente_id);
+        $this->assertNotSame($siege->id, PortailFneFactureRecue::sole()->point_de_vente_id);
+    }
+
+    public function test_les_secrets_de_l_emetteur_ne_sont_pas_conserves(): void
+    {
+        $this->uneEntreprise(['ncc' => '1864699A']);
+
+        // Le relevé réel du 07/09/2026 : le portail joint à chaque facture reçue
+        // la fiche complète du fournisseur qui l'a émise, sa clé d'API en clair
+        // comprise. Personne ne l'a demandée, rien ne s'en sert, et `contenu_brut`
+        // la conserverait indéfiniment — de quoi facturer à la place du tiers.
+        $this->poser('1864699A_20260827.json', $this->enveloppe([
+            $this->uneFacture(['company' => [
+                'id'                       => 'cccccccc-0000-4000-8000-000000000001',
+                'name'                     => 'FOURNISSEUR SARL',
+                'ncc'                      => '0000001X',
+                'rccm'                     => 'CI-ABJ-2020-B-11111',
+                'apiKey'                   => 'f4wqqp7QNCmmzp61d2bGzTjnec9dGMeT',
+                'isApiKeyEnabled'          => true,
+                'bankReference'            => 'BNI 08909000800',
+                'availableFunds'           => 110460,
+                'availableInvoiceStickers' => 5523,
+            ]]),
+        ]));
+
+        app(ImportFacturesRecuesService::class)->importerDossier($this->dossier);
+
+        $company = PortailFneFactureRecue::sole()->contenu_brut['company'];
+
+        foreach (['apiKey', 'isApiKeyEnabled', 'bankReference', 'availableFunds', 'availableInvoiceStickers'] as $secret) {
+            $this->assertArrayNotHasKey($secret, $company, "Le champ « {$secret} » de l'émetteur a été conservé.");
+        }
+
+        // Et ce qui sert au rapprochement reste intact : écarter au ras, ce
+        // n'est pas jeter la fiche.
+        $this->assertSame('0000001X', $company['ncc']);
+        $this->assertSame('FOURNISSEUR SARL', $company['name']);
+        $this->assertSame('CI-ABJ-2020-B-11111', $company['rccm']);
+    }
+
     /* -------------------------------------------------------------------- */
 
     /**
@@ -344,6 +436,16 @@ class ImportFacturesRecuesTest extends TestCase
             'secteur_activite'  => ['Commerce'],
             'modules_actifs'    => ['principal', 'ventes', 'achats'],
         ], $attributs));
+    }
+
+    private function unPointDeVente(Entreprise $entreprise, string $nom): \App\Modules\Admin\Modeles\PointDeVente
+    {
+        return \App\Modules\Admin\Modeles\PointDeVente::create([
+            'entreprise_id' => $entreprise->id,
+            'nom'           => $nom,
+            'ville'         => 'Abidjan',
+            'commune'       => 'Cocody',
+        ]);
     }
 
     private function poser(string $nom, string $contenu): void

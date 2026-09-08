@@ -47,6 +47,7 @@ class PortailFneFactureRecue extends Model
     protected $fillable = [
         'import_id',
         'entreprise_id',
+        'point_de_vente_id',
         'login',
         'date_scraping',
         'reference',
@@ -111,6 +112,48 @@ class PortailFneFactureRecue extends Model
         return $this->belongsTo(Achat::class, 'achat_id');
     }
 
+    /**
+     * Le site auquel cette charge a été affectée — par nous, jamais par le portail.
+     *
+     * Voir la migration `2026_09_07_000001` : le `clientPointOfSale` du relevé
+     * décrit l'émetteur, pas nous.
+     */
+    public function pointDeVente(): BelongsTo
+    {
+        return $this->belongsTo(PointDeVente::class, 'point_de_vente_id');
+    }
+
+    /**
+     * Le site que Selflow peut affecter seul, sans rien deviner.
+     *
+     * Deux cas, et deux seulement :
+     *
+     * 1. la facture est rattachée à un achat — le site est celui de l'achat,
+     *    c'est la même pièce ;
+     * 2. l'entreprise n'a qu'un point de vente — il n'y a rien à trancher.
+     *
+     * Hors de là, `null` : le choix revient à un utilisateur. Prendre le site
+     * actif de celui qui regarde l'écran affecterait la même facture à des sites
+     * différents selon qui la consulte, et une charge rangée sous le mauvais
+     * établissement fausse le résultat par site sans que rien ne le signale.
+     */
+    public function siteEvident(): ?int
+    {
+        if ($this->achat_id) {
+            return $this->achat?->point_de_vente_id;
+        }
+
+        if (!$this->entreprise_id) {
+            return null;
+        }
+
+        $points = PointDeVente::where('entreprise_id', $this->entreprise_id)
+            ->limit(2)
+            ->pluck('id');
+
+        return $points->count() === 1 ? (int) $points->first() : null;
+    }
+
     public function lignes(): HasMany
     {
         return $this->hasMany(PortailFneFactureRecueLigne::class, 'facture_recue_id');
@@ -129,6 +172,60 @@ class PortailFneFactureRecue extends Model
         return !$this->est_rne
             && $this->subtype !== 'purchase_slip'
             && (float) $this->montant_tva > 0;
+    }
+
+    /**
+     * L'adresse où la DGI montre cette pièce.
+     *
+     * ## Pourquoi elle se construit au lieu de se lire
+     *
+     * Nos propres pièces certifiées reçoivent une adresse toute faite : la
+     * réponse de certification met dans `token` l'URL complète, que
+     * `fichier_fne_pdf_url` et `qr_code_data` recopient —
+     * `…/fr/verification/01a05e78-6da1-7000-8346-e188ca934174`.
+     *
+     * Le relevé des factures **reçues** n'en donne pas : `/ws/invoices` rend un
+     * `token` nu, l'identifiant seul (`01a06bf8-8e1a-7000-8650-7ae311524dfc`),
+     * de même forme. C'est la même clé, sans le chemin. Faute de la reconstruire,
+     * les boutons « Voir » et « Télécharger » restaient vides sur ces lignes —
+     * alors que la pièce est consultable comme n'importe quelle autre.
+     *
+     * ## Ce que cela ne touche pas
+     *
+     * Rien ne part à la DGI : c'est un lien d'affichage, construit après coup à
+     * partir de ce que la plateforme a déjà rendu. `FneService`,
+     * `QrCodeFneService` et la colonne `qr_code_data` ne sont ni lus ni écrits.
+     *
+     * L'hôte vient de la même configuration que l'API — la vérification est
+     * servie par le portail lui-même, à la racine plutôt que sous `/ws`.
+     */
+    public function urlDeVerification(): ?string
+    {
+        $token = trim((string) $this->token);
+
+        if ($token === '') {
+            return null;
+        }
+
+        // Le token peut déjà être une adresse : le portail n'a pas la même forme
+        // partout, et le jour où `/ws/invoices` rendra l'URL complète, la
+        // préfixer une seconde fois produirait un lien mort.
+        if (str_starts_with($token, 'http://') || str_starts_with($token, 'https://')) {
+            return $token;
+        }
+
+        $api = (string) (config('selflow.fne_api_url_production')
+            ?: config('selflow.fne_api_url_sandbox'));
+
+        if (trim($api) === '') {
+            return null;
+        }
+
+        // `…/ws` est la racine de l'API ; la page de vérification est servie à
+        // côté, pas dessous.
+        $hote = rtrim((string) preg_replace('#/ws/?$#', '', trim($api)), '/');
+
+        return $hote === '' ? null : "{$hote}/fr/verification/{$token}";
     }
 
     public function libelleDuSousType(): string

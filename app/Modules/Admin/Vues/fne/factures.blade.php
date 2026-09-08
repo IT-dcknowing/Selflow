@@ -75,7 +75,7 @@
         </tr>
     </thead>
     <tbody id="corps-table">
-        <tr><td colspan="13" style="text-align:center; padding:30px; color:var(--text-3);">Chargement...</td></tr>
+        <tr><td colspan="14" style="text-align:center; padding:30px; color:var(--text-3);">Chargement...</td></tr>
     </tbody>
 </table>
 
@@ -88,6 +88,24 @@
 </div>
 
 <script>
+/**
+ * D'où vient la ligne : de la saisie Selflow, du portail de la DGI, ou des deux.
+ *
+ * Sans ce repère, une facture relevée au portail et une facture saisie ici se
+ * ressemblaient trait pour trait, alors qu'on ne peut pas en faire la même
+ * chose : la première n'est pas notre pièce, elle ne s'imprime ni ne se
+ * normalise — elle se rapproche d'un achat.
+ */
+function badgeOrigine(origine) {
+    if (origine === 'portail') {
+        return '<span title="Relevée au portail de la DGI, pas encore rattachée à un achat de Selflow" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:2px 7px; border-radius:12px; font-size:10px; font-weight:700; margin-left:6px; white-space:nowrap;"><i class="fas fa-cloud-arrow-down"></i> Portail DGI</span>';
+    }
+    if (origine === 'selflow_dgi') {
+        return '<span title="Saisie dans Selflow et retrouvée au portail de la DGI" style="background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; padding:2px 7px; border-radius:12px; font-size:10px; font-weight:700; margin-left:6px; white-space:nowrap;"><i class="fas fa-link"></i> Rapprochée</span>';
+    }
+    return '';
+}
+
 function telechargerDirectement(url) {
     const iframe = document.createElement('iframe');
     iframe.style.position = 'absolute';
@@ -147,7 +165,7 @@ function rafraichirFactures() {
     params.set('recherche', document.getElementById('f-recherche').value);
     params.set('page', page);
 
-    document.getElementById('corps-table').innerHTML = '<tr><td colspan="13" style="text-align:center; padding:30px; color:var(--text-3);"><i class="fas fa-spinner fa-spin"></i> Chargement...</td></tr>';
+    document.getElementById('corps-table').innerHTML = '<tr><td colspan="14" style="text-align:center; padding:30px; color:var(--text-3);"><i class="fas fa-spinner fa-spin"></i> Chargement...</td></tr>';
 
     fetch("{{ route('admin.fne.factures.donnees') }}?" + params.toString())
         .then(r => r.json())
@@ -156,12 +174,12 @@ function rafraichirFactures() {
             const corps = document.getElementById('corps-table');
 
             if (d.documents.length === 0) {
-                corps.innerHTML = '<tr><td colspan="13" style="text-align:center; padding:30px; color:var(--text-3);">Aucun document pour cette période/catégorie.</td></tr>';
+                corps.innerHTML = '<tr><td colspan="14" style="text-align:center; padding:30px; color:var(--text-3);">Aucun document pour cette période/catégorie.</td></tr>';
             } else {
                 corps.innerHTML = d.documents.map(doc => `
                     <tr>
                         <td>${doc.date ? new Date(doc.date).toLocaleDateString('fr-FR') : '—'}</td>
-                        <td>${doc.type_doc}</td>
+                        <td style="white-space:nowrap;">${doc.type_doc}${badgeOrigine(doc.origine)}</td>
                         <td style="font-weight:700; color:var(--primary);">${doc.num_piece}</td>
                         <td>${doc.num_fne ?? '<span style="color:var(--text-3);">—</span>'}</td>
                         <td>${doc.tiers}</td>
@@ -174,14 +192,16 @@ function rafraichirFactures() {
                                 ${doc.normalise ? 'Normalisée' : 'Non normalisée'}
                             </span>
                         </td>
-                        <td>${doc.pdv ?? '—'}</td>
+                        <td>${doc.pdv ?? (doc.origine === 'portail'
+                            ? '<span style="color:var(--text-3); font-style:italic;" title="Le portail ne dit pas à quel site de l\'entreprise cette facture se rattache. Le site vient de l\'achat auquel on la rapproche.">non affecté</span>'
+                            : '—')}</td>
                         <td>${doc.recu_lie
                             ? `<a href="${doc.recu_lie_url}" target="_blank" style="font-weight:600;">${doc.recu_lie}</a>`
                             : '<span style="color:var(--text-3);">—</span>'}</td>
                         <td style="text-align:center;">${doc.fichier_recu_url
                             ? `<a href="${doc.fichier_recu_url}" target="_blank" class="btn btn-outline" style="padding:4px 8px; font-size:11px;" title="Ouvrir le reçu"><i class="fas fa-receipt"></i></a>`
                             : '<span style="color:var(--text-3);">—</span>'}</td>
-                        <td>
+                        <td>${doc.local_url ? `
                             <div style="display:flex; gap:6px; align-items:center; justify-content:center;">
                                 <span style="font-weight:600; margin-right:4px;">${doc.facture_origine ? doc.facture_origine : doc.num_piece}</span>
                                 <a href="${doc.local_url}" class="btn btn-outline" style="padding:4px 8px; font-size:11px;" title="Voir la facture d'origine (4 modèles)">
@@ -191,10 +211,22 @@ function rafraichirFactures() {
                                     <i class="fas fa-download"></i>
                                 </button>
                             </div>
-                        </td>
+                        ` : '<span style="color:var(--text-3);">—</span>'}</td>
                         <td style="text-align:center;">
                             <div style="display:flex; gap:6px; justify-content:center; align-items:center;">
-                                ${doc.normalise ? `
+                                ${doc.origine === 'portail' ? `
+                                    ${doc.voir_url ? `
+                                        <a href="${doc.voir_url}" target="_blank" class="btn btn-outline" style="padding:5px 10px; font-size:12px;" title="Voir la pièce chez la DGI, qui la détient">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="${doc.telechargement_url}" target="_blank" class="btn btn-outline" style="padding:5px 10px; font-size:12px;" title="Ouvrir la page de vérification DGI de cette pièce">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                    ` : ''}
+                                    <a href="${doc.rapprocher_url}" class="btn btn-outline" style="padding:5px 10px; font-size:12px; white-space:nowrap;" title="Cette pièce est détenue par la DGI mais n'est rattachée à aucun achat de Selflow. La rapprocher d'un achat existant.">
+                                        <i class="fas fa-link"></i> Rapprocher
+                                    </a>
+                                ` : doc.normalise ? `
                                     <a href="${doc.voir_url}" target="_blank" class="btn btn-outline" style="padding:5px 10px; font-size:12px;" title="Voir le document original / FNE">
                                         <i class="fas fa-eye"></i>
                                     </a>
@@ -224,7 +256,7 @@ function rafraichirFactures() {
             document.getElementById('btn-suivant').disabled = d.pagination.page_courante >= d.pagination.derniere_page;
         })
         .catch(() => {
-            document.getElementById('corps-table').innerHTML = '<tr><td colspan="13" style="text-align:center; padding:30px; color:#991b1b;">Erreur de chargement. Réessayez.</td></tr>';
+            document.getElementById('corps-table').innerHTML = '<tr><td colspan="14" style="text-align:center; padding:30px; color:#991b1b;">Erreur de chargement. Réessayez.</td></tr>';
         });
 }
 

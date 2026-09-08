@@ -3,9 +3,11 @@
 namespace App\Modules\Admin\Controleurs;
 
 use App\Modules\Admin\Modeles\Achat;
+use App\Modules\Admin\Modeles\PointDeVente;
 use App\Modules\Admin\Modeles\PortailFneFactureRecue;
 use App\Modules\Admin\Modeles\PortailFneImport;
 use App\Modules\Admin\Services\ImportFacturesRecuesService;
+use App\Modules\Admin\Services\QrCodeFneService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -58,7 +60,7 @@ class FactureRecueControleur
 
         $factures = $pourEntreprise()
             ->when($statutActif, fn ($q) => $q->where('statut_rapprochement', $statutActif))
-            ->with('lignes')
+            ->with(['lignes', 'pointDeVente'])
             // Les plus récentes d'abord : c'est ce qui vient d'arriver qu'on
             // vient voir, pas ce qui traîne depuis six mois.
             ->orderByDesc('date_facture')
@@ -99,6 +101,10 @@ class FactureRecueControleur
         return view('admin::fne.factures-recues', [
             'entreprise'     => $entreprise,
             'aFne'           => $aFne,
+            // Pour le sélecteur de site. Chargés une fois plutôt qu'à chaque
+            // ligne : vingt factures rouvraient vingt fois la même table.
+            'pointsDeVente'  => PointDeVente::where('entreprise_id', $entreprise->id)
+                ->orderBy('nom')->get(),
             'factures'       => $factures,
             'propositions'   => $propositions,
             'statutActif'    => $statutActif,
@@ -140,6 +146,12 @@ class FactureRecueControleur
         $facture->update([
             'achat_id'             => $achat->id,
             'statut_rapprochement' => PortailFneFactureRecue::RAPPROCHEE,
+            // Le site vient de l'achat : c'est la même pièce, et la ranger
+            // ailleurs ferait porter la charge par un établissement qui ne l'a
+            // pas supportée. Il écrase une affectation antérieure — le
+            // rattachement est une information plus sûre qu'un choix fait à
+            // l'aveugle avant de savoir de quel achat il s'agissait.
+            'point_de_vente_id'    => $achat->point_de_vente_id,
             'note_rapprochement'   => $propose['ecart_ttc']
                 ? sprintf('Rattachée malgré un écart de %s F sur le TTC.', number_format((float) $propose['ecart_ttc'], 2, ',', ' '))
                 : null,
@@ -165,6 +177,78 @@ class FactureRecueControleur
     }
 
     /**
+     * Affiche la facture reçue comme un document, et non comme une ligne.
+     *
+     * ## Pourquoi
+     *
+     * Les boutons « Voir » et « Télécharger » ne menaient qu'à la page de
+     * vérification de la DGI — utile pour authentifier, inutile pour lire :
+     * c'est une application cliente, hors de Selflow, et rien n'en reste au
+     * dossier. Demandé par le propriétaire du projet le 07/09/2026 : voir la
+     * pièce comme on voit les autres.
+     *
+     * ## Ce que le document est, et ce qu'il n'est pas
+     *
+     * Une **copie reconstituée d'après le relevé**, pas la pièce originale. Le
+     * fournisseur l'a établie, la DGI l'a certifiée ; Selflow n'a que ce que le
+     * portail lui a communiqué. La vue le dit en tête, et le code QR y encode
+     * l'adresse de vérification de la DGI — jamais une signature de Selflow.
+     *
+     * D'où une vue rangée hors de `Vues/factures/`, dossier gelé qui porte les
+     * documents que Selflow émet : sous ce gabarit, la copie se donnerait pour
+     * l'original.
+     */
+    public function imprimer(PortailFneFactureRecue $facture): View
+    {
+        $this->siennes($facture);
+
+        $facture->load(['lignes', 'pointDeVente']);
+
+        return view('admin::fne.facture-recue-impression', [
+            'facture'    => $facture,
+            'entreprise' => Auth::user()->entreprise,
+            // Le service est gelé : on l'appelle, on ne le touche pas. Il
+            // encode un jeton en image, ce qui est exactement l'usage prévu.
+            'qr'         => QrCodeFneService::imageDeVerification($facture->urlDeVerification(), 110),
+        ]);
+    }
+
+    /**
+     * Range une facture reçue sous un point de vente.
+     *
+     * ## Pourquoi ce geste existe
+     *
+     * Demandé par le propriétaire du projet le 07/09/2026 : une facture d'achat
+     * appartient à un site, comme toute autre pièce. Le portail ne le dit pas —
+     * son `clientPointOfSale` décrit l'émetteur, le champ voisin
+     * `clientEstablishment` valant « CIAN SIEGE » sur le relevé du 07/09, le nom
+     * du fournisseur et non le nôtre. C'est donc une décision, et elle se prend
+     * ici.
+     *
+     * L'import l'a déjà prise quand l'entreprise n'a qu'un site, et
+     * `rattacher()` la prend quand la facture rejoint un achat. Cette action
+     * sert le reste : plusieurs sites, et pas encore d'achat en face.
+     */
+    public function affecter(PortailFneFactureRecue $facture): RedirectResponse
+    {
+        $this->siennes($facture);
+
+        // Le site doit appartenir à l'entreprise de l'utilisateur. Sans cette
+        // vérification, un identifiant forgé rangerait la charge d'une
+        // entreprise sous l'établissement d'une autre.
+        $site = PointDeVente::where('entreprise_id', Auth::user()->entreprise_id)
+            ->find(request('point_de_vente_id'));
+
+        if (!$site) {
+            return back()->with('erreur', "Ce point de vente n'existe pas dans votre entreprise.");
+        }
+
+        $facture->update(['point_de_vente_id' => $site->id]);
+
+        return back()->with('succes', "Facture {$facture->reference} affectée à {$site->nom}.");
+    }
+
+    /**
      * Écarte une facture qu'on ne veut pas rapprocher.
      *
      * Elle n'est pas supprimée : le portail la redéposera au prochain relevé, et
@@ -181,6 +265,37 @@ class FactureRecueControleur
         ]);
 
         return back()->with('succes', "Facture {$facture->reference} écartée.");
+    }
+
+    /**
+     * Remet dans la liste une facture qu'on avait écartée.
+     *
+     * ## Pourquoi ce geste manquait
+     *
+     * Écarter tenait à un clic sur une icône, sans confirmation, et **rien ne
+     * permettait de revenir** : « Détacher » ne s'affiche que pour une pièce
+     * rattachée à un achat, et l'écran ne proposait rien d'autre. Le 07/09/2026,
+     * la seule facture réelle du dossier a disparu de tous les écrans de cette
+     * façon, et il a fallu la base pour comprendre pourquoi.
+     *
+     * Une porte à sens unique sur une pièce fiscale que la DGI détient n'est pas
+     * acceptable : la charge cesse d'être visible sans cesser d'exister.
+     */
+    public function reintegrer(PortailFneFactureRecue $facture): RedirectResponse
+    {
+        $this->siennes($facture);
+
+        // Le statut d'origine, et non « à rapprocher » d'office : sans NCC
+        // d'émetteur, aucun fournisseur ne peut être retrouvé, et la pièce est
+        // orpheline — la présenter comme rapprochable serait mentir.
+        $facture->update([
+            'statut_rapprochement' => $facture->emetteur_ncc
+                ? PortailFneFactureRecue::A_RAPPROCHER
+                : PortailFneFactureRecue::ORPHELINE,
+            'note_rapprochement'   => null,
+        ]);
+
+        return back()->with('succes', "Facture {$facture->reference} remise dans la liste.");
     }
 
     /**

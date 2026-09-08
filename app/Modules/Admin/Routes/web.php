@@ -98,9 +98,18 @@ Route::prefix('admin')
             // d'`achats` : `rattacher` pose un lien vers un achat qui existe déjà,
             // dans `portail_fne_factures_recues.achat_id`.
             Route::get('/factures-recues', [\App\Modules\Admin\Controleurs\FactureRecueControleur::class, 'index'])->name('factures_recues');
+            // La pièce vue comme un document : une copie d'après le relevé, que
+            // son bandeau distingue de l'original certifié du fournisseur.
+            Route::get('/factures-recues/{facture}/imprimer', [\App\Modules\Admin\Controleurs\FactureRecueControleur::class, 'imprimer'])->name('factures_recues.imprimer');
             Route::post('/factures-recues/{facture}/rattacher', [\App\Modules\Admin\Controleurs\FactureRecueControleur::class, 'rattacher'])->name('factures_recues.rattacher');
             Route::post('/factures-recues/{facture}/detacher', [\App\Modules\Admin\Controleurs\FactureRecueControleur::class, 'detacher'])->name('factures_recues.detacher');
             Route::post('/factures-recues/{facture}/ecarter', [\App\Modules\Admin\Controleurs\FactureRecueControleur::class, 'ecarter'])->name('factures_recues.ecarter');
+            // Le site d'une facture reçue est une décision de l'entreprise : le
+            // portail ne le dit pas, son `clientPointOfSale` décrivant l'émetteur.
+            Route::post('/factures-recues/{facture}/affecter', [\App\Modules\Admin\Controleurs\FactureRecueControleur::class, 'affecter'])->name('factures_recues.affecter');
+            // La porte de retour d'`ecarter`, qui n'en avait aucune : une pièce
+            // écartée disparaissait de tous les écrans sans moyen de revenir.
+            Route::post('/factures-recues/{facture}/reintegrer', [\App\Modules\Admin\Controleurs\FactureRecueControleur::class, 'reintegrer'])->name('factures_recues.reintegrer');
         });
 
         // ── FNE / DGI Stub (Lot I) ──
