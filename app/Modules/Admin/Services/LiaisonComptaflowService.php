@@ -107,9 +107,18 @@ class LiaisonComptaflowService
      *
      * @return array{success: bool, message: string}
      */
-    public static function valider(Entreprise $entreprise): array
+    public static function valider(Entreprise $entreprise, bool $rejouer = false): array
     {
-        if ($entreprise->liaisonComptaflowActive()) {
+        // `$rejouer` sert à réannoncer le dossier à Comptaflow sans le délier.
+        //
+        // Un dossier lié avant que Selflow n'annonce son exercice comptable
+        // refuse chaque écriture en 422 (Unprocessable Content — contenu non
+        // traitable), et le garde ci-dessous le rendait **inguérissable** : la
+        // seule issue était de délier pour relier, ce qui révoque une clé qui
+        // marche. Le provisionnement de Comptaflow étant idempotent — même
+        // dossier, même clé —, le rejouer ne coûte rien et ouvre l'exercice
+        // manquant.
+        if (!$rejouer && $entreprise->liaisonComptaflowActive()) {
             return ['success' => false, 'message' => 'Cette entreprise est déjà liée à Comptaflow.'];
         }
 
@@ -501,6 +510,47 @@ class LiaisonComptaflowService
             // écriture sur son compte collectif.
             'numerotation_tiers' => $entreprise->numerotation_tiers ?? NumerotationTiersService::NUMERIQUE,
             'longueur_tiers'     => NumerotationTiersService::LONGUEUR,
+
+            // L'exercice comptable ouvert chez nous.
+            //
+            // Sans lui, le dossier naissait **sans exercice**, et Comptaflow
+            // refusait chaque écriture en 422 (Unprocessable Content — contenu
+            // non traitable) : « Aucun exercice comptable trouvé pour cette
+            // entreprise. » La liaison s'affichait active, le référentiel
+            // arrivait, et pas une seule écriture ne pouvait se poser. Cinq des
+            // huit dossiers de Comptaflow étaient dans ce cas.
+            //
+            // Les dates viennent de Selflow parce que c'est lui qui tient la
+            // période : les faire deviner à Comptaflow rouvrirait le désaccord
+            // d'exercice que la passerelle vérifie déjà à chaque déversement.
+            'exercice' => self::exerciceOuvert($entreprise),
+        ];
+    }
+
+    /**
+     * L'exercice comptable actif de l'entreprise, s'il y en a un.
+     *
+     * Il n'est pas toujours là — une entreprise qui n'a pas encore ouvert sa
+     * période n'en a pas —, et dans ce cas on n'invente rien : Comptaflow
+     * ouvrira le sien quand Selflow saura le lui dire.
+     *
+     * @return array{debut: string, fin: string, libelle: string}|null
+     */
+    private static function exerciceOuvert(Entreprise $entreprise): ?array
+    {
+        $periode = \App\Modules\Admin\Modeles\Periode::where('entreprise_id', $entreprise->id)
+            ->where('est_active', true)
+            ->orderByDesc('date_debut')
+            ->first();
+
+        if (!$periode || !$periode->date_debut || !$periode->date_fin) {
+            return null;
+        }
+
+        return [
+            'debut'   => $periode->date_debut->toDateString(),
+            'fin'     => $periode->date_fin->toDateString(),
+            'libelle' => $periode->libelle ?: ('Exercice ' . $periode->date_debut->format('Y')),
         ];
     }
 

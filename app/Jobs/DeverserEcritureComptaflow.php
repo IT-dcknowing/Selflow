@@ -107,6 +107,25 @@ class DeverserEcritureComptaflow implements ShouldQueue
                 return;
             }
 
+            // Un refus de Comptaflow ne levait aucune exception : la tâche
+            // rendait la main, se marquait DONE, **et rien n'était écrit nulle
+            // part sur la raison**. Six écritures sont ainsi parties « avec
+            // succès » sans jamais arriver — Comptaflow les refusait en 422
+            // (Unprocessable Content — contenu non traitable), faute d'exercice
+            // comptable ouvert. Seule une lecture de la base, côté Comptaflow,
+            // pouvait le révéler.
+            //
+            // Le motif est désormais journalisé avec le code et le corps de la
+            // réponse. L'écriture reste `failed` et ne se rejoue pas d'office :
+            // un refus de fond — exercice absent, journal inconnu, exercices
+            // disjoints — se rejouerait à l'identique trois fois pour rien.
+            Log::warning('Déversement Comptaflow refusé', [
+                'ecriture_id'  => $ecriture->id,
+                'entreprise_id' => $entreprise->id,
+                'code'         => $response->status(),
+                'motif'        => $response->json('message') ?? substr((string) $response->body(), 0, 300),
+            ]);
+
             DB::table('ecritures_comptables')
                 ->where('id', $ecriture->id)
                 ->update(['comptaflow_sync_status' => 'failed']);
