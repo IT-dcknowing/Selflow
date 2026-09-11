@@ -274,17 +274,30 @@ class AdminControleur
         //    dans un palmares ni dans une part de camembert.
         $idsVentesFiltrees = (clone $qVentes)->where('type_facture', '!=', 'avoir')->pluck('id');
 
+        //    Le nom se compose en PHP, et non par `CONCAT()` en SQL : cette
+        //    fonction n'existe pas dans SQLite avant la 3.44, ou tourne la suite
+        //    d'epreuves. Le tableau de bord repondait donc 500 (Internal Server
+        //    Error — erreur interne du serveur) sur toute machine dont le SQLite
+        //    est plus ancien, et la suite passait ailleurs : une panne qui
+        //    dependait de la machine, non du code. `RapportControleur` composait
+        //    deja le nom de cette facon.
         $topVendeurs = DB::table('ventes')
             ->join('utilisateurs', 'utilisateurs.id', '=', 'ventes.utilisateur_id')
             ->select('ventes.utilisateur_id',
-                DB::raw("CONCAT(utilisateurs.prenom, ' ', utilisateurs.nom) as nom_employe"),
+                'utilisateurs.prenom as employe_prenom',
+                'utilisateurs.nom as employe_nom',
                 DB::raw('SUM(ventes.montant_ttc) as total'),
                 DB::raw('COUNT(*) as nb_ventes'))
             ->whereIn('ventes.id', $idsVentesFiltrees)
             ->groupBy('ventes.utilisateur_id', 'utilisateurs.prenom', 'utilisateurs.nom')
             ->orderByDesc('total')
             ->limit(5)
-            ->get();
+            ->get()
+            ->map(function ($ligne) {
+                $ligne->nom_employe = trim(($ligne->employe_prenom ?? '') . ' ' . ($ligne->employe_nom ?? ''));
+
+                return $ligne;
+            });
 
         // ── CA par PDV sur la période ─────────────────────────────────────────
         //    Le camembert totalisait toutes les ventes de la base : hors

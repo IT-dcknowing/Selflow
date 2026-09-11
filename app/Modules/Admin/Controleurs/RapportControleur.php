@@ -14,6 +14,7 @@ use App\Modules\Admin\Services\CacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Modules\Admin\Services\ExpressionSqlPortable;
 
 class RapportControleur
 {
@@ -176,7 +177,7 @@ class RapportControleur
         // ─── Évolution mensuelle des ventes (12 derniers mois sans PeriodeScope) ──
         $evolutionMensuelle = DB::table('ventes')
             ->select(
-                DB::raw("DATE_FORMAT(date_vente, '%Y-%m') as mois"),
+                DB::raw(ExpressionSqlPortable::anneeEtMois('date_vente') . ' as mois'),
                 DB::raw('SUM(montant_ttc) as ca'),
                 DB::raw('COUNT(*) as nb')
             )
@@ -189,7 +190,7 @@ class RapportControleur
 
         $evolutionAchatsMensuelle = DB::table('achats')
             ->select(
-                DB::raw("DATE_FORMAT(date_achat, '%Y-%m') as mois"),
+                DB::raw(ExpressionSqlPortable::anneeEtMois('date_achat') . ' as mois'),
                 DB::raw('SUM(montant_ttc) as depenses')
             )
             ->whereIn('point_de_vente_id', $pdvIds)

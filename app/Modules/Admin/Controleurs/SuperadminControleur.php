@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use App\Modules\Admin\Services\TrousseauEntrepriseService;
+use App\Modules\Admin\Services\ExpressionSqlPortable;
 
 class SuperadminControleur
 {
@@ -46,8 +47,8 @@ class SuperadminControleur
 
         // ── Inscriptions des 6 derniers mois ──
         $inscriptionsParMois = Entreprise::select(
-                DB::raw('YEAR(created_at) as annee'),
-                DB::raw('MONTH(created_at) as mois'),
+                DB::raw(ExpressionSqlPortable::annee('created_at') . ' as annee'),
+                DB::raw(ExpressionSqlPortable::mois('created_at') . ' as mois'),
                 DB::raw('count(*) as total')
             )
             ->where('created_at', '>=', now()->subMonths(6))

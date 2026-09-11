@@ -3159,6 +3159,142 @@ et un `indexExists()`.
 
 ---
 
+### Lot 22 — Les deux applications côte à côte — **TERMINÉ**
+
+Premier lot mené avec **les deux dépôts sur la même machine**, et les deux
+applications servies en même temps. Ce qui se vérifiait jusqu'ici par des
+épreuves et par le rapport d'une autre session s'est vérifié pour de bon. Trois
+choses tenues pour acquises se sont révélées fausses.
+
+#### 22.1 — Le travail de Comptaflow n'était pas à faire : il était égaré
+
+Le rapport du 27 août annonçait le point d'entrée de rotation des clés comme
+**le** point bloquant. Il existe. Il est écrit, avec sa période de grâce, dans
+`993ba92` — « La clé de liaison se renouvelle, et l'ancienne vit cinq minutes
+de plus ».
+
+Neuf commits vivaient sur `claude/liaison-cle-par-entreprise`, **jamais
+fusionnés**, pendant que `main` avançait de treize commits de son côté —
+packs, gouvernance, habilitations, exercice comptable.
+
+**Une fusion de branche aurait écrasé ce travail.** C'est la deuxième fois que
+cette passerelle manque de disparaître : la première, un `git push --force` du
+12 août l'avait effacée de l'historique.
+
+Les neuf commits ont donc été **reportés un par un** sur le `main` courant,
+sans un seul conflit. Le résultat se lit au chiffre : 36 fichiers, 4 215
+ajouts, **305 retraits — dont la seule suppression de fichier est
+`.env.example2`**. Une fusion à l'aveugle en annonçait 119 et 6 421.
+
+| Ce qui est arrivé dans le `main` de Comptaflow | |
+|---|---|
+| Réception du référentiel Selflow | le point bloquant des six éditions précédentes |
+| Clé par dossier, hachée **et** copie chiffrée | le haché seul interdisait l'idempotence du provisionnement |
+| Filtre `X-Company-Key` | 401 si l'on ne sait pas qui appelle, 403 si l'on écrit chez un autre |
+| `provision`, `revoke`, `verify`, **`rotate-key`** | et la grâce de cinq minutes |
+| L'empreinte du mot de passe | un seul compte pour les deux applications |
+| `tier_digits` à 6 | deux migrations se contredisaient ; celle qui posait 6 ne s'exécutait jamais |
+
+#### 22.2 — La suite de Comptaflow était rouge avant de commencer
+
+Et depuis assez longtemps pour qu'on ne sache plus distinguer une régression
+d'une panne installée. Quatre causes, aucune liée à la passerelle.
+
+**Trois migrations écrivaient du SQL propre à MySQL** — `UPDATE ... JOIN` et
+`ALTER TABLE ... MODIFY`. La suite tourne sur SQLite : elle s'arrêtait sur
+« syntax error near "ec" », puis « near "MODIFY" », et rien ne s'exécutait
+derrière. La voie MySQL est conservée pour la production ; les autres moteurs
+passent par le Blueprint, qui sait changer une colonne sans doctrine/dbal
+depuis Laravel 11.
+
+**`UserFactory` était restée le modèle livré par Laravel.** Elle posait
+`email`, `email_verified_at` et `remember_token`, que la table `users` n'a pas,
+et taisait `last_name`, `role`, `pack`, `is_online`, `is_active` et
+`is_blocked`, qui sont obligatoires. `User::factory()` échouait donc à la
+première insertion — **et c'est le point de départ de presque toute épreuve à
+écrire**.
+
+**`SyscohadaTftDemoTest` avait été écrit contre un schéma antérieur** : `name`
+et `email` pour une fiche qui porte `company_name` et `email_adresse`, pas de
+`user_id` sur l'exercice ni sur l'écriture, `journal_id` là où la colonne
+s'appelle `code_journal_id`, et 1 en « dummy » pour deux clés étrangères qui
+sont tenues. Le rapport TFT qu'il vérifie rend désormais les bons montants.
+
+**57 épreuves vertes, 200 vérifications.** La seule ignorée l'est
+volontairement : elle attend la chute de la tolérance de transition.
+
+#### 22.3 — La clé chiffrée ne tenait pas dans sa colonne
+
+Première liaison lancée pour de vrai, les deux applications côte à côte :
+
+```
+SQLSTATE[22001] 1406 Data too long for column 'comptaflow_sync_key'
+```
+
+Comptaflow avait créé le dossier et rendu la clé. **Selflow n'a pas pu la
+ranger.** La colonne est un `varchar(255)`, posée en juin quand la clé s'y
+écrivait **en clair**. Le lot 15 a posé le chiffrement — cast `encrypted` —
+sans toucher à la colonne. Or une clé chiffrée pèse **288 caractères** : elle
+n'y est jamais entrée, et n'y serait jamais entrée.
+
+**Pourquoi quarante-deux épreuves vertes ne disaient rien.** SQLite **ignore
+la longueur déclarée d'un `varchar`** : il range la chaîne entière sans un mot.
+MySQL refuse. La liaison passait au vert sur un chemin que la production ne
+pouvait pas emprunter.
+
+C'est la famille du lot 21 prise par l'autre bout : là une colonne absente,
+ici une colonne trop étroite. Dans les deux cas, **la base des épreuves ne
+ressemble pas à celle de la production**.
+
+`text`, et non `varchar(1024)` : la taille d'un chiffré dépend de la clé, du
+vecteur d'initialisation et de l'empreinte. On ne repose pas un plafond qu'il
+faudra relever. Les trois colonnes chiffrées de `fne_credentials` étaient déjà
+en `text` ; celle-ci était la seule restée en arrière.
+
+**L'épreuve ne tente pas d'écrire** — SQLite accepterait. Elle lit **le type
+déclaré** du schéma, que SQLite conserve fidèlement même s'il ne l'applique
+pas. Et elle découvre les colonnes chiffrées à la lecture des modèles : une
+colonne chiffrée ajoutée demain est couverte sans que personne y pense.
+
+#### 22.4 — La liaison, éprouvée de bout en bout
+
+| Étape | Constat |
+|---|---|
+| Provisionnement | Comptaflow crée le dossier, génère la clé, la rend |
+| **Rejeu après l'échec** | **le même dossier est rendu, pas un second** — l'idempotence tient |
+| Rangement chez Selflow | clé chiffrée en base, 50 caractères en clair après déchiffrement |
+| Déversement du référentiel | 45 comptes, 10 journaux, arrivés et comptés chez Comptaflow |
+| `tier_digits` | vaut bien **6** |
+| Rotation | la clé change, l'indice passe de `WOVc` à `Noco` |
+| Période de grâce | l'ancienne clé vit encore **289 secondes** sur les 300 annoncées |
+
+#### 22.5 — Deux épreuves qui ne tenaient qu'à la machine
+
+**`PhotoDeLArticleTest` ne passait que sur une machine mal installée.** Pour
+éprouver le chemin sans `public/storage`, elle supprimait le dossier — mais
+seulement si elle l'avait elle-même créé, précaution juste. Sur tout poste où
+`php artisan storage:link` a été lancé, c'est-à-dire l'installation normale,
+« retirer » ne retirait rien et l'épreuve tombait. Elle déplace désormais le
+dossier public au lieu de toucher au vrai.
+
+**Le tableau de bord général répondait 500 (Internal Server Error — erreur
+interne du serveur) selon la machine.** Il appelait `CONCAT()`, que **SQLite ne
+connaît qu'à partir de la 3.44**. Le nom d'un employé se compose maintenant en
+PHP, comme `RapportControleur` le faisait déjà.
+
+**Quatre autres emplois trouvés en cherchant** — `DATE_FORMAT()`, `YEAR()` et
+`MONTH()`, propres à MySQL. Ceux-là marchent en production. Leur coût est
+ailleurs : **aucune épreuve ne pouvait couvrir les deux rapports qui les
+portent**, l'épreuve tombant avant d'avoir rien vérifié.
+`ExpressionSqlPortable` ne garde que ce que la base doit calculer, parce qu'il
+sert à regrouper ; le reste se compose en PHP.
+
+- `tests/Feature/ColonnesChiffreesTest.php` — 3 épreuves
+- `tests/Feature/SqlPortableTest.php` — 2 épreuves
+- Chez Comptaflow : `tests/Feature/AucunSecretVersionneTest.php` — 2 épreuves
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
@@ -3213,13 +3349,20 @@ secret partagé, des deux côtés de la passerelle. C'est ce qui permet de
 déployer Selflow et Comptaflow séparément sans rien casser — et **tant que
 c'est en place, un secret volé écrit et lit dans n'importe quel dossier**.
 
-Trois blocs, marqués en majuscules dans le code, à retirer **ensemble** :
+**Quatre** blocs, marqués en majuscules dans le code, à retirer **ensemble** :
 
 | Où | Quoi |
 |---|---|
 | Selflow | `ExternalSyncControleur::entrepriseDeLaCle()` |
 | Comptaflow | `VerifieCleEntreprise::handle()` |
 | Comptaflow | le `??` de `ExternalSyncController::entrepriseDeLaRequete()` |
+| Comptaflow | `ExternalCompanyController::entrepriseDeLaRequete()` — **le quatrième, relevé au lot 22** |
+
+Le quatrième n'était compté nulle part. Son commentaire dit pourtant « à
+retirer avec celle de `VerifieCleEntreprise` » : l'auteur le savait, le
+décompte ne l'a pas suivi. **En retirer trois sur quatre aurait laissé la porte
+ouverte en croyant l'avoir fermée**, et les deux épreuves de garde seraient
+passées au vert en le disant.
 
 Deux épreuves les gardent, une de chaque côté : elles **passent** aujourd'hui
 et **tomberont** le jour de la fermeture, forçant à activer celles qui les
@@ -3749,7 +3892,7 @@ n'est qu'un outil.
 | 5<sup>e</sup> | 24/08/2026 | 17 | le lot 11 (section 12), le volet achat des écritures — le 401 et la TVA déductible par nature —, le régime d'imposition au volet FNE, deux décisions arrêtées de plus, et le point de la colonne `montant_autres_taxes` à trancher |
 | 6<sup>e</sup> | 24/08/2026 | 18 | le lot 12 (section 13) : la colonne de taxes retirée, le résultat par site, et ses cinq décisions. La section 7 passe de « ce que je propose » à « ce qui a été livré » ; les deux chantiers de confort quittent la liste de ce qui reste, où il ne demeure que le point d'entrée de Comptaflow |
 | 7<sup>e</sup> | 25/08/2026 | 20 | le lot 13 (section 14) : la photo de fond et son vrai motif, le secteur déduit du parcours, le verrou sur ce qui porte des données, les modules rouverts, `selflow:photos`. Les lots 12 et 13 entrent au tableau des lots livrés ; la section 13 dit désormais que les deux tables de taxes de l'achat sont parties, et que ce retrait a mis au jour l'absence de ligne de TVA au pavé de l'achat. Trois coupures de page forcées sont remplacées par des espaces : elles laissaient trois feuillets à trois ou cinq lignes |
-| 8<sup>e</sup> | 27/08/2026 | 32 | les lots 14 à 20 (sections 15 à 21), et les sept lignes correspondantes au tableau des lots livrés. La section 2.2 change de nature : le point d'entrée qui reçoit le référentiel **n'est plus le point bloquant** — la session Comptaflow l'a livré —, remplacé par la rotation des clés et sa période de grâce, le retrait conjoint des trois tolérances de transition, la fenêtre de liaison qui demande encore le mot de passe d'un client, l'`APP_URL` erronée et les fichiers d'exemple qui portent une clé. Un tableau nouveau dit ce que la session Comptaflow a livré et trouvé — dont `tier_digits` qui valait 8 et non 6. `EXTERNAL_SYNC_SECRET` passe de « à poser » à **« à changer »** et rejoint ce qui revient au propriétaire : la valeur en place est publiée dans l'historique |
+| 8<sup>e</sup> | 27/08/2026 | 32 | les lots 14 à 20 (sections 15 à 21), et les sept lignes correspondantes au tableau des lots livrés. La section 2.2 change de nature : le point d'entrée qui reçoit le référentiel **n'est plus le point bloquant** — la session Comptaflow l'a livré —, remplacé par la rotation des clés et sa période de grâce, le retrait conjoint des tolérances de transition, la fenêtre de liaison qui demande encore le mot de passe d'un client, l'`APP_URL` erronée et les fichiers d'exemple qui portent une clé. Un tableau nouveau dit ce que la session Comptaflow a livré et trouvé — dont `tier_digits` qui valait 8 et non 6. `EXTERNAL_SYNC_SECRET` passe de « à poser » à **« à changer »** et rejoint ce qui revient au propriétaire : la valeur en place est publiée dans l'historique |
 
 ### L'état de l'application en PDF
 

@@ -77,7 +77,7 @@ class PhotoDeLArticleTest extends TestCase
 
     protected function tearDown(): void
     {
-        $this->retirerLeLienDeStockage();
+        $this->rendreLeDossierPublic();
 
         parent::tearDown();
     }
@@ -92,25 +92,67 @@ class PhotoDeLArticleTest extends TestCase
      */
     private function poserLeLienDeStockage(): void
     {
-        if (!file_exists(public_path('storage'))) {
-            @mkdir(public_path('storage'), 0777, true);
-            $this->lienPose = true;
-        }
-
-        Produit::oublierLeLienDeStockage();
+        $this->deplacerLeDossierPublic(avecLien: true);
     }
 
     private function retirerLeLienDeStockage(): void
     {
-        if ($this->lienPose && is_dir(public_path('storage'))) {
-            @rmdir(public_path('storage'));
-            $this->lienPose = false;
+        $this->deplacerLeDossierPublic(avecLien: false);
+    }
+
+    /**
+     * Déplacer le dossier public plutôt que toucher le vrai.
+     *
+     * La version précédente creusait et supprimait `public/storage` pour de
+     * bon, et ne supprimait que ce qu'elle avait elle-même créé — une
+     * précaution juste, mais qui rendait l'épreuve dépendante de la machine :
+     * **sur tout poste où `php artisan storage:link` a été lancé**, ce qui est
+     * l'installation normale, le lien était déjà là, « retirer » ne retirait
+     * rien, et l'épreuve du chemin sans lien tombait. Elle ne passait que sur
+     * une machine mal installée.
+     *
+     * `usePublicPath()` change l'endroit où le code va regarder. Le lien réel
+     * du développeur n'est ni lu, ni créé, ni détruit.
+     */
+    private function deplacerLeDossierPublic(bool $avecLien): void
+    {
+        $this->publicOrigine ??= public_path();
+
+        $this->dossierFactice = sys_get_temp_dir()
+            . DIRECTORY_SEPARATOR . 'selflow-public-' . bin2hex(random_bytes(6));
+
+        @mkdir($this->dossierFactice, 0777, true);
+
+        if ($avecLien) {
+            @mkdir($this->dossierFactice . DIRECTORY_SEPARATOR . 'storage', 0777, true);
+        }
+
+        $this->app->usePublicPath($this->dossierFactice);
+
+        Produit::oublierLeLienDeStockage();
+    }
+
+    /**
+     * Remettre le dossier public d'origine, et effacer le factice.
+     */
+    private function rendreLeDossierPublic(): void
+    {
+        if ($this->publicOrigine !== null) {
+            $this->app->usePublicPath($this->publicOrigine);
+            $this->publicOrigine = null;
+        }
+
+        if ($this->dossierFactice !== null) {
+            @rmdir($this->dossierFactice . DIRECTORY_SEPARATOR . 'storage');
+            @rmdir($this->dossierFactice);
+            $this->dossierFactice = null;
         }
 
         Produit::oublierLeLienDeStockage();
     }
 
-    private bool $lienPose = false;
+    private ?string $publicOrigine = null;
+    private ?string $dossierFactice = null;
 
     // ── La source : photoReelle() ────────────────────────────────────
 
