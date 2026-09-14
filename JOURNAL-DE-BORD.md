@@ -3325,7 +3325,7 @@ numéro d'origine rangé dessous. Selflow ne change rien chez lui.
 | | Selflow envoie | Le dossier range | Dessous |
 |---|---|---|---|
 | Compte, dossier à 8 chiffres | `411100` | `41110000` | `411100` |
-| Journal, dossier à 4 caractères | `VTE`, `OD` | `VTE0`, `OD00` | `VTE`, `OD` |
+| Journal, dossier à 4 caractères | `VTE`, `OD` | `VTE1`, `OD01` — voir 24.1 | `VTE`, `OD` |
 | Tiers | `410001` | un numéro **régénéré** par Comptaflow | `410001` |
 
 Les écritures désignent toujours les comptes à la manière de Selflow : elles
@@ -3394,10 +3394,10 @@ qui part à la DGI.
 
 | Point | Chez qui |
 |---|---|
-| Les codes journaux s'affichent désormais `VTE0`, `OD00` chez Comptaflow | le propriétaire, pour information |
-| Comptaflow appelle `link-company` chez Selflow, **route qui n'existe pas** : la liaison lancée depuis Comptaflow ne range pas la clé chez Selflow | à écrire |
+| ~~Les codes journaux s'affichent `VTE0`, `OD00`~~ — faux, corrigé au lot 24 : `VTE1`, `OD01` | — |
+| ~~Comptaflow appelle `link-company` chez Selflow, route qui n'existe pas~~ | fait au lot 24 |
 | Les quatre copies de la règle dans les imports de Comptaflow | à rebrancher sur `UniformisationImport` |
-| Les deux PDF : leurs scripts vivaient dans une session distante et sont perdus | à refaire |
+| ~~Les deux PDF, dont les scripts sont perdus~~ | refaits au lot 24, en HTML imprimé par Chrome |
 
 **Selflow : 1 063 épreuves, 4 197 vérifications, toutes vertes.**
 
@@ -3406,6 +3406,109 @@ qui part à la DGI.
 - Chez Comptaflow : `DeversementReferentielTest` gagne la convention du dossier
   et les dossiers d'avant la règle ; le refus 401 n'est plus ignoré. **69
   épreuves, 242 vérifications, aucune ignorée.**
+
+---
+
+### Lot 24 — Laisser Comptaflow faire son import — **TERMINÉ**
+
+Le propriétaire a relu le lot 23 et l'a corrigé sur le point qui comptait :
+**Comptaflow ne complète pas `VTE` en `VTE0`, il le complète en `VTE1`**, et
+`OD` en `OD01`. La normalisation du lot 23 était une copie, et une copie
+fausse. « Ne change pas la logique, laisse Comptaflow faire son import. »
+
+Quatre demandes : les deux PDF à jour, la liaison lancée depuis Comptaflow à
+réparer, les lignes déjà reçues à renuméroter, et la configuration du dossier
+qui suit celle de Comptaflow pour tout — comptes, codes journaux, tiers.
+
+#### 24.1 — Le déversement passe par l'import réel
+
+La règle de Comptaflow vit dans `AdminConfigController::importStaging()` —
+deux mille lignes — et ce qu'il y a de décisif n'est pas dans la
+normalisation seule :
+
+| Étape de l'import | Ce qu'elle fait d'un code journal |
+|---|---|
+| `standardizeJournalCode()` | `VTE` sur quatre caractères devient `VTE1`, `OD` devient `OD01`, `BQ1` devient `BQ01` |
+| Code déjà valide | gardé tel quel — `MOOV` reste `MOOV` |
+| Code invalide | séquence par type, via `CodeJournalController::getNextSequentialCode()` |
+| Collision | renuméroté : si le comptable a déjà `VTE1`, celui de Selflow devient `VTE2` |
+
+Et pour un tiers : un numéro déjà conforme — six caractères, bon préfixe,
+numérique — est **gardé**, sinon régénéré. Le lot 23 régénérait tout.
+
+Aucune copie ne pouvait tenir cela. Le référentiel de Selflow est donc
+**déposé comme l'écran d'import le dépose** : une ligne `ImportStaging`, la
+correspondance de colonnes que l'écran ferait choisir — elle ne change jamais,
+Selflow envoie toujours les mêmes champs —, puis `ImportCommitJob`, lancé de
+façon synchrone. La préparation est lue une fois de plus pour rapporter ce
+que l'import écarte et pourquoi : le job ne le dit pas ligne à ligne.
+
+Pour les écritures, `UniformisationImport` ne normalise plus rien : il appelle
+`standardizeAccountNumber()` et `standardizeJournalCode()`, rendues publiques.
+Le journal se cherche **par le code d'origine d'abord** : chercher `VTE1` en
+premier rattacherait les ventes de Selflow au journal du comptable.
+
+La configuration : le provisionnement ne pose plus `tier_digits` ni
+`tier_id_type` depuis Selflow. Un dossier neuf prend les défauts de
+Comptaflow, que le comptable règle ensuite.
+
+#### 24.2 — Les lignes déjà reçues
+
+`php artisan selflow:aligner-sur-import`, chez Comptaflow, avec `--simuler`
+et `--dossier=`. Elle fait tourner **la préparation de l'import** sur les
+lignes sans numéro d'origine des dossiers liés.
+
+Le piège : soumise telle quelle, une ligne existante est reconnue par
+l'import et déclarée « déjà présente », sans rien générer. Son numéro est
+donc remplacé, le temps de la préparation et dans une transaction, par
+`~` suivi de l'identifiant — qu'aucune règle ne produit et qu'aucune
+recherche par préfixe ne rencontre.
+
+Sur la machine de développement, dossier 101 : `ACH`, `BQE`, `CAI`, `MTN`,
+`OMY`, `RAN`, `VTE` deviennent `ACH1` … `VTE1`, `OD` devient `OD01`, `MOOV`
+et `WAVE` restent, le tiers `410001` reste. Les écritures ne bougent pas.
+La trésorerie, qui recopie le code du journal au lieu de le désigner, suit.
+
+Deux comptes qui tomberaient sur le même numéro **ne sont pas fusionnés** :
+des tables renvoient à un compte en cascade, et supprimer l'un peut effacer
+des données. La commande le signale.
+
+#### 24.3 — La liaison lancée depuis Comptaflow
+
+Comptaflow appelait `POST /api/external/link-company` chez Selflow depuis ses
+deux écrans de liaison. **La route n'existait pas** : 404 (Not Found —
+introuvable). L'écran de création ne lisait pas la réponse et annonçait
+« créé et lié avec succès ».
+
+`ExternalSyncControleur::lierDossier()` range la clé comme la validation
+d'une demande la range — écriture directe, hors `$fillable`, chiffrée — et
+envoie le référentiel par `DeverserReferentielComptaflow`, **hors de la
+requête** : Comptaflow attend encore la réponse, et le rappeler dans la même
+requête bloque un serveur à un seul processus.
+
+Simulation d'attaque : le secret seul autorise l'appel. Il ne doit pas
+suffire à envoyer les livres d'une entreprise liée vers un autre dossier.
+Une entreprise déjà liée à un **autre** dossier est refusée en 409
+(Conflict — conflit) ; le même dossier peut reposer sa clé.
+
+Chez Comptaflow, l'écran de création lit la réponse et dit quand la clé n'a
+pas été rangée.
+
+#### 24.4 — Les deux PDF
+
+Les scripts `plan.py` et `etat.py` vivaient dans une session distante et sont
+perdus, et reportlab n'est pas sur cette machine. Les deux documents sont
+refaits en HTML, imprimés par Chrome sans affichage, à partir de leur texte
+extrait et de ce journal. Les sources restent dans le répertoire de travail,
+non versionnées : c'est le PDF qui fait foi.
+
+#### 24.5 — Les épreuves
+
+- Selflow : `LiaisonOuverteParComptaflowTest` — 5 épreuves ; la suite entière, 1068 épreuves et 4216 vérifications, toutes vertes.
+- Comptaflow : les schémas d'épreuve gagnent les tables que l'import lit —
+  `import_stagings`, `sections_analytiques`, `tresorerie`, et ce que les
+  modèles filtrent en silence. Les assertions suivent la règle de l'import :
+  `VTE1`, `MTN1`, un tiers conforme gardé. 69 épreuves, 239 vérifications.
 
 ---
 
@@ -3981,9 +4084,10 @@ reste chez le mainteneur de Comptaflow, la règle d'or FNE, le choix
 d'imprimante, la comptabilité. **Le mettre à jour fait partie du lot**, comme
 ce journal — le propriétaire le demande à chaque fois.
 
-Il est fabriqué par un script reportlab, `plan.py`, tenu dans le répertoire de
-travail de la session et non versionné : c'est le PDF qui fait foi, le script
-n'est qu'un outil.
+Il était fabriqué par un script reportlab, `plan.py`, perdu avec la session
+qui le tenait. Depuis la 9ᵉ édition, il est écrit en HTML et imprimé par
+Chrome sans affichage ; la source reste hors dépôt, et c'est le PDF qui fait
+foi.
 
 | Édition | Date | Pages | Ce qu'elle ajoute |
 |---|---|---|---|
@@ -3995,6 +4099,7 @@ n'est qu'un outil.
 | 6<sup>e</sup> | 24/08/2026 | 18 | le lot 12 (section 13) : la colonne de taxes retirée, le résultat par site, et ses cinq décisions. La section 7 passe de « ce que je propose » à « ce qui a été livré » ; les deux chantiers de confort quittent la liste de ce qui reste, où il ne demeure que le point d'entrée de Comptaflow |
 | 7<sup>e</sup> | 25/08/2026 | 20 | le lot 13 (section 14) : la photo de fond et son vrai motif, le secteur déduit du parcours, le verrou sur ce qui porte des données, les modules rouverts, `selflow:photos`. Les lots 12 et 13 entrent au tableau des lots livrés ; la section 13 dit désormais que les deux tables de taxes de l'achat sont parties, et que ce retrait a mis au jour l'absence de ligne de TVA au pavé de l'achat. Trois coupures de page forcées sont remplacées par des espaces : elles laissaient trois feuillets à trois ou cinq lignes |
 | 8<sup>e</sup> | 27/08/2026 | 32 | les lots 14 à 20 (sections 15 à 21), et les sept lignes correspondantes au tableau des lots livrés. La section 2.2 change de nature : le point d'entrée qui reçoit le référentiel **n'est plus le point bloquant** — la session Comptaflow l'a livré —, remplacé par la rotation des clés et sa période de grâce, le retrait conjoint des tolérances de transition, la fenêtre de liaison qui demande encore le mot de passe d'un client, l'`APP_URL` erronée et les fichiers d'exemple qui portent une clé. Un tableau nouveau dit ce que la session Comptaflow a livré et trouvé — dont `tier_digits` qui valait 8 et non 6. `EXTERNAL_SYNC_SECRET` passe de « à poser » à **« à changer »** et rejoint ce qui revient au propriétaire : la valeur en place est publiée dans l'historique |
+| 9<sup>e</sup> | 14/09/2026 | 13 | les lots 21 à 24 (sections 22 à 25). La section 2 change de nature : ce qui reste n'est plus du code mais un ordre de déploiement — Selflow, Comptaflow, puis l'alignement des lignes déjà reçues. Les tolérances, la rotation et la liaison depuis Comptaflow passent de « à faire » à « livré ». La section 8 dit que la convention des tiers ne commande plus la passerelle. Refait en HTML imprimé par Chrome : `plan.py` est perdu |
 
 ### L'état de l'application en PDF
 
@@ -4018,6 +4123,7 @@ ensemble.
 | 5<sup>e</sup> | 24/08/2026 | 7 | le lot 12 : 847 épreuves / 3 684 vérifications, 275 classes, 113 migrations, 190 révisions, révision `a3d9630`. Les libellés et le résultat par site entrent à la ligne « Comptabilité » ; la table des chantiers proposés disparaît — il n'en reste aucun |
 | 6<sup>e</sup> | 25/08/2026 | 8 | le lot 13 : 885 épreuves / 3 767 vérifications, 276 classes, 319 routes, 116 migrations, 195 révisions, révision `8d7d6ad`. Une ligne « Paramétrage » entre au tableau des domaines ; la photo de fond rejoint la ligne « Ventes ». La ligne « Taxes personnalisées à l'achat » quitte ce qui reste — les deux tables sont supprimées — et cède la place au diagnostic des photos |
 | 7<sup>e</sup> | 27/08/2026 | 10 | les lots 14 à 20 : 1 040 épreuves / 4 152 vérifications, 283 classes, 322 routes, 119 migrations, 205 révisions, révision `0b329c4`. Une ligne **« Points de vente »** entre au tableau des domaines — le nom du site part à la DGI, l'application n'en invente plus aucun, et le site actif survit à la déconnexion ; la ligne « Comptabilité » dit que le plan OHADA est livré **en entier** et non plus par ses 41 comptes communs. La section 3 gagne « Une clé par dossier, et non un secret pour tous » ; la section 4 gagne cinq portes fermées de plus, dont la clé qui se collait dans un formulaire et l'annuaire des clients qu'un secret volé ouvrait. Le tableau des épreuves gagne un domaine « Passerelle et liaison » et dit combien d'épreuves tombent sans leur correctif. Une section 7 nouvelle résume les sept lots ; la section 8 est l'état du dépôt |
+| 8<sup>e</sup> | 14/09/2026 | 5 | les lots 21 à 24 : 1068 épreuves / 4216 vérifications, 323 routes, 120 migrations, 218 révisions. La section 3 devient « un déversement est un import » ; la section 4 gagne les tolérances fermées, la liaison qui ne se détourne pas et l'avoir de BAPA ; la section 6 porte l'ordre de déploiement. Refait en HTML imprimé par Chrome : `etat.py` est perdu |
 
 Fabriqué par `etat.py`, dans le répertoire de travail de la session, non
 versionné — comme `plan.py`, c'est le PDF qui fait foi.
