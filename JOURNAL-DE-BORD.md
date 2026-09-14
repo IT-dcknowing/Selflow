@@ -3295,6 +3295,120 @@ sert à regrouper ; le reste se compose en PHP.
 
 ---
 
+### Lot 23 — Un déversement est un import — **TERMINÉ**
+
+Trois demandes du propriétaire, le 11 septembre, et une décision qui défait
+celle de la veille.
+
+#### 23.1 — L'exercice à l'ouverture, et le refus qui se taisait
+
+Le provisionnement créait le dossier, l'administrateur et la clé, **mais aucun
+exercice comptable**. Comptaflow refusait alors chaque écriture en 422
+(Unprocessable Content — contenu non traitable), et côté Selflow la tâche de
+déversement marquait l'écriture en échec **sans écrire nulle part pourquoi**.
+Six écritures « parties », zéro arrivée. Selflow annonce désormais son
+exercice ouvert, Comptaflow l'ouvre à la création comme au rejeu, et le refus
+se journalise avec son motif (`d5b29c5`).
+
+#### 23.2 — La convention du dossier appartient à Comptaflow
+
+Le soir du 11, le dossier 101 recevait des comptes à six chiffres dans une
+configuration à huit, et des journaux de deux à quatre caractères dans une
+configuration à quatre. `342d776` avait réglé l'écart **en alignant le
+dossier sur Selflow**.
+
+Le propriétaire a tranché dans l'autre sens, et c'est la bonne lecture :
+**un déversement est un import.** Tout ce qui entre dans Comptaflow passe par
+sa machine d'uniformisation, prend la convention du dossier, et garde le
+numéro d'origine rangé dessous. Selflow ne change rien chez lui.
+
+| | Selflow envoie | Le dossier range | Dessous |
+|---|---|---|---|
+| Compte, dossier à 8 chiffres | `411100` | `41110000` | `411100` |
+| Journal, dossier à 4 caractères | `VTE`, `OD` | `VTE0`, `OD00` | `VTE`, `OD` |
+| Tiers | `410001` | un numéro **régénéré** par Comptaflow | `410001` |
+
+Les écritures désignent toujours les comptes à la manière de Selflow : elles
+retrouvent leurs lignes par ce numéro d'origine. C'est le principe de
+fixation que l'écran d'importation applique déjà.
+
+La règle vit dans `UniformisationImport`, chez Comptaflow. Elle était écrite
+quatre fois dans ses classes d'import, **et les copies avaient divergé** :
+l'une complétait un code journal court, l'autre non. Le déversement n'en
+avait aucune. Les quatre copies n'ont pas été rebranchées : elles servent
+l'écran d'importation, qui marche.
+
+**Le défaut trouvé en éprouvant.** Chercher sur le numéro à la convention,
+puis sur `numero_original`, ne retrouvait plus **les dossiers liés avant la
+règle** : le déversement y avait rangé `VTE` et `411000` bruts, sans numéro
+d'origine. Chaque écriture de ces dossiers serait tombée en « journal
+inconnu », et chaque compte se serait créé une seconde fois. La recherche
+essaie maintenant trois clés, **une à une et dans l'ordre** — la convention,
+l'origine, le brut. Un seul `OR` aurait rendu la ligne que la base voulait
+bien rendre.
+
+Le provisionnement cesse d'aligner quoi que ce soit, et un rejeu ne défait
+plus le réglage du comptable. Le dossier 101 reste à six chiffres : c'est
+désormais son réglage, et seul le comptable le change.
+
+#### 23.3 — Les quatre portes sont fermées
+
+Le propriétaire a demandé pourquoi on ne faisait pas simplement ce qui est
+juste. Il n'y avait pas de raison technique de plus : le journal de
+Comptaflow ne montrait **aucun appel réel** passé par une tolérance, et
+Comptaflow présentait déjà la clé à `company-info` et `tier-info`.
+
+Les quatre sont tombées ensemble. Un appel sans `X-Company-Key` reçoit 401
+(Unauthorized — non authentifié), des deux côtés.
+
+**Une exception, voulue** : `list-companies`, chez Selflow, reste accessible
+sans clé. Il sert à rapprocher un dossier qui n'est pas encore lié, donc qui
+n'a pas de clé à présenter, et ne rend qu'un nom et un identifiant.
+
+**L'ordre de déploiement n'est pas indifférent : Selflow d'abord, Comptaflow
+ensuite.** Un Comptaflow ancien ignore l'en-tête que Selflow envoie ; un
+Comptaflow à jour refuserait un Selflow qui ne l'envoie pas.
+
+#### 23.4 — L'avoir d'un BAPA est fermé
+
+**La DGI ne normalise pas l'avoir d'un bordereau d'achat aux producteurs
+agricoles.** Selflow le proposait : la pièce se serait établie dans les
+livres, avec écritures et mouvement de stock, et rien ne serait parti à la
+plateforme.
+
+**Deux chemins mènent au bordereau, et un seul se lit dans `type_facture`.**
+Une facture d'achat ordinaire dont le fournisseur n'a pas de NCC part aussi
+en normalisation BAPA. Fermer sur le seul type aurait laissé passer le cas le
+plus courant. `Achat::estBapa()` tient les deux.
+
+La fermeture est posée **au contrôleur**, sur les trois routes de l'avoir
+d'achat, et pas seulement à l'écran : masquer un bouton ne ferme pas une
+route. Les deux listes de choix écartent les bordereaux, le préfixe `BA-`
+compris, et l'écran le dit en une ligne.
+
+**Le périmètre FNE n'est pas touché.** Rien dans `FneService` ni dans les
+blocs de certification : on empêche de créer une pièce, on ne change pas ce
+qui part à la DGI.
+
+#### 23.5 — Ce qui reste
+
+| Point | Chez qui |
+|---|---|
+| Les codes journaux s'affichent désormais `VTE0`, `OD00` chez Comptaflow | le propriétaire, pour information |
+| Comptaflow appelle `link-company` chez Selflow, **route qui n'existe pas** : la liaison lancée depuis Comptaflow ne range pas la clé chez Selflow | à écrire |
+| Les quatre copies de la règle dans les imports de Comptaflow | à rebrancher sur `UniformisationImport` |
+| Les deux PDF : leurs scripts vivaient dans une session distante et sont perdus | à refaire |
+
+**Selflow : 1 063 épreuves, 4 197 vérifications, toutes vertes.**
+
+- `tests/Feature/AvoirDeBapaTest.php` — 11 épreuves
+- `tests/Feature/PasserelleEntranteTest.php` — la tolérance remplacée par trois refus
+- Chez Comptaflow : `DeversementReferentielTest` gagne la convention du dossier
+  et les dossiers d'avant la règle ; le refus 401 n'est plus ignoré. **69
+  épreuves, 242 vérifications, aucune ignorée.**
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
@@ -3342,31 +3456,16 @@ verrouillent les trois situations.
 
 Elles sont documentées pour ne pas être redécouvertes.
 
-### La tolérance de transition de la passerelle — **OUVERTE, DÉLIBÉRÉMENT**
+### La tolérance de transition de la passerelle — **FERMÉE AU LOT 23**
 
-Un appel entrant **sans** en-tête `X-Company-Key` passe encore sur le seul
-secret partagé, des deux côtés de la passerelle. C'est ce qui permet de
-déployer Selflow et Comptaflow séparément sans rien casser — et **tant que
-c'est en place, un secret volé écrit et lit dans n'importe quel dossier**.
+Un appel entrant sans en-tête `X-Company-Key` passait sur le seul secret
+partagé, des deux côtés : un secret volé écrivait et lisait dans n'importe
+quel dossier. Les quatre blocs sont tombés ensemble — voir 23.3 —, et les
+épreuves qui documentaient la porte ouverte ont cédé la place à celles du
+refus 401 (Unauthorized — non authentifié).
 
-**Quatre** blocs, marqués en majuscules dans le code, à retirer **ensemble** :
-
-| Où | Quoi |
-|---|---|
-| Selflow | `ExternalSyncControleur::entrepriseDeLaCle()` |
-| Comptaflow | `VerifieCleEntreprise::handle()` |
-| Comptaflow | le `??` de `ExternalSyncController::entrepriseDeLaRequete()` |
-| Comptaflow | `ExternalCompanyController::entrepriseDeLaRequete()` — **le quatrième, relevé au lot 22** |
-
-Le quatrième n'était compté nulle part. Son commentaire dit pourtant « à
-retirer avec celle de `VerifieCleEntreprise` » : l'auteur le savait, le
-décompte ne l'a pas suivi. **En retirer trois sur quatre aurait laissé la porte
-ouverte en croyant l'avoir fermée**, et les deux épreuves de garde seraient
-passées au vert en le disant.
-
-Deux épreuves les gardent, une de chaque côté : elles **passent** aujourd'hui
-et **tomberont** le jour de la fermeture, forçant à activer celles qui les
-remplacent, écrites juste en dessous et commentées.
+`list-companies` reste accessible sans clé, par choix : il rapproche un
+dossier qui n'est pas encore lié.
 
 ### Le secret partagé et les clés versionnées — **À RÉVOQUER**
 
@@ -3867,6 +3966,9 @@ Pour ne pas re-auditer inutilement :
   une migration nouvelle, datée du jour. Deux incidents en sont venus — les
   colonnes de `entreprises` le 20 juillet, celles de `produits` le même jour,
   qui ont bloqué le déploiement du 27 août (lot 21).
+- **Un déversement est un import.** Ce qui entre chez Comptaflow prend la
+  convention du dossier et garde son numéro d'origine dessous ; Selflow ne
+  dicte jamais la configuration d'un dossier (lot 23).
 - **Une migration décrit un état, pas un geste.** Ce qu'elle retire, elle
   vérifie d'abord que c'est là ; ce qu'elle pose, elle vérifie d'abord que ce
   ne l'est pas. `MigrationsRejouablesTest` le tient.

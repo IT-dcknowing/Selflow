@@ -39,11 +39,14 @@ use Tests\TestCase;
  * clé qui en désigne une autre reçoit 403 (Forbidden — accès interdit), et une
  * clé inconnue 401 (Unauthorized — non authentifié).
  *
- * **La tolérance de transition reste ouverte** tant que Comptaflow n'envoie
- * pas l'en-tête : un appel sans clé passe encore sur le seul secret.
- * `test_la_tolerance_de_transition_est_encore_ouverte` la documente, et
- * tombera le jour où elle sera retirée — c'est ce qui forcera à activer
- * l'épreuve qui la remplace.
+ * **La tolérance de transition est fermée.** Elle laissait passer un appel
+ * sans clé sur le seul secret, le temps que Comptaflow envoie l'en-tête. Il
+ * l'envoie désormais sur `company-info` et `tier-info` : un secret volé ne
+ * suffit plus à lire la fiche d'une entreprise ni son carnet d'adresses.
+ *
+ * `list-companies` seul reste accessible sans clé, et c'est voulu : il sert à
+ * rapprocher un dossier qui n'est pas encore lié, et ne rend qu'un nom et un
+ * identifiant.
  */
 class PasserelleEntranteTest extends TestCase
 {
@@ -198,25 +201,29 @@ class PasserelleEntranteTest extends TestCase
             ])->assertUnauthorized();
     }
 
-    // ── La porte encore ouverte ──────────────────────────────────────
+    // ── La porte fermée ──────────────────────────────────────────────
 
-    public function test_la_tolerance_de_transition_est_encore_ouverte(): void
+    public function test_sans_cle_le_refus_est_401(): void
     {
-        // **Cette épreuve documente un défaut, elle ne le célèbre pas.** Tant
-        // que Comptaflow n'envoie pas l'en-tête sur ces routes, un appel sans
-        // clé passe sur le seul secret partagé.
-        //
-        // Le jour où la tolérance sera retirée — en même temps que sa jumelle
-        // dans le middleware `cle.entreprise` de Comptaflow — cette épreuve
-        // tombera. C'est ce qui forcera à activer celle qui la remplace,
-        // ci-dessous.
+        // Le secret seul suffisait. Il ne suffit plus : il dit que l'appel
+        // vient de Comptaflow, pas de quelle entreprise.
         $this->appel('api.external.company-info', ['selflow_company_id' => $this->victime->id])
-            ->assertOk();
+            ->assertUnauthorized();
     }
 
-    // public function test_sans_cle_le_refus_sera_401(): void
-    // {
-    //     $this->appel('api.external.company-info', ['selflow_company_id' => $this->victime->id])
-    //         ->assertUnauthorized();
-    // }
+    public function test_sans_cle_le_carnet_d_adresses_reste_ferme(): void
+    {
+        $this->appel('api.external.tier-info', [
+            'selflow_company_id' => $this->victime->id,
+            'numero_de_tiers'    => '411001',
+        ])->assertUnauthorized();
+    }
+
+    public function test_list_companies_reste_accessible_sans_cle(): void
+    {
+        // Rapprocher un dossier qui n'est pas lié : il n'a pas de clé à
+        // présenter. Fermer cette route-là aurait cassé l'écran de liaison
+        // du superadministrateur de Comptaflow.
+        $this->appel('api.external.list-companies', [])->assertOk();
+    }
 }

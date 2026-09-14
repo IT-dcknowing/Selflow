@@ -210,14 +210,6 @@ class LiaisonComptaflowService
      * requête, une sauvegarde égarée, un journal mal purgé : rien ne referme
      * derrière eux. La rotation borne la durée de vie d'une fuite.
      */
-    /**
-     * La longueur des numéros de compte du plan Selflow.
-     *
-     * Les racines SYSCOHADA sont converties en six chiffres — `701` → `701000`.
-     * Comptaflow sait tenir 2-4, 6 ou 8 ; il faut lui dire lequel.
-     */
-    public const LONGUEUR_COMPTES = 6;
-
     public const JOURS_AVANT_ROTATION = 30;
 
     /**
@@ -512,30 +504,17 @@ class LiaisonComptaflowService
                 // sans que personne ne l'ait lu.
                 'admin_password_hash' => $admin?->password,
             ],
-            // La convention de numérotation des tiers doit être la même des
-            // deux côtés : la passerelle retrouve un tiers par son numéro
-            // exact, et deux conventions différentes feraient retomber chaque
-            // écriture sur son compte collectif.
+            // La convention de numérotation des tiers, à l'ouverture du
+            // dossier seulement.
+            //
+            // Elle ne commande plus rien après coup : Comptaflow régénère les
+            // numéros de tiers à sa propre convention et range le nôtre dans
+            // `numero_original`, comme le fait son écran d'importation. C'est
+            // par ce numéro d'origine que nos écritures retrouvent le tiers —
+            // le nôtre n'a donc plus à ressembler au sien.
             'numerotation_tiers' => $entreprise->numerotation_tiers ?? NumerotationTiersService::NUMERIQUE,
             'longueur_tiers'     => NumerotationTiersService::LONGUEUR,
 
-            // La longueur des numéros de compte, pour que Comptaflow configure
-            // le dossier sur **notre** convention.
-            //
-            // Sans elle, le dossier naissait avec le réglage par défaut de
-            // Comptaflow — `account_digits = 8` —, et Selflow y déversait des
-            // numéros à six chiffres. Rien ne cassait tout de suite : le
-            // déversement range les comptes tels quels, et les écritures les
-            // retrouvent. Mais le jour où quelqu'un charge un plan par l'import
-            // de Comptaflow ou crée un compte à la main, Comptaflow applique
-            // **sa** configuration et produit `41110000` à côté de `411100`.
-            // Deux conventions dans un même dossier, et un relevé qui se
-            // partage en deux.
-            //
-            // Six est aussi le format « COMPTES SAGE (6) » du référentiel de
-            // Comptaflow : c'est le seul des trois où nos comptes tombent sur
-            // des comptes existants.
-            'longueur_comptes'   => self::LONGUEUR_COMPTES,
 
             // L'exercice comptable ouvert chez nous.
             //

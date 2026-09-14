@@ -180,7 +180,12 @@
     <div id="invoice-wrap"></div>
 </div>
 
-{{-- Modal de confirmation de l'avoir fournisseur --}}
+{{-- Modal de confirmation de l'avoir fournisseur.
+     Retire pour les bordereaux d'achat aux producteurs agricoles : la DGI
+     ne normalise pas leur avoir, et une piece etablie ici resterait sans
+     contrepartie fiscale. Le controleur refuse de son cote — masquer le
+     bouton ne ferme pas la route. --}}
+@if(!$achat->estBapa())
 <div class="modal-overlay" id="modalAvoir" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
     <div class="modal" style="background:#fff; border-radius:12px; max-width:480px; width:100%; box-shadow:0 10px 30px rgba(0,0,0,0.15); overflow:hidden;">
         <div class="modal-header" style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
@@ -205,6 +210,7 @@
         </form>
     </div>
 </div>
+@endif
 @endsection
 
 @section('scripts')

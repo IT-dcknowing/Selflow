@@ -463,13 +463,15 @@ class AchatControleur
                     // Accepte l'ancien préfixe (AC-, avant le 22/07/2026) ET le
                     // nouveau (ACH-, depuis le changement de convention de
                     // numérotation), pour ne pas exclure les factures récentes.
+                    // `BA-` en est sorti : c'est le préfixe des bordereaux, et
+                    // la DGI ne normalise pas leur avoir.
                     $queryNum->where('numero_facture', 'LIKE', 'AC-%')
-                             ->orWhere('numero_facture', 'LIKE', 'ACH-%')
-                             ->orWhere('numero_facture', 'LIKE', 'BA-%');
+                             ->orWhere('numero_facture', 'LIKE', 'ACH-%');
                 })
                 ->where(function($queryType) {
                     $queryType->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir');
                 });
+            self::ecarterLesBapa($facturesDispoQuery);
             if ($pointDeVenteId) {
                 $facturesDispoQuery->where('point_de_vente_id', $pointDeVenteId);
             }
@@ -659,6 +661,11 @@ class AchatControleur
         $this->autoriserAcces($achat);
         abort_if($achat->type_facture === 'avoir', 400, "Impossible de générer un avoir sur un avoir.");
 
+        // La DGI ne normalise pas l'avoir d'un bordereau d'achat aux
+        // producteurs agricoles. Interdit au dernier verrou, et pas
+        // seulement masque a l'ecran : la route reste atteignable a la main.
+        abort_if($achat->estBapa(), 400, self::AVOIR_BAPA_INTERDIT);
+
         $request->validate([
             'raison' => ['required', 'string', 'max:255'],
         ]);
@@ -771,6 +778,36 @@ class AchatControleur
         return back()->with('succes', 'La normalisation BAPA/DGI a été effectuée avec succès. Le document est maintenant normalisé.');
     }
 
+    /** Le motif du refus, le meme partout : une seule phrase a corriger le jour ou la DGI ouvrira. */
+    private const AVOIR_BAPA_INTERDIT = "La DGI ne normalise pas encore l'avoir d'un bordereau d'achat "
+        . "aux producteurs agricoles (BAPA) : l'operation est indisponible sur cette piece.";
+
+    /**
+     * Écarte les bordereaux d'achat aux producteurs agricoles d'une liste de
+     * pièces avoirables.
+     *
+     * **La DGI ne normalise pas l'avoir d'un BAPA.** Tant qu'elle ne le fait
+     * pas, un avoir établi ici resterait sans contrepartie fiscale : la pièce
+     * existerait dans Selflow, pas chez la plateforme, et les deux états
+     * divergeraient sans que rien ne le signale. Mieux vaut ne pas proposer
+     * l'opération que d'en produire une que personne ne pourra certifier.
+     *
+     * Les deux chemins sont fermés ensemble, comme dans `Achat::estBapa()` :
+     * le type déclaré, et le fournisseur sans NCC — qui part en BAPA sans que
+     * `type_facture` le dise. Le préfixe `BA-` tombe avec eux : c'est celui que
+     * `NumerotationService` donne aux bordereaux.
+     */
+    private static function ecarterLesBapa($query)
+    {
+        return $query
+            ->where(function ($queryType) {
+                $queryType->whereNull('type_facture')
+                          ->orWhere('type_facture', '!=', 'bapa');
+            })
+            ->whereHas('fournisseur', fn($queryFourn) => $queryFourn
+                ->whereNotNull('ncc')->where('ncc', '!=', ''));
+    }
+
     public function rechercherFacturesPourAvoir(Request $request): \Illuminate\Http\JsonResponse
     {
         $entreprise = Auth::user()->entreprise;
@@ -780,14 +817,17 @@ class AchatControleur
             ->whereHas('pointDeVente', fn($queryPdv) => $queryPdv->where('entreprise_id', $entreprise->id))
             ->where('etape', 'Facture')
             ->where(function($queryNum) {
+                // `BA-` retiré : les bordereaux d'achat aux producteurs
+                // agricoles ne sont plus avoirables.
                 $queryNum->where('numero_facture', 'LIKE', 'AC-%')
-                         ->orWhere('numero_facture', 'LIKE', 'ACH-%')
-                         ->orWhere('numero_facture', 'LIKE', 'BA-%');
+                         ->orWhere('numero_facture', 'LIKE', 'ACH-%');
             })
             ->where(function($queryType) {
                 $queryType->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir');
             })
             ->where('archived', false);
+
+        self::ecarterLesBapa($query);
 
         if ($q) {
             $query->where(function($querySearch) use ($q) {
@@ -815,6 +855,11 @@ class AchatControleur
     public function detailsFacturePourAvoir(Achat $achat): \Illuminate\Http\JsonResponse
     {
         $this->autoriserAcces($achat);
+
+        // La DGI ne normalise pas l'avoir d'un bordereau d'achat aux
+        // producteurs agricoles. Interdit au dernier verrou, et pas
+        // seulement masque a l'ecran : la route reste atteignable a la main.
+        abort_if($achat->estBapa(), 400, self::AVOIR_BAPA_INTERDIT);
         $achat->load(['details.produit', 'fournisseur']);
 
         return response()->json([
@@ -851,6 +896,11 @@ class AchatControleur
         $parent = Achat::where('uuid', $request->parent_id)->firstOrFail();
         $this->autoriserAcces($parent);
         abort_if($parent->type_facture === 'avoir', 400, "Impossible de générer un avoir sur un avoir.");
+
+        // La DGI ne normalise pas l'avoir d'un bordereau d'achat aux
+        // producteurs agricoles. Interdit au dernier verrou, et pas
+        // seulement masque a l'ecran : la route reste atteignable a la main.
+        abort_if($parent->estBapa(), 400, self::AVOIR_BAPA_INTERDIT);
 
         $avoirId = null;
 

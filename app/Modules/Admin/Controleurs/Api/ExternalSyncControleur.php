@@ -241,7 +241,11 @@ class ExternalSyncControleur
             return response()->json(['success' => false, 'message' => 'Accès non autorisé.'], 401);
         }
 
-        [$porteuse, $refus] = self::entrepriseDeLaCle($request);
+        // La clé est facultative ici, et là seulement : cet écran rapproche un
+        // dossier qui n'est pas encore lié. Présentée, elle borne la réponse à
+        // ce dossier ; absente, la réponse reste ce qu'elle est devenue — un
+        // nom et un identifiant, rien de nominatif.
+        [$porteuse, $refus] = self::entrepriseDeLaCle($request, cleObligatoire: false);
         if ($refus) {
             return $refus;
         }
@@ -453,20 +457,30 @@ class ExternalSyncControleur
      *
      * @return array{0: ?Entreprise, 1: ?JsonResponse}
      */
-    private static function entrepriseDeLaCle(Request $request): array
+    private static function entrepriseDeLaCle(Request $request, bool $cleObligatoire = true): array
     {
         $cle = $request->header('X-Company-Key');
 
         if (blank($cle)) {
-            // ═══ TOLÉRANCE DE TRANSITION ═══
+            // La tolérance de transition est fermée : l'appel sans clé est
+            // refusé. Elle rendait un secret volé suffisant pour lire la fiche
+            // et le carnet d'adresses de n'importe quelle entreprise.
             //
-            // Tant que Comptaflow n'envoie pas l'en-tête, l'appel passe sur le
-            // seul secret partagé. **Tant que ce retour existe, un secret volé
-            // suffit à lire chez n'importe qui** — c'est la porte que ce lot
-            // referme, et elle n'est pas encore fermée. À retirer en même temps
-            // que la tolérance jumelle du middleware `cle.entreprise` de
-            // Comptaflow : les deux vont par paire.
-            return [null, null];
+            // Fermée **par point d'entrée**, et non en bloc : `list-companies`
+            // sert à rapprocher un dossier qui n'est justement pas encore lié,
+            // donc il n'y a pas de clé à présenter. La fermer là aussi aurait
+            // cassé l'écran superadministrateur de Comptaflow, sans rien
+            // protéger de plus : cette route ne rend déjà que le nom et
+            // l'identifiant, et le détail se demande par `company-info`, qui
+            // exige la clé.
+            if (!$cleObligatoire) {
+                return [null, null];
+            }
+
+            return [null, response()->json([
+                'success' => false,
+                'message' => "Clé de liaison absente : l'en-tête X-Company-Key est requis.",
+            ], 401)];
         }
 
         // La clé est chiffrée en base : on ne peut pas la chercher par une

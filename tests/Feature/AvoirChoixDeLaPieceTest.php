@@ -101,7 +101,15 @@ class AvoirChoixDeLaPieceTest extends TestCase
 
     private function unAchat(): Achat
     {
-        $fournisseur = Fournisseur::create(['entreprise_id' => $this->entreprise->id, 'nom' => 'Grossiste CI']);
+        // Le NCC n'est pas décoratif ici : un fournisseur qui n'en a pas fait
+        // de sa facture un bordereau BAPA, et les bordereaux ne sont plus
+        // avoirables — la DGI ne normalise pas leur avoir. Voir
+        // `AvoirDeBapaTest`.
+        $fournisseur = Fournisseur::create([
+            'entreprise_id' => $this->entreprise->id,
+            'nom' => 'Grossiste CI',
+            'ncc' => '2609876B',
+        ]);
 
         return Achat::create([
             'point_de_vente_id' => $this->site->id,

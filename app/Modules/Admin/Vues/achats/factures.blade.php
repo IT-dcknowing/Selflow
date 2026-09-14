@@ -339,6 +339,11 @@
                             <option value="{{ $f->uuid }}">{{ $f->numero_facture }} - {{ $f->fournisseur?->nom ?? 'Fournisseur inconnu' }} ({{ number_format($f->montant_ttc, 0, ',', ' ') }} F)</option>
                         @endforeach
                     </select>
+                    <div style="font-size:11.5px; color:#64748b; margin-top:6px; line-height:1.5;">
+                        <i class="fas fa-circle-info"></i>
+                        Les bordereaux d'achat aux producteurs agricoles (BAPA) ne figurent pas
+                        dans cette liste : la DGI ne normalise pas encore leur avoir.
+                    </div>
                 </div>
 
                 <div id="factureDetailsAvoir" style="display: none;">

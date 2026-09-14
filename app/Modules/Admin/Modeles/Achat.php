@@ -140,4 +140,23 @@ class Achat extends Model
     {
         return $this->hasMany(Achat::class, 'parent_id');
     }
+
+    /**
+     * Cette pièce est-elle un bordereau d'achat aux producteurs agricoles ?
+     *
+     * Deux chemins y mènent, et l'un des deux ne se voit pas dans
+     * `type_facture` : une facture d'achat ordinaire dont le fournisseur n'a
+     * pas de NCC part elle aussi en BAPA — c'est `validerFacture()` qui
+     * déclenche `NormaliserAchatBapaJob` sur ce seul critère. Ne regarder que
+     * `type_facture` laissait donc passer la moitié des bordereaux.
+     *
+     * Sert à interdire l'avoir : **la DGI ne normalise pas l'avoir d'un
+     * BAPA**. Un avoir établi ici resterait sans contrepartie fiscale, et les
+     * livres de Selflow s'écarteraient de ce que la plateforme détient.
+     */
+    public function estBapa(): bool
+    {
+        return $this->type_facture === 'bapa'
+            || empty($this->fournisseur?->ncc);
+    }
 }
