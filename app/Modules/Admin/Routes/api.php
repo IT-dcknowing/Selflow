@@ -123,5 +123,9 @@ Route::prefix('external')->middleware('throttle:externe')->group(function () {
         ->name('api.external.list-companies');
     Route::post('/tier-info', [\App\Modules\Admin\Controleurs\Api\ExternalSyncControleur::class, 'tierInfo'])
         ->name('api.external.tier-info');
+    // Comptaflow y range la clé d'un dossier qu'il vient d'ouvrir ou de
+    // rapprocher. Elle manquait : ses deux écrans de liaison tombaient en 404.
+    Route::post('/link-company', [\App\Modules\Admin\Controleurs\Api\ExternalSyncControleur::class, 'lierDossier'])
+        ->name('api.external.link-company');
 });
 

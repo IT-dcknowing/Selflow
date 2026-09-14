@@ -405,6 +405,91 @@ class ExternalSyncControleur
     }
 
     /**
+     * Ranger la clé qu'un dossier Comptaflow vient de délivrer.
+     * POST /api/external/link-company
+     *
+     * Comptaflow l'appelle depuis ses deux écrans de liaison — créer un
+     * dossier pour une entreprise Selflow, ou rapprocher deux dossiers
+     * existants. **La route n'existait pas** : 404 (Not Found — introuvable).
+     * Comptaflow affichait la liaison ouverte, Selflow n'avait aucune clé à
+     * présenter, et aucun déversement ne partait.
+     *
+     * Le secret partagé autorise l'appel ; il ne doit pas suffire à détourner
+     * une liaison qui marche. Une entreprise déjà liée à un **autre** dossier
+     * est donc refusée en 409 (Conflict — conflit) : la délier d'abord est une
+     * décision, pas un effet de bord.
+     */
+    public function lierDossier(Request $request): JsonResponse
+    {
+        if (!self::secretValide($request->input('secret') ?? $request->header('X-Sync-Secret'))) {
+            Log::warning('ExternalSync Selflow: secret invalide', ['ip' => $request->ip(), 'route' => 'link-company']);
+
+            return response()->json(['success' => false, 'message' => 'Accès non autorisé.'], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'selflow_company_id'    => 'required|integer',
+            'comptaflow_company_id' => 'required|integer',
+            'comptaflow_sync_key'   => 'required|string|min:20|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
+        }
+
+        $entreprise = Entreprise::find((int) $request->input('selflow_company_id'));
+
+        if (!$entreprise) {
+            return response()->json(['success' => false, 'message' => 'Entreprise Selflow introuvable.'], 404);
+        }
+
+        $dossier = (int) $request->input('comptaflow_company_id');
+
+        if ($entreprise->liaisonComptaflowActive() && (int) $entreprise->comptaflow_company_id !== $dossier) {
+            Log::warning('Liaison Comptaflow : tentative de rattacher une entreprise déjà liée à un autre dossier', [
+                'entreprise_id'   => $entreprise->id,
+                'dossier_actuel'  => $entreprise->comptaflow_company_id,
+                'dossier_demande' => $dossier,
+                'ip'              => $request->ip(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => "Cette entreprise est déjà liée au dossier Comptaflow n° {$entreprise->comptaflow_company_id}. "
+                    . 'Déliez-la avant de la rattacher à un autre.',
+            ], 409);
+        }
+
+        $cle = (string) $request->input('comptaflow_sync_key');
+
+        // Écriture directe, comme à la validation d'une demande : la clé n'est
+        // pas `$fillable`, pour qu'aucune requête ne puisse l'y glisser.
+        $entreprise->comptaflow_sync_key = $cle;
+
+        $entreprise->fill([
+            'comptaflow_company_id'     => $dossier,
+            'comptaflow_cle_indice'     => substr($cle, -4),
+            'comptaflow_sync_status'    => 'active',
+            'comptaflow_demande_statut' => Entreprise::DEMANDE_VALIDEE,
+            'comptaflow_liee_le'        => now(),
+            'comptaflow_revoquee_le'    => null,
+            'comptaflow_refus_motif'    => null,
+        ])->save();
+
+        \App\Jobs\DeverserReferentielComptaflow::dispatch($entreprise->id);
+
+        Log::info('Liaison Comptaflow : clé rangée à la demande de Comptaflow', [
+            'entreprise_id' => $entreprise->id,
+            'dossier'       => $dossier,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Clé rangée. Le référentiel part vers Comptaflow.',
+        ]);
+    }
+
+    /**
      * Le secret partage est-il celui attendu ?
      *
      * Deux points fermes ici. La valeur de repli inscrite dans le code
