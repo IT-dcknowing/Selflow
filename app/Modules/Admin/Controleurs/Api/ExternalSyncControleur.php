@@ -36,33 +36,33 @@ class ExternalSyncControleur
 
         // ── Validation ──
         $validator = Validator::make($request->all(), [
-            'nom'                 => 'required|string|max:150',
-            'forme_juridique'     => 'nullable|string|max:50',
-            'email'               => 'required|email|max:150',
-            'telephone'           => 'nullable|string|max:30',
-            'adresse'             => 'nullable|string|max:255',
-            'ncc'                 => 'nullable|string|max:50',
-            'rccm'                => 'nullable|string|max:100',
+            'nom' => 'required|string|max:150',
+            'forme_juridique' => 'nullable|string|max:50',
+            'email' => 'required|email|max:150',
+            'telephone' => 'nullable|string|max:30',
+            'adresse' => 'nullable|string|max:255',
+            'ncc' => 'nullable|string|max:50',
+            'rccm' => 'nullable|string|max:100',
             'compte_contribuable' => 'nullable|string|max:100',
-            'regime_imposition'   => 'nullable|string|max:80',
-            'gerant_nom'          => 'nullable|string|max:100',
-            'gerant_prenom'       => 'nullable|string|max:150',
+            'regime_imposition' => 'nullable|string|max:80',
+            'gerant_nom' => 'nullable|string|max:100',
+            'gerant_prenom' => 'nullable|string|max:150',
             // Le sens inverse de la liaison : une entreprise qui a Comptaflow
             // et veut Selflow retrouve **les mêmes accès** — même adresse, même
             // mot de passe. Comptaflow envoie l'empreinte de son mot de passe,
             // jamais le mot de passe : l'un des deux suffit, et l'empreinte est
             // préférable.
-            'admin_password'      => 'required_without:admin_password_hash|nullable|string|min:8',
+            'admin_password' => 'required_without:admin_password_hash|nullable|string|min:8',
             'admin_password_hash' => 'required_without:admin_password|nullable|string|max:255',
             'comptaflow_company_id' => 'nullable|integer',
-            'comptaflow_sync_key'   => 'nullable|string|max:100',
+            'comptaflow_sync_key' => 'nullable|string|max:100',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Données invalides.',
-                'errors'  => $validator->errors(),
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -78,30 +78,30 @@ class ExternalSyncControleur
         try {
             // 1. Créer l'entreprise
             $entreprise = Entreprise::create([
-                'nom'                    => $request->nom,
-                'forme_juridique'        => $request->forme_juridique ?? 'SARL',
-                'gerant_nom'             => $request->gerant_nom,
-                'gerant_prenom'          => $request->gerant_prenom,
-                'email'                  => $request->email,
-                'telephone'              => $request->telephone,
-                'adresse'                => $request->adresse,
-                'ncc'                    => $request->ncc,
-                'rccm'                   => $request->rccm,
-                'compte_contribuable'    => $request->compte_contribuable,
-                'regime_imposition'      => $request->regime_imposition,
-                'quota_points_de_vente'  => 5,
-                'plan_abonnement'        => 'Pro',
+                'nom' => $request->nom,
+                'forme_juridique' => $request->forme_juridique ?? 'SARL',
+                'gerant_nom' => $request->gerant_nom,
+                'gerant_prenom' => $request->gerant_prenom,
+                'email' => $request->email,
+                'telephone' => $request->telephone,
+                'adresse' => $request->adresse,
+                'ncc' => $request->ncc,
+                'rccm' => $request->rccm,
+                'compte_contribuable' => $request->compte_contribuable,
+                'regime_imposition' => $request->regime_imposition,
+                'quota_points_de_vente' => 5,
+                'plan_abonnement' => 'Pro',
                 // Comptaflow ne connaît pas le domaine d'activité : le poser au
                 // hasard le figerait sur une valeur fausse que personne ne
                 // penserait à corriger. « Autre » dit ce qu'il en est, et
                 // l'entreprise choisit son vrai domaine à la souscription.
-                'secteur_activite'       => [\App\Modules\Admin\Modeles\Referentiel\Categorie::AUTRE],
-                'modules_actifs'         => ['principal', 'ventes', 'achats', 'stock', 'tiers', 'produits', 'rapports', 'b2b', 'fne'],
-                'comptaflow_company_id'  => $request->comptaflow_company_id,
+                'secteur_activite' => [\App\Modules\Admin\Modeles\Referentiel\Categorie::AUTRE],
+                'modules_actifs' => ['principal', 'ventes', 'achats', 'stock', 'tiers', 'produits', 'rapports', 'b2b', 'fne'],
+                'comptaflow_company_id' => $request->comptaflow_company_id,
                 'comptaflow_sync_status' => 'active',
                 'comptaflow_last_sync_at' => now(),
-                'comptaflow_liee_le'     => now(),
-                'comptaflow_cle_indice'  => $request->comptaflow_sync_key
+                'comptaflow_liee_le' => now(),
+                'comptaflow_cle_indice' => $request->comptaflow_sync_key
                     ? substr((string) $request->comptaflow_sync_key, -4)
                     : null,
             ]);
@@ -123,18 +123,18 @@ class ExternalSyncControleur
 
             // 2. Créer l'utilisateur admin
             $utilisateur = Utilisateur::create([
-                'nom'           => $request->gerant_nom ?? 'Admin',
-                'prenom'        => $request->gerant_prenom ?? '',
-                'email'         => $request->email,
+                'nom' => $request->gerant_nom ?? 'Admin',
+                'prenom' => $request->gerant_prenom ?? '',
+                'email' => $request->email,
                 // L'empreinte arrive telle quelle quand Comptaflow l'envoie :
                 // la re-hacher rendrait le compte inaccessible avec le mot de
                 // passe que l'utilisateur connaît déjà.
-                'password'      => $request->filled('admin_password_hash')
+                'password' => $request->filled('admin_password_hash')
                     ? $request->admin_password_hash
                     : Hash::make($request->admin_password),
-                'role'          => 'admin',
+                'role' => 'admin',
                 'entreprise_id' => $entreprise->id,
-                'statut'        => 'actif',
+                'statut' => 'actif',
             ]);
 
             // Un point de vente « Siège » se créait ici, ville devinée en
@@ -149,14 +149,14 @@ class ExternalSyncControleur
             DB::commit();
 
             Log::info('ExternalSync Selflow: entreprise créée depuis COMPTAFLOW', [
-                'entreprise_id'   => $entreprise->id,
-                'entreprise_nom'  => $entreprise->nom,
+                'entreprise_id' => $entreprise->id,
+                'entreprise_nom' => $entreprise->nom,
             ]);
 
             return response()->json([
-                'success'      => true,
-                'company_id'   => $entreprise->id,
-                'message'      => 'Entreprise et administrateur créés avec succès dans Selflow.',
+                'success' => true,
+                'company_id' => $entreprise->id,
+                'message' => 'Entreprise et administrateur créés avec succès dans Selflow.',
             ]);
 
         } catch (\Exception $e) {
@@ -168,7 +168,6 @@ class ExternalSyncControleur
             ], 500);
         }
     }
-
     /**
      * Retourne les informations d'une entreprise Selflow (pour affichage dans COMPTAFLOW hub).
      * POST /api/external/company-info
@@ -212,18 +211,18 @@ class ExternalSyncControleur
         return response()->json([
             'success' => true,
             'company' => [
-                'id'                => $entreprise->id,
+                'id' => $entreprise->id,
                 'uuid' => $entreprise->uuid,
-                'nom'               => $entreprise->nom,
-                'rccm'              => $entreprise->rccm ?? null,
-                'ncc'               => $entreprise->ncc ?? null,
-                'email'             => $entreprise->email ?? null,
-                'telephone'         => $entreprise->telephone ?? null,
-                'adresse'           => $entreprise->adresse ?? null,
+                'nom' => $entreprise->nom,
+                'rccm' => $entreprise->rccm ?? null,
+                'ncc' => $entreprise->ncc ?? null,
+                'email' => $entreprise->email ?? null,
+                'telephone' => $entreprise->telephone ?? null,
+                'adresse' => $entreprise->adresse ?? null,
                 'regime_imposition' => $entreprise->regime_imposition ?? null,
-                'created_at'        => $entreprise->created_at ? $entreprise->created_at->format('d/m/Y') : null,
-                'admin_nom'         => $admin ? ($admin->nom . ' ' . $admin->prenom) : null,
-                'admin_email'       => $admin ? $admin->email : null,
+                'created_at' => $entreprise->created_at ? $entreprise->created_at->format('d/m/Y') : null,
+                'admin_nom' => $admin ? ($admin->nom . ' ' . $admin->prenom) : null,
+                'admin_email' => $admin ? $admin->email : null,
                 'comptaflow_status' => $entreprise->comptaflow_sync_status ?? 'inactive',
             ],
         ]);
@@ -267,18 +266,18 @@ class ExternalSyncControleur
             $requete->whereKey($porteuse->id);
         }
 
-        $entreprises = $requete->orderBy('nom')->get()->map(fn ($e) => [
-            'id'                => $e->id,
-            'uuid'              => $e->uuid,
-            'nom'               => $e->nom,
-            'created_at'        => $e->created_at?->format('d/m/Y'),
-            'is_linked'         => !empty($e->comptaflow_company_id),
+        $entreprises = $requete->orderBy('nom')->get()->map(fn($e) => [
+            'id' => $e->id,
+            'uuid' => $e->uuid,
+            'nom' => $e->nom,
+            'created_at' => $e->created_at?->format('d/m/Y'),
+            'is_linked' => !empty($e->comptaflow_company_id),
             'comptaflow_status' => $e->comptaflow_sync_status ?? 'inactive',
         ]);
 
         return response()->json([
-            'success'     => true,
-            'companies'   => $entreprises,
+            'success' => true,
+            'companies' => $entreprises,
         ]);
     }
 
@@ -306,11 +305,11 @@ class ExternalSyncControleur
             return $refusCle;
         }
 
-        $entrepriseId   = $request->input('selflow_company_id');
+        $entrepriseId = $request->input('selflow_company_id');
         $numeroOriginal = $request->input('numero_original');
-        $numeroTiers    = $request->input('numero_de_tiers');
-        $intitule       = trim($request->input('intitule', ''));
-        $type           = strtolower($request->input('type', ''));
+        $numeroTiers = $request->input('numero_de_tiers');
+        $intitule = trim($request->input('intitule', ''));
+        $type = strtolower($request->input('type', ''));
 
         $tierData = null;
         $isFournisseurPref = str_contains($type, 'fourn') || str_starts_with(strtolower($numeroTiers), '40');
@@ -323,7 +322,7 @@ class ExternalSyncControleur
             }
             if (!$fournisseur && $numeroTiers) {
                 $fournisseur = \App\Modules\Admin\Modeles\Fournisseur::where('entreprise_id', $entrepriseId)
-                    ->where(function($q) use ($numeroTiers) {
+                    ->where(function ($q) use ($numeroTiers) {
                         $q->where('numero_tiers', $numeroTiers)->orWhere('numero_original', $numeroTiers);
                     })->first();
             }
@@ -342,7 +341,7 @@ class ExternalSyncControleur
             }
             if (!$client && $numeroTiers) {
                 $client = \App\Modules\Admin\Modeles\Client::where('entreprise_id', $entrepriseId)
-                    ->where(function($q) use ($numeroTiers) {
+                    ->where(function ($q) use ($numeroTiers) {
                         $q->where('numero_tiers', $numeroTiers)->orWhere('numero_original', $numeroTiers);
                     })->first();
             }
@@ -358,49 +357,49 @@ class ExternalSyncControleur
                 ->where('fournisseur_id', $fournisseur->id)->count();
 
             $tierData = [
-                'type'                => 'Fournisseur',
-                'nom'                 => $fournisseur->nom,
-                'ncc'                 => $fournisseur->ncc,
-                'rccm'                => $fournisseur->rccm,
-                'compte_comptable'    => $fournisseur->compte_comptable,
-                'compte_general'      => $fournisseur->compte_comptable,
-                'numero_original'     => $fournisseur->numero_original ?? $fournisseur->compte_comptable,
-                'numero_tiers'        => $fournisseur->numero_tiers,
+                'type' => 'Fournisseur',
+                'nom' => $fournisseur->nom,
+                'ncc' => $fournisseur->ncc,
+                'rccm' => $fournisseur->rccm,
+                'compte_comptable' => $fournisseur->compte_comptable,
+                'compte_general' => $fournisseur->compte_comptable,
+                'numero_original' => $fournisseur->numero_original ?? $fournisseur->compte_comptable,
+                'numero_tiers' => $fournisseur->numero_tiers,
                 'compte_contribuable' => $fournisseur->ncc,
-                'regime'              => $fournisseur->regime_imposition,
-                'telephone'           => $fournisseur->telephone,
-                'email'               => $fournisseur->email,
-                'adresse'             => $fournisseur->adresse,
-                'secteur_activite'    => $fournisseur->secteur,
-                'nombre_achats'       => $achatsCount,
-                'created_at'          => $fournisseur->created_at ? $fournisseur->created_at->format('d/m/Y') : null,
+                'regime' => $fournisseur->regime_imposition,
+                'telephone' => $fournisseur->telephone,
+                'email' => $fournisseur->email,
+                'adresse' => $fournisseur->adresse,
+                'secteur_activite' => $fournisseur->secteur,
+                'nombre_achats' => $achatsCount,
+                'created_at' => $fournisseur->created_at ? $fournisseur->created_at->format('d/m/Y') : null,
             ];
         } elseif ($client) {
             $ventesCount = \App\Modules\Admin\Modeles\Vente::whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entrepriseId))
                 ->where('client_id', $client->id)->count();
 
             $tierData = [
-                'type'                => 'Client',
-                'nom'                 => $client->nom,
-                'ncc'                 => $client->ncc,
-                'rccm'                => $client->rccm,
-                'compte_comptable'    => $client->compte_comptable,
-                'compte_general'      => $client->compte_comptable,
-                'numero_original'     => $client->numero_original ?? $client->compte_comptable,
-                'numero_tiers'        => $client->numero_tiers,
+                'type' => 'Client',
+                'nom' => $client->nom,
+                'ncc' => $client->ncc,
+                'rccm' => $client->rccm,
+                'compte_comptable' => $client->compte_comptable,
+                'compte_general' => $client->compte_comptable,
+                'numero_original' => $client->numero_original ?? $client->compte_comptable,
+                'numero_tiers' => $client->numero_tiers,
                 'compte_contribuable' => $client->ncc,
-                'regime'              => $client->regime_imposition,
-                'telephone'           => $client->telephone,
-                'email'               => $client->email,
-                'adresse'             => $client->adresse,
-                'nombre_achats'       => $ventesCount,
-                'created_at'          => $client->created_at ? $client->created_at->format('d/m/Y') : null,
+                'regime' => $client->regime_imposition,
+                'telephone' => $client->telephone,
+                'email' => $client->email,
+                'adresse' => $client->adresse,
+                'nombre_achats' => $ventesCount,
+                'created_at' => $client->created_at ? $client->created_at->format('d/m/Y') : null,
             ];
         }
 
         return response()->json([
             'success' => !empty($tierData),
-            'tier'    => $tierData,
+            'tier' => $tierData,
         ]);
     }
 
@@ -574,24 +573,30 @@ class ExternalSyncControleur
         // plus vrai.
         $entreprise = Entreprise::whereNotNull('comptaflow_sync_key')
             ->get()
-            ->first(fn (Entreprise $e) => filled($e->comptaflow_sync_key)
+            ->first(fn(Entreprise $e) => filled($e->comptaflow_sync_key)
                 && hash_equals((string) $e->comptaflow_sync_key, (string) $cle));
 
         if (!$entreprise) {
             Log::warning('ExternalSync Selflow : clé de liaison inconnue', ['ip' => $request->ip()]);
 
-            return [null, response()->json([
-                'success' => false,
-                'message' => 'Clé de liaison inconnue.',
-            ], 401)];
+            return [
+                null,
+                response()->json([
+                    'success' => false,
+                    'message' => 'Clé de liaison inconnue.',
+                ], 401)
+            ];
         }
 
         if ($entreprise->comptaflow_revoquee_le !== null) {
-            return [null, response()->json([
-                'success' => false,
-                'message' => 'Clé de liaison révoquée le '
-                    . $entreprise->comptaflow_revoquee_le->format('d/m/Y') . '.',
-            ], 401)];
+            return [
+                null,
+                response()->json([
+                    'success' => false,
+                    'message' => 'Clé de liaison révoquée le '
+                        . $entreprise->comptaflow_revoquee_le->format('d/m/Y') . '.',
+                ], 401)
+            ];
         }
 
         return [$entreprise, null];
@@ -607,9 +612,9 @@ class ExternalSyncControleur
         }
 
         Log::warning('ExternalSync Selflow : lecture croisée refusée', [
-            'cle_entreprise'    => $porteuse->id,
-            'corps_entreprise'  => $demandee,
-            'ip'                => $request->ip(),
+            'cle_entreprise' => $porteuse->id,
+            'corps_entreprise' => $demandee,
+            'ip' => $request->ip(),
         ]);
 
         return response()->json([

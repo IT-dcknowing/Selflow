@@ -66,6 +66,7 @@
     <a href="{{ route('admin.fne.situation') }}"  class="fne-tab"><i class="fas fa-balance-scale"></i> Situation</a>
     <a href="{{ route('admin.fne.factures') }}"   class="fne-tab"><i class="fas fa-file-invoice"></i> Factures</a>
     <a href="{{ route('admin.fne.stickers') }}"   class="fne-tab active"><i class="fas fa-stamp"></i> Stickers</a>
+    <a href="{{ route('admin.fne.rejets') }}"     class="fne-tab"><i class="fas fa-triangle-exclamation"></i> Rejets</a>
 </div>
 
 {{-- Alerte solde bas --}}

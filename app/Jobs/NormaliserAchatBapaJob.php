@@ -7,6 +7,7 @@ use App\Modules\Admin\Services\FneService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Jobs\SyncJob;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
@@ -65,15 +66,50 @@ class NormaliserAchatBapaJob implements ShouldQueue
                         'fichier_fne_pdf_url' => $fneResult['pdf_url'] ?? null,
                     ] + FneService::colonnesRetoursFne($fneResult));
 
+                    \App\Modules\Admin\Modeles\FneRejet::resoudre($achat);
+
                     Log::info("NormaliserAchatBapaJob: Normalisation BAPA réussie - Achat #{$achat->id} → FNE: {$fneResult['numero_recu']}");
                 }
             } else {
                 Log::warning("NormaliserAchatBapaJob: Réponse non-success pour Achat #{$this->achat->id}", $fneResult);
+
+                // La DGI n'a rien examiné : le transport a manqué, pas le
+                // bordereau. On relance plutôt que de consigner un refus qui
+                // n'en est pas un — et qui ouvrirait un relevé du portail
+                // sans objet. Voir NormaliserFactureFne, même raisonnement.
+                if (\App\Modules\Admin\Modeles\FneRejet::classer($fneResult)
+                        === \App\Modules\Admin\Modeles\FneRejet::CAUSE_RESEAU
+                    && $this->uneAutreTentativeViendra()) {
+                    throw new \RuntimeException(
+                        "Plateforme FNE injoignable pour Achat #{$this->achat->id} : "
+                        . ($fneResult['message'] ?? 'sans message')
+                    );
+                }
+
+                // Le rejet laissait une ligne de log et rien d'autre. Consigné,
+                // il devient rapprochable du relevé du portail.
+                \App\Modules\Admin\Modeles\FneRejet::consigner($this->achat, $fneResult);
             }
         } catch (\Exception $e) {
             Log::error("NormaliserAchatBapaJob: Exception pour Achat #{$this->achat->id} - " . $e->getMessage());
             throw $e;
         }
+    }
+
+    /**
+     * Une autre tentative viendra-t-elle ? Même raisonnement, et même défaut
+     * corrigé, que dans `NormaliserFactureFne` : en synchrone — le bouton
+     * « Normaliser » de l'écran des achats —, `SyncJob::attempts()` rend
+     * toujours 1, le job relançait donc pour toujours, et une plateforme
+     * injoignable rendait une erreur 500 sans consigner le moindre rejet.
+     */
+    private function uneAutreTentativeViendra(): bool
+    {
+        if ($this->job instanceof SyncJob) {
+            return false;
+        }
+
+        return $this->attempts() < $this->tries;
     }
 
     /**

@@ -369,14 +369,15 @@
                     $routeConvertirCommande = $isCaissier ? route('caissier.ventes.convertir.commande', $vente) : route('admin.ventes.convertir.commande', $vente);
                     $routeConvertirFacture  = $isCaissier ? route('caissier.ventes.convertir.facture', $vente) : route('admin.ventes.convertir.facture', $vente);
                     $routeSupprimer = $isCaissier ? route('caissier.ventes.supprimer', $vente) : route('admin.ventes.supprimer', $vente);
+                    $rejetEnCours = !$vente->normalise && $vente->aRejetEnCours();
                 @endphp
-                <tr>
+                <tr @if($rejetEnCours) style="background:#fffbeb; border-left:4px solid #f59e0b;" @elseif($vente->normalise) style="background:#ecfdf5; border-left:4px solid #10b981;" @endif>
                     @if($activerSelectionGroup)
                     <td style="text-align: center; white-space: nowrap;">
                         @if(!$vente->normalise)
                             <input type="checkbox" class="sale-checkbox" value="{{ $vente->id }}" onchange="onSaleCheckboxChange(this)">
                         @else
-                            <i class="fas fa-check-circle" style="color: var(--success);" title="Facture déjà normalisée"></i>
+                            <i class="fas fa-check-circle" style="color: #10b981;" title="Facture déjà normalisée"></i>
                         @endif
                     </td>
                     @endif
@@ -418,11 +419,15 @@
                     @if(!$estDevisOuBC)
                     <td style="text-align: center; white-space: nowrap;">
                         @if($vente->normalise)
-                            <span style="color:#059669; font-weight:800; font-size:13px; display:inline-flex; align-items:center; gap:4px;">
-                                <i class="fas fa-check-circle"></i> Oui
+                            <span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:4px 10px; border-radius:20px; font-weight:800; font-size:12px; display:inline-flex; align-items:center; gap:5px;" title="Facture normalisée avec succès par la DGI">
+                                <i class="fas fa-check-circle" style="color:#16a34a;"></i> Oui
+                            </span>
+                        @elseif($rejetEnCours)
+                            <span style="background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; padding:4px 10px; border-radius:20px; font-weight:700; font-size:12px; display:inline-flex; align-items:center; gap:5px;" title="Rejet DGI, relève du portail / correction FNE en cours">
+                                <i class="fas fa-spinner fa-spin" style="font-size:11px; color:#ea580c;"></i> En cours
                             </span>
                         @else
-                            <span style="color:var(--text-3); font-size:12px;">Non</span>
+                            <span style="background:#f3f4f6; color:#6b7280; padding:4px 10px; border-radius:20px; font-weight:600; font-size:12px;">Non</span>
                         @endif
                     </td>
                     @endif

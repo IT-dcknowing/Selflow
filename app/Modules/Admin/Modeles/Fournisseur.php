@@ -29,7 +29,7 @@ class Fournisseur extends Model
 
     /**
      * Le fournisseur occasionnel — le pendant du client de passage.
-     *
+     *  
      * Un achat au comptoir, sans fiche fournisseur, laissait `compte_tiers`
      * vide et tout retombait sur le collectif `401000`.
      */
@@ -38,10 +38,10 @@ class Fournisseur extends Model
         return self::firstOrCreate(
             ['entreprise_id' => $entreprise->id, 'numero_tiers' => self::NUMERO_DIVERS],
             [
-                'nom'              => 'Fournisseur divers',
+                'nom' => 'Fournisseur divers',
                 'type_facturation' => 'B2C',
                 'compte_comptable' => config('selflow.plan_comptable_defaut.fournisseur_collectif'),
-                'source'           => 'systeme',
+                'source' => 'systeme',
             ]
         );
     }

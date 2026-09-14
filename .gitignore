@@ -43,6 +43,8 @@ image2.png
 !CLAUDE.md
 !JOURNAL-DE-BORD.md
 !PASSERELLE-COMPTAFLOW/
+!SCRAPER-PORTAIL-FNE/
+!SCRAPER-PORTAIL-FNE/*.md
 # Le `!` sur un repertoire ne re-inclut que le repertoire lui-meme : les
 # fichiers qu'il contient restent pris par `*.md` et `*xlsx` plus haut. La
 # consigne pour Comptaflow et les quatre classeurs d'import refaits n'ont
@@ -50,6 +52,17 @@ image2.png
 # dossier PASSERELLE-COMPTAFLOW sans ce qu'on venait y chercher.
 !PASSERELLE-COMPTAFLOW/**
 !PASSATION-SESSION.txt
+
+# Le scraper du portail : le code voyage avec le depot, jamais ses acces.
+# Ces trois regles viennent apres les exceptions ci-dessus, donc elles gagnent.
+SCRAPER-PORTAIL-FNE/identifiants.json
+SCRAPER-PORTAIL-FNE/node_modules/
+SCRAPER-PORTAIL-FNE/erreurs/
+
+# Les rapports de reconnaissance portent des donnees reelles du portail —
+# etablissements, pieces, contreparties. Ils servent a comprendre la structure
+# de la page, pas a voyager avec le depot.
+SCRAPER-PORTAIL-FNE/reconnaissance/
 
 # Exception pour ce fichier spécifique
 !nv-MODULE.md

@@ -18,6 +18,14 @@
         </include>
     </source>
     <php>
+        <!--
+        | La suite tient dans 128 Mo tant que rien n'y demande un gros bloc d'un
+        | coup. L'ecriture d'un classeur — ce que fait le scraper du portail FNE
+        | dans les epreuves qui le simulent — reclame 16 Mo au compresseur, et la
+        | suite mourait dessus apres quelques centaines d'epreuves. Le processus
+        | n'herite pas du -d de la ligne de commande : la limite se pose ici.
+        -->
+        <ini name="memory_limit" value="512M"/>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_KEY" value="base64:AckfSECXIvnK5r28GVIWUAxmbBSjTsmF/0rZfPHVdD8="/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
@@ -33,5 +41,16 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <!-- Épinglés pour la suite, indépendamment du .env du poste : la
+             correction auto suit son défaut (activée), et le scraper ne lance
+             jamais Node pendant un test. -->
+        <env name="PORTAIL_FNE_CORRECTION_AUTO" value="true" force="true"/>
+        <env name="PORTAIL_FNE_SCRAPER_ACTIF" value="false" force="true"/>
+        <!-- Le dossier de dépôt des relevés, pointé sur un dossier de test.
+             Sans cela, une épreuve qui appelle `portail-fne:importer` range les
+             relevés RÉELS du poste dans la base de test : c'est arrivé le
+             31/08/2026, et six épreuves ont vu apparaître un point de
+             facturation que personne n'avait écrit. -->
+        <env name="PORTAIL_FNE_DOSSIER_IMPORT" value="./storage/framework/testing/portail-fne" force="true"/>
     </php>
 </phpunit>

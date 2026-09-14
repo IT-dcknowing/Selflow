@@ -44,8 +44,8 @@ class SyncEcrituresToComptaflow extends Command
         $entreprises = $entreprisesQuery->get();
 
         if ($entreprises->isEmpty()) {
-            $this->warn('⚠️  Aucune entreprise avec liaison COMPTAFLOW active trouvée.');
-            return self::FAILURE;
+            $this->line('  Aucune entreprise avec liaison COMPTAFLOW active trouvée.');
+            return self::SUCCESS;
         }
 
         $totalSynced = 0;

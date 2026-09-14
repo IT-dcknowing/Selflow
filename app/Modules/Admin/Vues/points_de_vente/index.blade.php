@@ -32,6 +32,109 @@
     </div>
 </div>
 
+{{-- Les points de facturation déclarés au portail FNE.
+     Le sens ne s'inverse jamais : le portail déclare, Selflow s'aligne. Rien
+     n'est créé au portail depuis ici — c'est un acte du contribuable. --}}
+<div class="card" style="margin-bottom:22px;">
+    <div class="card-body">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+            <div>
+                <div style="font-size:15px; font-weight:800;">
+                    <i class="fas fa-building-columns"></i> Points de facturation déclarés au portail FNE
+                </div>
+                <div style="font-size:12px; color:var(--text-3); margin-top:4px;">
+                    @if($portailFne['releve_le'])
+                        Relevé du {{ $portailFne['releve_le'] }}. C'est ce nom-là que la DGI attend :
+                        une facture émise sous un autre est refusée.
+                    @else
+                        Aucun relevé pour votre entreprise. Le portail est relevé chaque nuit ;
+                        rien n'a encore été rangé pour ce NCC.
+                    @endif
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                {{-- Aller voir le portail maintenant : le passage horaire n'y va
+                     que si une pièce a été refusée, et le passage complet attend
+                     02:30. Celui qui vient d'y déclarer un point n'a pas à
+                     attendre demain matin. --}}
+<form method="POST" action="{{ route('admin.pdv.relever_le_portail') }}" id="formReleverPortail">
+                    @csrf
+                    <button type="submit" class="btn btn-outline" style="font-size:13px;" id="boutonReleverPortail">
+                        <i class="fas fa-rotate"></i> Relever le portail maintenant
+                    </button>
+                </form>
+                <span id="etatReleverPortail" style="font-size:12px; color:var(--text-3);"></span>
+
+                @if($portailFne['a_creer'] > 0)
+                <form method="POST" action="{{ route('admin.pdv.importer_du_portail') }}">
+                    @csrf
+                    <button type="submit" class="btn btn-primary" style="font-size:13px;">
+                        <i class="fas fa-download"></i>
+                        Reprendre {{ $portailFne['a_creer'] }} point(s) manquant(s)
+                    </button>
+                </form>
+                @endif
+
+                {{-- Charger le relevé à la main. Le scraper ne tourne pas
+                     partout — poste sans Node, second facteur au portail — et
+                     l'entreprise a pourtant le fichier sous les yeux, exporté
+                     depuis son espace FNE. Le champ se déclenche au clic du
+                     bouton : un « parcourir » nu à côté de deux boutons pleins
+                     ne se lit pas comme une action. --}}
+                <form method="POST" action="{{ route('admin.pdv.load_file_fne') }}"
+                      enctype="multipart/form-data" id="formChargerFichierFne">
+                    @csrf
+                    <input type="file" name="fichier_fne" id="fichierFne" accept=".json,.xlsx,.xls"
+                           style="display:none;" onchange="document.getElementById('formChargerFichierFne').submit();">
+                    <button type="button" class="btn btn-outline" style="font-size:13px;"
+                            onclick="document.getElementById('fichierFne').click();"
+                            title="Fiche (.json) ou points de facturation (.xlsx, .xls) exportés du portail FNE. Le fichier doit être nommé NCC_AAAAMMJJ — par exemple 1864699A_20260831.xlsx">
+                        <i class="fas fa-file-arrow-up"></i> Charger un relevé
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        @error('fichier_fne')
+        <div style="margin-top:10px; font-size:12px; color:var(--danger, #c0392b);">
+            <i class="fas fa-circle-exclamation"></i> {{ $message }}
+        </div>
+        @enderror
+
+        @if($portailFne['points'])
+        <div style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
+            @foreach($portailFne['points'] as $point)
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;
+                        background:var(--bg3); border-radius:8px; padding:10px 14px;">
+                <div>
+                    <span style="font-weight:700; font-size:13px;">{{ $point['nom'] }}</span>
+                    @unless($point['actif'])
+                        <span class="badge badge-gray" style="margin-left:8px;">Inactif au portail</span>
+                    @endunless
+                </div>
+                @if($point['point_de_vente'])
+                    <span class="badge badge-success">Dans Selflow</span>
+                @else
+                    <span class="badge badge-warning">À créer</span>
+                @endif
+            </div>
+            @endforeach
+        </div>
+        @endif
+
+        @if($portailFne['inconnus_du_portail'])
+        <div style="margin-top:14px; font-size:12px; color:var(--text-2);">
+            <i class="fas fa-triangle-exclamation"></i>
+            Dans Selflow et inconnu(s) du portail :
+            <strong>{{ collect($portailFne['inconnus_du_portail'])->pluck('nom')->join(', ') }}</strong>.
+            Une facture émise depuis l'un d'eux sera refusée par la DGI tant que le point
+            n'aura pas été déclaré sur l'espace FNE — Selflow ne peut pas le déclarer à votre place.
+        </div>
+        @endif
+    </div>
+</div>
+
 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px;">
     @foreach($pointsDeVente as $pdv)
     <div class="card" style="transition: transform .2s;">
@@ -198,4 +301,108 @@
     </div>
 </div>
 @include('admin::composants.modal-import', ['type' => 'points-de-vente', 'label' => 'Points de vente', 'id' => 'modalImportPdv'])
+
+{{-- Le relevé ouvre un vrai navigateur sur le portail de la DGI : il dure des
+     dizaines de secondes. Plutôt que d'annoncer « rechargez dans une minute » —
+     une attente que personne ne doit avoir à tenir —, la page redemande l'état
+     du portail et se recharge d'elle-même dès qu'il a changé. Sans JavaScript,
+     le formulaire part normalement et le relevé tourne quand même. --}}
+<script>
+(function () {
+    const formulaire = document.getElementById('formReleverPortail');
+    const bouton     = document.getElementById('boutonReleverPortail');
+    const etat       = document.getElementById('etatReleverPortail');
+
+    if (!formulaire || !bouton || !etat) return;
+
+    const empreinteAffichee = @json($portailFne['empreinte'] ?? '');
+    const deposeAffiche     = @json($portailFne['depose_le'] ?? null);
+    const urlEtat           = @json(route('admin.pdv.etat_du_portail'));
+    const jeton             = formulaire.querySelector('input[name="_token"]').value;
+
+    // Toutes les trois secondes, pendant trois minutes au plus : un relevé qui
+    // n'arrive pas rend la main plutôt que d'interroger le serveur sans fin.
+    // Une connexion au portail, deux téléchargements et la liste des factures
+    // reçues tiennent en une minute d'ordinaire — trois laissent de la marge un
+    // jour de portail lent.
+    const PERIODE = 3000, LIMITE = 60;
+    let essais = 0, minuteur = null;
+
+    function arreter(message) {
+        clearInterval(minuteur);
+        bouton.disabled = false;
+        bouton.innerHTML = '<i class="fas fa-rotate"></i> Relever le portail maintenant';
+        etat.textContent = message;
+    }
+
+    async function regarder() {
+        if (++essais > LIMITE) {
+            arreter("Le relevé n'est pas arrivé. Réessayez, ou attendez le passage automatique.");
+            return;
+        }
+
+        try {
+            const reponse = await fetch(urlEtat, { headers: { 'Accept': 'application/json' } });
+            if (!reponse.ok) return;
+
+            const donnees = await reponse.json();
+
+            // L'empreinte a bougé : le portail a dit quelque chose de neuf.
+            if (donnees.empreinte && donnees.empreinte !== empreinteAffichee) {
+                clearInterval(minuteur);
+                etat.textContent = "Relevé arrivé — mise à jour de l'écran…";
+                window.location.reload();
+                return;
+            }
+
+            // Le scraper a déposé, mais le portail redit ce qu'il disait déjà.
+            // C'est un succès, pas une panne : le dire, plutôt que d'attendre
+            // trois minutes pour annoncer que rien n'est arrivé.
+            if (donnees.depose_le && donnees.depose_le !== deposeAffiche) {
+                arreter('Relevé arrivé : le portail ne déclare rien de nouveau.');
+            }
+        } catch (_) {
+            // Une requête perdue n'arrête pas la surveillance.
+        }
+    }
+
+    formulaire.addEventListener('submit', async function (evenement) {
+        evenement.preventDefault();
+
+        // Une surveillance à la fois : sans cela, deux clics faisaient courir
+        // deux minuteurs sur le même compteur d'essais, qui atteignait sa
+        // limite deux fois plus vite — et l'écran annonçait « le relevé n'est
+        // pas arrivé » avant même que le premier ait eu le temps d'arriver.
+        clearInterval(minuteur);
+
+        bouton.disabled = true;
+        bouton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Relevé en cours…';
+        etat.textContent = 'Connexion au portail de la DGI…';
+
+        try {
+            const reponse = await fetch(formulaire.action, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': jeton,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+
+            const donnees = await reponse.json();
+
+            if (!reponse.ok) {
+                arreter(donnees.message || "Le relevé n'a pas pu être lancé.");
+                return;
+            }
+
+            essais = 0;
+            minuteur = setInterval(regarder, PERIODE);
+        } catch (_) {
+            arreter("Le relevé n'a pas pu être lancé.");
+        }
+    });
+})();
+</script>
+
 @endsection

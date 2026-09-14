@@ -42,7 +42,9 @@ return new class extends Migration
 
             $aPoser = [];
             foreach (self::COMPTES as $numero => $libelle) {
-                if (in_array($numero, $existants, true)) {
+                // Clés numériques transtypées en entier par PHP : comparer en
+                // chaîne, sans quoi la garde n'écarte jamais un compte présent.
+                if (in_array((string) $numero, $existants, true)) {
                     continue;
                 }
 

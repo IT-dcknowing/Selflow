@@ -2,12 +2,14 @@
 
 namespace App\Jobs;
 
+use App\Modules\Admin\Modeles\FneRejet;
 use App\Modules\Admin\Modeles\Vente;
 use App\Modules\Admin\Modeles\VenteDetail;
 use App\Modules\Admin\Services\FneService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Jobs\SyncJob;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
@@ -54,7 +56,8 @@ class NormaliserFactureFne implements ShouldQueue
     public function __construct(
         public readonly Vente $vente,
         public readonly bool $emissionRecuDePassage = false,
-    ) {}
+    ) {
+    }
 
     /**
      * Exécuter le Job.
@@ -69,13 +72,13 @@ class NormaliserFactureFne implements ShouldQueue
             if ($fneResult['success']) {
                 // Recharger la vente pour éviter les conflicts de version
                 $vente = Vente::find($this->vente->id);
-                
+
                 if ($vente) {
                     $updateData = [
-                        'normalise'     => true,
-                        'numero_fne'    => $fneResult['numero_recu'],
+                        'normalise' => true,
+                        'numero_fne' => $fneResult['numero_recu'],
                         'signature_dgi' => $fneResult['signature'] ?? null,
-                        'qr_code_data'  => $fneResult['qr_code_data'],
+                        'qr_code_data' => $fneResult['qr_code_data'],
                         'fichier_fne_pdf_url' => $fneResult['pdf_url'] ?? null,
                     ];
 
@@ -101,15 +104,61 @@ class NormaliserFactureFne implements ShouldQueue
                         }
                     }
 
+                    // La pièce est passée : les refus qu'elle avait essuyés sont
+                    // derrière elle. Sans cela, l'écran des rejets afficherait
+                    // pour toujours un refus corrigé depuis longtemps, et une
+                    // file qui ne se vide jamais cesse d'être lue.
+                    FneRejet::resoudre($vente);
+
                     Log::info("NormaliserFactureFne: Normalisation réussie - Vente #{$vente->id} → FNE: {$fneResult['numero_recu']}");
                 }
             } else {
                 Log::warning("NormaliserFactureFne: Réponse non-success pour Vente #{$this->vente->id}", $fneResult);
+
+
+                if (
+                    FneRejet::classer($fneResult) === FneRejet::CAUSE_RESEAU
+                    && $this->uneAutreTentativeViendra()
+                ) {
+
+                    throw new \RuntimeException(
+                        "Plateforme FNE injoignable pour Vente #{$this->vente->id} : "
+                        . ($fneResult['message'] ?? 'sans message')
+                    );
+                }
+
+
+                FneRejet::consigner($this->vente, $fneResult);
             }
         } catch (\Exception $e) {
             Log::error("NormaliserFactureFne: Exception pour Vente #{$this->vente->id} - " . $e->getMessage());
             throw $e; // Relancer pour déclencher la logique de retry de Laravel
         }
+    }
+
+    /**
+     * Une autre tentative viendra-t-elle chercher cette pièce ?
+     *
+     * `attempts()` ne suffisait pas à en décider. Lancé en synchrone — ce que
+     * fait le bouton « Normaliser » de l'écran, comme la correction déclenchée
+     * à la main —, `SyncJob::attempts()` rend **toujours 1** : la condition
+     * « il me reste des tentatives » était donc vraie pour toujours. Sur une
+     * plateforme injoignable, le job levait son exception, `SyncQueue` la
+     * relançait telle quelle, et l'utilisateur recevait une **erreur 500** :
+     * aucun rejet consigné, et le message « la plateforme FNE est injoignable »
+     * que le contrôleur tient prêt n'était jamais atteint. En synchrone,
+     * personne ne rejouera : c'est ici, et maintenant, qu'il faut consigner.
+     *
+     * Hors file — `handle()` appelé directement —, la règle ne change pas : le
+     * job relance et laisse l'appelant décider.
+     */
+    private function uneAutreTentativeViendra(): bool
+    {
+        if ($this->job instanceof SyncJob) {
+            return false;
+        }
+
+        return $this->attempts() < $this->tries;
     }
 
     /**

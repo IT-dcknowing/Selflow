@@ -32,9 +32,9 @@ Route::prefix('admin')
 
         // ── Ventes ──
         Route::prefix('ventes')->name('ventes.')->middleware(['modules:ventes', 'inscription.complete'])->group(function () {
-            Route::get('/nouvelle',        [VenteControleur::class, 'nouvelle'])->name('nouvelle');
-            Route::post('/enregistrer',    [VenteControleur::class, 'enregistrer'])->name('enregistrer');
-            Route::get('/factures',        [VenteControleur::class, 'factures'])->name('factures');
+            Route::get('/nouvelle', [VenteControleur::class, 'nouvelle'])->name('nouvelle');
+            Route::post('/enregistrer', [VenteControleur::class, 'enregistrer'])->name('enregistrer');
+            Route::get('/factures', [VenteControleur::class, 'factures'])->name('factures');
             Route::get('/factures/rechercher', [VenteControleur::class, 'rechercherFacturesPourAvoir'])->name('factures.rechercher');
             Route::get('/facture-details/{vente}', [VenteControleur::class, 'detailsFacturePourAvoir'])->name('factures.details');
             Route::get('/factures/produits-categories', [VenteControleur::class, 'produitsParCategorie'])->name('factures.produits_categories');
@@ -44,35 +44,35 @@ Route::prefix('admin')
             Route::get('/facture/{vente}/ticket', [VenteControleur::class, 'imprimerTicket'])->name('ticket');
             // Conversion reçu <-> facture, dans les deux sens
             Route::post('/{vente}/convertir-piece', [VenteControleur::class, 'convertirPiece'])->name('convertir_piece');
-            Route::get('/{vente}/modifier',    [VenteControleur::class, 'modifierFormulaire'])->name('modifier');
-            Route::put('/{vente}/modifier',    [VenteControleur::class, 'enregistrerModification'])->name('modifier.enregistrer');
-            Route::post('/{vente}/confirmer',  [VenteControleur::class, 'confirmerCommande'])->name('confirmer');
-            Route::post('/{vente}/facturer',   [VenteControleur::class, 'facturer'])->name('facturer');
-            Route::post('/{vente}/avoir',      [VenteControleur::class, 'creerAvoir'])->name('avoir');
+            Route::get('/{vente}/modifier', [VenteControleur::class, 'modifierFormulaire'])->name('modifier');
+            Route::put('/{vente}/modifier', [VenteControleur::class, 'enregistrerModification'])->name('modifier.enregistrer');
+            Route::post('/{vente}/confirmer', [VenteControleur::class, 'confirmerCommande'])->name('confirmer');
+            Route::post('/{vente}/facturer', [VenteControleur::class, 'facturer'])->name('facturer');
+            Route::post('/{vente}/avoir', [VenteControleur::class, 'creerAvoir'])->name('avoir');
             Route::post('/{vente}/normaliser', [VenteControleur::class, 'normaliser'])->name('normaliser');
             // Workflow Devis → Commande → Facture
-            Route::post('/{vente}/envoyer',              [VenteControleur::class, 'envoyer'])->name('envoyer');
-            Route::post('/{vente}/convertir-commande',   [VenteControleur::class, 'convertirEnCommande'])->name('convertir.commande');
-            Route::post('/{vente}/convertir-facture',    [VenteControleur::class, 'convertirEnFacture'])->name('convertir.facture');
+            Route::post('/{vente}/envoyer', [VenteControleur::class, 'envoyer'])->name('envoyer');
+            Route::post('/{vente}/convertir-commande', [VenteControleur::class, 'convertirEnCommande'])->name('convertir.commande');
+            Route::post('/{vente}/convertir-facture', [VenteControleur::class, 'convertirEnFacture'])->name('convertir.facture');
             // Ce qui rend un devis opposable : son terme, et l'accord du client
-            Route::post('/{vente}/accepter',             [VenteControleur::class, 'accepterOffre'])->name('accepter');
-            Route::post('/{vente}/prolonger',            [VenteControleur::class, 'prolongerOffre'])->name('prolonger');
-            Route::delete('/{vente}/supprimer',          [VenteControleur::class, 'supprimer'])->name('supprimer');
+            Route::post('/{vente}/accepter', [VenteControleur::class, 'accepterOffre'])->name('accepter');
+            Route::post('/{vente}/prolonger', [VenteControleur::class, 'prolongerOffre'])->name('prolonger');
+            Route::delete('/{vente}/supprimer', [VenteControleur::class, 'supprimer'])->name('supprimer');
             // Bon de Livraison
-            Route::get ('/{vente}/livraison/creer',       [BonLivraisonControleur::class, 'creerDepuisBC'])->name('livraison.creer');
+            Route::get('/{vente}/livraison/creer', [BonLivraisonControleur::class, 'creerDepuisBC'])->name('livraison.creer');
             Route::post('/{vente}/livraison/enregistrer', [BonLivraisonControleur::class, 'enregistrer'])->name('livraison.enregistrer');
-            Route::get ('/livraisons',                    [BonLivraisonControleur::class, 'index'])->name('livraisons');
-            Route::get ('/livraison/{bl}',                [BonLivraisonControleur::class, 'imprimer'])->name('livraison.voir');
-            Route::post('/livraison/{bl}/livrer',         [BonLivraisonControleur::class, 'marquerLivre'])->name('livraison.livrer');
-            Route::post('/livraison/{bl}/facturer',       [BonLivraisonControleur::class, 'convertirEnFacture'])->name('livraison.facturer');
+            Route::get('/livraisons', [BonLivraisonControleur::class, 'index'])->name('livraisons');
+            Route::get('/livraison/{bl}', [BonLivraisonControleur::class, 'imprimer'])->name('livraison.voir');
+            Route::post('/livraison/{bl}/livrer', [BonLivraisonControleur::class, 'marquerLivre'])->name('livraison.livrer');
+            Route::post('/livraison/{bl}/facturer', [BonLivraisonControleur::class, 'convertirEnFacture'])->name('livraison.facturer');
         });
 
         // ── Achats ──
         Route::prefix('achats')->name('achats.')->middleware(['modules:achats', 'inscription.complete'])->group(function () {
 
-            Route::get('/nouveau',         [AchatControleur::class, 'nouveau'])->name('nouveau');
-            Route::post('/enregistrer',    [AchatControleur::class, 'enregistrer'])->name('enregistrer');
-            Route::get('/factures',        [AchatControleur::class, 'factures'])->name('factures');
+            Route::get('/nouveau', [AchatControleur::class, 'nouveau'])->name('nouveau');
+            Route::post('/enregistrer', [AchatControleur::class, 'enregistrer'])->name('enregistrer');
+            Route::get('/factures', [AchatControleur::class, 'factures'])->name('factures');
             Route::get('/factures/rechercher', [AchatControleur::class, 'rechercherFacturesPourAvoir'])->name('factures.rechercher');
             Route::get('/facture-details/{achat}', [AchatControleur::class, 'detailsFacturePourAvoir'])->name('factures.details');
             Route::get('/factures/produits-categories', [AchatControleur::class, 'produitsParCategorie'])->name('factures.produits_categories');
@@ -81,11 +81,26 @@ Route::prefix('admin')
             Route::get('/facture/{achat}', [AchatControleur::class, 'imprimer'])->name('imprimer');
             Route::get('/facture/{achat}/bapa', [AchatControleur::class, 'imprimerBapa'])->name('bapa');
             Route::post('/{achat}/confirmer', [AchatControleur::class, 'confirmerCommande'])->name('confirmer');
-            Route::post('/{achat}/facturer',  [AchatControleur::class, 'facturer'])->name('facturer');
-            Route::post('/{achat}/avoir',     [AchatControleur::class, 'creerAvoir'])->name('avoir');
+            Route::post('/{achat}/facturer', [AchatControleur::class, 'facturer'])->name('facturer');
+            Route::post('/{achat}/avoir', [AchatControleur::class, 'creerAvoir'])->name('avoir');
             Route::post('/{achat}/normaliser', [AchatControleur::class, 'normaliser'])->name('normaliser');
-            Route::post('/{achat}/fne',        [\App\Modules\Admin\Controleurs\FneControleur::class, 'attacherFneAchat'])->name('fne.attacher');
+            Route::post('/{achat}/fne', [\App\Modules\Admin\Controleurs\FneControleur::class, 'attacherFneAchat'])->name('fne.attacher');
             Route::post('/{achat}/transmettre-b2b', [AchatControleur::class, 'transmettreB2b'])->name('transmettre_b2b');
+
+            // ── Factures reçues du portail FNE ──
+            //
+            // Sous `achats` et non sous `fne` : ce sont des factures d'achat, et
+            // c'est là qu'on les cherche. Le groupe FNE exige `modules:comptabilite`
+            // — une entreprise qui achète sans tenir sa comptabilité dans Selflow
+            // se serait vu refuser l'écran de ses propres factures fournisseurs.
+            //
+            // Rien ici ne crée d'achat ni n'écrit dans les colonnes gelées
+            // d'`achats` : `rattacher` pose un lien vers un achat qui existe déjà,
+            // dans `portail_fne_factures_recues.achat_id`.
+            Route::get('/factures-recues', [\App\Modules\Admin\Controleurs\FactureRecueControleur::class, 'index'])->name('factures_recues');
+            Route::post('/factures-recues/{facture}/rattacher', [\App\Modules\Admin\Controleurs\FactureRecueControleur::class, 'rattacher'])->name('factures_recues.rattacher');
+            Route::post('/factures-recues/{facture}/detacher', [\App\Modules\Admin\Controleurs\FactureRecueControleur::class, 'detacher'])->name('factures_recues.detacher');
+            Route::post('/factures-recues/{facture}/ecarter', [\App\Modules\Admin\Controleurs\FactureRecueControleur::class, 'ecarter'])->name('factures_recues.ecarter');
         });
 
         // ── FNE / DGI Stub (Lot I) ──
@@ -95,28 +110,28 @@ Route::prefix('admin')
 
         // ── Stock ──
         Route::prefix('stock')->name('stock.')->middleware('modules:stock')->group(function () {
-            Route::get('/',           [StockControleur::class, 'index'])->name('index');
+            Route::get('/', [StockControleur::class, 'index'])->name('index');
             Route::get('/mouvements', [StockControleur::class, 'mouvements'])->name('mouvements');
-            Route::get('/rebut',      [StockControleur::class, 'rebut'])->name('rebut');
+            Route::get('/rebut', [StockControleur::class, 'rebut'])->name('rebut');
 
             // Inventaire physique : le comptage, et l'ecart qu'il produit.
-            Route::get('/inventaire',  [StockControleur::class, 'inventaire'])->name('inventaire');
+            Route::get('/inventaire', [StockControleur::class, 'inventaire'])->name('inventaire');
             Route::post('/inventaire', [StockControleur::class, 'enregistrerInventaire'])->name('inventaire.enregistrer');
-            Route::post('/rebut',     [StockControleur::class, 'retirerRebut'])->name('rebut.retirer');
-            
+            Route::post('/rebut', [StockControleur::class, 'retirerRebut'])->name('rebut.retirer');
+
             // Réceptions (Achats)
-            Route::get('/receptions',                   [StockControleur::class, 'receptions'])->name('receptions');
-            Route::get('/receptions/{achat}',           [StockControleur::class, 'ficheReception'])->name('receptions.fiche');
-            Route::post('/receptions/{achat}/valider',   [StockControleur::class, 'validerReception'])->name('receptions.valider');
+            Route::get('/receptions', [StockControleur::class, 'receptions'])->name('receptions');
+            Route::get('/receptions/{achat}', [StockControleur::class, 'ficheReception'])->name('receptions.fiche');
+            Route::post('/receptions/{achat}/valider', [StockControleur::class, 'validerReception'])->name('receptions.valider');
 
             // Livraisons (Ventes)
-            Route::get('/livraisons',                   [StockControleur::class, 'livraisons'])->name('livraisons');
-            Route::get('/livraisons/{vente}',           [StockControleur::class, 'ficheLivraison'])->name('livraisons.fiche');
-            Route::post('/livraisons/{vente}/valider',   [StockControleur::class, 'validerLivraison'])->name('livraisons.valider');
+            Route::get('/livraisons', [StockControleur::class, 'livraisons'])->name('livraisons');
+            Route::get('/livraisons/{vente}', [StockControleur::class, 'ficheLivraison'])->name('livraisons.fiche');
+            Route::post('/livraisons/{vente}/valider', [StockControleur::class, 'validerLivraison'])->name('livraisons.valider');
 
             // Transferts internes
-            Route::get('/transferts',                [TransfertStockControleur::class, 'index'])->name('transferts.index');
-            Route::post('/transferts',               [TransfertStockControleur::class, 'creer'])->name('transferts.creer');
+            Route::get('/transferts', [TransfertStockControleur::class, 'index'])->name('transferts.index');
+            Route::post('/transferts', [TransfertStockControleur::class, 'creer'])->name('transferts.creer');
             Route::post('/transferts/{transfert}/valider', [TransfertStockControleur::class, 'valider'])->name('transferts.valider');
             Route::post('/transferts/{transfert}/rejeter', [TransfertStockControleur::class, 'rejeter'])->name('transferts.rejeter');
         });
@@ -125,7 +140,7 @@ Route::prefix('admin')
         Route::prefix('tresorerie')->name('tresorerie.')->middleware('modules:comptabilite')->group(function () {
             Route::get('/encaissements', [TresorerieControleur::class, 'encaissements'])->name('encaissements');
             Route::get('/decaissements', [TresorerieControleur::class, 'decaissements'])->name('decaissements');
-            Route::get('/journal',       [TresorerieControleur::class, 'journal'])->name('journal');
+            Route::get('/journal', [TresorerieControleur::class, 'journal'])->name('journal');
             Route::get('/codes-journaux', [TresorerieControleur::class, 'codesJournaux'])->name('codes_journaux');
             Route::post('/codes-journaux', [TresorerieControleur::class, 'creerCodeJournal'])->name('creer_code_journal');
             Route::delete('/codes-journaux/{code}', [TresorerieControleur::class, 'supprimerCodeJournal'])->name('supprimer_code_journal');
@@ -137,8 +152,8 @@ Route::prefix('admin')
 
         // ── Comptabilité ──
         Route::prefix('comptabilite')->name('comptabilite.')->middleware('modules:comptabilite')->group(function () {
-            Route::get('/globale',   [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'globale'])->name('globale');
-            Route::get('/creances',  [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'creances'])->name('creances');
+            Route::get('/globale', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'globale'])->name('globale');
+            Route::get('/creances', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'creances'])->name('creances');
             Route::get('/tiers/{type}/{id}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'releveTiers'])->name('releve_tiers');
             Route::post('/reglement', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'enregistrerReglement'])->name('enregistrer_reglement');
             Route::get('/plan-comptable', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'planComptable'])->name('plan_comptable');
@@ -160,49 +175,73 @@ Route::prefix('admin')
 
             // Les libelles d'ecriture : ce que le journal dit d'une operation,
             // au lieu de repeter l'intitule du compte mouvemente.
-            Route::get('/libelles',  [\App\Modules\Admin\Controleurs\ModeleLibelleControleur::class, 'index'])->name('libelles');
-            Route::put('/libelles',  [\App\Modules\Admin\Controleurs\ModeleLibelleControleur::class, 'enregistrer'])->name('libelles.enregistrer');
+            Route::get('/libelles', [\App\Modules\Admin\Controleurs\ModeleLibelleControleur::class, 'index'])->name('libelles');
+            Route::put('/libelles', [\App\Modules\Admin\Controleurs\ModeleLibelleControleur::class, 'enregistrer'])->name('libelles.enregistrer');
             Route::post('/libelles/apercu', [\App\Modules\Admin\Controleurs\ModeleLibelleControleur::class, 'apercu'])->name('libelles.apercu');
 
             // Lettrage : rapprocher une facture du reglement qui la solde.
-            Route::get('/lettrage',  [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'lettrage'])->name('lettrage');
+            Route::get('/lettrage', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'lettrage'])->name('lettrage');
             Route::post('/lettrage', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'lettrer'])->name('lettrer');
             Route::delete('/lettrage/{lettrage}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'delettrer'])->name('delettrer');
         });
 
         // ── Module Fiscalité & DGI (Gestion FNE) ──
         Route::prefix('fne')->name('fne.')->middleware('modules:comptabilite')->group(function () {
-            Route::get('/gestion',        [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'gestion'])->name('gestion');
-            Route::get('/gestion/donnees',[\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'gestionJson'])->name('gestion.donnees');
-            Route::get('/situation',        [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'situation'])->name('situation');
-            Route::get('/situation/donnees',[\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'situationJson'])->name('situation.donnees');
-            Route::get('/factures',        [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'factures'])->name('factures');
-            Route::get('/factures/donnees',[\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'facturesJson'])->name('factures.donnees');
+            Route::get('/gestion', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'gestion'])->name('gestion');
+            Route::get('/gestion/donnees', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'gestionJson'])->name('gestion.donnees');
+            Route::get('/situation', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'situation'])->name('situation');
+            Route::get('/situation/donnees', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'situationJson'])->name('situation.donnees');
+            Route::get('/factures', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'factures'])->name('factures');
+            Route::get('/factures/donnees', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'facturesJson'])->name('factures.donnees');
             // ── Gestion des Stickers ──
-            Route::get('/stickers',         [\App\Modules\Admin\Controleurs\StickerControleur::class, 'index'])->name('stickers');
+            Route::get('/stickers', [\App\Modules\Admin\Controleurs\StickerControleur::class, 'index'])->name('stickers');
             // Un achat de stickers engage la trésorerie de l'entreprise et
             // appelle la plateforme : le répéter coûte de l'argent.
-            Route::post('/stickers/acheter',[\App\Modules\Admin\Controleurs\StickerControleur::class, 'acheter'])->middleware('throttle:plateforme')->name('stickers.acheter');
+            Route::post('/stickers/acheter', [\App\Modules\Admin\Controleurs\StickerControleur::class, 'acheter'])->middleware('throttle:plateforme')->name('stickers.acheter');
             // ── Configuration Fiscale (TVA / TSE / TDT) ──
-            Route::get('/config',           [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'obtenirConfig'])->name('config');
-            Route::post('/config',          [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'sauvegarderConfig'])->name('config.sauvegarder');
+            Route::get('/config', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'obtenirConfig'])->name('config');
+            Route::post('/config', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'sauvegarderConfig'])->name('config.sauvegarder');
             // ── Traitement par Lot et Planification ──
             // **La normalisation par lot appelle la plateforme de la DGI.** La
             // marteler expose l'entreprise à voir sa propre clé ralentie ou
             // coupée : la conséquence est chez elle, pas chez nous.
             Route::post('/batch-normaliser', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'batchNormaliser'])->middleware('throttle:plateforme')->name('batch_normaliser');
-            Route::post('/schedule-batch',   [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'scheduleBatch'])->middleware('throttle:plateforme')->name('schedule_batch');
-            Route::get('/batch-status',      [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'batchStatus'])->name('batch_status');
+            Route::post('/schedule-batch', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'scheduleBatch'])->middleware('throttle:plateforme')->name('schedule_batch');
+            Route::get('/batch-status', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'batchStatus'])->name('batch_status');
+
+            // ── Pièces refusées par la plateforme ──
+            // Le rapprochement écrivait déjà son constat chaque heure ; il
+            // n'était lisible nulle part. `appliquer` renomme un point de vente
+            // pour l'aligner sur ce que le portail déclare — jamais un champ
+            // fiscal, qui reste montré et non recopié.
+            Route::get('/rejets', [\App\Modules\Admin\Controleurs\RejetFneControleur::class, 'index'])->name('rejets');
+            Route::post('/rejets/{rejet}/diagnostiquer', [\App\Modules\Admin\Controleurs\RejetFneControleur::class, 'diagnostiquer'])->name('rejets.diagnostiquer');
+            Route::post('/rejets/{rejet}/appliquer', [\App\Modules\Admin\Controleurs\RejetFneControleur::class, 'appliquer'])->name('rejets.appliquer');
+            // Le « tout en un clic » du pop-up : ranger le relevé, rapprocher, corriger.
+            Route::post('/rejets/{rejet}/corriger-maintenant', [\App\Modules\Admin\Controleurs\RejetFneControleur::class, 'corrigerMaintenant'])->name('rejets.corriger_maintenant');
+            Route::post('/rejets/{rejet}/corriger-avec/{rang}', [\App\Modules\Admin\Controleurs\RejetFneControleur::class, 'corrigerAvec'])->name('rejets.corriger_avec');
+            Route::get('/rejets/{rejet}/statut-scraping', [\App\Modules\Admin\Controleurs\RejetFneControleur::class, 'statutScraping'])->name('rejets.statut_scraping');
+            Route::post('/rejets/{rejet}/resoudre', [\App\Modules\Admin\Controleurs\RejetFneControleur::class, 'resoudre'])->name('rejets.resoudre');
         });
 
         // ── Points de vente ──
         Route::prefix('points-de-vente')->name('pdv.')->group(function () {
-            Route::get('/',                     [PointDeVenteControleur::class, 'index'])->name('index');
-            Route::post('/',                    [PointDeVenteControleur::class, 'creer'])->name('creer');
-            Route::put('/{pdv}',                [PointDeVenteControleur::class, 'modifier'])->name('modifier');
-            Route::post('/activer/{pdv}',       [PointDeVenteControleur::class, 'activerSession'])->name('activer');
+            Route::get('/', [PointDeVenteControleur::class, 'index'])->name('index');
+            Route::post('/', [PointDeVenteControleur::class, 'creer'])->name('creer');
+            Route::put('/{pdv}', [PointDeVenteControleur::class, 'modifier'])->name('modifier');
+            Route::post('/activer/{pdv}', [PointDeVenteControleur::class, 'activerSession'])->name('activer');
             Route::post('/activer-apercu/{pdv}', [PointDeVenteControleur::class, 'activerApercu'])->name('activer_apercu');
-            Route::post('/desactiver-apercu',    [PointDeVenteControleur::class, 'desactiverApercu'])->name('desactiver_apercu');
+            Route::post('/desactiver-apercu', [PointDeVenteControleur::class, 'desactiverApercu'])->name('desactiver_apercu');
+
+            // Reprendre dans Selflow les points de facturation que le portail
+            // FNE déclare. Le sens ne s'inverse jamais : rien n'est créé au
+            // portail depuis Selflow.
+            Route::post('/relever-le-portail', [PointDeVenteControleur::class, 'releverLePortail'])->name('relever_le_portail');
+            Route::get('/etat-du-portail', [PointDeVenteControleur::class, 'etatDuPortail'])->name('etat_du_portail');
+            Route::post('/importer-du-portail', [PointDeVenteControleur::class, 'importerDuPortail'])->name('importer_du_portail');
+            // Charger un relevé à la main, quand le scraper ne peut pas tourner :
+            // .json (fiche) ou .xlsx / .xls (points de facturation).
+            Route::post('/charger-fichier-fne', [PointDeVenteControleur::class, 'LoadFileFne'])->name('load_file_fne');
         });
 
         // ── Import CSV ──
@@ -211,15 +250,15 @@ Route::prefix('admin')
         // articles, du stock, des immobilisations et des comptes utilisateurs.
         // Le répéter suffit à occuper le serveur.
         Route::prefix('import')->name('import.')->middleware('throttle:import')->group(function () {
-            Route::get('/{type}/exemple',  [\App\Modules\Admin\Controleurs\ImportControleur::class, 'telechargerExemple'])->name('exemple');
+            Route::get('/{type}/exemple', [\App\Modules\Admin\Controleurs\ImportControleur::class, 'telechargerExemple'])->name('exemple');
             Route::post('/{type}/preview', [\App\Modules\Admin\Controleurs\ImportControleur::class, 'preview'])->name('preview');
-            Route::post('/{type}',         [\App\Modules\Admin\Controleurs\ImportControleur::class, 'importer'])->name('importer');
+            Route::post('/{type}', [\App\Modules\Admin\Controleurs\ImportControleur::class, 'importer'])->name('importer');
         });
 
         // ── Gestion Personnel ──
         Route::prefix('personnel')->name('personnel.')->group(function () {
-            Route::get('/',            [PersonnelControleur::class, 'index'])->name('index');
-            Route::post('/',           [PersonnelControleur::class, 'creer'])->name('creer');
+            Route::get('/', [PersonnelControleur::class, 'index'])->name('index');
+            Route::post('/', [PersonnelControleur::class, 'creer'])->name('creer');
             Route::get('/{personnel}', [PersonnelControleur::class, 'details'])->name('details');
             Route::put('/{personnel}', [PersonnelControleur::class, 'modifier'])->name('modifier');
             Route::post('/{personnel}/statut', [PersonnelControleur::class, 'changerStatut'])->name('statut');
@@ -228,36 +267,36 @@ Route::prefix('admin')
 
         // ── Gestion catalogue ──
         Route::prefix('produits')->name('produits.')->group(function () {
-            Route::get('/calculer-reference',        [ProduitControleur::class, 'calculerReference'])->name('calculer_reference');
-            Route::get('/',                          [ProduitControleur::class, 'index'])->name('index');
-            Route::post('/',                         [ProduitControleur::class, 'creer'])->name('creer');
-            Route::get('/{produit}/fiche',           [ProduitControleur::class, 'fiche'])->name('fiche');
-            Route::put('/{produit}',                 [ProduitControleur::class, 'modifier'])->name('modifier');
-            Route::patch('/{produit}/archiver',      [ProduitControleur::class, 'archiver'])->name('archiver');
-            Route::patch('/{produit}/description',   [ProduitControleur::class, 'description'])->name('description');
-            Route::post('/{produit}/photo',          [ProduitControleur::class, 'uploaderPhoto'])->name('photo');
+            Route::get('/calculer-reference', [ProduitControleur::class, 'calculerReference'])->name('calculer_reference');
+            Route::get('/', [ProduitControleur::class, 'index'])->name('index');
+            Route::post('/', [ProduitControleur::class, 'creer'])->name('creer');
+            Route::get('/{produit}/fiche', [ProduitControleur::class, 'fiche'])->name('fiche');
+            Route::put('/{produit}', [ProduitControleur::class, 'modifier'])->name('modifier');
+            Route::patch('/{produit}/archiver', [ProduitControleur::class, 'archiver'])->name('archiver');
+            Route::patch('/{produit}/description', [ProduitControleur::class, 'description'])->name('description');
+            Route::post('/{produit}/photo', [ProduitControleur::class, 'uploaderPhoto'])->name('photo');
             // Le recours quand `public/storage` n'est pas posé — voir
             // `Produit::photoReelle()`.
-            Route::get('/{produit}/photo',           [ProduitControleur::class, 'voirPhoto'])->name('photo.voir');
-            Route::post('/{produit}/details',        [ProduitControleur::class, 'ajouterDetails'])->name('details.ajouter');
-            Route::delete('/details/{detail}',       [ProduitControleur::class, 'supprimerDetail'])->name('details.supprimer');
+            Route::get('/{produit}/photo', [ProduitControleur::class, 'voirPhoto'])->name('photo.voir');
+            Route::post('/{produit}/details', [ProduitControleur::class, 'ajouterDetails'])->name('details.ajouter');
+            Route::delete('/details/{detail}', [ProduitControleur::class, 'supprimerDetail'])->name('details.supprimer');
         });
 
         // ── Production ──
         Route::prefix('production')->name('production.')->middleware('modules:production')->group(function () {
             Route::prefix('fiches-techniques')->name('fiches_techniques.')->group(function () {
-                Route::get('/',            [ProductionControleur::class, 'indexFichesTechniques'])->name('index');
-                Route::get('/creer',       [ProductionControleur::class, 'creerFicheTechnique'])->name('creer');
-                Route::post('/creer',      [ProductionControleur::class, 'enregistrerFicheTechnique'])->name('enregistrer');
+                Route::get('/', [ProductionControleur::class, 'indexFichesTechniques'])->name('index');
+                Route::get('/creer', [ProductionControleur::class, 'creerFicheTechnique'])->name('creer');
+                Route::post('/creer', [ProductionControleur::class, 'enregistrerFicheTechnique'])->name('enregistrer');
                 Route::get('/{fiche}/modifier', [ProductionControleur::class, 'modifierFicheTechnique'])->name('modifier');
                 Route::put('/{fiche}/modifier', [ProductionControleur::class, 'enregistrerModificationFicheTechnique'])->name('modifier.enregistrer');
-                Route::delete('/{fiche}',  [ProductionControleur::class, 'supprimerFicheTechnique'])->name('supprimer');
+                Route::delete('/{fiche}', [ProductionControleur::class, 'supprimerFicheTechnique'])->name('supprimer');
             });
 
             Route::prefix('ordres')->name('ordres.')->group(function () {
-                Route::get('/',            [ProductionControleur::class, 'indexOrdres'])->name('index');
-                Route::get('/creer',       [ProductionControleur::class, 'creerOrdre'])->name('creer');
-                Route::post('/creer',      [ProductionControleur::class, 'enregistrerOrdre'])->name('enregistrer');
+                Route::get('/', [ProductionControleur::class, 'indexOrdres'])->name('index');
+                Route::get('/creer', [ProductionControleur::class, 'creerOrdre'])->name('creer');
+                Route::post('/creer', [ProductionControleur::class, 'enregistrerOrdre'])->name('enregistrer');
                 Route::post('/{ordre}/valider', [ProductionControleur::class, 'validerOrdre'])->name('valider');
             });
         });
@@ -268,9 +307,9 @@ Route::prefix('admin')
         // consignée 2 000 francs gonflait le chiffre d'affaires de 2 000 francs
         // que l'entreprise devra rendre.
         Route::prefix('consignations')->name('consignations.')->middleware('modules:stock')->group(function () {
-            Route::get('/',  [ConsignationControleur::class, 'index'])->name('index');
+            Route::get('/', [ConsignationControleur::class, 'index'])->name('index');
             Route::post('/', [ConsignationControleur::class, 'enregistrer'])->name('enregistrer');
-            Route::post('/{consignation}/rendre',     [ConsignationControleur::class, 'rendre'])->name('rendre');
+            Route::post('/{consignation}/rendre', [ConsignationControleur::class, 'rendre'])->name('rendre');
             Route::post('/{consignation}/non-rendue', [ConsignationControleur::class, 'constaterLeNonRetour'])->name('non_retour');
         });
 
@@ -281,21 +320,21 @@ Route::prefix('admin')
         // pas trace de l'actif immobilisé, et la charge d'amortissement,
         // déductible, n'était pas prise.
         Route::prefix('immobilisations')->name('immobilisations.')->middleware('modules:comptabilite')->group(function () {
-            Route::get('/',                 [ImmobilisationControleur::class, 'index'])->name('index');
-            Route::get('/creer',            [ImmobilisationControleur::class, 'creer'])->name('creer');
-            Route::post('/creer',           [ImmobilisationControleur::class, 'enregistrer'])->name('enregistrer');
-            Route::post('/cloturer',        [ImmobilisationControleur::class, 'cloturerLExercice'])->name('cloturer');
-            Route::get('/{bien}',           [ImmobilisationControleur::class, 'fiche'])->name('fiche');
-            Route::put('/{bien}',           [ImmobilisationControleur::class, 'modifier'])->name('modifier');
-            Route::post('/{bien}/ceder',    [ImmobilisationControleur::class, 'ceder'])->name('ceder');
+            Route::get('/', [ImmobilisationControleur::class, 'index'])->name('index');
+            Route::get('/creer', [ImmobilisationControleur::class, 'creer'])->name('creer');
+            Route::post('/creer', [ImmobilisationControleur::class, 'enregistrer'])->name('enregistrer');
+            Route::post('/cloturer', [ImmobilisationControleur::class, 'cloturerLExercice'])->name('cloturer');
+            Route::get('/{bien}', [ImmobilisationControleur::class, 'fiche'])->name('fiche');
+            Route::put('/{bien}', [ImmobilisationControleur::class, 'modifier'])->name('modifier');
+            Route::post('/{bien}/ceder', [ImmobilisationControleur::class, 'ceder'])->name('ceder');
             Route::post('/dotation/{dotation}', [ImmobilisationControleur::class, 'passerLaDotation'])->name('dotation');
         });
 
         // ── Communication B2B ──
         Route::prefix('b2b')->name('b2b.')->group(function () {
-            Route::get('/negociations/client',     [B2bControleur::class, 'negociationsClient'])->name('negociations.client');
+            Route::get('/negociations/client', [B2bControleur::class, 'negociationsClient'])->name('negociations.client');
             Route::get('/negociations/fournisseur', [B2bControleur::class, 'negociationsFournisseur'])->name('negociations.fournisseur');
-            Route::post('/rfq',                    [B2bControleur::class, 'creerRfq'])->name('rfq.creer');
+            Route::post('/rfq', [B2bControleur::class, 'creerRfq'])->name('rfq.creer');
             Route::post('/negociation/{negociation}/proposer', [B2bControleur::class, 'proposerPrix'])->name('negociation.proposer');
             Route::get('/negociation/{negociation}/stock', [B2bControleur::class, 'verifierStock'])->name('negociation.stock');
             Route::post('/negociation/{negociation}/finaliser', [B2bControleur::class, 'finaliserB2b'])->name('negociation.finaliser');
@@ -303,16 +342,16 @@ Route::prefix('admin')
         });
 
         Route::prefix('clients')->name('clients.')->group(function () {
-            Route::get('/',           [ClientControleur::class, 'index'])->name('index');
-            Route::post('/',          [ClientControleur::class, 'creer'])->name('creer');
-            Route::put('/{client}',   [ClientControleur::class, 'modifier'])->name('modifier');
+            Route::get('/', [ClientControleur::class, 'index'])->name('index');
+            Route::post('/', [ClientControleur::class, 'creer'])->name('creer');
+            Route::put('/{client}', [ClientControleur::class, 'modifier'])->name('modifier');
             Route::delete('/{client}', [ClientControleur::class, 'supprimer'])->name('supprimer');
         });
 
         Route::prefix('fournisseurs')->name('fournisseurs.')->group(function () {
-            Route::get('/',                [FournisseurControleur::class, 'index'])->name('index');
-            Route::post('/',               [FournisseurControleur::class, 'creer'])->name('creer');
-            Route::put('/{fournisseur}',   [FournisseurControleur::class, 'modifier'])->name('modifier');
+            Route::get('/', [FournisseurControleur::class, 'index'])->name('index');
+            Route::post('/', [FournisseurControleur::class, 'creer'])->name('creer');
+            Route::put('/{fournisseur}', [FournisseurControleur::class, 'modifier'])->name('modifier');
             Route::delete('/{fournisseur}', [FournisseurControleur::class, 'supprimer'])->name('supprimer');
         });
 
@@ -357,7 +396,7 @@ Route::prefix('admin/visite')
     ->name('admin.visite.')
     ->group(function () {
         Route::post('/terminer', [\App\Modules\Admin\Controleurs\VisiteGuideeControleur::class, 'terminer'])->name('terminer');
-        Route::post('/rejouer',  [\App\Modules\Admin\Controleurs\VisiteGuideeControleur::class, 'rejouer'])->name('rejouer');
+        Route::post('/rejouer', [\App\Modules\Admin\Controleurs\VisiteGuideeControleur::class, 'rejouer'])->name('rejouer');
     });
 
 // ───────────────────────────────────────────────────────────────────────
@@ -396,49 +435,49 @@ Route::prefix('superadmin')
 
         // ── Administration interne (Superadmins) ──
         Route::prefix('admins')->name('admins.')->group(function () {
-            Route::get('/',                       [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'admins'])->name('index');
-            Route::get('/creer',                  [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'creerAdmin'])->name('creer');
-            Route::post('/creer',                 [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'enregistrerAdmin'])->name('enregistrer');
+            Route::get('/', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'admins'])->name('index');
+            Route::get('/creer', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'creerAdmin'])->name('creer');
+            Route::post('/creer', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'enregistrerAdmin'])->name('enregistrer');
             Route::get('/{utilisateur}/modifier', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'modifierAdmin'])->name('modifier');
             Route::put('/{utilisateur}/modifier', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'mettreAJourAdmin'])->name('mettre_a_jour');
-            Route::delete('/{utilisateur}',       [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'supprimerAdmin'])->name('supprimer');
+            Route::delete('/{utilisateur}', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'supprimerAdmin'])->name('supprimer');
         });
 
         // ── Referentiel de preparametrage (consultation seule) ──
         Route::prefix('referentiel')->name('referentiel.')->group(function () {
-            Route::get('/',        [\App\Modules\Admin\Controleurs\SuperadminReferentielControleur::class, 'index'])->name('index');
-            Route::get('/{code}',  [\App\Modules\Admin\Controleurs\SuperadminReferentielControleur::class, 'profil'])->name('profil');
+            Route::get('/', [\App\Modules\Admin\Controleurs\SuperadminReferentielControleur::class, 'index'])->name('index');
+            Route::get('/{code}', [\App\Modules\Admin\Controleurs\SuperadminReferentielControleur::class, 'profil'])->name('profil');
         });
 
         // ── Liaisons SELFLOW ↔ COMPTAFLOW ──
         Route::prefix('liaisons')->name('liaisons.')->group(function () {
-            Route::get('/',                                    [SuperadminLiaisonControleur::class, 'index'])->name('index');
+            Route::get('/', [SuperadminLiaisonControleur::class, 'index'])->name('index');
             // `lier` pointait sur une methode absente du controleur — le
             // formulaire tombait en 500 depuis un renommage. `creerComptaflow`
             // demandait au superadministrateur de choisir le mot de passe du
             // compte d'un client. Les deux chemins sont remplaces par une file
             // de demandes : la cle est delivree par Comptaflow, jamais saisie.
-            Route::post('/{entreprise}/valider',               [SuperadminLiaisonControleur::class, 'validerDemande'])->middleware('throttle:plateforme')->name('valider');
-            Route::post('/{entreprise}/refuser',               [SuperadminLiaisonControleur::class, 'refuserDemande'])->name('refuser');
+            Route::post('/{entreprise}/valider', [SuperadminLiaisonControleur::class, 'validerDemande'])->middleware('throttle:plateforme')->name('valider');
+            Route::post('/{entreprise}/refuser', [SuperadminLiaisonControleur::class, 'refuserDemande'])->name('refuser');
             // Le renouvellement a la main, sans attendre le premier du mois :
             // un prestataire qui part, un journal retrouve sur un poste
             // partage, un doute. Limite : c'est un appel a Comptaflow.
-            Route::post('/{entreprise}/renouveler-cle',        [SuperadminLiaisonControleur::class, 'renouvelerLaCle'])->middleware('throttle:plateforme')->name('renouveler_cle');
-            Route::delete('/{entreprise}/delierEntreprise',    [SuperadminLiaisonControleur::class, 'delierEntreprise'])->name('delierEntreprise');
-            Route::post('/{entreprise}/verifier',              [SuperadminLiaisonControleur::class, 'verifierLiaison'])->middleware('throttle:plateforme')->name('verifier');
+            Route::post('/{entreprise}/renouveler-cle', [SuperadminLiaisonControleur::class, 'renouvelerLaCle'])->middleware('throttle:plateforme')->name('renouveler_cle');
+            Route::delete('/{entreprise}/delierEntreprise', [SuperadminLiaisonControleur::class, 'delierEntreprise'])->name('delierEntreprise');
+            Route::post('/{entreprise}/verifier', [SuperadminLiaisonControleur::class, 'verifierLiaison'])->middleware('throttle:plateforme')->name('verifier');
         });
 
         // ── Gestion des clés FNE (DGI) ──
         Route::prefix('fne')->name('fne.')->group(function () {
-            Route::get('/',                                       [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'index'])->name('index');
-            Route::post('/{entreprise}/cle-test',                 [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'ajouterCleTest'])->name('cle_test');
-            Route::post('/{entreprise}/cle-reelle',               [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'ajouterCleReelle'])->name('cle_reelle');
-            Route::post('/{entreprise}/voir-cle',                 [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'voirCle'])->name('voir_cle');
-            Route::delete('/{entreprise}/cle',                    [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'supprimerCle'])->name('supprimer_cle');
-            Route::post('/{entreprise}/notes',                    [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'mettreAJourNotes'])->name('notes');
+            Route::get('/', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'index'])->name('index');
+            Route::post('/{entreprise}/cle-test', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'ajouterCleTest'])->name('cle_test');
+            Route::post('/{entreprise}/cle-reelle', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'ajouterCleReelle'])->name('cle_reelle');
+            Route::post('/{entreprise}/voir-cle', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'voirCle'])->name('voir_cle');
+            Route::delete('/{entreprise}/cle', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'supprimerCle'])->name('supprimer_cle');
+            Route::post('/{entreprise}/notes', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'mettreAJourNotes'])->name('notes');
             // Le timbre de quittance est un réglage de la plateforme, non un
             // choix de l'entreprise : il se reporte ici, avec les clés.
-            Route::post('/{entreprise}/timbre',                   [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'basculerTimbre'])->name('timbre');
+            Route::post('/{entreprise}/timbre', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'basculerTimbre'])->name('timbre');
         });
 
         // ── Vitrine publique (contenu de la page de presentation) ──
@@ -458,8 +497,8 @@ Route::prefix('superadmin')
 
         // ── Secteurs & Modules (Configuration plateforme) ──
         Route::prefix('secteurs-modules')->name('secteurs_modules.')->group(function () {
-            Route::get('/',    [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'secteursModules'])->name('index');
-            Route::post('/',   [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'sauvegarderSecteursModules'])->name('sauvegarder');
+            Route::get('/', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'secteursModules'])->name('index');
+            Route::post('/', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'sauvegarderSecteursModules'])->name('sauvegarder');
         });
     });
 
@@ -474,36 +513,36 @@ Route::prefix('caissier')
         Route::get('/', [VenteControleur::class, 'nouvelle'])->name('tableau_de_bord');
 
         Route::prefix('ventes')->name('ventes.')->group(function () {
-            Route::get('/nouvelle',        [VenteControleur::class, 'nouvelle'])->name('nouvelle');
-            Route::post('/enregistrer',    [VenteControleur::class, 'enregistrer'])->name('enregistrer');
-            Route::get('/factures',        [VenteControleur::class, 'factures'])->name('factures');
+            Route::get('/nouvelle', [VenteControleur::class, 'nouvelle'])->name('nouvelle');
+            Route::post('/enregistrer', [VenteControleur::class, 'enregistrer'])->name('enregistrer');
+            Route::get('/factures', [VenteControleur::class, 'factures'])->name('factures');
 
             Route::get('/facture/{vente}', [VenteControleur::class, 'imprimer'])->name('imprimer');
             Route::get('/facture/{vente}/ticket', [VenteControleur::class, 'imprimerTicket'])->name('ticket');
             // Conversion reçu <-> facture, dans les deux sens
             Route::post('/{vente}/convertir-piece', [VenteControleur::class, 'convertirPiece'])->name('convertir_piece');
-            Route::get('/{vente}/modifier',    [VenteControleur::class, 'modifierFormulaire'])->name('modifier');
-            Route::put('/{vente}/modifier',    [VenteControleur::class, 'enregistrerModification'])->name('modifier.enregistrer');
+            Route::get('/{vente}/modifier', [VenteControleur::class, 'modifierFormulaire'])->name('modifier');
+            Route::put('/{vente}/modifier', [VenteControleur::class, 'enregistrerModification'])->name('modifier.enregistrer');
             Route::post('/{vente}/normaliser', [VenteControleur::class, 'normaliser'])->name('normaliser');
             // Workflow Devis → Commande → Facture
-            Route::post('/{vente}/envoyer',             [VenteControleur::class, 'envoyer'])->name('envoyer');
-            Route::post('/{vente}/convertir-commande',  [VenteControleur::class, 'convertirEnCommande'])->name('convertir.commande');
-            Route::post('/{vente}/convertir-facture',   [VenteControleur::class, 'convertirEnFacture'])->name('convertir.facture');
+            Route::post('/{vente}/envoyer', [VenteControleur::class, 'envoyer'])->name('envoyer');
+            Route::post('/{vente}/convertir-commande', [VenteControleur::class, 'convertirEnCommande'])->name('convertir.commande');
+            Route::post('/{vente}/convertir-facture', [VenteControleur::class, 'convertirEnFacture'])->name('convertir.facture');
             // Ce qui rend un devis opposable : son terme, et l'accord du client
-            Route::post('/{vente}/accepter',            [VenteControleur::class, 'accepterOffre'])->name('accepter');
-            Route::post('/{vente}/prolonger',           [VenteControleur::class, 'prolongerOffre'])->name('prolonger');
-            Route::delete('/{vente}/supprimer',         [VenteControleur::class, 'supprimer'])->name('supprimer');
+            Route::post('/{vente}/accepter', [VenteControleur::class, 'accepterOffre'])->name('accepter');
+            Route::post('/{vente}/prolonger', [VenteControleur::class, 'prolongerOffre'])->name('prolonger');
+            Route::delete('/{vente}/supprimer', [VenteControleur::class, 'supprimer'])->name('supprimer');
             // Bon de Livraison
-            Route::get ('/{vente}/livraison/creer',       [BonLivraisonControleur::class, 'creerDepuisBC'])->name('livraison.creer');
+            Route::get('/{vente}/livraison/creer', [BonLivraisonControleur::class, 'creerDepuisBC'])->name('livraison.creer');
             Route::post('/{vente}/livraison/enregistrer', [BonLivraisonControleur::class, 'enregistrer'])->name('livraison.enregistrer');
-            Route::get ('/livraisons',                    [BonLivraisonControleur::class, 'index'])->name('livraisons');
-            Route::get ('/livraison/{bl}',                [BonLivraisonControleur::class, 'imprimer'])->name('livraison.voir');
-            Route::post('/livraison/{bl}/livrer',         [BonLivraisonControleur::class, 'marquerLivre'])->name('livraison.livrer');
-            Route::post('/livraison/{bl}/facturer',       [BonLivraisonControleur::class, 'convertirEnFacture'])->name('livraison.facturer');
+            Route::get('/livraisons', [BonLivraisonControleur::class, 'index'])->name('livraisons');
+            Route::get('/livraison/{bl}', [BonLivraisonControleur::class, 'imprimer'])->name('livraison.voir');
+            Route::post('/livraison/{bl}/livrer', [BonLivraisonControleur::class, 'marquerLivre'])->name('livraison.livrer');
+            Route::post('/livraison/{bl}/facturer', [BonLivraisonControleur::class, 'convertirEnFacture'])->name('livraison.facturer');
         });
 
         Route::prefix('stock')->name('stock.')->group(function () {
-            Route::get('/',           [StockControleur::class, 'index'])->name('index');
+            Route::get('/', [StockControleur::class, 'index'])->name('index');
             Route::get('/mouvements', [StockControleur::class, 'mouvements'])->name('mouvements');
         });
 

@@ -30,6 +30,14 @@ php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 
+# 5 bis. Dossier des relevés du portail FNE
+#
+# Le contenu n'est pas versionné — ce sont des données fiscales nominatives —
+# donc le dossier n'arrive pas avec le dépôt. Sans lui, `portail-fne:importer`
+# s'arrête sur « Le dossier d'import n'existe pas » à chaque passage.
+echo "📁 Dossier des relevés du portail FNE..."
+mkdir -p storage/app/portail-fne
+
 # 6. Permissions
 echo "🔐 Permissions fichiers..."
 chmod -R 775 storage bootstrap/cache
@@ -49,6 +57,10 @@ echo ""
 echo "⚠️  PENSEZ À :"
 echo "  1. Modifier DB_PASSWORD dans .env"
 echo "  2. Générer une nouvelle APP_KEY : php artisan key:generate"
-echo "  3. Configurer le redirect Google OAuth sur Google Console :"
+echo "  3. Poser le planificateur dans le cron, sinon RIEN ne tourne :"
+echo "     (reprise des écritures Comptaflow, relevés du portail FNE,"
+echo "      rapprochement des rejets — aucune de ces tâches ne s'auto-déclenche)"
+echo "     → * * * * * cd $(pwd) && php artisan schedule:run >> /dev/null 2>&1"
+echo "  4. Configurer le redirect Google OAuth sur Google Console :"
 echo "     → Ajouter : https://selflow.dc-knowing.com/auth/callback"
 echo "     → JavaScript origins : https://selflow.dc-knowing.com"

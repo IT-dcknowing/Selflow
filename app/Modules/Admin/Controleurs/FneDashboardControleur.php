@@ -727,8 +727,10 @@ class FneDashboardControleur
                             }
                         }
 
+                        \App\Modules\Admin\Modeles\FneRejet::resoudre($vente);
                         $successCount++;
                     } else {
+                        \App\Modules\Admin\Modeles\FneRejet::consigner($vente, $fneResult);
                         $errors[] = "Erreur sur la facture {$vente->numero_facture} : " . ($fneResult['message'] ?? 'Erreur inconnue');
                         continue;
                     }
@@ -763,8 +765,10 @@ class FneDashboardControleur
                             'qr_code_data'  => $fneResult['qr_code_data'],
                             'fichier_fne_pdf_url' => $fneResult['pdf_url'] ?? null,
                         ] + \App\Modules\Admin\Services\FneService::colonnesRetoursFne($fneResult));
+                        \App\Modules\Admin\Modeles\FneRejet::resoudre($achat);
                         $successCount++;
                     } else {
+                        \App\Modules\Admin\Modeles\FneRejet::consigner($achat, $fneResult);
                         $errors[] = "Erreur sur l'achat {$achat->numero_facture} : " . ($fneResult['message'] ?? 'Erreur inconnue');
                         continue;
                     }

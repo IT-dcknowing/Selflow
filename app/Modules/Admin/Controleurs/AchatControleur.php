@@ -5,6 +5,7 @@ namespace App\Modules\Admin\Controleurs;
 use App\Modules\Admin\Modeles\Achat;
 use App\Modules\Admin\Modeles\AchatDetail;
 use App\Modules\Admin\Modeles\Fournisseur;
+use App\Modules\Admin\Modeles\FneRejet;
 use App\Modules\Admin\Modeles\MouvementStock;
 use App\Modules\Admin\Modeles\Produit;
 use App\Modules\Admin\Modeles\TresorerieJournal;
@@ -393,7 +394,7 @@ class AchatControleur
         $etapeActive = request('etape', 'Facture');
         $type = request('type');
 
-        $baseQuery = Achat::with(['fournisseur', 'pointDeVente', 'details.produit'])
+        $baseQuery = Achat::with(['fournisseur', 'pointDeVente', 'details.produit', 'rejets'])
             ->whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entreprise->id));
 
         if ($pointDeVenteId) {
@@ -775,7 +776,92 @@ class AchatControleur
 
         $this->journaliser('normalisation_manuelle_achat', 'Achat', $achat->id);
 
-        return back()->with('succes', 'La normalisation BAPA/DGI a été effectuée avec succès. Le document est maintenant normalisé.');
+        // Le succès se lit sur la pièce, il ne se suppose pas. Ce message
+        // partait en vert quoi qu'il arrive — même quand la DGI refusait le
+        // bordereau, même quand la plateforme n'avait pas répondu : un vert
+        // rassurant sur un achat resté non normalisé. C'est le défaut corrigé
+        // sur les ventes au lot 20 ; il vivait ici aussi.
+        if ($achat->fresh()->normalise) {
+            return back()->with('succes', 'La normalisation BAPA/DGI a été effectuée avec succès. Le document est maintenant normalisé.');
+        }
+
+        $rejet = FneRejet::where('piece_type', 'achat')
+            ->where('piece_id', $achat->id)
+            ->where('statut', FneRejet::STATUT_OUVERT)
+            ->latest('id')
+            ->first();
+
+        // La plateforme n'a pas répondu : rien n'a été refusé, rien n'a été
+        // examiné, et personne ne rejouera à notre place.
+        if ($rejet && $rejet->estReseau()) {
+            return back()
+                ->with('erreur',
+                    "La plateforme FNE est injoignable pour le moment : le bordereau n'a pas été "
+                    . "envoyé, et la DGI n'a rien refusé. Réessayez dans un instant — le rejet "
+                    . 'se refermera de lui-même dès que la pièce passera.'
+                )
+                ->with('erreur_action', [[
+                    'url'    => route('admin.achats.normaliser', $achat),
+                    'label'  => 'Réessayer',
+                    'method' => 'post',
+                ]]);
+        }
+
+        if ($rejet && $rejet->cause === FneRejet::CAUSE_DGI) {
+            \Illuminate\Support\Facades\Artisan::call('portail-fne:importer');
+            $entreprise = $rejet->entreprise ?? $achat->pointDeVente?->entreprise ?? Auth::user()->entreprise;
+            if ($entreprise) {
+                app(\App\Modules\Admin\Services\PointsDeVentePortailService::class)->importer($entreprise);
+            }
+
+            $correcteur = app(\App\Modules\Admin\Services\CorrectionFneService::class);
+            $diagnostic = app(\App\Modules\Admin\Services\DiagnosticFneService::class)->diagnostiquer($rejet);
+            $rejet->update([
+                'diagnostic' => $diagnostic,
+                'statut'     => $rejet->statut === FneRejet::STATUT_RESOLU
+                    ? FneRejet::STATUT_RESOLU
+                    : FneRejet::STATUT_DIAGNOSTIQUE,
+            ]);
+            $rejet->refresh();
+
+            $correctionDirecte = $correcteur->correctionApplicable($rejet);
+            if ($correctionDirecte !== null) {
+                $fait = $correcteur->corriger($rejet, synchrone: true);
+                if ($fait !== null) {
+                    $msg = ($fait['mode'] ?? 'bascule') === 'cree'
+                        ? sprintf('Le point de vente « %s » a été créé automatiquement dans Selflow d\'après la DGI, et le document a été normalisé.', $fait['nouveau'])
+                        : sprintf('Le document a été rattaché au point de vente « %s » et normalisé avec succès.', $fait['nouveau']);
+                    return back()->with('succes', $msg);
+                }
+            }
+
+            // Si plusieurs points sont déclarés au portail : afficher DIRECTEMENT la liste sélective des points de vente
+            $auChoix = $correcteur->nomsAuChoix($rejet);
+            if ($auChoix !== []) {
+                $boutons = [];
+                foreach ($auChoix as $rang => $nom) {
+                    $boutons[] = [
+                        'url'          => route('admin.fne.rejets.corriger_avec', ['rejet' => $rejet, 'rang' => $rang]),
+                        'label'        => $nom,
+                        'nom'          => $nom,
+                        'action_label' => 'Activer',
+                        'method'       => 'post',
+                    ];
+                }
+
+                return back()
+                    ->with('avertissement', 'La DGI a refusé le document : le point de vente ne correspond pas. Sélectionnez et activez le point de vente correspondant sur votre espace FNE :')
+                    ->with('avertissement_action', $boutons);
+            }
+        }
+
+        return back()
+            ->with('avertissement', "La DGI n'a pas certifié le bordereau. Le détail du refus, et "
+                . "la correction s'il y en a une à faire, sont sur l'écran des rejets FNE.")
+            ->with('avertissement_action', [[
+                'url'   => route('admin.fne.rejets'),
+                'label' => 'Voir les rejets FNE',
+            ]]);
     }
 
     /** Le motif du refus, le meme partout : une seule phrase a corriger le jour ou la DGI ouvrira. */

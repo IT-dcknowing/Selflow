@@ -180,6 +180,26 @@ class Vente extends Model
         return $this->belongsTo(Vente::class, 'piece_liee_id');
     }
 
+    public function rejets(): HasMany
+    {
+        return $this->hasMany(FneRejet::class, 'piece_id')->where('piece_type', 'vente');
+    }
+
+    /**
+     * Vérifie si cette facture a un rejet FNE en cours de relève ou de correction.
+     */
+    public function aRejetEnCours(): bool
+    {
+        if ($this->normalise) {
+            return false;
+        }
+
+        return $this->rejets->contains(fn (FneRejet $r) => in_array($r->statut, [
+            FneRejet::STATUT_OUVERT,
+            FneRejet::STATUT_DIAGNOSTIQUE,
+        ]));
+    }
+
     // ─────────────────────────────────────────────────────────────────
     // LE DEVIS OPPOSABLE
     // ─────────────────────────────────────────────────────────────────

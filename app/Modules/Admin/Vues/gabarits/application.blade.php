@@ -199,6 +199,85 @@
         .alert-danger  { background: #FEF2F2; border: 1px solid #FEE2E2; color: #991B1B; }
         .alert-warning { background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E; }
 
+        /* ── TOAST (pop-up de notification / rejet FNE) ─────────
+           Centré au plein milieu de l'écran (centre du dashboard). */
+        .toast-zone {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 4000;
+            display: flex; flex-direction: column; align-items: center; gap: 14px;
+            width: min(540px, calc(100vw - 32px)); pointer-events: none;
+        }
+        .toast {
+            pointer-events: auto; width: 100%;
+            display: flex; align-items: flex-start; gap: 15px;
+            background: #fff; border-radius: 16px; padding: 20px 22px;
+            box-shadow: 0 24px 64px rgba(15, 23, 42, .30), 0 4px 16px rgba(0, 0, 0, .08);
+            border: 1px solid var(--border); border-left: 6px solid #94a3b8;
+            animation: toast-in .32s cubic-bezier(.16, 1, .3, 1);
+        }
+        .toast.sortie { animation: toast-out .25s ease forwards; }
+        .toast .ic { font-size: 24px; line-height: 1.2; margin-top: 1px; flex-shrink: 0; color: #94a3b8; }
+        .toast .bd { flex: 1; min-width: 0; }
+        .toast .ti { font-weight: 800; font-size: 13.5px; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 5px; }
+        .toast .ms { font-size: 14px; color: var(--text-2); line-height: 1.6; word-break: break-word; }
+        .toast .x  { background: none; border: none; cursor: pointer; color: var(--text-3);
+                     font-size: 18px; line-height: 1; padding: 4px 6px; flex-shrink: 0; border-radius: 6px; }
+        .toast .x:hover { color: var(--text-1); background: rgba(100, 116, 139, .12); }
+        .toast-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+        .toast-action {
+            display: inline-block; padding: 9px 18px; border-radius: 10px; cursor: pointer;
+            font-size: 13px; font-weight: 700; text-decoration: none; color: #fff;
+            background: #64748b; transition: filter .12s ease, transform .12s ease;
+        }
+        .toast-action:hover { filter: brightness(1.07); transform: translateY(-1px); }
+        /* Le bouton principal (POST : lancer la correction) prend la couleur du
+           type ; le secondaire (naviguer) reste en contour, plus discret. */
+        .toast.t-succes        .toast-action { background: #10b981; }
+        .toast.t-avertissement .toast-action { background: #f59e0b; }
+        .toast.t-erreur        .toast-action { background: #ef4444; }
+        .toast.t-info          .toast-action { background: #3b82f6; }
+        .toast-action.secondaire {
+            background: transparent; color: var(--text-2);
+            border: 1px solid var(--border);
+        }
+        .toast-action.secondaire:hover { background: rgba(100, 116, 139, .10); color: var(--text-1); }
+        .toast.t-succes        { border-left-color: #10b981; } .toast.t-succes .ic        { color: #10b981; } .toast.t-succes .ti        { color: #065f46; }
+        .toast.t-avertissement { border-left-color: #f59e0b; } .toast.t-avertissement .ic { color: #f59e0b; } .toast.t-avertissement .ti { color: #92400e; }
+        .toast.t-erreur        { border-left-color: #ef4444; } .toast.t-erreur .ic        { color: #ef4444; } .toast.t-erreur .ti        { color: #991b1b; }
+        .toast.t-info          { border-left-color: #3b82f6; } .toast.t-info .ic          { color: #3b82f6; } .toast.t-info .ti          { color: #1e3a8a; }
+        /* ── Liste sélective des points de vente dans le pop-up ── */
+        .toast-pdv-list {
+            display: flex; flex-direction: column; gap: 8px; margin-top: 14px;
+            max-height: 250px; overflow-y: auto; padding-right: 4px; width: 100%;
+        }
+        .toast-pdv-item {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+            padding: 9px 12px; transition: all .15s ease;
+        }
+        .toast-pdv-item:hover {
+            background: #f1f5f9; border-color: #cbd5e1;
+        }
+        .toast-pdv-name {
+            display: flex; align-items: center; gap: 8px; font-weight: 700;
+            font-size: 13.5px; color: #1e293b;
+        }
+        .toast-pdv-name i { color: #f59e0b; font-size: 13px; }
+        .toast-pdv-btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 14px; border-radius: 8px; cursor: pointer;
+            font-size: 12.5px; font-weight: 700; text-decoration: none;
+            color: #fff; background: #2563eb; border: none;
+            box-shadow: 0 2px 6px rgba(37, 99, 235, .25);
+            transition: all .15s ease; flex-shrink: 0;
+        }
+        .toast-pdv-btn:hover {
+            background: #1d4ed8; transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(37, 99, 235, .35);
+        }
+        @keyframes toast-in  { from { opacity: 0; transform: scale(.90); } to { opacity: 1; transform: scale(1); } }
+        @keyframes toast-out { to  { opacity: 0; transform: scale(.90); } }
+        @media (max-width: 560px) { .toast-zone { top: 50%; left: 50%; transform: translate(-50%, -50%); width: calc(100vw - 28px); } }
+
         /* ── CARDS ───────────────────────────────── */
         .card {
             background: var(--surface); border: 1px solid var(--border);
@@ -661,6 +740,9 @@
             <a href="{{ route('admin.achats.factures', ['type' => 'avoir']) }}" class="nav-item {{ request()->routeIs('admin.achats.factures') && request('type') === 'avoir' ? 'active' : '' }}">
                 <i class="fas fa-file-circle-minus" style="color:#e17055;"></i> Avoirs fournisseurs
             </a>
+            <a href="{{ route('admin.achats.factures_recues') }}" class="nav-item {{ request()->routeIs('admin.achats.factures_recues*') ? 'active' : '' }}">
+                <i class="fas fa-inbox"></i> Factures re&ccedil;ues (portail FNE)
+            </a>
             @endif
 
             @if(auth()->user()->aHabilitation('nouvel_achat'))
@@ -776,8 +858,30 @@
             <a href="{{ route('admin.fne.factures') }}" class="nav-item {{ request()->routeIs('admin.fne.factures') ? 'active' : '' }}">
                 <i class="fas fa-receipt"></i> Factures &amp; Reçus émis/reçus
             </a>
+            @if(in_array('achats', $modulesActifs))
+            <a href="{{ route('admin.achats.factures_recues') }}" class="nav-item {{ request()->routeIs('admin.achats.factures_recues*') ? 'active' : '' }}">
+                <i class="fas fa-inbox"></i> Factures re&ccedil;ues du portail
+            </a>
+            @endif
             <a href="{{ route('admin.fne.stickers') }}" class="nav-item {{ request()->routeIs('admin.fne.stickers') ? 'active' : '' }}">
                 <i class="fas fa-ticket"></i> Gestion des stickers
+            </a>
+            @php
+                // Le compte des pièces refusées se lit ici et non dans un
+                // composeur de vue : le gabarit calcule déjà le reste de sa barre
+                // de la même façon. L'index (entreprise_id, statut) rend le
+                // décompte négligeable, et sans ce chiffre un refus survenu la
+                // nuit n'appellerait personne — l'écran ne se visite pas au hasard.
+                $rejetsFneOuverts = $entreprise
+                    ? \App\Modules\Admin\Modeles\FneRejet::where('entreprise_id', $entreprise->id)
+                        ->whereIn('statut', ['ouvert', 'diagnostique'])->count()
+                    : 0;
+            @endphp
+            <a href="{{ route('admin.fne.rejets') }}" class="nav-item {{ request()->routeIs('admin.fne.rejets') ? 'active' : '' }}">
+                <i class="fas fa-triangle-exclamation"></i> Pièces refusées
+                @if($rejetsFneOuverts > 0)
+                <span style="background:#E53E3E;color:#fff;border-radius:20px;padding:1px 7px;font-size:10px;margin-left:6px;font-weight:700;">{{ $rejetsFneOuverts }}</span>
+                @endif
             </a>
             @endif
 
@@ -926,20 +1030,54 @@
 <div class="main-wrap">
     <main class="main-content">
 
-        @if(session('succes'))
-        <div class="alert alert-success">
-            <i class="fas fa-check-circle"></i>
-            {{ session('succes') }}
-        </div>
-        @endif
+        {{-- Les messages flash apparaissent en toast — un pop-up en surimpression,
+             coin haut-droit —, non plus en bandeau : un bandeau en haut d'un écran
+             chargé passe inaperçu. La collecte est ici, l'affichage en fin de page.
+             Le message est posé par `textContent` côté JS, jamais interprété comme
+             du HTML. --}}
+        @php
+            $__flashs = [];
+            foreach ([
+                'succes'        => 'Succès',
+                'avertissement' => 'Attention',
+                'erreur'        => 'Erreur',
+                'info'          => 'Information',
+            ] as $__cle => $__titre) {
+                if (session()->has($__cle)) {
+                    $__f = ['type' => $__cle, 'titre' => $__titre, 'message' => (string) session($__cle)];
 
-        @if($errors->any())
-        <div class="alert alert-danger">
-            <i class="fas fa-circle-exclamation"></i>
-            <div>
-                @foreach($errors->all() as $e) <div>{{ $e }}</div> @endforeach
-            </div>
-        </div>
+                    // Une ou plusieurs actions facultatives — des boutons qui
+                    // mènent où agir —, posées par le contrôleur sous
+                    // « {cle}_action ». On accepte une action seule ou une liste.
+                    $__brut = session($__cle . '_action');
+                    if (is_array($__brut) && $__brut !== []) {
+                        $__liste = array_key_exists('url', $__brut) ? [$__brut] : $__brut;
+                        $__actions = [];
+                        foreach ($__liste as $__a) {
+                            if (is_array($__a) && !empty($__a['url']) && !empty($__a['label'])) {
+                                $__actions[] = [
+                                    'url'          => (string) $__a['url'],
+                                    'label'        => (string) $__a['label'],
+                                    'nom'          => (string) ($__a['nom'] ?? ''),
+                                    'action_label' => (string) ($__a['action_label'] ?? ''),
+                                    'method'       => strtolower((string) ($__a['method'] ?? 'get')),
+                                ];
+                            }
+                        }
+                        if ($__actions !== []) {
+                            $__f['actions'] = $__actions;
+                        }
+                    }
+
+                    $__flashs[] = $__f;
+                }
+            }
+            if ($errors->any()) {
+                $__flashs[] = ['type' => 'erreur', 'titre' => 'Erreur', 'message' => implode(' ', $errors->all())];
+            }
+        @endphp
+        @if($__flashs)
+        <script>window.__flashs = (window.__flashs || []).concat(@json($__flashs));</script>
         @endif
 
         {{-- Alerte de stickers. Placee ici plutot que dans chaque vue : le
@@ -1294,6 +1432,272 @@ document.addEventListener('DOMContentLoaded', () => {
 @yield('scripts')
 
 @include('admin::partials.visite-guidee')
+
+{{-- Zone des toasts (pop-up de notification), alimentée par window.__flashs.
+     Succès et information disparaissent seuls ; avertissement et erreur
+     restent jusqu'à ce qu'on les ferme — on ne rate pas un refus. --}}
+<div class="toast-zone" id="toastZone" aria-live="polite" aria-atomic="true"></div>
+<script>
+window.__csrf = '{{ csrf_token() }}';
+(function () {
+    var zone = document.getElementById('toastZone');
+    if (!zone) return;
+    var flashs = window.__flashs || [];
+    var icones = { succes:'fa-circle-check', avertissement:'fa-triangle-exclamation', erreur:'fa-circle-exclamation', info:'fa-circle-info' };
+    var persistants = { avertissement:true, erreur:true };
+
+    flashs.forEach(function (f, i) { setTimeout(function () { afficher(f); }, i * 160); });
+
+    function afficher(f) {
+        var el = document.createElement('div');
+        el.className = 'toast t-' + (f.type || 'info');
+
+        var ic = document.createElement('i');
+        ic.className = 'fas ' + (icones[f.type] || 'fa-circle-info') + ' ic';
+
+        var bd = document.createElement('div'); bd.className = 'bd';
+        var ti = document.createElement('div'); ti.className = 'ti'; ti.textContent = f.titre || '';
+        var ms = document.createElement('div'); ms.className = 'ms'; ms.textContent = f.message || '';
+        bd.appendChild(ti); bd.appendChild(ms);
+
+        // Actions ou liste sélective des points de vente
+        if (Array.isArray(f.actions) && f.actions.length) {
+            var estListePdv = f.actions.some(function (ac) { return ac.action_label || ac.nom; });
+
+            if (estListePdv) {
+                var listeDiv = document.createElement('div');
+                listeDiv.className = 'toast-pdv-list';
+
+                f.actions.forEach(function (ac) {
+                    if (!ac || !ac.url || !ac.label) return;
+                    var item = document.createElement('div');
+                    item.className = 'toast-pdv-item';
+
+                    var nomDiv = document.createElement('div');
+                    nomDiv.className = 'toast-pdv-name';
+                    nomDiv.innerHTML = '<i class="fas fa-store"></i> <span>' + (ac.nom || ac.label) + '</span>';
+
+                    var btnActiver = document.createElement('button');
+                    btnActiver.className = 'toast-pdv-btn';
+                    btnActiver.innerHTML = '<i class="fas fa-bolt"></i> ' + (ac.action_label || 'Activer');
+                    btnActiver.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        btnActiver.disabled = true;
+                        btnActiver.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Activation...';
+                        var form = document.createElement('form');
+                        form.method = 'POST';
+                        form.action = ac.url;
+                        var t = document.createElement('input');
+                        t.type = 'hidden'; t.name = '_token';
+                        t.value = (window.__csrf || '');
+                        form.appendChild(t);
+                        document.body.appendChild(form);
+                        form.submit();
+                    });
+
+                    item.appendChild(nomDiv);
+                    item.appendChild(btnActiver);
+                    listeDiv.appendChild(item);
+                });
+
+                bd.appendChild(listeDiv);
+            } else {
+                var barre = document.createElement('div');
+                barre.className = 'toast-actions';
+                f.actions.forEach(function (ac) {
+                    if (!ac || !ac.url || !ac.label) return;
+                    var btn = document.createElement('a');
+                    btn.className = 'toast-action' + (ac.method === 'post' ? '' : ' secondaire');
+                    btn.href = ac.url;
+                    btn.textContent = ac.label;
+                    if (ac.method === 'post') {
+                        btn.setAttribute('role', 'button');
+                        btn.addEventListener('click', function (e) {
+                            e.preventDefault();
+                            var form = document.createElement('form');
+                            form.method = 'POST';
+                            form.action = ac.url;
+                            var t = document.createElement('input');
+                            t.type = 'hidden'; t.name = '_token';
+                            t.value = (window.__csrf || '');
+                            form.appendChild(t);
+                            document.body.appendChild(form);
+                            form.submit();
+                        });
+                    }
+                    barre.appendChild(btn);
+                });
+                bd.appendChild(barre);
+            }
+        }
+
+        var x = document.createElement('button');
+        x.className = 'x'; x.setAttribute('aria-label', 'Fermer');
+        x.innerHTML = '<i class="fas fa-xmark"></i>';
+
+        el.appendChild(ic); el.appendChild(bd); el.appendChild(x);
+
+        function fermer() { el.classList.add('sortie'); setTimeout(function () { el.remove(); }, 300); }
+        x.addEventListener('click', fermer);
+        zone.appendChild(el);
+
+        if (!persistants[f.type]) { setTimeout(fermer, 6000); }
+    }
+})();
+</script>
+
+{{-- Polling automatique : quand le scraper est lancé après un échec de normalisation,
+     le pop-up interroge le serveur et se met à jour automatiquement avec les points
+     de vente récupérés du portail FNE. --}}
+@if(session('rejet_en_cours_id'))
+<script>
+(function () {
+    var rejetId = @json(session('rejet_en_cours_id'));
+    var url = '/admin/fne/rejets/' + rejetId + '/statut-scraping';
+    var tentatives = 0;
+    var maxTentatives = 15;
+    var intervalle = 8000;
+    var zone = document.getElementById('toastZone');
+
+    function interroger() {
+        tentatives++;
+        fetch(url, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data.pret) {
+                if (tentatives < maxTentatives) { setTimeout(interroger, intervalle); }
+                return;
+            }
+
+            // Vider les toasts existants
+            if (zone) { zone.innerHTML = ''; }
+
+            if (data.resolu) {
+                // Succès automatique : le point a été créé et la pièce normalisée
+                afficherToast('succes', 'Succès', data.message);
+                setTimeout(function () { location.reload(); }, 3000);
+            } else if (data.choix && data.choix.length) {
+                // Plusieurs points au choix sous forme de liste sélective
+                afficherToastAvecBoutons('avertissement', 'Attention', data.message, data.choix);
+            } else {
+                afficherToast('info', 'Information', data.message);
+            }
+        })
+        .catch(function () {
+            if (tentatives < maxTentatives) { setTimeout(interroger, intervalle); }
+        });
+    }
+
+    function afficherToast(type, titre, message) {
+        if (!zone) return;
+        var icones = { succes:'fa-circle-check', avertissement:'fa-triangle-exclamation', erreur:'fa-circle-exclamation', info:'fa-circle-info' };
+        var el = document.createElement('div');
+        el.className = 'toast t-' + type;
+        el.innerHTML = '<i class="fas ' + (icones[type] || 'fa-circle-info') + ' ic"></i>'
+            + '<div class="bd"><div class="ti">' + titre + '</div><div class="ms">' + message + '</div></div>'
+            + '<button class="x" aria-label="Fermer"><i class="fas fa-xmark"></i></button>';
+        el.querySelector('.x').addEventListener('click', function () {
+            el.classList.add('sortie'); setTimeout(function () { el.remove(); }, 300);
+        });
+        zone.appendChild(el);
+    }
+
+    function afficherToastAvecBoutons(type, titre, message, boutons) {
+        if (!zone) return;
+        var icones = { succes:'fa-circle-check', avertissement:'fa-triangle-exclamation', erreur:'fa-circle-exclamation', info:'fa-circle-info' };
+        var el = document.createElement('div');
+        el.className = 'toast t-' + type;
+
+        var ic = document.createElement('i');
+        ic.className = 'fas ' + (icones[type] || 'fa-circle-info') + ' ic';
+
+        var bd = document.createElement('div'); bd.className = 'bd';
+        var ti = document.createElement('div'); ti.className = 'ti'; ti.textContent = titre;
+        var ms = document.createElement('div'); ms.className = 'ms'; ms.textContent = message;
+        bd.appendChild(ti); bd.appendChild(ms);
+
+        var estListePdv = boutons.some(function (ac) { return ac.action_label || ac.nom; });
+
+        if (estListePdv) {
+            var listeDiv = document.createElement('div');
+            listeDiv.className = 'toast-pdv-list';
+
+            boutons.forEach(function (ac) {
+                if (!ac || !ac.url || !ac.label) return;
+                var item = document.createElement('div');
+                item.className = 'toast-pdv-item';
+
+                var nomDiv = document.createElement('div');
+                nomDiv.className = 'toast-pdv-name';
+                nomDiv.innerHTML = '<i class="fas fa-store"></i> <span>' + (ac.nom || ac.label) + '</span>';
+
+                var btnActiver = document.createElement('button');
+                btnActiver.className = 'toast-pdv-btn';
+                btnActiver.innerHTML = '<i class="fas fa-bolt"></i> ' + (ac.action_label || 'Activer');
+                btnActiver.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    btnActiver.disabled = true;
+                    btnActiver.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Activation...';
+                    var form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = ac.url;
+                    var t = document.createElement('input');
+                    t.type = 'hidden'; t.name = '_token';
+                    t.value = (window.__csrf || '');
+                    form.appendChild(t);
+                    document.body.appendChild(form);
+                    form.submit();
+                });
+
+                item.appendChild(nomDiv);
+                item.appendChild(btnActiver);
+                listeDiv.appendChild(item);
+            });
+
+            bd.appendChild(listeDiv);
+        } else {
+            var barre = document.createElement('div');
+            barre.className = 'toast-actions';
+            boutons.forEach(function (ac) {
+                var btn = document.createElement('a');
+                btn.className = 'toast-action' + (ac.method === 'post' ? '' : ' secondaire');
+                btn.href = ac.url;
+                btn.textContent = ac.label;
+                if (ac.method === 'post') {
+                    btn.setAttribute('role', 'button');
+                    btn.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        var form = document.createElement('form');
+                        form.method = 'POST'; form.action = ac.url;
+                        var t = document.createElement('input');
+                        t.type = 'hidden'; t.name = '_token'; t.value = (window.__csrf || '');
+                        form.appendChild(t);
+                        document.body.appendChild(form); form.submit();
+                    });
+                }
+                barre.appendChild(btn);
+            });
+            bd.appendChild(barre);
+        }
+
+        var x = document.createElement('button');
+        x.className = 'x'; x.setAttribute('aria-label', 'Fermer');
+        x.innerHTML = '<i class="fas fa-xmark"></i>';
+
+        el.appendChild(ic); el.appendChild(bd); el.appendChild(x);
+        x.addEventListener('click', function () {
+            el.classList.add('sortie'); setTimeout(function () { el.remove(); }, 300);
+        });
+        zone.appendChild(el);
+    }
+
+    // Démarrer le polling après un court délai pour laisser le scraper partir
+    setTimeout(interroger, 5000);
+})();
+</script>
+@endif
 </body>
 </html>
 

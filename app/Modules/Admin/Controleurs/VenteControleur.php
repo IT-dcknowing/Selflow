@@ -26,6 +26,9 @@ use Illuminate\View\View;
 use App\Modules\Admin\Regles\Appartenance;
 use App\Modules\Admin\Regles\Quantite;
 use App\Modules\Admin\Services\StockService;
+use App\Modules\Admin\Services\ScraperPortailFneService;
+use App\Modules\Admin\Modeles\FneRejet;
+use Termwind\Components\Dd;
 
 class VenteControleur
 {
@@ -47,18 +50,18 @@ class VenteControleur
             : (session('point_de_vente_actif_id')
                 ?? Auth::user()->pointDeVenteDOuverture()
                 ?? PointDeVente::where('entreprise_id', $entreprise->id)->orderBy('nom')->value('id'));
-        $clients        = Client::obtenirClientsPrioritaires($entreprise->id);
+        $clients = Client::obtenirClientsPrioritaires($entreprise->id);
         // Archiver un article, c'est dire qu'on ne le vend plus. La caisse le
         // proposait quand même : le filtre ne vivait que sur l'écran du
         // catalogue.
-        $produits       = Produit::where('entreprise_id', $entreprise->id)
+        $produits = Produit::where('entreprise_id', $entreprise->id)
             ->selectionnables()
             ->with('taxes')
             ->orderBy('nom')
             ->get();
 
         $categories = $produits->pluck('categorie')->unique()->sort()->values();
-        $banques    = CodeJournal::where('type', 'Banque')->where('entreprise_id', $entreprise->id)->orderBy('intitule')->get();
+        $banques = CodeJournal::where('type', 'Banque')->where('entreprise_id', $entreprise->id)->orderBy('intitule')->get();
 
         return view('admin::ventes.nouvelle', compact('clients', 'produits', 'categories', 'pointDeVenteId', 'banques'));
     }
@@ -80,35 +83,35 @@ class VenteControleur
                 ?? PointDeVente::where('entreprise_id', $entreprise->id)->orderBy('nom')->value('id'));
 
         $request->validate(array_merge([
-            'client_id'      => ['nullable', 'integer', Appartenance::a('clients', 'id')],
-            'mode_paiement'  => ['required', 'string'],
-            'articles'       => ['required', 'array', 'min:1'],
-            'articles.*.produit_id'      => ['nullable', 'integer', Appartenance::a('produits', 'id')],
+            'client_id' => ['nullable', 'integer', Appartenance::a('clients', 'id')],
+            'mode_paiement' => ['required', 'string'],
+            'articles' => ['required', 'array', 'min:1'],
+            'articles.*.produit_id' => ['nullable', 'integer', Appartenance::a('produits', 'id')],
             'articles.*.libelle_virtuel' => ['nullable', 'string', 'max:255'],
-            'articles.*.quantite'        => Quantite::physique(),
-            'articles.*.unite'           => ['nullable', 'string', 'max:50'],
-            'articles.*.prix_unitaire'   => ['nullable', 'numeric', 'min:0'],
-            'articles.*.tva'             => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'type_piece'                 => ['nullable', 'string', 'in:facture,recu'],
+            'articles.*.quantite' => Quantite::physique(),
+            'articles.*.unite' => ['nullable', 'string', 'max:50'],
+            'articles.*.prix_unitaire' => ['nullable', 'numeric', 'min:0'],
+            'articles.*.tva' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'type_piece' => ['nullable', 'string', 'in:facture,recu'],
             // Un terme dans le passé ne serait pas une offre, mais une offre
             // déjà caduque au moment où on la remet au client.
-            'date_validite'              => ['nullable', 'date', 'after_or_equal:today'],
-            'articles.*.code_tva'        => ['nullable', 'string', 'in:TVA,TVAB,TVAC,TVAD'],
-            'articles.*.taxes'           => ['nullable', 'array'],
-            'articles.*.taxes.*.nom'     => ['required_with:articles.*.taxes.*.taux', 'string', 'max:100'],
-            'articles.*.taxes.*.taux'    => ['required_with:articles.*.taxes.*.nom', 'numeric', 'gt:0', 'max:100'],
+            'date_validite' => ['nullable', 'date', 'after_or_equal:today'],
+            'articles.*.code_tva' => ['nullable', 'string', 'in:TVA,TVAB,TVAC,TVAD'],
+            'articles.*.taxes' => ['nullable', 'array'],
+            'articles.*.taxes.*.nom' => ['required_with:articles.*.taxes.*.taux', 'string', 'max:100'],
+            'articles.*.taxes.*.taux' => ['required_with:articles.*.taxes.*.nom', 'numeric', 'gt:0', 'max:100'],
         ], self::reglesChampsFne()), array_merge([
-            'articles.required' => 'Veuillez ajouter au moins un article au panier.',
-        ], self::messagesChampsFne()));
+                'articles.required' => 'Veuillez ajouter au moins un article au panier.',
+            ], self::messagesChampsFne()));
 
         if ($request->mode_paiement === 'Banque') {
             $request->validate([
-                'banque_id'          => ['required', 'integer', Appartenance::a('codes_journaux', 'id')],
-                'moyen_bancaire'     => ['required', 'string', 'in:carte,virement,cheque'],
+                'banque_id' => ['required', 'integer', Appartenance::a('codes_journaux', 'id')],
+                'moyen_bancaire' => ['required', 'string', 'in:carte,virement,cheque'],
                 'reference_paiement' => ['required', 'string', 'max:255'],
             ], [
-                'banque_id.required'          => 'Veuillez sélectionner la banque.',
-                'moyen_bancaire.required'     => 'Veuillez sélectionner le moyen de paiement bancaire.',
+                'banque_id.required' => 'Veuillez sélectionner la banque.',
+                'moyen_bancaire.required' => 'Veuillez sélectionner le moyen de paiement bancaire.',
                 'reference_paiement.required' => 'Veuillez saisir le numéro ou référence de paiement.',
             ]);
         }
@@ -133,14 +136,17 @@ class VenteControleur
         // l'utilisateur de réapprovisionner avant facturation).
         if ($etapePrevue === 'Facture') {
             foreach ($request->articles as $article) {
-                if (empty($article['produit_id'])) continue;
+                if (empty($article['produit_id']))
+                    continue;
 
                 $produit = Produit::find($article['produit_id']);
-                if (!$produit || !$produit->estStockable()) continue;
+                if (!$produit || !$produit->estStockable())
+                    continue;
 
                 $stockDisponible = $produit->stockActuel($pointDeVenteId);
                 if ($stockDisponible < $article['quantite']) {
-                    return back()->withInput()->with('error',
+                    return back()->withInput()->with(
+                        'error',
                         "❌ Stock insuffisant pour « {$produit->nom} » : disponible {$stockDisponible}, demandé {$article['quantite']}."
                     );
                 }
@@ -151,16 +157,18 @@ class VenteControleur
                 // toute façon, mais par une exception : elle protège les
                 // données, elle n'explique rien à l'utilisateur.
                 if ($perime = self::lotPerimeEnTete($produit, $pointDeVenteId)) {
-                    return back()->withInput()->with('error',
+                    return back()->withInput()->with(
+                        'error',
                         "❌ Le lot « {$perime->numero_lot} » de « {$produit->nom} » est périmé depuis le "
                         . $perime->date_peremption->format('d/m/Y')
-                        . '. Mettez-le au rebut avant de servir ce qui suit.');
+                        . '. Mettez-le au rebut avant de servir ce qui suit.'
+                    );
                 }
             }
         }
 
         DB::transaction(function () use ($request, $pointDeVenteId, &$venteId, $entreprise) {
-            $montantHt  = 0;
+            $montantHt = 0;
             $remiseTaux = self::tauxBorne($request->input('remise_taux', 0));
             $etape = $request->input('etape', 'Facture');
 
@@ -177,7 +185,7 @@ class VenteControleur
 
                 $remiseLigne = self::tauxBorne($article['remise_taux'] ?? 0);
                 $ht = $article['quantite'] * $prix * (1 - $remiseLigne / 100);
-                $montantHt  += $ht;
+                $montantHt += $ht;
             }
 
             // La remise globale est saisie en pourcentage (format attendu par
@@ -243,32 +251,32 @@ class VenteControleur
             }
 
             $vente = Vente::create([
-                'point_de_vente_id'       => $pointDeVenteId,
-                'client_id'               => $request->client_id ?: null,
-                'numero_facture'          => $numero,
-                'date_vente'              => now()->toDateString(),
+                'point_de_vente_id' => $pointDeVenteId,
+                'client_id' => $request->client_id ?: null,
+                'numero_facture' => $numero,
+                'date_vente' => now()->toDateString(),
                 // Un devis sans terme engage indéfiniment celui qui l'a fait :
                 // il reste présentable des mois plus tard, aux prix du jour où
                 // il a été établi. Une facture, elle, n'expire pas.
-                'date_validite'           => self::termeDeLOffre($request, $etape),
-                'mode_paiement'           => $modePaiementFinal,
-                'moyen_bancaire'          => $request->mode_paiement === 'Banque' ? $request->moyen_bancaire : null,
-                'reference_paiement'      => $request->mode_paiement === 'Banque' ? $request->reference_paiement : null,
-                'mobile_money_operateur'  => $request->mode_paiement === 'Mobile Money' ? $request->mobile_money_operateur : null,
-                'devise'                  => $request->devise ?: 'XOF',
-                'taux_change'             => ($request->devise && $request->devise !== 'XOF') ? floatval($request->taux_change) : null,
-                'montant_ht'              => $montantHt,
-                'montant_tva'             => $montantTva,
-                'remise'                  => $remise,
-                'remise_taux'             => $remiseTaux,
-                'montant_ttc'             => $montantTtc,
-                'montant_autres_taxes'    => $montantAutresTaxes,
-                'statut'                  => $statutVente,
-                'etape'                   => $etape,
+                'date_validite' => self::termeDeLOffre($request, $etape),
+                'mode_paiement' => $modePaiementFinal,
+                'moyen_bancaire' => $request->mode_paiement === 'Banque' ? $request->moyen_bancaire : null,
+                'reference_paiement' => $request->mode_paiement === 'Banque' ? $request->reference_paiement : null,
+                'mobile_money_operateur' => $request->mode_paiement === 'Mobile Money' ? $request->mobile_money_operateur : null,
+                'devise' => $request->devise ?: 'XOF',
+                'taux_change' => ($request->devise && $request->devise !== 'XOF') ? floatval($request->taux_change) : null,
+                'montant_ht' => $montantHt,
+                'montant_tva' => $montantTva,
+                'remise' => $remise,
+                'remise_taux' => $remiseTaux,
+                'montant_ttc' => $montantTtc,
+                'montant_autres_taxes' => $montantAutresTaxes,
+                'statut' => $statutVente,
+                'etape' => $etape,
                 // Nature du document : facture par defaut. Un encaissement en
                 // especes reste une facture ; seul le bouton « Recu » produit
                 // un recu.
-                'type_piece'              => $request->input('type_piece') === Vente::TYPE_RECU
+                'type_piece' => $request->input('type_piece') === Vente::TYPE_RECU
                     ? Vente::TYPE_RECU
                     : Vente::TYPE_FACTURE,
             ]);
@@ -296,15 +304,15 @@ class VenteControleur
                 $tva = $ht * ($tvaRate / 100);
 
                 $detail = VenteDetail::create([
-                    'vente_id'        => $vente->id,
-                    'produit_id'      => $produit ? $produit->id : null,
+                    'vente_id' => $vente->id,
+                    'produit_id' => $produit ? $produit->id : null,
                     'libelle_virtuel' => $produit ? null : $nomElement,
-                    'quantite'        => $article['quantite'],
-                    'unite'           => $article['unite'] ?? 'Unité',
-                    'prix_unitaire'   => $prix,
-                    'remise_taux'     => $remiseLigne,
-                    'montant_tva'     => $tva,
-                    'montant_ttc'     => $ht + $tva,
+                    'quantite' => $article['quantite'],
+                    'unite' => $article['unite'] ?? 'Unité',
+                    'prix_unitaire' => $prix,
+                    'remise_taux' => $remiseLigne,
+                    'montant_tva' => $tva,
+                    'montant_ttc' => $ht + $tva,
                 ]);
 
                 // Taxes de la ligne : celles de la fiche produit, ou celles
@@ -335,9 +343,13 @@ class VenteControleur
                     // UNE SECONDE FOIS si un utilisateur validait une "livraison" dessus.
                     $detail->update(['quantite_livree' => $article['quantite']]);
 
-                    StockService::sortie($produit, (int) $pointDeVenteId, (float) $article['quantite'],
+                    StockService::sortie(
+                        $produit,
+                        (int) $pointDeVenteId,
+                        (float) $article['quantite'],
                         MouvementStock::LIVRAISON,
-                        ['piece' => $vente, 'reference' => $numero, 'client_id' => $vente->client_id]);
+                        ['piece' => $vente, 'reference' => $numero, 'client_id' => $vente->client_id]
+                    );
                 }
             }
 
@@ -374,16 +386,16 @@ class VenteControleur
                         ->orderByDesc('created_at')->value('solde_resultat') ?? 0;
 
                     TresorerieJournal::create([
-                        'point_de_vente_id'  => $pointDeVenteId,
-                        'date_operation'     => now()->toDateString(),
-                        'type_operation'     => 'Encaissement',
-                        'libelle'            => \App\Modules\Admin\Services\ComptabiliteService::libelleTresorerieVente($vente),
-                        'mode_paiement'      => $modePaiementFinal,
-                        'moyen_bancaire'     => $request->mode_paiement === 'Banque' ? $request->moyen_bancaire : null,
+                        'point_de_vente_id' => $pointDeVenteId,
+                        'date_operation' => now()->toDateString(),
+                        'type_operation' => 'Encaissement',
+                        'libelle' => \App\Modules\Admin\Services\ComptabiliteService::libelleTresorerieVente($vente),
+                        'mode_paiement' => $modePaiementFinal,
+                        'moyen_bancaire' => $request->mode_paiement === 'Banque' ? $request->moyen_bancaire : null,
                         'reference_paiement' => $request->mode_paiement === 'Banque' ? $request->reference_paiement : null,
-                        'montant_entree'     => $montantPaye,
-                        'montant_sortie'     => 0,
-                        'solde_resultat'     => $soldeActuel + $montantPaye,
+                        'montant_entree' => $montantPaye,
+                        'montant_sortie' => 0,
+                        'solde_resultat' => $soldeActuel + $montantPaye,
                         'reference_document' => $numero,
                     ]);
                 }
@@ -394,14 +406,14 @@ class VenteControleur
                         ->orderByDesc('created_at')->value('solde_resultat') ?? 0;
 
                     TresorerieJournal::create([
-                        'point_de_vente_id'  => $pointDeVenteId,
-                        'date_operation'     => now()->toDateString(),
-                        'type_operation'     => 'Encaissement',
-                        'libelle'            => 'Acompte Vente — Devis ' . $numero,
-                        'mode_paiement'      => $modePaiementFinal,
-                        'montant_entree'     => $montantPaye,
-                        'montant_sortie'     => 0,
-                        'solde_resultat'     => $soldeActuel + $montantPaye,
+                        'point_de_vente_id' => $pointDeVenteId,
+                        'date_operation' => now()->toDateString(),
+                        'type_operation' => 'Encaissement',
+                        'libelle' => 'Acompte Vente — Devis ' . $numero,
+                        'mode_paiement' => $modePaiementFinal,
+                        'montant_entree' => $montantPaye,
+                        'montant_sortie' => 0,
+                        'solde_resultat' => $soldeActuel + $montantPaye,
                         'reference_document' => $numero,
                     ]);
                 }
@@ -425,22 +437,22 @@ class VenteControleur
                     $vente->load('details.produit');
                     $produitsDemandes = $vente->details->map(function ($d) {
                         return [
-                            'nom'          => $d->produit?->nom ?? 'Produit #' . $d->produit_id,
-                            'quantite'     => $d->quantite,
-                            'unite'        => $d->unite ?? $d->produit?->unite ?? 'pcs',
+                            'nom' => $d->produit?->nom ?? 'Produit #' . $d->produit_id,
+                            'quantite' => $d->quantite,
+                            'unite' => $d->unite ?? $d->produit?->unite ?? 'pcs',
                             'prix_propose' => $d->prix_unitaire,
                         ];
                     })->values()->all();
 
                     B2bNegotiation::create([
-                        'entreprise_client_id'     => Auth::user()->entreprise_id,
+                        'entreprise_client_id' => Auth::user()->entreprise_id,
                         'entreprise_fournisseur_id' => $entrepriseDestinataire->id,
-                        'statut'                   => 'RFQ',
-                        'type_demande'             => 'commande',
-                        'reference_commande'       => $vente->numero_facture,
-                        'produits_demandes'        => $produitsDemandes,
-                        'prix_final'               => $vente->montant_ttc,
-                        'historique_discussions'   => [],
+                        'statut' => 'RFQ',
+                        'type_demande' => 'commande',
+                        'reference_commande' => $vente->numero_facture,
+                        'produits_demandes' => $produitsDemandes,
+                        'prix_final' => $vente->montant_ttc,
+                        'historique_discussions' => [],
                     ]);
                 }
             }
@@ -467,15 +479,15 @@ class VenteControleur
         $voirArchives = request('archives') === '1';
 
         // Calcul des totaux par étape (non archivés seulement)
-        $compteQuery = Vente::where(function($q) {
-                $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir');
-            })->where('archived', false);
+        $compteQuery = Vente::where(function ($q) {
+            $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir');
+        })->where('archived', false);
         if ($pointDeVenteId) {
             $compteQuery->where('point_de_vente_id', $pointDeVenteId);
         } else {
             $compteQuery->whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entreprise->id));
         }
-        
+
         $totaux = $compteQuery->select('etape', \Illuminate\Support\Facades\DB::raw('count(*) as total'))
             ->groupBy('etape')
             ->pluck('total', 'etape')
@@ -505,13 +517,13 @@ class VenteControleur
             }
             $ventes = $blQuery->latest()->paginate(20);
         } else {
-            $baseQuery = Vente::with(['client', 'pointDeVente', 'details.produit', 'pieceLiee']);
+            $baseQuery = Vente::with(['client', 'pointDeVente', 'details.produit', 'pieceLiee', 'rejets']);
 
             if ($type === 'avoir') {
                 $baseQuery->where('type_facture', 'avoir');
                 $etapeActive = 'Facture';
             } else {
-                $baseQuery->where(function($q) {
+                $baseQuery->where(function ($q) {
                     $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir');
                 });
                 $baseQuery->where('etape', $etapeActive);
@@ -536,8 +548,8 @@ class VenteControleur
                 $recherche = request('recherche');
                 $baseQuery->where(function ($q) use ($recherche) {
                     $q->where('numero_facture', 'like', "%{$recherche}%")
-                      ->orWhere('numero_fne', 'like', "%{$recherche}%")
-                      ->orWhereHas('client', fn($qc) => $qc->where('nom', 'like', "%{$recherche}%"));
+                        ->orWhere('numero_fne', 'like', "%{$recherche}%")
+                        ->orWhereHas('client', fn($qc) => $qc->where('nom', 'like', "%{$recherche}%"));
                 });
             }
             if (request()->filled('statut_filtre')) {
@@ -562,13 +574,13 @@ class VenteControleur
             $facturesDispoQuery = Vente::with('client')
                 ->whereHas('pointDeVente', fn($queryPdv) => $queryPdv->where('entreprise_id', $entreprise->id))
                 ->where('etape', 'Facture')
-                ->where(function($queryNum) {
+                ->where(function ($queryNum) {
                     // Accepte l'ancien préfixe (VT-) ET le nouveau (VTE-,
                     // depuis le changement de convention de numérotation).
                     $queryNum->where('numero_facture', 'LIKE', 'VT-%')
-                             ->orWhere('numero_facture', 'LIKE', 'VTE-%');
+                        ->orWhere('numero_facture', 'LIKE', 'VTE-%');
                 })
-                ->where(function($queryType) {
+                ->where(function ($queryType) {
                     $queryType->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir');
                 })
                 ->where('archived', false);
@@ -641,7 +653,7 @@ class VenteControleur
         }
 
         $entreprise = Auth::user()->entreprise;
-        $clients    = Client::obtenirClientsPrioritaires($entreprise->id);
+        $clients = Client::obtenirClientsPrioritaires($entreprise->id);
         // Load details with products
         $vente->load(['details.produit', 'client']);
 
@@ -651,12 +663,12 @@ class VenteControleur
         // première modification. Les articles déjà portés restent proposés.
         $dejaPortes = $vente->details->pluck('produit_id')->filter()->all();
 
-        $produits   = Produit::where('entreprise_id', $entreprise->id)
-            ->where(fn ($q) => $q->selectionnables()->orWhereIn('id', $dejaPortes))
+        $produits = Produit::where('entreprise_id', $entreprise->id)
+            ->where(fn($q) => $q->selectionnables()->orWhereIn('id', $dejaPortes))
             ->orderBy('nom')
             ->get();
         $categories = $produits->pluck('categorie')->unique()->sort()->values();
-        $banques    = CodeJournal::where('type', 'Banque')->where('entreprise_id', $entreprise->id)->orderBy('intitule')->get();
+        $banques = CodeJournal::where('type', 'Banque')->where('entreprise_id', $entreprise->id)->orderBy('intitule')->get();
 
         return view('admin::ventes.modifier', compact('vente', 'clients', 'produits', 'categories', 'banques'));
     }
@@ -686,35 +698,35 @@ class VenteControleur
         }
 
         $request->validate(array_merge([
-            'client_id'      => ['nullable', 'integer', Appartenance::a('clients', 'id')],
-            'mode_paiement'  => ['required', 'string'],
-            'articles'       => ['required', 'array', 'min:1'],
-            'articles.*.produit_id'      => ['nullable', 'integer', Appartenance::a('produits', 'id')],
+            'client_id' => ['nullable', 'integer', Appartenance::a('clients', 'id')],
+            'mode_paiement' => ['required', 'string'],
+            'articles' => ['required', 'array', 'min:1'],
+            'articles.*.produit_id' => ['nullable', 'integer', Appartenance::a('produits', 'id')],
             'articles.*.libelle_virtuel' => ['nullable', 'string', 'max:255'],
-            'articles.*.quantite'        => Quantite::physique(),
-            'articles.*.unite'           => ['nullable', 'string', 'max:50'],
-            'articles.*.prix_unitaire'   => ['nullable', 'numeric', 'min:0'],
-            'articles.*.tva'             => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'type_piece'                 => ['nullable', 'string', 'in:facture,recu'],
+            'articles.*.quantite' => Quantite::physique(),
+            'articles.*.unite' => ['nullable', 'string', 'max:50'],
+            'articles.*.prix_unitaire' => ['nullable', 'numeric', 'min:0'],
+            'articles.*.tva' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'type_piece' => ['nullable', 'string', 'in:facture,recu'],
             // Un terme dans le passé ne serait pas une offre, mais une offre
             // déjà caduque au moment où on la remet au client.
-            'date_validite'              => ['nullable', 'date', 'after_or_equal:today'],
-            'articles.*.code_tva'        => ['nullable', 'string', 'in:TVA,TVAB,TVAC,TVAD'],
-            'articles.*.taxes'           => ['nullable', 'array'],
-            'articles.*.taxes.*.nom'     => ['required_with:articles.*.taxes.*.taux', 'string', 'max:100'],
-            'articles.*.taxes.*.taux'    => ['required_with:articles.*.taxes.*.nom', 'numeric', 'gt:0', 'max:100'],
+            'date_validite' => ['nullable', 'date', 'after_or_equal:today'],
+            'articles.*.code_tva' => ['nullable', 'string', 'in:TVA,TVAB,TVAC,TVAD'],
+            'articles.*.taxes' => ['nullable', 'array'],
+            'articles.*.taxes.*.nom' => ['required_with:articles.*.taxes.*.taux', 'string', 'max:100'],
+            'articles.*.taxes.*.taux' => ['required_with:articles.*.taxes.*.nom', 'numeric', 'gt:0', 'max:100'],
         ], self::reglesChampsFne()), array_merge([
-            'articles.required' => 'Veuillez ajouter au moins un article au panier.',
-        ], self::messagesChampsFne()));
+                'articles.required' => 'Veuillez ajouter au moins un article au panier.',
+            ], self::messagesChampsFne()));
 
         if ($request->mode_paiement === 'Banque') {
             $request->validate([
-                'banque_id'          => ['required', 'integer', Appartenance::a('codes_journaux', 'id')],
-                'moyen_bancaire'     => ['required', 'string', 'in:carte,virement,cheque'],
+                'banque_id' => ['required', 'integer', Appartenance::a('codes_journaux', 'id')],
+                'moyen_bancaire' => ['required', 'string', 'in:carte,virement,cheque'],
                 'reference_paiement' => ['required', 'string', 'max:255'],
             ], [
-                'banque_id.required'          => 'Veuillez sélectionner la banque.',
-                'moyen_bancaire.required'     => 'Veuillez sélectionner le moyen de paiement bancaire.',
+                'banque_id.required' => 'Veuillez sélectionner la banque.',
+                'moyen_bancaire.required' => 'Veuillez sélectionner le moyen de paiement bancaire.',
                 'reference_paiement.required' => 'Veuillez saisir le numéro ou référence de paiement.',
             ]);
         }
@@ -746,7 +758,7 @@ class VenteControleur
             TresorerieJournal::where('reference_document', $vente->numero_facture)->delete();
 
             // 3. Recalculer avec les nouveaux articles
-            $montantHt  = 0;
+            $montantHt = 0;
             $remiseTaux = self::tauxBorne($request->input('remise_taux', 0));
 
             // 3.1 Précalcul du montant HT total, remises d'article déduites
@@ -759,7 +771,7 @@ class VenteControleur
                 }
                 $remiseLigne = self::tauxBorne($article['remise_taux'] ?? 0);
                 $ht = $article['quantite'] * $prix * (1 - $remiseLigne / 100);
-                $montantHt  += $ht;
+                $montantHt += $ht;
             }
 
             $remise = round($montantHt * $remiseTaux / 100, 2);
@@ -815,17 +827,17 @@ class VenteControleur
 
             // Mettre à jour la vente
             $vente->update([
-                'client_id'         => $request->client_id ?: null,
-                'mode_paiement'     => $modePaiementFinal,
-                'moyen_bancaire'    => $request->mode_paiement === 'Banque' ? $request->moyen_bancaire : null,
-                'reference_paiement'=> $request->mode_paiement === 'Banque' ? $request->reference_paiement : null,
-                'montant_ht'        => $montantHt,
-                'montant_tva'       => $montantTva,
-                'remise'            => $remise,
-                'remise_taux'       => $remiseTaux,
-                'montant_ttc'       => $montantTtc,
-                'statut'            => $statutVente,
-                'type_piece'        => $request->input('type_piece') === Vente::TYPE_RECU
+                'client_id' => $request->client_id ?: null,
+                'mode_paiement' => $modePaiementFinal,
+                'moyen_bancaire' => $request->mode_paiement === 'Banque' ? $request->moyen_bancaire : null,
+                'reference_paiement' => $request->mode_paiement === 'Banque' ? $request->reference_paiement : null,
+                'montant_ht' => $montantHt,
+                'montant_tva' => $montantTva,
+                'remise' => $remise,
+                'remise_taux' => $remiseTaux,
+                'montant_ttc' => $montantTtc,
+                'statut' => $statutVente,
+                'type_piece' => $request->input('type_piece') === Vente::TYPE_RECU
                     ? Vente::TYPE_RECU
                     : $vente->type_piece,
             ]);
@@ -853,16 +865,16 @@ class VenteControleur
                 $tva = $ht * ($tvaRate / 100);
 
                 $detail = VenteDetail::create([
-                    'coupon_id'       => null,
-                    'vente_id'        => $vente->id,
-                    'produit_id'      => $produit ? $produit->id : null,
+                    'coupon_id' => null,
+                    'vente_id' => $vente->id,
+                    'produit_id' => $produit ? $produit->id : null,
                     'libelle_virtuel' => $produit ? null : $nomElement,
-                    'quantite'        => $article['quantite'],
-                    'unite'           => $article['unite'] ?? 'Unité',
-                    'prix_unitaire'   => $prix,
-                    'remise_taux'     => $remiseLigne,
-                    'montant_tva'     => $tva,
-                    'montant_ttc'     => $ht + $tva,
+                    'quantite' => $article['quantite'],
+                    'unite' => $article['unite'] ?? 'Unité',
+                    'prix_unitaire' => $prix,
+                    'remise_taux' => $remiseLigne,
+                    'montant_tva' => $tva,
+                    'montant_ttc' => $ht + $tva,
                 ]);
 
                 self::copierTaxesProduitSurLigne($detail, $produit);
@@ -887,10 +899,17 @@ class VenteControleur
                         ->limit(1)
                         ->update(['quantite_livree' => $article['quantite']]);
 
-                    StockService::sortie($produit, (int) $pointDeVenteId, (float) $article['quantite'],
+                    StockService::sortie(
+                        $produit,
+                        (int) $pointDeVenteId,
+                        (float) $article['quantite'],
                         MouvementStock::LIVRAISON,
-                        ['piece' => $vente, 'reference' => $vente->numero_facture,
-                         'client_id' => $vente->client_id]);
+                        [
+                            'piece' => $vente,
+                            'reference' => $vente->numero_facture,
+                            'client_id' => $vente->client_id
+                        ]
+                    );
                 }
             }
 
@@ -900,16 +919,16 @@ class VenteControleur
                     ->orderByDesc('created_at')->value('solde_resultat') ?? 0;
 
                 TresorerieJournal::create([
-                    'point_de_vente_id'  => $pointDeVenteId,
-                    'date_operation'     => now()->toDateString(),
-                    'type_operation'     => 'Encaissement',
-                    'libelle'            => 'Modification Vente — Facture ' . $vente->numero_facture,
-                    'mode_paiement'      => $modePaiementFinal,
-                    'moyen_bancaire'     => $request->mode_paiement === 'Banque' ? $request->moyen_bancaire : null,
+                    'point_de_vente_id' => $pointDeVenteId,
+                    'date_operation' => now()->toDateString(),
+                    'type_operation' => 'Encaissement',
+                    'libelle' => 'Modification Vente — Facture ' . $vente->numero_facture,
+                    'mode_paiement' => $modePaiementFinal,
+                    'moyen_bancaire' => $request->mode_paiement === 'Banque' ? $request->moyen_bancaire : null,
                     'reference_paiement' => $request->mode_paiement === 'Banque' ? $request->reference_paiement : null,
-                    'montant_entree'     => $montantPaye,
-                    'montant_sortie'     => 0,
-                    'solde_resultat'     => $soldeActuel + $montantPaye,
+                    'montant_entree' => $montantPaye,
+                    'montant_sortie' => 0,
+                    'solde_resultat' => $soldeActuel + $montantPaye,
                     'reference_document' => $vente->numero_facture,
                 ]);
             }
@@ -1022,7 +1041,7 @@ class VenteControleur
         abort_unless($vente->estUneOffre(), 403);
 
         $request->validate([
-            'accepte_par'      => ['nullable', 'string', 'max:190'],
+            'accepte_par' => ['nullable', 'string', 'max:190'],
             'date_acceptation' => ['nullable', 'date', 'before_or_equal:today'],
         ], [
             'date_acceptation.before_or_equal' => 'Une acceptation ne se date pas dans le futur.',
@@ -1035,9 +1054,11 @@ class VenteControleur
         // Une offre expirée ne lie plus personne : l'accepter après coup
         // ferait croire à un engagement qui n'existe pas.
         if ($vente->estExpire()) {
-            return back()->with('erreur',
+            return back()->with(
+                'erreur',
                 'Ce devis a expiré le ' . $vente->date_validite->format('d/m/Y')
-                . ' : il ne peut plus être accepté en l\'état.');
+                . ' : il ne peut plus être accepté en l\'état.'
+            );
         }
 
         $vente->update([
@@ -1045,7 +1066,7 @@ class VenteControleur
                 ? $request->date('date_acceptation')->toDateString()
                 : now()->toDateString(),
             'accepte_par' => $request->input('accepte_par') ?: $vente->client?->nom,
-            'statut'      => 'Accepté',
+            'statut' => 'Accepté',
         ]);
 
         return back()->with('succes', 'Acceptation enregistrée. Le document est désormais figé.');
@@ -1069,14 +1090,18 @@ class VenteControleur
         ]);
 
         if ($vente->estConverti()) {
-            return back()->with('erreur',
-                'Ce document a déjà été converti : son terme n\'a plus d\'objet.');
+            return back()->with(
+                'erreur',
+                'Ce document a déjà été converti : son terme n\'a plus d\'objet.'
+            );
         }
 
         $vente->update(['date_validite' => $request->date('date_validite')->toDateString()]);
 
-        return back()->with('succes',
-            'Validité prolongée jusqu\'au ' . $vente->fresh()->date_validite->format('d/m/Y') . '.');
+        return back()->with(
+            'succes',
+            'Validité prolongée jusqu\'au ' . $vente->fresh()->date_validite->format('d/m/Y') . '.'
+        );
     }
 
     public function confirmerCommande(Vente $vente): RedirectResponse
@@ -1126,10 +1151,17 @@ class VenteControleur
                     // (StockControleur::livraisons()) — voir explication dans store().
                     $detail->update(['quantite_livree' => $detail->quantite]);
 
-                    StockService::sortie($produit, (int) $vente->point_de_vente_id, (float) $detail->quantite,
+                    StockService::sortie(
+                        $produit,
+                        (int) $vente->point_de_vente_id,
+                        (float) $detail->quantite,
                         MouvementStock::LIVRAISON,
-                        ['piece' => $vente, 'reference' => $vente->numero_facture,
-                         'client_id' => $vente->client_id]);
+                        [
+                            'piece' => $vente,
+                            'reference' => $vente->numero_facture,
+                            'client_id' => $vente->client_id
+                        ]
+                    );
                 }
             }
 
@@ -1148,16 +1180,16 @@ class VenteControleur
                     ->orderByDesc('created_at')->value('solde_resultat') ?? 0;
 
                 TresorerieJournal::create([
-                    'point_de_vente_id'  => $vente->point_de_vente_id,
-                    'date_operation'     => now()->toDateString(),
-                    'type_operation'     => 'Encaissement',
-                    'libelle'            => \App\Modules\Admin\Services\ComptabiliteService::libelleTresorerieVente($vente),
-                    'mode_paiement'      => $vente->mode_paiement,
-                    'moyen_bancaire'     => $vente->moyen_bancaire,
+                    'point_de_vente_id' => $vente->point_de_vente_id,
+                    'date_operation' => now()->toDateString(),
+                    'type_operation' => 'Encaissement',
+                    'libelle' => \App\Modules\Admin\Services\ComptabiliteService::libelleTresorerieVente($vente),
+                    'mode_paiement' => $vente->mode_paiement,
+                    'moyen_bancaire' => $vente->moyen_bancaire,
                     'reference_paiement' => $vente->reference_paiement,
-                    'montant_entree'     => $resteAPayer,
-                    'montant_sortie'     => 0,
-                    'solde_resultat'     => $soldeActuel + $resteAPayer,
+                    'montant_entree' => $resteAPayer,
+                    'montant_sortie' => 0,
+                    'solde_resultat' => $soldeActuel + $resteAPayer,
                     'reference_document' => $vente->numero_facture,
                 ]);
             }
@@ -1198,46 +1230,48 @@ class VenteControleur
 
         DB::transaction(function () use ($vente, $request, &$avoirId) {
             $numAvoir = \App\Modules\Admin\Services\NumerotationService::genererNumeroVente(
-                $vente->pointDeVente->entreprise_id, 'Facture', 'avoir'
+                $vente->pointDeVente->entreprise_id,
+                'Facture',
+                'avoir'
             );
 
             // 1. Création de la facture d'avoir
             $avoir = Vente::create([
                 'point_de_vente_id' => $vente->point_de_vente_id,
-                'client_id'         => $vente->client_id,
-                'utilisateur_id'    => Auth::id(),
-                'numero_facture'    => $numAvoir,
-                'date_vente'        => now()->toDateString(),
-                'mode_paiement'     => $vente->mode_paiement,
-                'moyen_bancaire'    => $vente->moyen_bancaire,
-                'reference_paiement'=> $request->raison, // Raison de l'avoir
-                'montant_ht'        => $vente->montant_ht,
-                'montant_tva'       => $vente->montant_tva,
-                'remise'            => $vente->remise,
-                'remise_taux'       => $vente->remise_taux,
-                'montant_ttc'       => $vente->montant_ttc,
-                'statut'            => 'Payé',
-                'type_facture'      => 'avoir',
-                'etape'             => 'Facture',
-                'parent_id'         => $vente->id,
-                'raison_avoir'      => $request->raison,
-                'autres_mentions'   => $vente->autres_mentions,
-                'pied_de_page'      => $vente->pied_de_page,
+                'client_id' => $vente->client_id,
+                'utilisateur_id' => Auth::id(),
+                'numero_facture' => $numAvoir,
+                'date_vente' => now()->toDateString(),
+                'mode_paiement' => $vente->mode_paiement,
+                'moyen_bancaire' => $vente->moyen_bancaire,
+                'reference_paiement' => $request->raison, // Raison de l'avoir
+                'montant_ht' => $vente->montant_ht,
+                'montant_tva' => $vente->montant_tva,
+                'remise' => $vente->remise,
+                'remise_taux' => $vente->remise_taux,
+                'montant_ttc' => $vente->montant_ttc,
+                'statut' => 'Payé',
+                'type_facture' => 'avoir',
+                'etape' => 'Facture',
+                'parent_id' => $vente->id,
+                'raison_avoir' => $request->raison,
+                'autres_mentions' => $vente->autres_mentions,
+                'pied_de_page' => $vente->pied_de_page,
             ]);
 
             // 2. Copie des détails et retour en stock
             foreach ($vente->details as $detail) {
                 VenteDetail::create([
-                    'vente_id'           => $avoir->id,
-                    'produit_id'         => $detail->produit_id,
-                    'libelle_virtuel'    => $detail->libelle_virtuel,
-                    'quantite'           => $detail->quantite,
-                    'unite'              => $detail->unite,
-                    'prix_unitaire'      => $detail->prix_unitaire,
-                    'remise_taux'        => $detail->remise_taux,
-                    'montant_tva'        => $detail->montant_tva,
-                    'montant_ttc'        => $detail->montant_ttc,
-                    'fne_invoice_item_id'=> $detail->fne_invoice_item_id,
+                    'vente_id' => $avoir->id,
+                    'produit_id' => $detail->produit_id,
+                    'libelle_virtuel' => $detail->libelle_virtuel,
+                    'quantite' => $detail->quantite,
+                    'unite' => $detail->unite,
+                    'prix_unitaire' => $detail->prix_unitaire,
+                    'remise_taux' => $detail->remise_taux,
+                    'montant_tva' => $detail->montant_tva,
+                    'montant_ttc' => $detail->montant_ttc,
+                    'fne_invoice_item_id' => $detail->fne_invoice_item_id,
                 ]);
 
                 // Retour de la marchandise en stock vendable.
@@ -1246,9 +1280,13 @@ class VenteControleur
                 // revient telle quelle. L'avoir partiel, lui, laisse le choix
                 // ligne par ligne — voir `retournerLaMarchandise()`.
                 if ($detail->produit && $detail->produit->estStockable()) {
-                    StockService::entree($detail->produit, (int) $vente->point_de_vente_id,
-                        (float) $detail->quantite, MouvementStock::RETOUR_CLIENT,
-                        ['piece' => $avoir, 'reference' => $numAvoir, 'client_id' => $vente->client_id]);
+                    StockService::entree(
+                        $detail->produit,
+                        (int) $vente->point_de_vente_id,
+                        (float) $detail->quantite,
+                        MouvementStock::RETOUR_CLIENT,
+                        ['piece' => $avoir, 'reference' => $numAvoir, 'client_id' => $vente->client_id]
+                    );
                 }
             }
 
@@ -1261,14 +1299,14 @@ class VenteControleur
                     ->orderByDesc('created_at')->value('solde_resultat') ?? 0;
 
                 TresorerieJournal::create([
-                    'point_de_vente_id'  => $vente->point_de_vente_id,
-                    'date_operation'     => now()->toDateString(),
-                    'type_operation'     => 'Décaissement', // Remboursement client
-                    'libelle'            => 'Remboursement Avoir client ' . $numAvoir,
-                    'mode_paiement'      => $vente->mode_paiement,
-                    'montant_entree'     => 0,
-                    'montant_sortie'     => $vente->montant_ttc,
-                    'solde_resultat'     => $soldeActuel - $vente->montant_ttc,
+                    'point_de_vente_id' => $vente->point_de_vente_id,
+                    'date_operation' => now()->toDateString(),
+                    'type_operation' => 'Décaissement', // Remboursement client
+                    'libelle' => 'Remboursement Avoir client ' . $numAvoir,
+                    'mode_paiement' => $vente->mode_paiement,
+                    'montant_entree' => 0,
+                    'montant_sortie' => $vente->montant_ttc,
+                    'solde_resultat' => $soldeActuel - $vente->montant_ttc,
                     'reference_document' => $numAvoir,
                 ]);
             }
@@ -1288,11 +1326,7 @@ class VenteControleur
      */
     public function normaliser(Vente $vente): RedirectResponse
     {
-        // Cette piece appartient-elle bien a l'entreprise de l'utilisateur ?
-        // La verification manquait ici alors qu'elle est faite partout ailleurs,
-        // y compris sur son jumeau AchatControleur::normaliser(). Sans elle,
-        // n'importe quel compte pouvait declencher la certification d'une
-        // facture d'une autre entreprise en changeant l'identifiant dans l'URL.
+
         abort_unless(
             $vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id,
             404
@@ -1310,7 +1344,119 @@ class VenteControleur
 
         $this->journaliser('normalisation_manuelle_vente', 'Vente', $vente->id);
 
-        return back()->with('succes', 'La normalisation DGI a été effectuée avec succès. Le document est maintenant normalisé.');
+        if ($vente->fresh()->normalise) {
+            return back()->with('succes', 'La normalisation DGI a été effectuée avec succès. Le document est maintenant normalisé.');
+        }
+
+        // Non normalisée : le job a consigné un rejet. On le relit pour dire à
+        // l'utilisateur ce qui s'est passé, et — si la DGI a examiné puis
+        // refusé la pièce — on lance la relève du portail sans attendre le
+        // passage horaire, pour aller chercher le nom réellement déclaré.
+        $rejet = FneRejet::where('piece_type', 'vente')
+            ->where('piece_id', $vente->id)
+            ->where('statut', FneRejet::STATUT_OUVERT)
+            ->latest('id')
+            ->first();
+
+        if ($rejet && $rejet->cause === FneRejet::CAUSE_DGI) {
+            ScraperPortailFneService::relancerApresRejet($rejet->login);
+
+            // Importer les relevés disponibles et créer automatiquement tout point de vente FNE manquant dans Selflow
+            \Illuminate\Support\Facades\Artisan::call('portail-fne:importer');
+            $entreprise = $rejet->entreprise ?? $vente->pointDeVente?->entreprise ?? Auth::user()->entreprise;
+            if ($entreprise) {
+                app(\App\Modules\Admin\Services\PointsDeVentePortailService::class)->importer($entreprise);
+            }
+
+            // Diagnostiquer immédiatement le rejet et sauvegarder en base
+            $correcteur = app(\App\Modules\Admin\Services\CorrectionFneService::class);
+            $diagnostic = app(\App\Modules\Admin\Services\DiagnosticFneService::class)->diagnostiquer($rejet);
+            $rejet->update([
+                'diagnostic' => $diagnostic,
+                'statut'     => $rejet->statut === FneRejet::STATUT_RESOLU
+                    ? FneRejet::STATUT_RESOLU
+                    : FneRejet::STATUT_DIAGNOSTIQUE,
+            ]);
+            $rejet->refresh();
+
+            // S'il n'y a qu'un seul nom au portail : corriger directement sans étape humaine
+            $correctionDirecte = $correcteur->correctionApplicable($rejet);
+            if ($correctionDirecte !== null) {
+                $fait = $correcteur->corriger($rejet, synchrone: true);
+                if ($fait !== null) {
+                    $msg = ($fait['mode'] ?? 'bascule') === 'cree'
+                        ? sprintf('Le point de vente « %s » a été créé automatiquement dans Selflow d\'après la DGI, et la facture a été normalisée.', $fait['nouveau'])
+                        : sprintf('La facture a été rattachée au point de vente « %s » et normalisée avec succès.', $fait['nouveau']);
+                    return back()->with('succes', $msg);
+                }
+            }
+
+            // Si plusieurs points sont déclarés au portail : afficher DIRECTEMENT la liste sélective des points de vente
+            $auChoix = $correcteur->nomsAuChoix($rejet);
+            if ($auChoix !== []) {
+                $boutons = [];
+                foreach ($auChoix as $rang => $nom) {
+                    $boutons[] = [
+                        'url'          => route('admin.fne.rejets.corriger_avec', ['rejet' => $rejet, 'rang' => $rang]),
+                        'label'        => $nom,
+                        'nom'          => $nom,
+                        'action_label' => 'Activer',
+                        'method'       => 'post',
+                    ];
+                }
+
+                return back()
+                    ->with('avertissement', 'La DGI a refusé la facture : le point de vente ne correspond pas. Sélectionnez et activez le point de vente correspondant sur votre espace FNE :')
+                    ->with('avertissement_action', $boutons);
+            }
+
+            $champs = $rejet->nomsDesChamps();
+            $precision = $champs ? ' (' . implode(', ', $champs) . ')' : '';
+
+            return back()
+                ->with('avertissement', sprintf(
+                    "La DGI a refusé la facture%s : le point de vente n'est pas déclaré à "
+                    . "l'identique sur votre espace FNE. Récupération des points de vente sur le portail en cours...",
+                    $precision
+                ))
+                ->with('rejet_en_cours_id', $rejet->id)
+                ->with('avertissement_action', [
+                    [
+                        'url' => route('admin.fne.rejets'),
+                        'label' => 'Voir les rejets FNE',
+                    ],
+                ]);
+        }
+
+        if ($rejet && $rejet->estReseau()) {
+            // Une coupure n'est pas un refus : la DGI n'a rien vu de la pièce.
+            // Et rien ne la reprendra tout seul — aucune tâche planifiée ne
+            // rejoue les rejets « réseau », et le job lancé par ce bouton n'a
+            // pas de file derrière lui pour le rejouer. Le message promettait
+            // une reprise automatique qui n'existe pas : on rend la main, avec
+            // le bouton qui permet de la reprendre.
+            return back()
+                ->with(
+                    'erreur',
+                    "La plateforme FNE est injoignable pour le moment : la facture n'a pas été "
+                    . "envoyée, et la DGI n'a rien refusé. Réessayez dans un instant — le rejet "
+                    . 'se refermera de lui-même dès que la pièce passera.'
+                )
+                ->with('erreur_action', [
+                    [
+                        'url' => request()->routeIs('caissier.*')
+                            ? route('caissier.ventes.normaliser', $vente)
+                            : route('admin.ventes.normaliser', $vente),
+                        'label' => 'Réessayer',
+                        'method' => 'post',
+                    ]
+                ]);
+        }
+
+        return back()->with(
+            'erreur',
+            "La normalisation n'a pas abouti. Consultez l'écran des rejets FNE pour le détail."
+        );
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -1352,13 +1498,13 @@ class VenteControleur
 
             $clone = $vente->replicate(['archived', 'normalise', 'numero_fne', 'signature_dgi', 'qr_code_data']);
             $clone->numero_facture = $nouveauNumero;
-            $clone->etape          = 'Bon de commande';
-            $clone->statut         = 'Brouillon';
-            $clone->archived       = false;
-            $clone->normalise      = false;
-            $clone->numero_fne     = null;
-            $clone->signature_dgi  = null;
-            $clone->qr_code_data   = null;
+            $clone->etape = 'Bon de commande';
+            $clone->statut = 'Brouillon';
+            $clone->archived = false;
+            $clone->normalise = false;
+            $clone->numero_fne = null;
+            $clone->signature_dgi = null;
+            $clone->qr_code_data = null;
 
             // **La pièce naît aujourd'hui.** `replicate()` recopiait la date du
             // devis : une commande de juin issue d'un devis de janvier était
@@ -1366,11 +1512,11 @@ class VenteControleur
             // facture qui en découlait entrait dans la déclaration du mauvais
             // mois. L'acceptation du client, elle, appartient au devis : elle
             // ne se recopie pas non plus.
-            $clone->date_vente       = now()->toDateString();
-            $clone->date_validite    = now()->addDays(Vente::VALIDITE_PAR_DEFAUT)->toDateString();
+            $clone->date_vente = now()->toDateString();
+            $clone->date_validite = now()->addDays(Vente::VALIDITE_PAR_DEFAUT)->toDateString();
             $clone->date_acceptation = null;
-            $clone->accepte_par      = null;
-            $clone->converti_en_id   = null;
+            $clone->accepte_par = null;
+            $clone->converti_en_id = null;
             $clone->save();
 
             // 2. Cloner les lignes de détail
@@ -1414,24 +1560,24 @@ class VenteControleur
 
             $clone = $vente->replicate(['archived', 'normalise', 'numero_fne', 'signature_dgi', 'qr_code_data']);
             $clone->numero_facture = $nouveauNumero;
-            $clone->etape          = 'Facture';
-            $clone->statut         = 'Crédit';
-            $clone->archived       = false;
-            $clone->normalise      = false;
-            $clone->numero_fne     = null;
-            $clone->signature_dgi  = null;
-            $clone->qr_code_data   = null;
+            $clone->etape = 'Facture';
+            $clone->statut = 'Crédit';
+            $clone->archived = false;
+            $clone->normalise = false;
+            $clone->numero_fne = null;
+            $clone->signature_dgi = null;
+            $clone->qr_code_data = null;
 
             // **La facture naît aujourd'hui.** `replicate()` recopiait la date
             // du bon de commande : une facture de juin issue d'une commande de
             // janvier était datée de janvier et entrait dans la déclaration de
             // TVA du mauvais mois. Une facture n'a pas de terme — elle engage
             // dès son émission —, et l'acceptation appartient à l'offre.
-            $clone->date_vente       = now()->toDateString();
-            $clone->date_validite    = null;
+            $clone->date_vente = now()->toDateString();
+            $clone->date_validite = null;
             $clone->date_acceptation = null;
-            $clone->accepte_par      = null;
-            $clone->converti_en_id   = null;
+            $clone->accepte_par = null;
+            $clone->converti_en_id = null;
             $clone->save();
 
             // 2. Cloner les lignes
@@ -1495,18 +1641,23 @@ class VenteControleur
             $entrepriseId = $vente->pointDeVente->entreprise_id;
 
             $clone = $vente->replicate([
-                'archived', 'normalise', 'numero_fne', 'signature_dgi',
-                'qr_code_data', 'fichier_fne_pdf_url', 'fne_invoice_id',
+                'archived',
+                'normalise',
+                'numero_fne',
+                'signature_dgi',
+                'qr_code_data',
+                'fichier_fne_pdf_url',
+                'fne_invoice_id',
             ]);
             $clone->numero_facture = \App\Modules\Admin\Services\NumerotationService::genererNumeroVente($entrepriseId, 'Facture');
-            $clone->type_piece     = Vente::TYPE_FACTURE;
-            $clone->type_facture   = 'proformat';
-            $clone->piece_liee_id  = $vente->id;
-            $clone->archived       = false;
-            $clone->normalise      = false;
-            $clone->numero_fne     = null;
-            $clone->signature_dgi  = null;
-            $clone->qr_code_data   = null;
+            $clone->type_piece = Vente::TYPE_FACTURE;
+            $clone->type_facture = 'proformat';
+            $clone->piece_liee_id = $vente->id;
+            $clone->archived = false;
+            $clone->normalise = false;
+            $clone->numero_fne = null;
+            $clone->signature_dgi = null;
+            $clone->qr_code_data = null;
             $clone->fichier_fne_pdf_url = null;
             $clone->fne_invoice_id = null;
             $clone->save();
@@ -1526,7 +1677,9 @@ class VenteControleur
 
             foreach ($vente->taxesPersonnalisees as $taxe) {
                 $clone->taxesPersonnalisees()->create([
-                    'nom' => $taxe->nom, 'taux' => $taxe->taux, 'montant' => $taxe->montant,
+                    'nom' => $taxe->nom,
+                    'taux' => $taxe->taux,
+                    'montant' => $taxe->montant,
                 ]);
             }
 
@@ -1554,18 +1707,21 @@ class VenteControleur
         // Une offre convertie est le premier maillon d'une chaîne : la
         // supprimer laisse la commande, puis la facture, sans l'accord qui les
         // fonde. C'est précisément ce qu'on oppose en cas de contestation.
-        abort_if($vente->estConverti(), 403,
+        abort_if(
+            $vente->estConverti(),
+            403,
             'Ce document a été converti en ' . ($vente->convertiEn?->numero_facture ?? 'une autre pièce')
-            . " : il fonde la pièce qui en découle et ne peut pas être supprimé.");
+            . " : il fonde la pièce qui en découle et ne peut pas être supprimé."
+        );
 
         $etape = $vente->etape;
         $vente->details()->delete();
         $vente->delete();
 
-        $routeParam = match($etape) {
-            'Devis'           => '?etape=Devis&archives=1',
+        $routeParam = match ($etape) {
+            'Devis' => '?etape=Devis&archives=1',
             'Bon de commande' => '?etape=Bon+de+commande&archives=1',
-            default           => '?archives=1',
+            default => '?archives=1',
         };
 
         $baseRoute = request()->routeIs('caissier.*') ? 'caissier.ventes.factures' : 'admin.ventes.factures';
@@ -1581,24 +1737,24 @@ class VenteControleur
         $query = Vente::with('client')
             ->whereHas('pointDeVente', fn($queryPdv) => $queryPdv->where('entreprise_id', $entreprise->id))
             ->where('etape', 'Facture')
-            ->where(function($queryNum) {
+            ->where(function ($queryNum) {
                 $queryNum->where('numero_facture', 'LIKE', 'VT-%')
-                         ->orWhere('numero_facture', 'LIKE', 'VTE-%');
+                    ->orWhere('numero_facture', 'LIKE', 'VTE-%');
             })
-            ->where(function($queryType) {
+            ->where(function ($queryType) {
                 $queryType->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir');
             })
             ->where('archived', false);
 
         if ($q) {
-            $query->where(function($querySearch) use ($q) {
+            $query->where(function ($querySearch) use ($q) {
                 $querySearch->where('numero_facture', 'like', "%{$q}%")
                     ->orWhere('numero_fne', 'like', "%{$q}%")
                     ->orWhereHas('client', fn($queryClient) => $queryClient->where('nom', 'like', "%{$q}%"));
             });
         }
 
-        $factures = $query->latest()->limit(10)->get()->map(function($f) {
+        $factures = $query->latest()->limit(10)->get()->map(function ($f) {
             $clientNom = $f->client ? $f->client->nom : 'Client de passage';
             return [
                 // L'identifiant public, celui que les adresses portent depuis
@@ -1607,7 +1763,7 @@ class VenteControleur
                 // dans une adresse qui attend un uuid : la requête tombait sur
                 // un 404 (Not Found — introuvable), et le script, qui lisait la
                 // réponse en JSON, recevait la page d'erreur en HTML.
-                'id'   => $f->uuid,
+                'id' => $f->uuid,
                 'text' => "{$f->numero_facture} - {$clientNom} (" . number_format($f->montant_ttc, 0, ',', ' ') . " XOF)"
             ];
         });
@@ -1634,8 +1790,8 @@ class VenteControleur
             'montant_ttc' => $vente->montant_ttc,
             'autres_mentions' => $vente->autres_mentions,
             'pied_de_page' => $vente->pied_de_page,
-            'details' => $vente->details->map(function($d) use ($dejaCredite) {
-                $credite  = (float) ($dejaCredite[$d->id] ?? 0);
+            'details' => $vente->details->map(function ($d) use ($dejaCredite) {
+                $credite = (float) ($dejaCredite[$d->id] ?? 0);
                 $restante = max(0, (float) $d->quantite - $credite);
 
                 return [
@@ -1691,7 +1847,7 @@ class VenteControleur
         }
 
         $contexte = [
-            'piece'     => $avoir,
+            'piece' => $avoir,
             'reference' => $numAvoir,
             'client_id' => $venteOrigine->client_id,
         ];
@@ -1716,7 +1872,7 @@ class VenteControleur
     private static function tauxTvaDeLaLigne(VenteDetail $detail): float
     {
         $remise = (float) ($detail->remise_taux ?? 0);
-        $htNet  = (float) $detail->quantite * (float) $detail->prix_unitaire * (1 - $remise / 100);
+        $htNet = (float) $detail->quantite * (float) $detail->prix_unitaire * (1 - $remise / 100);
 
         if ($htNet <= 0) {
             return 0.0;
@@ -1777,8 +1933,8 @@ class VenteControleur
             // que l'écran a reçu et que les adresses portent. Le numérique était
             // attendu ici : il n'est plus publié nulle part.
             'parent_id' => ['required', 'uuid', Appartenance::a('ventes', 'uuid')],
-            'raison'    => ['required', 'string', 'max:255'],
-            'items'     => ['required', 'array'],
+            'raison' => ['required', 'string', 'max:255'],
+            'items' => ['required', 'array'],
         ]);
 
         $parent = Vente::where('uuid', $request->parent_id)->firstOrFail();
@@ -1826,29 +1982,31 @@ class VenteControleur
 
         DB::transaction(function () use ($parent, $request, &$avoirId) {
             $numAvoir = \App\Modules\Admin\Services\NumerotationService::genererNumeroVente(
-                $parent->pointDeVente->entreprise_id, 'Facture', 'avoir'
+                $parent->pointDeVente->entreprise_id,
+                'Facture',
+                'avoir'
             );
 
             // 1. Création de la facture d'avoir
             $avoir = Vente::create([
                 'point_de_vente_id' => $parent->point_de_vente_id,
-                'client_id'         => $parent->client_id,
-                'utilisateur_id'    => Auth::id(),
-                'numero_facture'    => $numAvoir,
-                'date_vente'        => now()->toDateString(),
-                'mode_paiement'     => $parent->mode_paiement,
-                'moyen_bancaire'    => $parent->moyen_bancaire,
-                'reference_paiement'=> $request->raison,
-                'statut'            => 'Payé',
-                'type_facture'      => 'avoir',
-                'etape'             => 'Facture',
-                'parent_id'         => $parent->id,
-                'raison_avoir'      => $request->raison,
-                'montant_ht'        => 0,
-                'montant_tva'       => 0,
-                'remise'            => 0,
-                'remise_taux'       => 0,
-                'montant_ttc'       => 0,
+                'client_id' => $parent->client_id,
+                'utilisateur_id' => Auth::id(),
+                'numero_facture' => $numAvoir,
+                'date_vente' => now()->toDateString(),
+                'mode_paiement' => $parent->mode_paiement,
+                'moyen_bancaire' => $parent->moyen_bancaire,
+                'reference_paiement' => $request->raison,
+                'statut' => 'Payé',
+                'type_facture' => 'avoir',
+                'etape' => 'Facture',
+                'parent_id' => $parent->id,
+                'raison_avoir' => $request->raison,
+                'montant_ht' => 0,
+                'montant_tva' => 0,
+                'remise' => 0,
+                'remise_taux' => 0,
+                'montant_ttc' => 0,
             ]);
 
             $totalHt = 0;
@@ -1861,12 +2019,13 @@ class VenteControleur
                 $qteAvoir = floatval($itemData['quantite']);
                 $prixUnit = floatval($itemData['prix_unitaire']);
 
-                if ($qteAvoir <= 0) continue;
+                if ($qteAvoir <= 0)
+                    continue;
 
                 if ($isNouveau) {
                     $produitId = $itemData['produit_id'] ?? null;
                     $libelle = $itemData['libelle_virtuel'] ?? 'Article';
-                    
+
                     $produit = null;
                     if ($produitId) {
                         $produit = \App\Modules\Admin\Modeles\Produit::find($produitId);
@@ -1874,31 +2033,38 @@ class VenteControleur
 
                     $tvaRate = (floatval($itemData['taux_tva'] ?? 18.0)) / 100;
                     $unite = $produit ? $produit->unite : 'pcs';
-                    
+
                     $itemHt = $qteAvoir * $prixUnit;
                     $itemTva = $itemHt * $tvaRate;
                     $itemTtc = $itemHt + $itemTva;
 
                     VenteDetail::create([
-                        'vente_id'        => $avoir->id,
-                        'produit_id'      => $produitId,
+                        'vente_id' => $avoir->id,
+                        'produit_id' => $produitId,
                         'libelle_virtuel' => $libelle,
-                        'quantite'        => $qteAvoir,
-                        'unite'           => $unite,
-                        'prix_unitaire'   => $prixUnit,
-                        'montant_tva'     => $itemTva,
-                        'montant_ttc'     => $itemTtc,
+                        'quantite' => $qteAvoir,
+                        'unite' => $unite,
+                        'prix_unitaire' => $prixUnit,
+                        'montant_tva' => $itemTva,
+                        'montant_ttc' => $itemTtc,
                     ]);
 
                     $totalHt += $itemHt;
                     $totalTva += $itemTva;
                     $totalTtc += $itemTtc;
 
-                    self::retournerLaMarchandise($produit, $parent, $avoir, $numAvoir,
-                        (float) $qteAvoir, $itemData['stock_action'] ?? 'none');
+                    self::retournerLaMarchandise(
+                        $produit,
+                        $parent,
+                        $avoir,
+                        $numAvoir,
+                        (float) $qteAvoir,
+                        $itemData['stock_action'] ?? 'none'
+                    );
                 } else {
                     $detail = VenteDetail::where('vente_id', $parent->id)->where('id', $itemId)->first();
-                    if (!$detail) continue;
+                    if (!$detail)
+                        continue;
 
                     // Un avoir reprend la ligne d'origine telle qu'elle a été
                     // facturée : même taux de TVA, même remise, mêmes taxes.
@@ -1915,28 +2081,28 @@ class VenteControleur
                     $remiseLigne = (float) ($detail->remise_taux ?? 0);
                     $tauxTva = self::tauxTvaDeLaLigne($detail);
 
-                    $itemHt  = $qteAvoir * $prixUnit * (1 - $remiseLigne / 100);
+                    $itemHt = $qteAvoir * $prixUnit * (1 - $remiseLigne / 100);
                     $itemTva = $itemHt * $tauxTva / 100;
                     $itemTtc = $itemHt + $itemTva;
 
                     $ligneAvoir = VenteDetail::create([
-                        'vente_id'           => $avoir->id,
-                        'produit_id'         => $detail->produit_id,
-                        'libelle_virtuel'    => $detail->libelle_virtuel,
-                        'quantite'           => $qteAvoir,
-                        'unite'              => $detail->unite,
-                        'prix_unitaire'      => $prixUnit,
-                        'remise_taux'        => $remiseLigne,
-                        'montant_tva'        => $itemTva,
-                        'montant_ttc'        => $itemTtc,
-                        'fne_invoice_item_id'=> $detail->fne_invoice_item_id,
+                        'vente_id' => $avoir->id,
+                        'produit_id' => $detail->produit_id,
+                        'libelle_virtuel' => $detail->libelle_virtuel,
+                        'quantite' => $qteAvoir,
+                        'unite' => $detail->unite,
+                        'prix_unitaire' => $prixUnit,
+                        'remise_taux' => $remiseLigne,
+                        'montant_tva' => $itemTva,
+                        'montant_ttc' => $itemTtc,
+                        'fne_invoice_item_id' => $detail->fne_invoice_item_id,
                     ]);
 
                     // Taxes personnalisées de la ligne d'origine : elles ont été
                     // facturées au client, elles doivent lui être recréditées.
                     foreach ($detail->taxes as $taxe) {
                         $ligneAvoir->taxes()->create([
-                            'nom'  => $taxe->nom,
+                            'nom' => $taxe->nom,
                             'taux' => $taxe->taux,
                         ]);
                     }
@@ -1945,13 +2111,19 @@ class VenteControleur
                     $totalTva += $itemTva;
                     $totalTtc += $itemTtc;
 
-                    self::retournerLaMarchandise($detail->produit, $parent, $avoir, $numAvoir,
-                        (float) $qteAvoir, $itemData['stock_action'] ?? 'none');
+                    self::retournerLaMarchandise(
+                        $detail->produit,
+                        $parent,
+                        $avoir,
+                        $numAvoir,
+                        (float) $qteAvoir,
+                        $itemData['stock_action'] ?? 'none'
+                    );
                 }
             }
 
             $avoir->update([
-                'montant_ht'  => $totalHt,
+                'montant_ht' => $totalHt,
                 'montant_tva' => $totalTva,
                 'montant_ttc' => $totalTtc,
             ]);
@@ -1965,14 +2137,14 @@ class VenteControleur
                     ->orderByDesc('created_at')->value('solde_resultat') ?? 0;
 
                 TresorerieJournal::create([
-                    'point_de_vente_id'  => $parent->point_de_vente_id,
-                    'date_operation'     => now()->toDateString(),
-                    'type_operation'     => 'Décaissement',
-                    'libelle'            => 'Remboursement Avoir client ' . $numAvoir,
-                    'mode_paiement'      => $parent->mode_paiement,
-                    'montant_entree'     => 0,
-                    'montant_sortie'     => $totalTtc,
-                    'solde_resultat'     => $soldeActuel - $totalTtc,
+                    'point_de_vente_id' => $parent->point_de_vente_id,
+                    'date_operation' => now()->toDateString(),
+                    'type_operation' => 'Décaissement',
+                    'libelle' => 'Remboursement Avoir client ' . $numAvoir,
+                    'mode_paiement' => $parent->mode_paiement,
+                    'montant_entree' => 0,
+                    'montant_sortie' => $totalTtc,
+                    'solde_resultat' => $soldeActuel - $totalTtc,
                     'reference_document' => $numAvoir,
                 ]);
             }

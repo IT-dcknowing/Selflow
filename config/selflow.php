@@ -148,4 +148,125 @@ return [
     */
     'fne_api_url_production' => env('FNE_API_URL_PRODUCTION', ''),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Relevés du portail FNE
+    |--------------------------------------------------------------------------
+    | Dossier où sont déposés les relevés du portail de la DGI, nommés
+    | `<login>_<date>.json` (fiche entreprise) et `<login>_<date>.xlsx` (points
+    | de facturation). `ImportPortailFneService` le parcourt, range ce qu'il y
+    | lit, et ne touche à rien d'autre : ces relevés sont un constat, pas un
+    | paramétrage.
+    |
+    | Ces fichiers portent des données fiscales nominatives. Le dossier par
+    | défaut est sous `storage/app`, hors de `public/` : un dossier servi par
+    | le serveur web les exposerait à qui en devine le nom.
+    */
+    'portail_fne' => [
+        'dossier_import' => env('PORTAIL_FNE_DOSSIER_IMPORT', storage_path('app/portail-fne')),
+
+        /*
+        | Au-delà de ce délai, une demande de relevé n'attend plus : elle traîne.
+        | Vingt-quatre heures parce qu'un relevé se produit au mieux une fois par
+        | jour ; passer la journée sans réponse veut dire que le scraper ne
+        | tourne pas, que le dépôt se fait ailleurs, ou que le login est faux.
+        | Aucune de ces trois causes ne se corrige toute seule.
+        */
+        'delai_alerte_heures' => (int) env('PORTAIL_FNE_DELAI_ALERTE_HEURES', 24),
+
+        /*
+        | Selflow renomme-t-il seul un point de vente d'apres le portail, et
+        | renvoie-t-il les pieces que ce nom faisait refuser ?
+        |
+        | Demande par le proprietaire du projet le 29/08/2026 : le cas « la DGI
+        | refuse sur un ecart de nom » se refermait en deux clics, il se referme
+        | desormais tout seul. Allume par defaut, donc.
+        |
+        | Un seul champ est concerne — le nom du point de vente, un libelle dont
+        | le portail est la source de verite. Les trois champs de la fiche qui
+        | commandent le comportement fiscal (timbre de quittance, bordereau
+        | d'achat, solde d'alerte des stickers) restent montres et jamais
+        | appliques : la regle d'or ne bouge pas.
+        |
+        | L'interrupteur existe pour reprendre la main sans livrer une version.
+        */
+        'correction_auto' => filter_var(env('PORTAIL_FNE_CORRECTION_AUTO', true), FILTER_VALIDATE_BOOL),
+
+        /*
+        | Le scraper : ce qui va chercher les relevés sur le portail de la DGI.
+        |
+        | Selflow ne dépend toujours pas de lui — il lit un dossier, et ce qui
+        | dépose dans ce dossier ne le regarde pas. Ces réglages ne servent qu'à
+        | le lancer depuis le planificateur déjà en place, plutôt que de créer
+        | une seconde tâche système que personne ne pensera à surveiller.
+        |
+        | `actif` est faux par défaut, et c'est délibéré : sans identifiants.json
+        | rempli, chaque passage échouerait et remplirait le journal d'erreurs
+        | qui ne veulent rien dire. On l'allume quand le scraper est prêt.
+        */
+        'scraper' => [
+            'actif' => filter_var(env('PORTAIL_FNE_SCRAPER_ACTIF', false), FILTER_VALIDATE_BOOL),
+
+            // Chemin absolu de préférence : la tâche planifiée de Windows n'a
+            // pas le PATH d'un terminal ouvert à la main, et « node » seul peut
+            // très bien y être introuvable.
+            'node' => env('PORTAIL_FNE_NODE', 'node'),
+
+            'script' => env('PORTAIL_FNE_SCRAPER_SCRIPT', base_path('SCRAPER-PORTAIL-FNE/fne.js')),
+
+            // Le passage qui sert la file, décalé après le ramassage (:00) et
+            // le rapprochement (:10) : ce qu'il dépose est rangé à l'heure
+            // suivante, et diagnostiqué dix minutes après.
+            'minute_horaire' => (int) env('PORTAIL_FNE_SCRAPER_MINUTE', 40),
+
+            // Le passage complet, qui relève tous les logins connus sans
+            // attendre qu'une pièce soit refusée. La file dit ce qui est
+            // urgent, pas ce qui est permis.
+            'heure_nocturne' => env('PORTAIL_FNE_SCRAPER_HEURE_NUIT', '02:30'),
+
+            /*
+            | Le relevé des factures reçues n'a pas de réglage à lui : `fne.js`
+            | le fait dans la session qu'il vient d'ouvrir, à chaque passage.
+            | Une connexion au portail de la DGI est ce qui coûte, et il n'y a
+            | aucune raison d'en payer deux. `achats.js` reste lançable seul.
+            */
+
+            /*
+            | Le relevé à l'ouverture de Selflow.
+            |
+            | Le passage horaire ne va au portail que si une pièce a été
+            | refusée, et le passage complet n'a lieu qu'à 02:30 : une
+            | modification faite au portail dans la journée n'était visible que
+            | le lendemain. Quand quelqu'un ouvre Selflow et que le dernier
+            | relevé date de plus de `fraicheur_heures`, le scraper part en
+            | arrière-plan — une fois, verrou de cache à l'appui, quel que soit
+            | le nombre d'employés qui se connectent.
+            */
+            'releve_a_la_connexion' => filter_var(env('PORTAIL_FNE_RELEVE_A_LA_CONNEXION', true), FILTER_VALIDATE_BOOL),
+
+            'fraicheur_heures' => (int) env('PORTAIL_FNE_FRAICHEUR_HEURES', 12),
+
+            /*
+            | Le relevé qui part dès qu'une pièce est refusée par la DGI.
+            |
+            | Demandé par le propriétaire du projet le 31/08/2026 : « dès qu'il
+            | y a une erreur le scraper se met en action ». Un refus signifie
+            | que le portail dit autre chose que la pièce ; aller le lire est
+            | exactement ce qu'il faut faire, et attendre le passage horaire
+            | (:40) faisait perdre jusqu'à une heure sur un geste que
+            | l'utilisateur vient de faire.
+            |
+            | Le délai est un verrou, pas une temporisation : une normalisation
+            | par lot peut consigner vingt refus en dix secondes, et vingt
+            | navigateurs ouverts sur le portail de la DGI seraient vingt
+            | connexions avec le mot de passe du client. Un relevé par login et
+            | par tranche suffit — les vingt refus ont la même cause.
+            |
+            | Court, parce qu'un utilisateur qui corrige son portail puis
+            | relance doit obtenir un relevé neuf, pas celui d'avant.
+            */
+            'delai_apres_rejet_minutes' => (int) env('PORTAIL_FNE_DELAI_APRES_REJET_MINUTES', 2),
+        ],
+    ],
+
 ];

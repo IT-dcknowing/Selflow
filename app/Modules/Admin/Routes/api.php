@@ -129,3 +129,13 @@ Route::prefix('external')->middleware('throttle:externe')->group(function () {
         ->name('api.external.link-company');
 });
 
+// Le chargement à la main d'un relevé du portail FNE passe par l'écran des
+// points de vente (`admin.pdv.load_file_fne`), derrière la connexion. Deux
+// routes d'API l'annonçaient ici, hors de toute authentification : l'une vers
+// une méthode inexistante, l'autre vers une méthode vide qui ne vérifiait aucun
+// secret. Remplie un jour, elle aurait écrit des données fiscales pour qui
+// l'appelle. Retirées au lot 25.
+
+
+
+

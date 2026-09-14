@@ -87,6 +87,16 @@ class ConnexionControleur
         // magasin ne se corrige pas, elle s'annule par un avoir.
         $this->reprendreLePointDeVente();
 
+        // Le portail FNE a-t-il été lu récemment ? Sinon, on va voir — en
+        // arrière-plan, sans retarder d'une seconde l'ouverture de la session.
+        // Le passage horaire n'y va que si une pièce a été refusée, et le
+        // passage complet attend 02:30 : un point de facturation déclaré au
+        // portail à midi n'était visible que le lendemain matin. Le service
+        // pose son propre verrou et ne lève jamais.
+        \App\Modules\Admin\Services\ScraperPortailFneService::relancerSiLeReleveEstVieux(
+            Auth::user()->entreprise
+        );
+
         // Journaliser la connexion réussie
         $this->journaliser('connexion', 'Utilisateur', Auth::id());
 

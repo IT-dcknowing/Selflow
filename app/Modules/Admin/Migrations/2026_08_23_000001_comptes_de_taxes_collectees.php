@@ -41,7 +41,12 @@ return new class extends Migration
 
             $aPoser = [];
             foreach (self::COMPTES as $numero => $libelle) {
-                if (in_array($numero, $existants, true)) {
+                // Les clés de COMPTES sont des chaînes dans le source, mais PHP
+                // transtype toute clé numérique en entier : `array_keys()` rend
+                // des `int`, là où `pluck('numero')` rend des `string`. La
+                // comparaison stricte échouait donc toujours, et la garde
+                // n'écartait jamais un compte déjà posé.
+                if (in_array((string) $numero, $existants, true)) {
                     continue;
                 }
 
