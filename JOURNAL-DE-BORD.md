@@ -3579,6 +3579,14 @@ ses points de vente, ses taxes. Le plan et les journaux se posent par
 FNE de test, qui vit dans l'environnement, est comparée à celle du serveur et
 la commande dit quoi poser dans le `.env` si elles diffèrent.
 
+**Le NCC n'est pas unique.** Sur le poste de développement, trois entreprises
+portent le même NCC : `DC-KNOWING CGA` (n° 9), `ENTREPRISE TEST 4` (n° 8), et
+`DC-KNOWING` sous `1864699 A`. Désignée par son NCC, l'export prenait la
+première venue — l'entreprise d'essai. Il refuse désormais un NCC partagé et
+demande l'identifiant : `--entreprise=9`. L'import, en ligne, départage par le
+nom ; s'il en reste plusieurs, il s'arrête, les nomme, et `--vers=<identifiant>`
+tranche. Trois épreuves de plus.
+
 Ce qui ne voyage pas : la clé FNE — **le superadmin la tape en ligne** —, la
 liaison Comptaflow, chiffrée avec l'`APP_KEY` du poste, les soldes constatés
 par la DGI, les logos, les jetons de session, et toutes les données.

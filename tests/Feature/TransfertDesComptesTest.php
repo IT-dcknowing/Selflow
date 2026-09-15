@@ -189,6 +189,58 @@ class TransfertDesComptesTest extends TestCase
         $this->assertFileDoesNotExist($this->fichier);
     }
 
+    /**
+     * Deux entreprises portent le même NCC — une entreprise d'essai a repris
+     * celui de la vraie. Désignée par son NCC, l'export prenait la première.
+     */
+    public function test_un_ncc_partage_refuse_l_export_et_l_identifiant_designe_la_bonne(): void
+    {
+        Entreprise::create(['nom' => 'ENTREPRISE TEST 4', 'ncc' => '1864699A']);
+
+        $this->artisan('selflow:exporter-comptes', ['--entreprise' => ['1864699A'], '--fichier' => $this->fichier])
+            ->assertExitCode(1);
+        $this->assertFileDoesNotExist($this->fichier);
+
+        $this->artisan('selflow:exporter-comptes', ['--entreprise' => [(string) $this->entreprise->id], '--fichier' => $this->fichier])
+            ->assertExitCode(0);
+
+        $paquet = json_decode(File::get($this->fichier), true);
+        $this->assertSame('DC-KNOWING CGA', $paquet['contenu']['entreprises'][0]['entreprise']['nom']);
+    }
+
+    public function test_en_ligne_le_meme_ncc_se_departage_par_le_nom(): void
+    {
+        $this->exporter();
+        $this->viderCommeUnServeurNeuf();
+
+        $essai = Entreprise::create(['nom' => 'ENTREPRISE TEST 4', 'ncc' => '1864699A']);
+        $vraie = Entreprise::create(['nom' => 'DC-KNOWING CGA', 'ncc' => '1864699A']);
+
+        $this->artisan('selflow:importer-comptes', ['fichier' => $this->fichier])->assertExitCode(0);
+
+        $this->assertSame($vraie->id, Utilisateur::where('email', 'gerant@exemple.test')->value('entreprise_id'));
+        $this->assertSame('ENTREPRISE TEST 4', $essai->refresh()->nom);
+        $this->assertSame(2, Entreprise::count());
+    }
+
+    public function test_en_ligne_une_ambiguite_arrete_l_import_et_vers_tranche(): void
+    {
+        $this->exporter();
+        $this->viderCommeUnServeurNeuf();
+
+        $une = Entreprise::create(['nom' => 'ENTREPRISE TEST 4', 'ncc' => '1864699A']);
+        $autre = Entreprise::create(['nom' => 'ENTREPRISE TEST 5', 'ncc' => '1864699A']);
+
+        $this->artisan('selflow:importer-comptes', ['fichier' => $this->fichier])->assertExitCode(1);
+        $this->assertSame(0, Utilisateur::count());
+
+        $this->artisan('selflow:importer-comptes', ['fichier' => $this->fichier, '--vers' => (string) $autre->id])->assertExitCode(0);
+
+        $this->assertSame('DC-KNOWING CGA', $autre->refresh()->nom);
+        $this->assertSame('ENTREPRISE TEST 4', $une->refresh()->nom);
+        $this->assertSame($autre->id, Utilisateur::where('email', 'gerant@exemple.test')->value('entreprise_id'));
+    }
+
     public function test_effacer_supprime_le_fichier_apres_l_import(): void
     {
         $this->exporter();

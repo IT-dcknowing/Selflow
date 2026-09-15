@@ -45,7 +45,7 @@ use Illuminate\Support\Facades\Schema;
 class ExporterComptes extends Command
 {
     protected $signature = 'selflow:exporter-comptes
-        {--entreprise=* : identifiant ou NCC de l\'entreprise à emporter (répétable)}
+        {--entreprise=* : identifiant (de préférence) ou NCC de l\'entreprise à emporter (répétable)}
         {--equipe : emporter aussi les comptes de l\'équipe, et non le seul administrateur}
         {--fichier= : chemin du fichier produit (défaut : storage/app/transfert/comptes-selflow.json)}';
 
@@ -98,10 +98,24 @@ class ExporterComptes extends Command
 
         $entreprises = [];
         foreach ($demandees as $designation) {
-            $entreprise = Entreprise::query()
-                ->where('id', ctype_digit((string) $designation) ? (int) $designation : 0)
-                ->orWhere('ncc', $designation)
-                ->first();
+            // L'identifiant d'abord : il est unique. Le NCC ne l'est pas — des
+            // entreprises d'essai reprennent celui d'une vraie —, et prendre la
+            // première venue emportait les comptes d'une autre entreprise sans
+            // que rien ne le dise.
+            $entreprise = ctype_digit((string) $designation) ? Entreprise::find((int) $designation) : null;
+
+            if (!$entreprise) {
+                $parNcc = Entreprise::query()->where('ncc', $designation)->orderBy('id')->get(['id', 'nom', 'ncc']);
+
+                if ($parNcc->count() > 1) {
+                    $this->error("Plusieurs entreprises portent le NCC « {$designation} ». Désignez-la par son identifiant : --entreprise=<identifiant>.");
+                    $this->table(['Identifiant', 'Nom', 'NCC'], $parNcc->map(fn ($e) => [$e->id, $e->nom, $e->ncc])->all());
+
+                    return self::FAILURE;
+                }
+
+                $entreprise = $parNcc->first();
+            }
 
             if (!$entreprise) {
                 $this->error("Aucune entreprise ne répond à « {$designation} ».");

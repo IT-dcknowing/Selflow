@@ -30,6 +30,7 @@ class ImporterComptes extends Command
 {
     protected $signature = 'selflow:importer-comptes
         {fichier : le fichier produit par selflow:exporter-comptes}
+        {--vers= : identifiant, sur ce serveur, de l\'entreprise à mettre à jour (quand plusieurs se ressemblent)}
         {--simuler : tout vérifier et tout rapporter, sans rien écrire}
         {--effacer : effacer le fichier une fois l\'import réussi}';
 
@@ -113,15 +114,7 @@ class ImporterComptes extends Command
     {
         $colonnes = self::garder('entreprises', $bloc['entreprise'] ?? [], ExporterComptes::COLONNES_ENTREPRISE);
 
-        $entreprise = null;
-        foreach (['ncc', 'email', 'nom'] as $cle) {
-            if (filled($colonnes[$cle] ?? null)) {
-                $entreprise = Entreprise::query()->where($cle, $colonnes[$cle])->first();
-                if ($entreprise) {
-                    break;
-                }
-            }
-        }
+        $entreprise = $this->retrouverEntreprise($colonnes);
 
         $nouvelle = !$entreprise;
         $entreprise = self::ecrireBrut($entreprise ?? new Entreprise(), $colonnes);
@@ -158,6 +151,51 @@ class ImporterComptes extends Command
             );
             $this->rapport[] = ['Taxes', (string) ($colonnesTaxes['regime'] ?? '?'), $existe ? 'mises à jour' : 'créées'];
         }
+    }
+
+    /**
+     * L'entreprise du fichier, sur ce serveur — ou `null` s'il faut la créer.
+     *
+     * Ni le NCC, ni l'adresse, ni le nom ne sont uniques : des entreprises
+     * d'essai reprennent le NCC d'une vraie. Prendre la première venue
+     * écrasait la fiche d'une autre entreprise et y rattachait l'administrateur.
+     * Un critère qui désigne plusieurs entreprises est donc départagé par le
+     * nom ; s'il en reste plusieurs, l'import s'arrête et les nomme, et
+     * `--vers=` tranche.
+     */
+    private function retrouverEntreprise(array $colonnes): ?Entreprise
+    {
+        if (filled($this->option('vers'))) {
+            return Entreprise::findOrFail((int) $this->option('vers'));
+        }
+
+        foreach (['ncc', 'email', 'nom'] as $cle) {
+            if (blank($colonnes[$cle] ?? null)) {
+                continue;
+            }
+
+            $candidates = Entreprise::query()->where($cle, $colonnes[$cle])->orderBy('id')->get();
+
+            if ($candidates->count() > 1 && filled($colonnes['nom'] ?? null)) {
+                $memeNom = $candidates->where('nom', $colonnes['nom']);
+                $candidates = $memeNom->isNotEmpty() ? $memeNom : $candidates;
+            }
+
+            if ($candidates->count() > 1) {
+                throw new \RuntimeException(sprintf(
+                    'plusieurs entreprises de ce serveur répondent au %s « %s » : %s. Relancez avec --vers=<identifiant>.',
+                    $cle,
+                    $colonnes[$cle],
+                    $candidates->map(fn ($e) => "n° {$e->id} {$e->nom}")->implode(', ')
+                ));
+            }
+
+            if ($candidates->count() === 1) {
+                return $candidates->first();
+            }
+        }
+
+        return null;
     }
 
     /**
