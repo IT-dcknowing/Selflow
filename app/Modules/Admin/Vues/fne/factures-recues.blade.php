@@ -304,9 +304,20 @@
             @endif
 
             <div class="actions">
-                <a href="{{ route('admin.achats.factures_recues.imprimer', $facture) }}" class="btn btn-primary btn-sm">
-                    <i class="fas fa-file-invoice"></i> Voir le document
-                </a>
+                {{-- Le document de la DGI quand le scraper l'a rapporté, la
+                     reconstruction de Selflow sinon. Le libellé le dit : les
+                     deux ne valent pas la même chose devant un contrôle. --}}
+                @if($facture->pdfDisponible())
+                    <a href="{{ route('admin.achats.factures_recues.pdf', $facture) }}" target="_blank" class="btn btn-primary btn-sm"
+                       title="Le document de la DGI, tel que le fournisseur l'a établi">
+                        <i class="fas fa-file-pdf"></i> Voir le document
+                    </a>
+                @else
+                    <a href="{{ route('admin.achats.factures_recues.imprimer', $facture) }}" class="btn btn-primary btn-sm"
+                       title="Reconstitué du relevé : le document de la DGI n'a pas encore été rapporté">
+                        <i class="fas fa-file-invoice"></i> Voir le relevé
+                    </a>
+                @endif
 
                 @if($facture->achat_id)
                     <form method="POST" action="{{ route('admin.achats.factures_recues.detacher', $facture) }}">

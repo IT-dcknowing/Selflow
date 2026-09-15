@@ -101,6 +101,11 @@ Route::prefix('admin')
             // La pièce vue comme un document : une copie d'après le relevé, que
             // son bandeau distingue de l'original certifié du fournisseur.
             Route::get('/factures-recues/{facture}/imprimer', [\App\Modules\Admin\Controleurs\FactureRecueControleur::class, 'imprimer'])->name('factures_recues.imprimer');
+            // Le document de la DGI lui-même, rapporté par le scraper. Il passe
+            // par le contrôleur et non par une URL publique : le dossier d'import
+            // est hors de `public/`, et ces pièces portent des données fiscales
+            // nominatives qu'une adresse devinée ne doit pas rendre.
+            Route::get('/factures-recues/{facture}/document', [\App\Modules\Admin\Controleurs\FactureRecueControleur::class, 'pdf'])->name('factures_recues.pdf');
             Route::post('/factures-recues/{facture}/rattacher', [\App\Modules\Admin\Controleurs\FactureRecueControleur::class, 'rattacher'])->name('factures_recues.rattacher');
             Route::post('/factures-recues/{facture}/detacher', [\App\Modules\Admin\Controleurs\FactureRecueControleur::class, 'detacher'])->name('factures_recues.detacher');
             Route::post('/factures-recues/{facture}/ecarter', [\App\Modules\Admin\Controleurs\FactureRecueControleur::class, 'ecarter'])->name('factures_recues.ecarter');

@@ -131,6 +131,10 @@ class Habilitations
         'admin.achats.factures_recues.affecter'      => 'factures_achat',
         'admin.achats.factures_recues.reintegrer'    => 'factures_achat',
         'admin.achats.factures_recues.imprimer'      => 'factures_achat',
+        // Le document de la DGI se lit avec le même droit que la facture d'achat
+        // qu'il constate : le laisser hors de cette liste le rendrait joignable
+        // par quiconque a un compte, alors qu'il porte le détail d'une charge.
+        'admin.achats.factures_recues.pdf'           => 'factures_achat',
         'admin.achats.transmettre_b2b'               => 'nouvel_achat',
 
         // ── Stock ──

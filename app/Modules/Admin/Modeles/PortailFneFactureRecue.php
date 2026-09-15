@@ -53,6 +53,7 @@ class PortailFneFactureRecue extends Model
         'reference',
         'fne_id',
         'token',
+        'fichier_pdf',
         'type',
         'subtype',
         'est_rne',
@@ -226,6 +227,42 @@ class PortailFneFactureRecue extends Model
         $hote = rtrim((string) preg_replace('#/ws/?$#', '', trim($api)), '/');
 
         return $hote === '' ? null : "{$hote}/fr/verification/{$token}";
+    }
+
+    /**
+     * Le chemin sur disque du PDF que la DGI sert pour cette pièce.
+     *
+     * `fichier_pdf` porte un nom relatif au dossier d'import, jamais un chemin
+     * absolu : le dossier se déplace d'un poste à l'autre — il est réglé par
+     * `PORTAIL_FNE_DOSSIER_IMPORT` — et un chemin absolu écrit en base le
+     * 8 septembre serait faux le jour du déménagement.
+     *
+     * Rend `null` dès que le fichier n'est plus là : l'écran doit pouvoir
+     * retomber sur la reconstruction plutôt que de servir une page blanche.
+     */
+    public function cheminDuPdf(): ?string
+    {
+        $nom = trim((string) $this->fichier_pdf);
+
+        if ($nom === '') {
+            return null;
+        }
+
+        // `basename` et non le nom tel quel : la colonne est écrite par
+        // l'import, mais une valeur portant « ../ » ferait servir n'importe quel
+        // fichier du disque par la route qui lit ceci.
+        $chemin = rtrim((string) config('selflow.portail_fne.dossier_import'), "/\\")
+            . DIRECTORY_SEPARATOR . 'achats'
+            . DIRECTORY_SEPARATOR . 'pdf'
+            . DIRECTORY_SEPARATOR . basename($nom);
+
+        return is_file($chemin) ? $chemin : null;
+    }
+
+    /** Le document de la DGI est-il sur le disque ? */
+    public function pdfDisponible(): bool
+    {
+        return $this->cheminDuPdf() !== null;
     }
 
     public function libelleDuSousType(): string

@@ -12,6 +12,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * L'écran des factures que la DGI dit avoir reçues pour l'entreprise.
@@ -210,6 +211,54 @@ class FactureRecueControleur
             // Le service est gelé : on l'appelle, on ne le touche pas. Il
             // encode un jeton en image, ce qui est exactement l'usage prévu.
             'qr'         => QrCodeFneService::imageDeVerification($facture->urlDeVerification(), 110),
+        ]);
+    }
+
+    /**
+     * Sert le document que la DGI détient pour cette pièce.
+     *
+     * ## Pourquoi il ne suffisait pas de mettre un lien
+     *
+     * Demandé par le propriétaire du projet le 08/09/2026 : *« que cette facture
+     * s'affiche aussi directement sans passer par le bouton exporter »*. Le
+     * bouton en question est celui du **portail** : lire une facture reçue
+     * voulait dire s'y connecter et l'exporter à la main.
+     *
+     * Le PDF ne peut pas être un lien vers la DGI : la plateforme ne le sert
+     * qu'à une session authentifiée, et personne n'ouvrira une session par
+     * facture. C'est donc le scraper qui le rapporte, une fois, dans la session
+     * qu'il ouvre déjà — et cette action sert le fichier local.
+     *
+     * ## Ce qu'elle protège
+     *
+     * Le dossier d'import est hors de `public/` : ces pièces portent des données
+     * fiscales nominatives, et une URL devinée ne doit pas les rendre. Le
+     * fichier passe donc par ici, après `siennes()` — une facture d'une autre
+     * entreprise ne se lit pas, pas même en connaissant son identifiant.
+     *
+     * `inline` et non `attachment` : la demande est de **voir**, pas de
+     * télécharger. Le navigateur affiche, et l'utilisateur enregistre s'il veut.
+     */
+    public function pdf(PortailFneFactureRecue $facture): BinaryFileResponse|RedirectResponse
+    {
+        $this->siennes($facture);
+
+        $chemin = $facture->cheminDuPdf();
+
+        // Le scraper n'a rien rapporté pour cette pièce — les relevés antérieurs
+        // au 08/09/2026 sont dans ce cas. On renvoie vers la reconstruction
+        // plutôt que de rendre 404 : l'utilisateur veut lire la facture, et
+        // Selflow sait la lui montrer, même si ce n'est pas le document original.
+        if ($chemin === null) {
+            return redirect()
+                ->route('admin.achats.factures_recues.imprimer', $facture)
+                ->with('info', "Le document de la DGI n'a pas encore été rapporté pour cette "
+                    . 'pièce ; voici ce que Selflow a reconstitué du relevé.');
+        }
+
+        return response()->file($chemin, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $facture->reference . '.pdf"',
         ]);
     }
 

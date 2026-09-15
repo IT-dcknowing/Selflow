@@ -9,6 +9,20 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
+/*
+ * Ce que les tâches du portail impriment.
+ *
+ * **Un fichier distinct du canal `portail_fne`**, et l'essai du 08/09/2026 dit
+ * pourquoi : `appendOutputTo` redirige la sortie par `>>`, ce qui verrouille le
+ * fichier sous Windows. Monolog ne peut alors plus l'ouvrir et lève « Resource
+ * temporarily unavailable » — au moment précis où la commande journalisait.
+ * `portail-fne:importer-achats` se cassait ainsi lui-même.
+ *
+ * Les deux fichiers portent le même format de ligne : `sort` les remet dans
+ * l'ordre quand il faut lire l'histoire complète.
+ */
+$sortiesPortail = \App\Modules\Admin\Services\ScraperPortailFneService::sorties();
+
 // Re-synchronisation des écritures COMPTAFLOW échouées (toutes les 5 minutes)
 Schedule::command('selflow:sync-ecritures')->everyFiveMinutes()->withoutOverlapping();
 
@@ -31,20 +45,37 @@ Schedule::command('selflow:sync-ecritures')->everyFiveMinutes()->withoutOverlapp
 Schedule::command('portail-fne:importer')
     ->hourly()
     ->withoutOverlapping()
-    ->appendOutputTo(storage_path('logs/portail-fne.log'));
+    ->appendOutputTo($sortiesPortail);
+
+/*
+ * Le pas du relevé des factures reçues, en minutes.
+ *
+ * Il commande deux tâches — celle qui va au portail, plus bas, et celle qui
+ * range ce qu'elle dépose, juste ici. Les séparer ferait un relevé toutes les
+ * cinq minutes rangé toutes les heures : le portail serait interrogé 288 fois
+ * par jour pour un écran qui ne bougerait qu'au ramassage suivant.
+ *
+ * Borné à 60 : au-delà, le pas ne veut plus rien dire dans une expression cron,
+ * dont la minute ne va pas plus loin que 59.
+ */
+$pasAchats = max(1, min(60, (int) config('selflow.portail_fne.scraper.achats_minutes', 5)));
 
 /*
  * Les factures reçues, relevées par `achats.js` dans un sous-dossier.
  *
- * Une tâche à part, minute 05, et non un ajout à la précédente : les deux
- * chaînes lisent des dossiers différents et n'ont aucune raison de tomber
- * ensemble le jour où l'une casse. Après le ramassage des fiches, avant le
- * diagnostic — l'ordre du cycle reste lisible de bout en bout.
+ * Une tâche à part, et non un ajout à la précédente : les deux chaînes lisent
+ * des dossiers différents et n'ont aucune raison de tomber ensemble le jour où
+ * l'une casse.
+ *
+ * **Décalée de deux minutes sur le relevé**, et c'est tout l'intérêt : le
+ * scraper ouvre un navigateur et met des dizaines de secondes à déposer son
+ * fichier. Ramasser à la même minute lirait toujours le fichier du passage
+ * précédent, et l'écran aurait un tour de retard en permanence.
  */
 Schedule::command('portail-fne:importer-achats')
-    ->hourlyAt(5)
+    ->cron("2-59/{$pasAchats} * * * *")
     ->withoutOverlapping()
-    ->appendOutputTo(storage_path('logs/portail-fne.log'));
+    ->appendOutputTo($sortiesPortail);
 
 /*
  * Rapprochement des rejets FNE avec les relevés du portail.
@@ -58,7 +89,7 @@ Schedule::command('portail-fne:importer-achats')
 Schedule::command('fne:diagnostiquer-rejets')
     ->hourlyAt(10)
     ->withoutOverlapping()
-    ->appendOutputTo(storage_path('logs/portail-fne.log'));
+    ->appendOutputTo($sortiesPortail);
 
 /*
  * Ce que le portail a changé depuis le relevé précédent.
@@ -76,7 +107,7 @@ Schedule::command('fne:diagnostiquer-rejets')
 Schedule::command('portail-fne:changements --silencieux')
     ->hourlyAt(15)
     ->withoutOverlapping()
-    ->appendOutputTo(storage_path('logs/portail-fne.log'));
+    ->appendOutputTo($sortiesPortail);
 
 /*
  * Le relèvement du portail lui-même.
@@ -117,7 +148,7 @@ if (config('selflow.portail_fne.scraper.actif')) {
         ->hourlyAt(config('selflow.portail_fne.scraper.minute_horaire'))
         ->withoutOverlapping(30)
         ->runInBackground()
-        ->appendOutputTo(storage_path('logs/portail-fne.log'));
+        ->appendOutputTo($sortiesPortail);
 
     /*
      * Le passage complet, une fois par nuit : tous les logins connus, qu'une
@@ -129,22 +160,46 @@ if (config('selflow.portail_fne.scraper.actif')) {
         ->dailyAt(config('selflow.portail_fne.scraper.heure_nocturne'))
         ->withoutOverlapping(120)
         ->runInBackground()
-        ->appendOutputTo(storage_path('logs/portail-fne.log'));
+        ->appendOutputTo($sortiesPortail);
 
     /*
-     * Le relevé des factures REÇUES n'a plus de rendez-vous à lui.
+     * Le relevé des factures REÇUES, à son propre rythme.
      *
-     * Il en a eu un, le 31/08/2026 au matin : `achats.js --tous` à 04:15. Il
-     * rouvrait une seconde session sur le portail de la DGI pour la même
-     * entreprise, quelques heures après celle de `fne.js`. Or c'est la
-     * connexion qui coûte — et qui, répétée, fait bloquer un compte. `fne.js`
-     * relève désormais les factures reçues **dans la session qu'il vient
-     * d'ouvrir**, à chaque passage : file d'attente, passage nocturne, ou
-     * lancement à la main depuis l'écran des points de vente.
+     * Demandé par le propriétaire du projet le 08/09/2026 : « que le scrapping
+     * se lance chaque 5 min ». Il a eu un rendez-vous quotidien (04:15), retiré
+     * au lot 22 parce qu'il rouvrait une seconde session pour une entreprise que
+     * `fne.js` venait de relever. Il en retrouve un, beaucoup plus rapproché.
      *
-     * `achats.js` reste lançable seul — `node achats.js <login>` —, pour un
-     * relevé ciblé ou une reconnaissance.
+     * **Ce que ça coûte, et qui est assumé** : `fne.js` regarde d'abord la file
+     * de Selflow et s'arrête sans ouvrir de navigateur quand elle est vide —
+     * le cas ordinaire. `achats.js` n'a rien qui le retienne : chaque passage
+     * est une connexion au portail de la DGI avec le mot de passe du client,
+     * soit 288 par jour à cinq minutes. C'est le prix d'une facture fournisseur
+     * vue dans le quart d'heure au lieu du lendemain.
+     *
+     * D'où deux interrupteurs plutôt qu'un rythme écrit en dur :
+     * `PORTAIL_FNE_SCRAPER_ACHATS_ACTIF` éteint la tâche sans toucher au reste
+     * du scraper, `PORTAIL_FNE_SCRAPER_ACHATS_MINUTES` la ralentit. Le jour où
+     * un compte se bloque, ils se changent sans livrer une version.
+     *
+     * `--tous` : tous les logins d'`identifiants.json`, sans regarder la file.
+     * La file dit ce qu'un refus rend urgent ; une facture reçue n'y figure
+     * jamais, personne ne l'ayant demandée.
+     *
+     * Le verrou expire au bout de deux pas : un navigateur resté planté ne doit
+     * pas bloquer tous les passages suivants, et deux `achats.js` en parallèle
+     * sur le même login déposeraient deux fois le même fichier.
      */
+    if (config('selflow.portail_fne.scraper.achats_actif')) {
+        $scraperAchats = ProcessUtils::escapeArgument(config('selflow.portail_fne.scraper.node'))
+            . ' ' . ProcessUtils::escapeArgument(config('selflow.portail_fne.scraper.script_achats'));
+
+        Schedule::exec($scraperAchats . ' --tous')
+            ->cron("*/{$pasAchats} * * * *")
+            ->withoutOverlapping($pasAchats * 2)
+            ->runInBackground()
+            ->appendOutputTo($sortiesPortail);
+    }
 }
 
 // Rotation mensuelle des clés de liaison Comptaflow.

@@ -293,10 +293,23 @@
                     <td>
                         <div style="display:flex; gap:6px; align-items:center;">
                             {{-- La pièce se lit comme n'importe quelle autre, au
-                                 lieu de n'être qu'une ligne de tableau. --}}
-                            <a href="{{ route('admin.achats.factures_recues.imprimer', $recue) }}" class="btn btn-primary btn-sm">
-                                <i class="fas fa-eye"></i> Voir
-                            </a>
+                                 lieu de n'être qu'une ligne de tableau.
+
+                                 Le document de la DGI quand le scraper l'a
+                                 rapporté, la reconstruction de Selflow sinon :
+                                 lire une facture reçue ne doit plus demander
+                                 d'aller l'exporter du portail à la main. --}}
+                            @if($recue->pdfDisponible())
+                                <a href="{{ route('admin.achats.factures_recues.pdf', $recue) }}" target="_blank" class="btn btn-primary btn-sm"
+                                   title="Le document de la DGI, tel que le fournisseur l'a établi">
+                                    <i class="fas fa-file-pdf"></i> Voir
+                                </a>
+                            @else
+                                <a href="{{ route('admin.achats.factures_recues.imprimer', $recue) }}" class="btn btn-primary btn-sm"
+                                   title="Reconstitué du relevé : le document de la DGI n'a pas encore été rapporté">
+                                    <i class="fas fa-eye"></i> Voir
+                                </a>
+                            @endif
 
                             @if($propose['achat'])
                                 <form method="POST" action="{{ route('admin.achats.factures_recues.rattacher', $recue) }}" style="display:inline; margin:0;">

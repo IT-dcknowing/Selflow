@@ -5065,6 +5065,279 @@ deux familles, toutes deux à traiter :
 
 Elles sont portées en section 6.
 
+### Lot 28 — Le relevé des achats toutes les cinq minutes, et par l'API — **TERMINÉ le 08/09/2026**
+
+Demandé par le propriétaire du projet le 08/09/2026 : *« pour le scrapping achat
+mettre une logique que le scrapping se lance CHAQUE 5min et ajoute la route dans
+route /api »*.
+
+#### Ce qui a été dit avant de le faire
+
+Le lot 22 avait **retiré** le rendez-vous quotidien d'`achats.js` (04:15) pour
+une raison précise : il rouvrait une seconde session sur le portail de la DGI
+pour une entreprise que `fne.js` venait de relever, et c'est la connexion qui
+coûte — répétée, elle fait bloquer un compte. À cinq minutes, ce sont **288
+connexions par jour** avec le mot de passe du client, là où une facture reçue est
+un fait acquis qui ne changera plus.
+
+La demande a été maintenue, elle est donc appliquée. Ce qui a changé par rapport
+au lot 22, c'est l'attente : un fournisseur qui certifie une facture à 9 h
+n'apparaissait pas avant le lendemain, puisque `fne.js` ne va au portail que sur
+un refus ou à 02:30.
+
+**Le rythme n'est pas écrit en dur.** Deux réglages le commandent, pour ralentir
+ou éteindre sans livrer une version le jour où un compte se bloque :
+
+| Variable | Défaut | Ce qu'elle fait |
+|---|---|---|
+| `PORTAIL_FNE_SCRAPER_ACHATS_ACTIF` | `true` | éteint la tâche **sans toucher** au reste du scraper |
+| `PORTAIL_FNE_SCRAPER_ACHATS_MINUTES` | `5` | le pas, borné à 60 — au-delà, la minute d'une expression cron ne veut plus rien dire |
+| `PORTAIL_FNE_SCRAPER_SCRIPT_ACHATS` | `SCRAPER-PORTAIL-FNE/achats.js` | le chemin du script |
+
+#### Les deux tâches vont ensemble
+
+Une seule aurait été inutile : relever toutes les cinq minutes en rangeant toutes
+les heures aurait interrogé le portail 288 fois pour un écran qui ne bouge qu'au
+ramassage. `portail-fne:importer-achats` passe donc au même pas.
+
+**Décalé de deux minutes**, et c'est tout l'intérêt : le scraper ouvre un
+navigateur et met des dizaines de secondes à déposer son fichier. Ramasser à la
+même minute lirait toujours celui du passage précédent, et l'écran aurait un tour
+de retard en permanence.
+
+```
+*/5   * * * *   node achats.js --tous
+2-59/5 * * * *  php artisan portail-fne:importer-achats
+```
+
+Vérifié sur ce poste par `schedule:list` : les deux lignes y figurent.
+
+#### Les deux routes d'API
+
+`routes/api.php`, derrière `hub.token` comme le reste — ces routes ouvrent une
+session sur le portail de la DGI avec le mot de passe d'un client et rendent des
+données fiscales nominatives.
+
+| Route | Ce qu'elle fait |
+|---|---|
+| `POST /api/portail-fne/achats/relever` | lance un relevé détaché ; `company_id`, `X-Company-Id` ou `login` pour une entreprise, rien pour toutes |
+| `GET /api/portail-fne/achats` | l'état de la chaîne : interrupteurs, pas, relevé en cours, vingt derniers relevés, compte des pièces par état |
+
+`POST` et non `GET` pour le lancement : un `GET` serait rejoué par un cache, un
+préchargement de navigateur ou un lien visité deux fois — et chaque rejeu est une
+session chez la DGI.
+
+**La réponse dit que le relevé est parti, pas qu'il a réussi** — d'où `202`. Une
+requête HTTP qui attendrait le navigateur tiendrait la connexion des dizaines de
+secondes, et un client qui renonce ne l'arrêterait pas pour autant.
+
+Quatre codes, et chacun répond à une question différente :
+
+| Code | Ce qu'il veut dire |
+|---|---|
+| `202` | parti en arrière-plan |
+| `429` | un relevé est déjà en route ; il ne sera pas doublé |
+| `503` | la chaîne est **éteinte** — et non en panne, ce qu'un 500 ferait croire |
+| `404` / `422` | entreprise introuvable, ou sans NCC — et surtout **pas** un passage complet sur tout le parc |
+
+Ce dernier point est le piège évité : rendre « tous les logins » quand un
+identifiant est faux aurait ouvert des sessions que personne n'a demandées.
+
+#### Le verrou
+
+`ScraperPortailFneService::lancerAchats()` pose un verrou de cache pour la durée
+du pas, par login — le passage complet et une entreprise nommée ont des clés
+distinctes. Il sert à l'appel à la demande : une route appelée en boucle
+ouvrirait autant de navigateurs. Le passage planifié n'en a pas besoin,
+`withoutOverlapping()` le garde déjà, et les deux ne se gênent pas puisque le
+planificateur ne passe pas par le service.
+
+`verrouAchats()` est public pour que le contrôleur distingue les deux « faux »
+que `lancerAchats()` rend indifféremment : « déjà en route », qui est une
+réponse, et « lancement impossible », qui est une panne. Répondre la même chose
+aux deux ferait chercher un défaut là où un verrou fait son travail.
+
+#### Ce qui n'a pas bougé
+
+Le périmètre gelé n'est pas traversé : ni `FneService`, ni les colonnes `fne_*`,
+ni les vues de certification. Le relevé reste un **constat** — aucun achat créé,
+aucune écriture, aucun fournisseur inventé —, et l'appeler par HTTP ne change
+rien à cette règle du lot 16.
+
+`fne.js` continue de relever les factures reçues dans la session qu'il ouvre :
+c'est gratuit, on y est déjà. La nouvelle tâche s'ajoute, elle ne remplace pas.
+
+#### Épreuves
+
+`ReleveDesAchatsChaqueCinqMinutesTest` — **17 cas**, tous passants : le pas du
+planificateur et son réglage, le décalage du ramassage, l'interrupteur qui
+n'éteint que cette ligne, le verrou et ses clés distinctes, et les huit réponses
+de l'API dont l'isolation entre entreprises.
+
+Les quatre épreuves du planificateur ont demandé un détour : `routes/console.php`
+est lu au démarrage, quand le scraper est encore éteint dans `phpunit.xml`. Elles
+reposent un ordonnanceur neuf, **oublient l'instance retenue par la façade** —
+sans quoi `Schedule::command()` écrit toujours dans celui d'origine — et relisent
+le fichier.
+
+Suite entière : **1 235 épreuves, 1 219 passantes, 4 836 vérifications**. Les
+**16 échecs sont les mêmes qu'au lot 27**, aux mêmes tests — accent perdu (5) et
+chargement à la main (11). Ce lot n'en ajoute aucun et n'en corrige aucun : ils
+restent portés en section 6.
+
+#### Le journal de la chaîne — demandé le même jour
+
+*« Ajoute des logs pour chaque fois, voir les infos en cas d'erreur. »* À un
+passage toutes les cinq minutes, c'est ce qui manquait le plus : le journal
+existant empilait 288 blocs par jour sans qu'aucun repère ne les sépare.
+
+**Ce qui n'allait pas, relevé dans le fichier réel :**
+
+| Constat | Conséquence |
+|---|---|
+| aucune ligne de `fne.js` / `achats.js` n'était horodatée | `Le système ne peut trouver le fichier node-qui-n-existe-pas`, treize fois, sans dire quand ni pour quel login |
+| les journaux PHP partaient dans `laravel.log` (30 Mo, tout mélangé) | une panne se lisait à moitié dans un fichier, à moitié dans l'autre |
+| le service se taisait quand il renonçait | « rien ne s'est passé » — la panne la plus difficile à diagnostiquer, puisqu'on cherche un défaut là où un interrupteur est à zéro |
+| l'import ne disait rien quand tout allait bien | donc rien non plus sur ce qu'il avait vu juste avant une erreur |
+| le contrôleur d'API ne traçait rien | impossible de savoir qui avait déclenché un relevé, ni pourquoi il avait été refusé |
+
+**Ce qui a été posé :**
+
+- un canal `portail_fne` dans `config/logging.php`, où écrivent le service,
+  l'import et le contrôleur d'API ;
+- `journaliser()` dans `fne.js`, exporté et employé par les deux scripts —
+  **une seule implémentation**, la règle du projet : deux copies, et c'est
+  l'une des deux qui gardera le défaut. 50 appels à `console.*` convertis ;
+- le format de Laravel repris à l'identique — `[date] canal.NIVEAU: message` —,
+  de sorte qu'un `grep ERREUR` rende les deux moitiés de l'histoire ;
+- les renoncements journalisés au même titre que les lancements, en nommant
+  l'interrupteur en cause ;
+- les chemins de Node et du script dans la ligne de lancement : le processus
+  est détaché, son échec n'arrive jamais jusqu'à PHP, et sans eux la ligne
+  suivante est un « fichier introuvable » qui ne dit pas lequel ;
+- `resultat()` de l'import journalise **tous** les verdicts — c'est le goulot
+  par lequel passent tous les chemins, donc une sortie ajoutée demain sera
+  tracée sans que personne y pense. Niveau `error` pour un fichier illisible,
+  `info` pour un import, `debug` pour l'ordinaire, qui revient 288 fois par jour.
+
+#### Deux fautes commises en chemin, et corrigées
+
+**Un seul fichier pour tout : essayé, cassé.** Verser les journaux PHP dans
+`portail-fne.log`, là où `appendOutputTo` verse déjà la sortie des tâches,
+paraissait évidemment mieux. Sous Windows, la redirection `>>` verrouille le
+fichier : Monolog ne peut plus l'ouvrir et lève « Resource temporarily
+unavailable » — **au moment précis où la commande journalisait**.
+`portail-fne:importer-achats` se cassait ainsi lui-même. Un journal qui casse ce
+qu'il observe est pire que deux journaux : la sortie des tâches va désormais dans
+`portail-fne-sorties.log`, le canal PHP dans `portail-fne.log`, et les deux
+portent le même format — un `sort` les remet dans l'ordre.
+
+**Deux horloges.** Le premier essai a daté le même passage `12:55` côté Node et
+`11:56` côté PHP : Laravel journalise sous `config('app.timezone')`, qui vaut
+`UTC`, quand le poste est à l'heure locale. Fusionner les deux fichiers faisait
+paraître le ramassage antérieur au relevé qui l'avait nourri. `instant()` rend
+désormais de l'UTC, par `toISOString()`.
+
+**Et le journal du poste était pollué par les épreuves.** Treize lignes de
+« node-qui-n-existe-pas » y ont été retrouvées, au milieu des passages réels :
+une épreuve qui allume le scraper pour observer sa décision lance un vrai
+processus. `PORTAIL_FNE_JOURNAL` et `PORTAIL_FNE_SORTIES` sont épinglés dans
+`phpunit.xml`, comme `PORTAIL_FNE_DOSSIER_IMPORT` l'avait été le 31/08 pour la
+même raison.
+
+**Et une troisième, la vraie racine, trouvée en jouant la suite entière.** Neuf
+appels d'API rendaient 500 sur « Permission denied », alors qu'isolés ils
+passaient. Un processus lancé par `popen` **hérite des descripteurs ouverts du
+parent** ; sous Windows, celui que Monolog tient sur le journal part avec lui et
+reste verrouillé tant que l'enfant vit. Un scraper qui tourne trois minutes rend
+donc le journal de toute l'application inouvrable pendant trois minutes, par un
+processus qui n'écrit même pas dedans.
+
+`detacher()` referme le canal — `Log::forgetChannel('portail_fne')` — juste avant
+d'engendrer l'enfant : il n'hérite plus de rien, et le prochain appel rouvre.
+
+S'y ajoute une ceinture, qui ne remplace pas la correction : les trois `tracer()`
+— service, import, contrôleur d'API — avalent leur propre échec. On perd une
+ligne, jamais l'opération. **Posée seule, elle avait masqué le problème** : les
+500 devenaient des lignes manquantes, plus discrètes et pas plus saines. Elle
+reste juste parce qu'un journal ne doit pas casser ce qu'il observe.
+
+Sept épreuves de plus — **24 dans `ReleveDesAchatsChaqueCinqMinutesTest`**, qui
+écrit dans **son propre fichier** : celui de la suite est ouvert par d'autres
+épreuves et par les processus qu'elles détachent.
+
+### Lot 29 — La facture reçue s'affiche sans passer par le portail — **CHAÎNE D'AFFICHAGE PRÊTE, TÉLÉCHARGEMENT EN ATTENTE**
+
+Demandé par le propriétaire du projet le 08/09/2026, PDF réel à l'appui —
+`1431650A26000000588_2026-09-04.pdf`, qu'il avait dû exporter à la main du
+portail : *« comment faire pour que cette facture s'affiche aussi directement
+sans passer par le bouton exporter »*.
+
+#### Ce qui existait, et pourquoi ça ne suffisait pas
+
+| Bouton | Ce qu'il ouvrait |
+|---|---|
+| 👁 / ⬇ | la page de vérification de la DGI — une application cliente, bonne pour authentifier, pas pour lire |
+| **Voir** | la pièce **reconstruite** par Selflow depuis le relevé |
+
+Aucun des deux ne rendait **le** document : celui que le fournisseur a établi et
+que la plateforme a certifié.
+
+#### Ce qui est livré
+
+| Pièce | Rôle |
+|---|---|
+| Migration `2026_09_08_000001` | `portail_fne_factures_recues.fichier_pdf` — un **nom**, pas un chemin absolu : le dossier d'import se déplace d'un poste à l'autre |
+| `cheminDuPdf()` / `pdfDisponible()` | résolvent le fichier, `basename` compris, et rendent `null` s'il a disparu |
+| `FactureRecueControleur::pdf()` | sert le PDF `inline`, derrière `siennes()` et le droit `factures_achat` |
+| Les deux écrans | **Voir** ouvre le document quand il est là, la reconstruction sinon — le libellé le dit |
+
+Le fichier passe par le contrôleur et non par une URL publique : le dossier
+d'import est hors de `public/`, et ces pièces portent des données fiscales
+nominatives. `inline` et non `attachment` : la demande est de **voir**.
+
+#### Le défaut trouvé avant qu'il ne morde
+
+**Le document arrive après le relevé, sans le changer.** L'import répondait donc
+« inchangé », court-circuitait le rangement, et la colonne ne se serait *jamais*
+remplie pour une pièce déjà connue — c'est-à-dire pour toutes celles d'avant ce
+lot. `rattacherLesPdf()` rattrape ce cas sur le chemin « inchangé », et ne
+regarde que les pièces sans document.
+
+Éprouvé en réel sur la seule facture du dossier :
+
+```
+1864699A_20260908.json | inchangé | Identique au relevé du 07/09/2026 :
+                                    1 facture(s) déjà connues.
+                                    1 document(s) de la DGI rattaché(s).
+```
+
+#### Ce qui manque
+
+**L'adresse que le portail appelle quand on clique « Exporter ».** La
+reconnaissance du 27/08 n'a capté que `/ws/auth/me`, `/ws/bootstrap`,
+`/ws/invoices` et `/ws/invoices/details` : elle a été faite quand l'entreprise
+n'avait aucune facture reçue, donc rien à exporter. Le propriétaire du projet la
+relèvera dans l'onglet Réseau de son navigateur.
+
+Une fois connue, `achats.js` téléchargera le document dans la session qu'il ouvre
+déjà, **une seule fois par pièce** — une facture certifiée ne change plus —, sous
+`storage/app/portail-fne/achats/pdf/<reference>.pdf`. Le reste de la chaîne est
+posé et éprouvé.
+
+En attendant, un PDF déposé à la main dans ce dossier est rattaché au ramassage
+suivant : c'est ainsi que la pièce `1431650A26000000588` s'affiche aujourd'hui.
+
+#### Épreuves
+
+`LeDocumentDeLaDgiSAfficheTest` — **9 cas** : le document servi, le repli sur la
+reconstruction quand il manque, le fichier disparu du disque, le `../` dans le
+nom de fichier, la facture d'une autre entreprise (404), les deux écrans, et le
+rattachement d'un PDF arrivé après le relevé.
+
+Suite entière : **1 251 épreuves, 1 235 passantes, 4 871 vérifications**. Les
+**16 échecs restent ceux du lot 27**, aux mêmes tests.
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
