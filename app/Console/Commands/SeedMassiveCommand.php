@@ -62,6 +62,15 @@ class SeedMassiveCommand extends Command
 
     public function handle(): int
     {
+        // La purge efface toutes les entreprises, pas seulement celles de
+        // démonstration. `--force` ne lève pas cette garde : sur un serveur de
+        // production, rien ne justifie de tout effacer.
+        if (app()->isProduction()) {
+            $this->error('selflow:seed-massif refusé sur un serveur de production : la purge efface toutes les données.');
+
+            return self::FAILURE;
+        }
+
         if (!$this->option('force')) {
             $this->warn('⚠️  Cette commande va SUPPRIMER TOUTES les données des entreprises de démonstration et les repeupler entièrement.');
             if (!$this->confirm('Avez-vous fait une sauvegarde de la base si nécessaire ? Continuer ?')) {

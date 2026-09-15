@@ -166,6 +166,20 @@ class ScraperPortailFneService
      */
     private static function detacher(array $arguments, string $journal): void
     {
+        // Le programme doit exister AVANT d'être lancé. Sous Windows, `start`
+        // sur un programme introuvable ouvre une fenêtre d'erreur système qui
+        // attend un clic — et `pclose()` attend avec elle : la requête, ou la
+        // suite d'épreuves, restait figée sans fin. C'est ce qui a bloqué la
+        // suite deux fois le 15/09/2026. L'exception est rattrapée par
+        // `lancerPourLogin()`, qui la journalise : la demande reste en file.
+        $programme = (string) ($arguments[0] ?? '');
+        $trouve = $programme !== ''
+            && (is_file($programme) || (new \Symfony\Component\Process\ExecutableFinder())->find($programme) !== null);
+
+        if (!$trouve) {
+            throw new \RuntimeException("programme introuvable : « {$programme} ».");
+        }
+
         if (\PHP_OS_FAMILY === 'Windows') {
 
             $commande = 'start /B "" ' . self::composer($arguments)

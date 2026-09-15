@@ -32,6 +32,13 @@ if [ ! -f ".env" ]; then
 fi
 
 echo "✅ Projet Selflow détecté."
+
+# Ce script PURGE toute la base. Il n'a rien à faire sur un serveur de
+# production : la commande le refuse d'ailleurs d'elle-même.
+if grep -qE '^APP_ENV=production' .env; then
+    echo "❌ REFUSÉ : APP_ENV=production. Ce script efface toutes les données."
+    exit 1
+fi
 echo ""
 
 # --- Confirmation obligatoire ---
@@ -76,12 +83,12 @@ echo "🎉 ==========================================================="
 echo "   Peuplement terminé avec succès !"
 echo ""
 echo "   Deux entreprises disponibles :"
-echo "   - DIST-CI DISTRIBUTION SARL     → admin1@selflow-demo.ci / Selflow2026@"
-echo "   - KIRÉNA AGRO-INDUSTRIE SARL    → admin2@selflow-demo.ci / Selflow2026@"
+echo "   - DIST-CI DISTRIBUTION SARL     → admin1@selflow-demo.ci"
+echo "   - KIRÉNA AGRO-INDUSTRIE SARL    → admin2@selflow-demo.ci"
 echo "   (Responsables/Caissiers : voir la console ci-dessus pour la liste complète"
-echo "   des emails générés — même mot de passe Selflow2026@ pour tous)"
+echo "   des emails générés ; le mot de passe est affiché une seule fois ci-dessus)"
 echo ""
-echo "   Super Administrateur   → superadmin@gmail.com / 12345678SUPER@"
+echo "   Super Administrateur   → mot de passe de SUPERADMIN_PASSWORD, ou affiché une fois ci-dessus"
 echo ""
 echo "   Données générées PAR ENTREPRISE :"
 echo "   ✔  4 Points de Vente + logo (URL externe placeholder)"

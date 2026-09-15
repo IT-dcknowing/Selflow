@@ -22,7 +22,17 @@ php artisan migrate --force
 
 # 4. Seed des données initiales
 echo "🌱 Seeding des données..."
-php artisan db:seed --class=SelflowCompleteSeeder --force
+# PLUS DE PEUPLEMENT ICI. `SelflowCompleteSeeder` tournait à chaque
+# déploiement, et il commence par VIDER les tables — entreprises, utilisateurs,
+# clés FNE, ventes, écritures — pour recréer deux entreprises de démonstration
+# et un superadmin au mot de passe tiré au hasard. Chaque mise en ligne
+# effaçait donc la production. Les comptes réels se posent par
+# `php artisan selflow:importer-comptes` (voir JOURNAL-DE-BORD.md, lot 25).
+
+# Le référentiel de préparamétrage — domaines, métiers, modules, comptes —,
+# sans lequel « Configurer mon entreprise » ne peut pas commencer. Il ne
+# supprime rien : il crée ce qui manque et met à jour ce qui a changé.
+php artisan db:seed --class=ReferentielSeeder --force
 
 # 5. Optimisations
 echo "⚡ Optimisations production..."
@@ -46,13 +56,9 @@ chown -R www-data:www-data storage bootstrap/cache
 echo ""
 echo "✅ Déploiement terminé !"
 echo ""
-echo "+------------------+----------------------+----------------+"
-echo "| Rôle             | Email                | Mot de passe   |"
-echo "+------------------+----------------------+----------------+"
-echo "| SuperAdmin       | superadmin@gmail.com | 12345678SUPER@ |"
-echo "| Admin DC-KNOWING | dcknowing@gmail.com  | ADMIN@@@###123 |"
-echo "| Admin B-HOME     | bhome@gmail.com      | ADMIN@@@###123 |"
-echo "+------------------+----------------------+----------------+"
+# Plus de tableau de comptes : le déploiement n'en crée aucun, et un mot de
+# passe n'a rien à faire dans un script versionné.
+echo "Comptes : php artisan selflow:importer-comptes (voir JOURNAL-DE-BORD.md, lot 25)"
 echo ""
 echo "⚠️  PENSEZ À :"
 echo "  1. Modifier DB_PASSWORD dans .env"

@@ -24,6 +24,17 @@ class SelflowCompleteSeeder extends Seeder
 
     public function run(): void
     {
+        // Ce jeu commence par VIDER les tables. Lancé par `deploy-production.sh`
+        // à chaque mise en ligne, il effaçait la production entière. Il refuse
+        // désormais une base qui porte déjà des entreprises, sauf accord écrit
+        // dans l'environnement — et jamais sur un serveur de production.
+        if (app()->isProduction() || (DB::table('entreprises')->exists() && env('SELFLOW_PURGE_AUTORISEE') !== 'oui')) {
+            throw new \RuntimeException(
+                'SelflowCompleteSeeder refusé : il vide toutes les tables, et cette base porte des entreprises '
+                . (app()->isProduction() ? '(serveur de production).' : '. Posez SELFLOW_PURGE_AUTORISEE=oui pour une base de développement.')
+            );
+        }
+
         $this->command->info('🧹 Nettoyage de la base...');
         $this->wipe();
 

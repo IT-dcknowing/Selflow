@@ -3596,6 +3596,38 @@ passe à `superadmin`. Une empreinte SHA-256 du contenu est vérifiée avant
 toute écriture : l'import refuse, rien n'entre. Le fichier est écrit sous
 `storage/app`, que git ignore ; il ne se joint à aucun courriel.
 
+#### 25.2 bis — Ce que la première mise en ligne a montré
+
+Le propriétaire a importé les comptes en ligne. Trois choses ne tenaient pas.
+
+| Constat | Cause | Correction |
+|---|---|---|
+| Le modal des clés FNE répondait « Erreur réseau », en ligne comme en local : aucune clé ne pouvait être saisie | le bouton « Gérer » passait le **numéro de ligne** de l'entreprise, là où ses routes se lient par l'identifiant public (`IdentifiantOpaque`) : 404 (Not Found — introuvable) sur chaque appel. La page 404 n'étant pas du JSON, `res.json()` levait, et le `catch` parlait de réseau | le bouton passe `getRouteKey()`. Une réponse illisible est dite telle quelle, avec son code, et la session expirée — 419 — l'est en clair |
+| **La production contenait des données de démonstration** — DC-KNOWING, B-HOME, leurs articles et leurs ventes | `deploy-production.sh` lançait `SelflowCompleteSeeder` **à chaque déploiement**. Ce jeu commence par **vider** les entreprises, les utilisateurs, les clés FNE, les ventes et les écritures, puis recrée deux entreprises fictives et un superadmin au mot de passe tiré au hasard. C'est la vraie raison du « superadmin qui ne passe pas en ligne » | la ligne est retirée du script. Le jeu refuse une base qui porte des entreprises, et toujours un serveur de production ; `selflow:seed-massif` refuse la production, `--force` compris. `deploy-seed.sh` refuse `APP_ENV=production` |
+| Les scripts de déploiement **imprimaient des mots de passe en clair** : `12345678SUPER@`, `ADMIN@@@###123`, `Selflow2026@` | versionnés depuis juillet, sur un dépôt distant | retirés. Si l'un d'eux sert encore quelque part, il est à changer |
+
+Chez Comptaflow, le tableau de bord superadmin tombait en 500 (Internal Server
+Error — erreur interne du serveur) : la fusion de l'audit avait apporté un
+commentaire CSS qui disait « après @vite », et Blade compile une directive
+partout, commentaires compris. `ccf4f6d`.
+
+- `GestionDesClesFneTest` — 8 épreuves.
+
+**La suite qui ne finissait pas.** Deux passages de la suite se sont figés —
+dix heures pour le premier —, toujours sur `ReleveDesQuUnePieceEstRefuseeTest`.
+L'épreuve pointe exprès le scraper vers `node-qui-n-existe-pas`. Sous Windows,
+`start /B` sur un programme introuvable ouvre **une fenêtre d'erreur système
+qui attend un clic**, et `pclose()` attend avec elle. La suite fusionnée la
+veille n'était passée que parce que quelqu'un avait fermé la fenêtre. Un
+Selflow servi sous Windows sans Node aurait figé la normalisation de la même
+façon. `ScraperPortailFneService::detacher()` vérifie désormais que le
+programme existe avant de le lancer ; sinon il lève, `lancerPourLogin()`
+journalise, et la demande reste en file.
+
+Le déploiement charge désormais le référentiel (`ReferentielSeeder`, qui ne
+supprime rien) : en ligne, « Configurer mon entreprise » s'arrêtait sur
+« le catalogue des domaines d'activité n'est pas chargé ».
+
 #### 25.3 — Les épreuves
 
 - `TransfertDesComptesTest` — 8 épreuves : même mot de passe en ligne, rien

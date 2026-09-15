@@ -178,8 +178,12 @@
                     </form>
                 </td>
                 <td style="text-align:right; position:sticky; right:0; background:#fff; box-shadow:-6px 0 8px -6px rgba(0,0,0,.15);">
+                    {{-- L'identifiant public, et non le numéro de ligne : les routes de
+                         l'entreprise se lient par `uuid` (IdentifiantOpaque). Avec le
+                         numéro, chaque appel du modal répondait 404, et l'écran le
+                         prenait pour une coupure réseau. --}}
                     <button class="btn btn-outline" style="font-size:12px; padding:6px 10px;"
-                            onclick="ouvrirModalGestion({{ $row['entreprise']->id }}, @js($row['entreprise']->nom))">
+                            onclick="ouvrirModalGestion(@js($row['entreprise']->getRouteKey()), @js($row['entreprise']->nom))">
                         <i class="fas fa-gear"></i> Gérer
                     </button>
                 </td>
@@ -262,6 +266,23 @@ function urlFne(cle, entrepriseId) {
     return URLS_FNE[cle].replace(':id', entrepriseId);
 }
 
+// Une réponse qui n'est pas du JSON — la page 404 d'une adresse fausse, la
+// page 419 d'une session expirée — faisait lever `res.json()`, et le `catch`
+// l'annonçait « Erreur réseau ». Le serveur avait pourtant répondu : on dit ce
+// qu'il a répondu.
+async function lireJson(res) {
+    try {
+        return await res.json();
+    } catch (e) {
+        return { illisible: true };
+    }
+}
+
+function afficherErreurMdp(message) {
+    document.getElementById('erreurMdp').textContent = message;
+    document.getElementById('erreurMdp').style.display = 'block';
+}
+
 function ouvrirModalGestion(entrepriseId, nom) {
     entrepriseCourante = entrepriseId;
     motDePasseValide = null;
@@ -292,11 +313,17 @@ async function verifierMotDePasseEtOuvrirGestion() {
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
             body: JSON.stringify({ mot_de_passe: mdp, type: 'test' })
         });
-        const data = await res.json();
+        const data = await lireJson(res);
+
+        if (data.illisible) {
+            afficherErreurMdp(res.status === 419
+                ? 'Votre session a expiré. Rechargez la page, puis réessayez.'
+                : `Le serveur a répondu ${res.status} sans réponse lisible. Rechargez la page, puis réessayez.`);
+            return;
+        }
 
         if (res.status === 403) {
-            document.getElementById('erreurMdp').textContent = data.message || 'Mot de passe incorrect.';
-            document.getElementById('erreurMdp').style.display = 'block';
+            afficherErreurMdp(data.message || 'Mot de passe incorrect.');
             return;
         }
 
@@ -314,14 +341,13 @@ async function verifierMotDePasseEtOuvrirGestion() {
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
             body: JSON.stringify({ mot_de_passe: mdp, type: 'reelle' })
         });
-        const data2 = await res2.json();
+        const data2 = await lireJson(res2);
         document.getElementById('cleReelleAffichage').innerHTML = data2.success
             ? `<span class="cle-chip"><i class="fas fa-lock-open"></i> ${data2.cle}</span>`
             : '<span style="color:var(--text-3); font-size:12px;">Non renseignée</span>';
 
     } catch (e) {
-        document.getElementById('erreurMdp').textContent = 'Erreur réseau. Réessayez.';
-        document.getElementById('erreurMdp').style.display = 'block';
+        afficherErreurMdp('Erreur réseau. Réessayez.');
     }
 }
 
