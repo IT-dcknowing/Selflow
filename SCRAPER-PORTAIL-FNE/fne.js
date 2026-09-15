@@ -619,6 +619,18 @@ async function releverUnLogin(navigateur, login, motDePasse, dossier) {
       await page.screenshot({ path: capture, fullPage: true });
     } catch (_) {
       capture = null; // la page n'est plus disponible
+      // Repli sur le HTML brut : constaté le 15/09/2026, `--single-process`
+      // (nécessaire pour tenir dans la limite de processus de l'hébergement
+      // mutualisé) prive Chromium du compositeur dont `screenshot()` dépend.
+      // Le contenu de la page reste lisible, lui, et vaut mieux qu'un
+      // diagnostic muet.
+      try {
+        const secours = path.join(DOSSIER_ERREURS, `${nomDeBase(login)}.html`);
+        fs.writeFileSync(secours, await page.content());
+        capture = secours;
+      } catch (_) {
+        capture = null;
+      }
     }
     return { login, ok: false, motif: erreur.message, capture };
   } finally {
