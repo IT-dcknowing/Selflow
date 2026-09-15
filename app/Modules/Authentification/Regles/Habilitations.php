@@ -125,6 +125,16 @@ class Habilitations
         'admin.achats.factures_recues.rattacher'     => 'factures_achat',
         'admin.achats.factures_recues.detacher'      => 'factures_achat',
         'admin.achats.factures_recues.ecarter'       => 'factures_achat',
+        // Affecter une facture reçue à un point de vente : même permission, même
+        // écran. Le geste range une charge sous un site — il ne crée rien et
+        // n'écrit dans aucune colonne gelée.
+        'admin.achats.factures_recues.affecter'      => 'factures_achat',
+        'admin.achats.factures_recues.reintegrer'    => 'factures_achat',
+        'admin.achats.factures_recues.imprimer'      => 'factures_achat',
+        // Le document de la DGI se lit avec le même droit que la facture d'achat
+        // qu'il constate : le laisser hors de cette liste le rendrait joignable
+        // par quiconque a un compte, alors qu'il porte le détail d'une charge.
+        'admin.achats.factures_recues.pdf'           => 'factures_achat',
         'admin.achats.transmettre_b2b'               => 'nouvel_achat',
 
         // ── Stock ──

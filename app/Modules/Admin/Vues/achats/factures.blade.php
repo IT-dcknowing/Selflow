@@ -153,7 +153,11 @@
         </div>
     @endif
     <div class="table-wrap">
-        @if($achats->isEmpty())
+        {{-- Une facture relevée au portail suffit à faire exister le tableau :
+             sans cela, une entreprise dont la DGI détient des factures mais qui
+             n'a encore rien saisi lisait « aucun élément » alors qu'il y avait
+             justement quelque chose à rapprocher. --}}
+        @if($achats->isEmpty() && $facturesPortail->isEmpty())
         <div style="padding:48px; text-align:center; color:var(--text-3);">
             <i class="fas fa-file" style="font-size:48px; display:block; margin-bottom:12px; opacity:.2;"></i>
             Aucun élément disponible pour cette étape.
@@ -194,11 +198,158 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($achats as $achat)
+                {{-- Les factures que la DGI détient et que Selflow n'a pas encore
+                     rattachées à un achat. En tête du tableau parce qu'elles
+                     appellent un geste : tant qu'elles ne sont pas rapprochées,
+                     la comptabilité ignore une charge que le fisc, lui, connaît.
+                     Bleues, et non vertes ni oranges : ni normalisées par nous,
+                     ni en attente de l'être — elles ne sont pas notre pièce. --}}
+                @foreach($facturesPortail as $recue)
                 @php
-                    $rejetEnCours = !$achat->normalise && $achat->aRejetEnCours();
+                    $propose = $recue->rapprochementPropose();
                 @endphp
-                <tr @if($rejetEnCours) style="background:#fffbeb; border-left:4px solid #f59e0b;" @elseif($achat->normalise) style="background:#ecfdf5; border-left:4px solid #10b981;" @endif>
+                <tr style="background:#eff6ff; border-left:4px solid #3b82f6;">
+                    @if($activerSelectionGroup)
+                    <td style="text-align: center; white-space: nowrap;">
+                        <i class="fas fa-cloud-arrow-down" style="color:#3b82f6;" title="Relevée au portail de la DGI — la normalisation groupée ne la concerne pas"></i>
+                    </td>
+                    @endif
+                    <td style="font-weight:700; color:#1d4ed8;">
+                        {{ $recue->reference }}
+                        <span style="display:block; font-size:10px; font-weight:700; color:#3b82f6; text-transform:uppercase; letter-spacing:.03em;">Portail DGI</span>
+                    </td>
+                    <td>{{ $recue->date_facture?->format('d/m/Y') ?? '—' }}</td>
+                    <td style="font-weight:600;">
+                        {{ $recue->emetteur_nom ?: '—' }}
+                        @if($recue->emetteur_ncc)
+                            <span style="display:block; font-size:11px; color:var(--text-3);">NCC {{ $recue->emetteur_ncc }}</span>
+                        @endif
+                    </td>
+                    <td>
+                        @if($recue->pointDeVente)
+                            <span style="font-weight:500; color:var(--text-2);"><i class="fas fa-store" style="font-size:11px; margin-right:4px;"></i>{{ $recue->pointDeVente->nom }}</span>
+                        @else
+                            {{-- Le portail ne dit pas de quel site relève une
+                                 facture reçue — son `clientPointOfSale` décrit
+                                 l'émetteur. C'est donc une décision, et on la
+                                 demande plutôt que de la deviner. --}}
+                            <form method="POST" action="{{ route('admin.achats.factures_recues.affecter', $recue) }}" style="margin:0;">
+                                @csrf
+                                <select name="point_de_vente_id" onchange="this.form.submit()"
+                                        style="font-size:11px; padding:3px 6px; border:1px solid #bfdbfe; border-radius:6px; background:#fff; color:#1d4ed8; font-weight:600; max-width:160px;"
+                                        title="Ranger cette facture sous un site : le portail ne le dit pas.">
+                                    <option value="">à affecter…</option>
+                                    @foreach($sitesDisponibles as $site)
+                                        <option value="{{ $site->id }}">{{ $site->nom }}</option>
+                                    @endforeach
+                                </select>
+                            </form>
+                        @endif
+                    </td>
+                    <td style="color:var(--text-2);">{{ $recue->lignes->count() }}</td>
+                    <td>{{ number_format($recue->montant_ht, 0, ',', ' ') }} F</td>
+                    <td>{{ number_format($recue->montant_tva, 0, ',', ' ') }} F</td>
+                    <td style="font-weight:700; color:var(--danger);">{{ number_format($recue->montant_ttc, 0, ',', ' ') }} F</td>
+                    <td>{{ $recue->moyen_paiement ?: '—' }}</td>
+                    <td>
+                        <span class="badge" style="background:#eff6ff; color:#1d4ed8; padding:4px 10px; border-radius:20px; font-weight:700; border:1px solid #bfdbfe;">
+                            {{ $recue->libelleDuSousType() }}
+                        </span>
+                    </td>
+                    <td style="text-align: center;">
+                        {{-- Certifiée, mais par le fournisseur. L'afficher « en
+                             cours » laisserait croire qu'un envoi nous incombe. --}}
+                        <span style="background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; padding:4px 10px; border-radius:20px; font-weight:800; font-size:12px; display:inline-flex; align-items:center; gap:5px;" title="Pièce certifiée par le fournisseur et détenue par la DGI">
+                            <i class="fas fa-check-circle"></i> Fournisseur
+                        </span>
+                    </td>
+                    <td>
+                        @php
+                            // Le relevé ne rend pas d'adresse toute faite,
+                            // contrairement à la réponse de certification de nos
+                            // propres pièces : elle se reconstruit à partir du
+                            // code de vérification. Sans cela, ces deux boutons
+                            // restaient vides sur une pièce pourtant consultable.
+                            $verifUrl = $recue->urlDeVerification();
+                        @endphp
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            @if($verifUrl)
+                                <a href="{{ $verifUrl }}" target="_blank" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Voir la pièce chez la DGI, qui la détient">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ $verifUrl }}" target="_blank" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Ouvrir la page de vérification DGI de cette pièce">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                            @else
+                                <button type="button" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px; opacity:.5; cursor:not-allowed;" title="Le relevé ne porte aucun code de vérification pour cette pièce" disabled>
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px; opacity:.5; cursor:not-allowed;" title="Le relevé ne porte aucun code de vérification pour cette pièce" disabled>
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            @endif
+                        </div>
+                    </td>
+                    <td>
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            {{-- La pièce se lit comme n'importe quelle autre, au
+                                 lieu de n'être qu'une ligne de tableau.
+
+                                 Le document de la DGI quand le scraper l'a
+                                 rapporté, la reconstruction de Selflow sinon :
+                                 lire une facture reçue ne doit plus demander
+                                 d'aller l'exporter du portail à la main. --}}
+                            @if($recue->pdfDisponible())
+                                <a href="{{ route('admin.achats.factures_recues.pdf', $recue) }}" target="_blank" class="btn btn-primary btn-sm"
+                                   title="Le document de la DGI, tel que le fournisseur l'a établi">
+                                    <i class="fas fa-file-pdf"></i> Voir
+                                </a>
+                            @else
+                                <a href="{{ route('admin.achats.factures_recues.imprimer', $recue) }}" class="btn btn-primary btn-sm"
+                                   title="Reconstitué du relevé : le document de la DGI n'a pas encore été rapporté">
+                                    <i class="fas fa-eye"></i> Voir
+                                </a>
+                            @endif
+
+                            @if($propose['achat'])
+                                <form method="POST" action="{{ route('admin.achats.factures_recues.rattacher', $recue) }}" style="display:inline; margin:0;">
+                                    @csrf
+                                    <button type="submit" class="btn btn-primary btn-sm" style="font-size:11px; padding:4px 8px;"
+                                            title="Rattacher à l'achat {{ $propose['achat']->numero_facture }}@if($propose['ecart_ttc']) — écart de {{ number_format((float) $propose['ecart_ttc'], 0, ',', ' ') }} F sur le TTC @endif">
+                                        <i class="fas fa-link"></i> Rattacher
+                                    </button>
+                                </form>
+                                @if($propose['ecart_ttc'])
+                                    <span style="font-size:11px; color:var(--danger); font-weight:700;" title="Le montant de l'achat saisi diffère de celui que la DGI détient">
+                                        écart {{ number_format((float) $propose['ecart_ttc'], 0, ',', ' ') }} F
+                                    </span>
+                                @endif
+                            @else
+                                <a href="{{ route('admin.achats.factures_recues') }}" class="btn btn-outline btn-sm" style="font-size:11px; padding:4px 8px;"
+                                   title="Aucun achat de Selflow ne correspond encore. Saisissez-le, puis revenez le rattacher.">
+                                    <i class="fas fa-magnifying-glass"></i> Rapprocher
+                                </a>
+                            @endif
+                            {{-- Confirmation, parce que le geste était à sens
+                                 unique et tenait à une icône : le 07/09/2026 la
+                                 seule facture réelle du dossier a disparu de
+                                 tous les écrans d'un clic, et il a fallu la base
+                                 pour comprendre pourquoi. --}}
+                            <form method="POST" action="{{ route('admin.achats.factures_recues.ecarter', $recue) }}" style="display:inline; margin:0;"
+                                  onsubmit="return confirm('Écarter {{ $recue->reference }} ?\n\nElle disparaîtra de cet écran et du registre FNE. Vous pourrez la remettre depuis « Factures reçues », filtre « Écartées ».');">
+                                @csrf
+                                <button type="submit" class="btn btn-outline btn-sm" style="font-size:11px; padding:4px 8px; color:var(--text-3);"
+                                        title="Écarter cette pièce : elle ne remontera plus ici, sans être supprimée">
+                                    <i class="fas fa-eye-slash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                @endforeach
+
+                @foreach($achats as $achat)
+                <tr @if($achat->normalise) style="background:#ecfdf5; border-left:4px solid #10b981;" @else style="background:#fffbeb; border-left:4px solid #f59e0b;" @endif>
                     @if($activerSelectionGroup)
                     <td style="text-align: center; white-space: nowrap;">
                         @if(!$achat->normalise)
@@ -233,12 +384,10 @@
                             <span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:4px 10px; border-radius:20px; font-weight:800; font-size:12px; display:inline-flex; align-items:center; gap:5px;" title="Facture normalisée avec succès par la DGI">
                                 <i class="fas fa-check-circle" style="color:#16a34a;"></i> Oui
                             </span>
-                        @elseif($rejetEnCours)
-                            <span style="background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; padding:4px 10px; border-radius:20px; font-weight:700; font-size:12px; display:inline-flex; align-items:center; gap:5px;" title="Rejet DGI, relève du portail / correction FNE en cours">
+                        @else
+                            <span style="background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; padding:4px 10px; border-radius:20px; font-weight:700; font-size:12px; display:inline-flex; align-items:center; gap:5px;" title="Facture en attente de normalisation / relève FNE en cours">
                                 <i class="fas fa-spinner fa-spin" style="font-size:11px; color:#ea580c;"></i> En cours
                             </span>
-                        @else
-                            <span style="background:#f3f4f6; color:#6b7280; padding:4px 10px; border-radius:20px; font-weight:600; font-size:12px;">Non</span>
                         @endif
                     </td>
                     <td>

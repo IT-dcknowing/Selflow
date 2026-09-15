@@ -57,7 +57,17 @@ const {
   lireMagasin,
   motDePassePour,
   lireFileDemandes,
+  journaliser,
 } = require('./fne.js');
+
+/**
+ * Le raccourci de ce script-ci : toutes ses lignes portent « achats ».
+ *
+ * L'outil vit dans `fne.js` et n'est pas recopié : les deux scripts écrivent
+ * dans le même fichier que Laravel, et deux formats de ligne y rendraient le
+ * `grep` inutile — ce qu'on vient précisément y chercher.
+ */
+const dire = (niveau, message, details) => journaliser('achats', niveau, message, details);
 
 const DOSSIER_ERREURS = path.join(__dirname, 'erreurs');
 const DOSSIER_RECONNAISSANCE = path.join(__dirname, 'reconnaissance');
@@ -398,16 +408,16 @@ async function reconnaitre(navigateur, login, motDePasse) {
   const autorisation = capterLAutorisation(page);
 
   try {
-    console.log('   Connexion...');
+    dire('INFO', '   Connexion...');
     await seConnecter(page, login, motDePasse);
 
-    console.log('   Menus du tableau de bord :');
+    dire('INFO', '   Menus du tableau de bord :');
     const menus = await page.evaluate(() =>
       [...document.querySelectorAll('a')]
         .map(a => ({ texte: a.textContent.trim().replace(/\s+/g, ' '), href: a.getAttribute('href') }))
         .filter(l => l.texte && l.texte.length < 80)
     );
-    for (const menu of menus) console.log(`      « ${menu.texte} »  →  ${menu.href}`);
+    for (const menu of menus) dire('INFO', `      « ${menu.texte} »  →  ${menu.href}`);
 
     captures.length = 0;
     const libelle = await allerAuxFacturesRecues(page);
@@ -434,10 +444,10 @@ async function reconnaitre(navigateur, login, motDePasse) {
       try {
         const { factures, total } = await interrogerLesFactures(page, autorisation, listing, depuis, jusquA);
         sondes[listing] = { total, ramenees: factures.length, exemple: factures[0] ?? null };
-        console.log(`   ${listing} du ${depuis} au ${jusquA} : ${total} pièce(s)`);
+        dire('INFO', `   ${listing} du ${depuis} au ${jusquA} : ${total} pièce(s)`);
       } catch (erreur) {
         sondes[listing] = { erreur: erreur.message };
-        console.error(`   ${listing} : ${erreur.message}`);
+        dire('ERREUR', `   ${listing} : ${erreur.message}`);
       }
     }
 
@@ -462,14 +472,14 @@ async function reconnaitre(navigateur, login, motDePasse) {
     const chemin = path.join(DOSSIER_RECONNAISSANCE, `${nomDeBase(login)}.json`);
     fs.writeFileSync(chemin, JSON.stringify(rapport, null, 2), 'utf-8');
 
-    console.log(`\n   Page : ${page.url()}`);
-    console.log(`   Boutons : ${boutons.join(' | ') || '(aucun)'}`);
-    console.log(`   Tableau à l'écran : ${tableau ? `${tableau.lignes.length} ligne(s), colonnes ${tableau.entetes.join(' | ')}` : 'aucun'}`);
-    console.log(`   Appels JSON captés : ${rapport.appels_json.length}`);
+    dire('INFO', `\n   Page : ${page.url()}`);
+    dire('INFO', `   Boutons : ${boutons.join(' | ') || '(aucun)'}`);
+    dire('INFO', `   Tableau à l'écran : ${tableau ? `${tableau.lignes.length} ligne(s), colonnes ${tableau.entetes.join(' | ')}` : 'aucun'}`);
+    dire('INFO', `   Appels JSON captés : ${rapport.appels_json.length}`);
     for (const appel of rapport.appels_json) {
-      console.log(`      ${appel.methode} ${appel.url}  →  ${appel.enregistrements_detectes} enregistrement(s)`);
+      dire('INFO', `      ${appel.methode} ${appel.url}  →  ${appel.enregistrements_detectes} enregistrement(s)`);
     }
-    console.log(`\n   Rapport écrit : ${chemin}`);
+    dire('INFO', `\n   Rapport écrit : ${chemin}`);
 
     return chemin;
   } finally {
@@ -493,7 +503,7 @@ async function reconnaitre(navigateur, login, motDePasse) {
  * un appel que la page fait elle-même.
  */
 async function releverDansLaSession(page, autorisation, login, dossier) {
-  console.log('   Factures reçues...');
+  dire('INFO', '   Factures reçues...');
   await allerAuxFacturesRecues(page);
 
   // La page est ouverte pour deux raisons : établir la session côté
@@ -513,7 +523,7 @@ async function releverDansLaSession(page, autorisation, login, dossier) {
   const { factures, total } = await interrogerLesFactures(page, autorisation, 'received', depuis, jusquA);
 
   if (factures.length !== total) {
-    console.warn(`   /!\\ ${factures.length} facture(s) ramenée(s) pour un total annoncé de ${total}.`);
+    dire('ALERTE', `   /!\\ ${factures.length} facture(s) ramenée(s) pour un total annoncé de ${total}.`);
   }
 
   // Le dépôt : un fichier, dans le sous-dossier `achats/`.
@@ -535,7 +545,7 @@ async function releverDansLaSession(page, autorisation, login, dossier) {
   const chemin = path.join(dossier, `${nomDeBase(login)}.json`);
   fs.writeFileSync(chemin, JSON.stringify(contenu, null, 2), 'utf-8');
 
-  console.log(
+  dire('INFO', 
     `   ${factures.length} facture(s) reçue(s) du ${depuis} au ${jusquA} -> ${path.basename(chemin)}`
   );
 
@@ -552,7 +562,7 @@ async function releverUnLogin(navigateur, login, motDePasse, dossier) {
   const autorisation = capterLAutorisation(page);
 
   try {
-    console.log('   Connexion...');
+    dire('INFO', '   Connexion...');
     await seConnecter(page, login, motDePasse);
 
     return await releverDansLaSession(page, autorisation, login, dossier);
@@ -604,14 +614,14 @@ async function passage() {
   const dossier = path.join(dossierDepot(), 'achats');
 
   if (!taches.logins.length) {
-    console.log('Rien à relever.');
+    dire('INFO', 'Rien à relever.');
     return;
   }
 
   if (taches.mode === 'reconnaissance') {
-    console.log('Mode reconnaissance : rien ne sera déposé dans le dossier d\'import.\n');
+    dire('INFO', 'Mode reconnaissance : rien ne sera déposé dans le dossier d\'import.\n');
   } else {
-    console.log(`Dépôt dans : ${dossier}`);
+    dire('INFO', `Dépôt dans : ${dossier}`);
   }
 
   // Les mots de passe d'abord, le navigateur ensuite : l'ouvrir pour découvrir
@@ -626,7 +636,7 @@ async function passage() {
       relevables.push({ login, motDePasse });
       continue;
     }
-    console.error(`Aucun mot de passe pour « ${login} » dans identifiants.json.`);
+    dire('ERREUR', `Aucun mot de passe pour « ${login} » dans identifiants.json.`);
     resultats.push({ login, ok: false, motif: 'mot de passe absent du magasin' });
   }
 
@@ -635,7 +645,7 @@ async function passage() {
 
     try {
       for (const { login, motDePasse } of relevables) {
-        console.log(`\n-- ${login} --`);
+        dire('INFO', `\n-- ${login} --`);
 
         // Un contexte neuf par login : deux entreprises ne partagent jamais une
         // session, sous peine de ranger les factures de l'une chez l'autre.
@@ -654,14 +664,14 @@ async function passage() {
   const reussis = resultats.filter(r => r.ok);
   const echoues = resultats.filter(r => !r.ok);
 
-  console.log(`\n${'-'.repeat(60)}`);
-  console.log(`${reussis.length} relevé(s) : ${reussis.map(r => r.login).join(', ') || '(aucun)'}`);
+  dire('INFO', `\n${'-'.repeat(60)}`);
+  dire('INFO', `${reussis.length} relevé(s) : ${reussis.map(r => r.login).join(', ') || '(aucun)'}`);
 
   if (echoues.length) {
-    console.error(`${echoues.length} en échec :`);
+    dire('ERREUR', `${echoues.length} en échec :`);
     for (const echec of echoues) {
-      console.error(`   - ${echec.login} : ${echec.motif}`);
-      if (echec.capture) console.error(`     capture : ${echec.capture}`);
+      dire('ERREUR', `   - ${echec.login} : ${echec.motif}`);
+      if (echec.capture) dire('ERREUR', `     capture : ${echec.capture}`);
     }
     process.exitCode = 1;
   }
@@ -669,7 +679,7 @@ async function passage() {
 
 if (require.main === module) {
   passage().catch(erreur => {
-    console.error(erreur.message);
+    dire('ERREUR', erreur.message);
     process.exitCode = 1;
   });
 }

@@ -143,6 +143,54 @@ function horodatage() {
   return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
 }
 
+/**
+ * L'instant à la seconde — pour le journal, jamais pour un nom de fichier.
+ *
+ * `horodatage()` au-dessus rend une date nue parce qu'elle nomme des fichiers ;
+ * celle-ci porte l'heure parce qu'elle date des lignes.
+ *
+ * **En UTC, et c'est délibéré.** Laravel journalise sous `config('app.timezone')`,
+ * qui vaut `UTC` ; le poste, lui, est à l'heure locale. Le premier essai a
+ * produit deux journaux du même passage à `12:55` côté Node et `11:56` côté PHP,
+ * ce qui interdisait de les fusionner par un `sort` et faisait paraître le
+ * ramassage antérieur au relevé qui l'avait nourri. Une seule horloge, donc,
+ * celle de l'application.
+ */
+function instant() {
+  // `toISOString` est en UTC par construction : « 2026-09-08T11:56:28.123Z ».
+  // On lui retire le T, les millisecondes et le Z pour retrouver exactement la
+  // forme des lignes de Laravel.
+  return new Date().toISOString().slice(0, 19).replace('T', ' ');
+}
+
+/**
+ * Une ligne de journal, horodatée et attribuée.
+ *
+ * ## Pourquoi elle existe
+ *
+ * Tout ce que ces scripts impriment est versé par le planificateur dans
+ * `storage/logs/portail-fne.log`, où Laravel écrit désormais aussi ses propres
+ * lignes. Sans horodatage, un passage toutes les cinq minutes empile 288 blocs
+ * par jour qu'aucun repère ne sépare : « Le système ne peut trouver le fichier »
+ * ne dit ni quand, ni lequel des deux scripts, ni pour quel login.
+ *
+ * Le format reprend celui de Laravel — `[date] canal.NIVEAU: message` — pour
+ * qu'un `grep ERREUR` rende les deux moitiés de l'histoire dans le même ordre.
+ *
+ * `console.error` pour ce qui va mal : le planificateur redirige `2>&1` dans le
+ * même fichier, mais un lancement à la main garde la distinction.
+ */
+function journaliser(script, niveau, message, details) {
+  const suffixe = details === undefined ? '' : ' ' + JSON.stringify(details);
+  const ligne = `[${instant()}] ${script}.${niveau}: ${message}${suffixe}`;
+
+  if (niveau === 'ERREUR' || niveau === 'ALERTE') console.error(ligne);
+  else console.log(ligne);
+}
+
+/** Le raccourci de ce script-ci : toutes ses lignes portent « fne ». */
+const dire = (niveau, message, details) => journaliser('fne', niveau, message, details);
+
 /** Base commune du nom des deux fichiers : <login>_<AAAAMMJJ>. */
 function nomDeBase(login) {
   return `${login}_${horodatage()}`;
@@ -473,7 +521,7 @@ async function telechargerLesPoints(page, login, dossier) {
   if (extension !== '.xlsx') {
     // Renommer en .xlsx ne convertirait rien : le fichier serait pris en charge
     // puis rejeté à la lecture. Mieux vaut le dire ici.
-    console.warn(
+    dire('ALERTE', 
       `   /!\\ Le portail a servi un ${extension} : Selflow ne range que les .json et .xlsx.`
     );
   }
@@ -522,24 +570,24 @@ async function releverUnLogin(navigateur, login, motDePasse, dossier) {
   const autorisation = capterLAutorisation(page);
 
   try {
-    console.log('   Connexion...');
+    dire('INFO', '   Connexion...');
     await seConnecter(page, login, motDePasse);
 
-    console.log('   Parametrage...');
+    dire('INFO', '   Parametrage...');
     await allerAuParametrage(page);
 
     const { fiche, nombreReconnus, inconnus } = await releverLaFiche(page);
     const cheminJson = path.join(dossier, `${nomDeBase(login)}.json`);
     fs.writeFileSync(cheminJson, JSON.stringify(fiche, null, 2), 'utf-8');
-    console.log(
+    dire('INFO', 
       `   Fiche : ${nombreReconnus}/${CLES_PORTAIL.length} champs reconnus -> ${path.basename(cheminJson)}`
     );
     if (inconnus.length) {
-      console.log(`      champs non referencés, déposés tels quels : ${inconnus.join(', ')}`);
+      dire('INFO', `      champs non referencés, déposés tels quels : ${inconnus.join(', ')}`);
     }
 
     const cheminExcel = await telechargerLesPoints(page, login, dossier);
-    console.log(`   Points de facturation -> ${path.basename(cheminExcel)}`);
+    dire('INFO', `   Points de facturation -> ${path.basename(cheminExcel)}`);
 
     // Une session ouverte est ce qui coûte : le portail de la DGI demande une
     // connexion avec le mot de passe du client, et y retourner souvent est le
@@ -553,13 +601,13 @@ async function releverUnLogin(navigateur, login, motDePasse, dossier) {
     try {
       await releverDansLaSession(page, autorisation, login, path.join(dossier, 'achats'));
     } catch (erreur) {
-      console.warn(`   /!\ Factures reçues non relevées : ${erreur.message}`);
+      dire('ALERTE', `   /!\ Factures reçues non relevées : ${erreur.message}`);
     }
 
     if (process.env.URL_SERVER) {
       const statutJson = await envoyerAuServeur(cheminJson);
       const statutExcel = await envoyerAuServeur(cheminExcel);
-      console.log(`   Envoyés au serveur distant (HTTP ${statutJson} / ${statutExcel}).`);
+      dire('INFO', `   Envoyés au serveur distant (HTTP ${statutJson} / ${statutExcel}).`);
     }
 
     return { login, ok: true };
@@ -598,19 +646,19 @@ async function passage() {
   // panne. Le compte concerné se signalera de lui-même le jour où une pièce
   // sera refusée — sa demande restera ouverte et l'écran des rejets le dira.
   if (taches.enAttenteDeConfiguration) {
-    console.log(
+    dire('INFO', 
       `${taches.enAttenteDeConfiguration} compte(s) sans mot de passe dans `
       + 'identifiants.json : ignorés pour ce passage.'
     );
   }
 
   if (!taches.logins.length) {
-    console.log(`Rien à relever (${provenance} est vide).`);
+    dire('INFO', `Rien à relever (${provenance} est vide).`);
     return;
   }
 
-  console.log(`${taches.logins.length} relevé(s) à faire, d'après ${provenance}.`);
-  console.log(`Dépôt dans : ${dossier}`);
+  dire('INFO', `${taches.logins.length} relevé(s) à faire, d'après ${provenance}.`);
+  dire('INFO', `Dépôt dans : ${dossier}`);
 
   // Les mots de passe d'abord, le navigateur ensuite : ouvrir Chromium pour
   // découvrir qu'aucun login n'est utilisable coûte dix secondes pour rien.
@@ -623,7 +671,7 @@ async function passage() {
       relevables.push({ login, motDePasse });
       continue;
     }
-    console.error(`Aucun mot de passe pour « ${login} » dans identifiants.json.`);
+    dire('ERREUR', `Aucun mot de passe pour « ${login} » dans identifiants.json.`);
     resultats.push({ login, ok: false, motif: 'mot de passe absent du magasin' });
   }
 
@@ -632,7 +680,7 @@ async function passage() {
     const navigateur = await chromium.launch({ headless });
     try {
       for (const { login, motDePasse } of relevables) {
-        console.log(`\n-- ${login} --`);
+        dire('INFO', `\n-- ${login} --`);
         // Un login qui échoue n'arrête pas les autres : sa demande reste
         // ouverte, et Selflow la signalera passé le délai d'alerte.
         resultats.push(await releverUnLogin(navigateur, login, motDePasse, dossier));
@@ -645,23 +693,23 @@ async function passage() {
   const reussis = resultats.filter(r => r.ok);
   const echoues = resultats.filter(r => !r.ok);
 
-  console.log(`\n${'-'.repeat(60)}`);
-  console.log(
+  dire('INFO', `\n${'-'.repeat(60)}`);
+  dire('INFO', 
     `${reussis.length} relevé(s) déposé(s) : ${reussis.map(r => r.login).join(', ') || '(aucun)'}`
   );
 
   if (echoues.length) {
-    console.error(`${echoues.length} en échec :`);
+    dire('ERREUR', `${echoues.length} en échec :`);
     for (const echec of echoues) {
-      console.error(`   - ${echec.login} : ${echec.motif}`);
-      if (echec.capture) console.error(`     capture : ${echec.capture}`);
+      dire('ERREUR', `   - ${echec.login} : ${echec.motif}`);
+      if (echec.capture) dire('ERREUR', `     capture : ${echec.capture}`);
     }
-    console.error("   Leurs demandes restent ouvertes : c'est voulu.");
+    dire('ERREUR', "   Leurs demandes restent ouvertes : c'est voulu.");
     process.exitCode = 1;
   }
 
   if (reussis.length) {
-    console.log(
+    dire('INFO', 
       '\nSelflow rangera ces fichiers au prochain passage horaire ' +
       '(ou tout de suite : php artisan portail-fne:importer).'
     );
@@ -672,7 +720,7 @@ async function passage() {
 // (verifier-extraction.js) : on n'expose que les rouages, sans rien lancer.
 if (require.main === module) {
   passage().catch(erreur => {
-    console.error(erreur.message);
+    dire('ERREUR', erreur.message);
     process.exitCode = 1;
   });
 }
@@ -691,6 +739,8 @@ module.exports = {
   normaliser,
   nomDeBase,
   horodatage,
+  instant,
+  journaliser,
   dossierDepot,
   seConnecter,
   lireMagasin,

@@ -3,6 +3,7 @@
 namespace App\Modules\Admin\Services;
 
 use App\Modules\Admin\Modeles\Entreprise;
+use App\Modules\Admin\Modeles\PointDeVente;
 use App\Modules\Admin\Modeles\PortailFneFactureRecue;
 use App\Modules\Admin\Modeles\PortailFneFactureRecueLigne;
 use App\Modules\Admin\Modeles\PortailFneImport;
@@ -97,6 +98,35 @@ class ImportFacturesRecuesService
     ];
 
     /**
+     * Ce que le bloc `company` de l'émetteur porte, et qui ne nous regarde pas.
+     *
+     * Le relevé du 07/09/2026 l'a montré : le portail joint à chaque facture
+     * reçue la fiche complète de l'entreprise qui l'a émise, **clé d'API en
+     * clair comprise** (`apiKey`, avec `isApiKeyEnabled: true`), sa référence
+     * bancaire, son solde de compte et ses soldes de stickers. Rien de tout cela
+     * n'a été demandé et rien ne s'en sert : c'est le secret d'exploitation d'un
+     * tiers, que `contenu_brut` conserverait indéfiniment en base et sur disque.
+     *
+     * Le fourre-tout garde sa raison d'être — un champ nouveau du portail ne
+     * doit pas être perdu en silence. Il ne garde pas de quoi facturer à la
+     * place du fournisseur.
+     *
+     * @var array<int, string>
+     */
+    private const SECRETS_DE_L_EMETTEUR = [
+        'apiKey',
+        'isApiKeyEnabled',
+        'bankReference',
+        'availableFunds',
+        'availableInvoiceStickers',
+        'availableReceiptStickers',
+        'availableCashStickers',
+        'thresholdFundsLow',
+        'thresholdFundsCritical',
+        'fundsBlacklistedAt',
+    ];
+
+    /**
      * Lit tous les relevés d'achats d'un dossier.
      *
      * @return array{dossier: string, importes: int, ignores: int, inchanges: int, erreurs: int, details: array<int, array<string, mixed>>}
@@ -117,6 +147,12 @@ class ImportFacturesRecuesService
         if (!is_dir($dossier)) {
             // Pas une erreur : le scraper d'achats n'a peut-être jamais tourné,
             // et un dossier absent n'est pas une panne à signaler chaque heure.
+            // Une trace quand même, au niveau le plus bas : c'est la première
+            // chose à vérifier quand l'écran reste vide alors que le scraper
+            // tourne — le dépôt et le ramassage regardent deux dossiers
+            // différents, et personne ne le voit.
+            $this->tracer('debug', "achats : dossier absent, rien à ramasser — {$dossier}");
+
             return $rapport;
         }
 
@@ -125,6 +161,12 @@ class ImportFacturesRecuesService
         // Les plus anciens d'abord : le dernier relevé lu doit être le plus
         // récent, sinon l'ordre des lignes en base ment sur l'ordre des faits.
         sort($fichiers);
+
+        $this->tracer('debug', sprintf(
+            'achats : ramassage de %d fichier(s) dans %s',
+            count($fichiers),
+            $dossier
+        ));
 
         foreach ($fichiers as $chemin) {
             $resultat = $this->importerFichier($chemin);
@@ -137,6 +179,24 @@ class ImportFacturesRecuesService
                 default    => 'erreurs',
             };
             $rapport[$cle]++;
+        }
+
+        // Le bilan n'est écrit que s'il y avait quelque chose à lire : le
+        // ramassage passe toutes les cinq minutes, et « 0 fichier » répété
+        // 288 fois par jour ferait un journal qu'on cesse d'ouvrir — donc qu'on
+        // n'ouvrira pas non plus le jour où il dit quelque chose.
+        if ($rapport['details'] !== []) {
+            $bilan = sprintf(
+                'achats : %d importé(s), %d inchangé(s), %d déjà lu(s), %d en erreur.',
+                $rapport['importes'],
+                $rapport['inchanges'],
+                $rapport['ignores'],
+                $rapport['erreurs']
+            );
+
+            $rapport['erreurs'] > 0
+                ? $this->tracer('warning', $bilan)
+                : $this->tracer('info', $bilan);
         }
 
         return $rapport;
@@ -195,13 +255,23 @@ class ImportFacturesRecuesService
                 if ($precedent !== null) {
                     $this->confirmerLeReleve($precedent, $date, $entreprise?->id);
 
+                    // Le document arrive **après** le relevé qui l'annonce, et
+                    // sans le changer : le PDF d'une facture déjà connue est
+                    // déposé au passage suivant, l'empreinte du contenu reste la
+                    // même, et ce chemin-ci est pris. Sans ce rattrapage, la
+                    // colonne ne se remplirait jamais pour une pièce entrée en
+                    // base avant que le téléchargement n'existe — c'est-à-dire
+                    // pour toutes celles d'avant le 08/09/2026.
+                    $pdf = $this->rattacherLesPdf($login);
+
                     return $this->resultat(
                         $nom,
                         'inchange',
                         sprintf(
-                            'Identique au relevé du %s : %d facture(s) déjà connues.',
+                            'Identique au relevé du %s : %d facture(s) déjà connues.%s',
                             $precedent->date_scraping?->format('d/m/Y') ?? '?',
-                            $precedent->lignes_importees
+                            $precedent->lignes_importees,
+                            $pdf > 0 ? " {$pdf} document(s) de la DGI rattaché(s)." : ''
                         ),
                         $precedent->id,
                         $precedent->lignes_importees
@@ -252,9 +322,9 @@ class ImportFacturesRecuesService
                 'message'           => $e->getMessage(),
             ]);
 
-            Log::error('Import des factures reçues : lecture impossible', [
-                'fichier' => $nom,
-                'erreur'  => $e->getMessage(),
+            $this->tracer('error', "achats[{$nom}] : lecture impossible — " . $e->getMessage(), [
+                'login'  => $login,
+                'trace'  => $e->getFile() . ':' . $e->getLine(),
             ]);
 
             return $this->resultat($nom, 'erreur', $e->getMessage(), $import->id);
@@ -310,6 +380,18 @@ class ImportFacturesRecuesService
     {
         $compte = ['total' => 0, 'creees' => 0, 'modifiees' => 0];
 
+        // Le site, quand il n'y a rien à trancher : une entreprise à point de
+        // vente unique n'a pas à désigner à la main, facture après facture, le
+        // seul site qu'elle possède. Résolu une fois pour tout le relevé plutôt
+        // qu'à chaque ligne. Au-delà d'un point de vente, le portail ne dit pas
+        // lequel — voir la migration `2026_09_07_000001` — et c'est un
+        // utilisateur qui décide.
+        $siteUnique = null;
+        if ($import->entreprise_id) {
+            $points = PointDeVente::where('entreprise_id', $import->entreprise_id)->limit(2)->pluck('id');
+            $siteUnique = $points->count() === 1 ? (int) $points->first() : null;
+        }
+
         foreach ($factures as $brute) {
             $reference = trim((string) ($brute['reference'] ?? ''));
 
@@ -317,10 +399,14 @@ class ImportFacturesRecuesService
             // reconnaître au relevé suivant, ni détecter qu'elle doublonne une
             // saisie. La signaler vaut mieux que de la ranger sous une clé vide.
             if ($reference === '') {
-                Log::warning('Facture reçue sans référence FNE : ignorée', [
-                    'fichier' => $import->fichier_nom,
-                    'piece'   => $brute['id'] ?? '(sans id)',
-                ]);
+                $this->tracer('warning', 
+                    "achats[{$import->fichier_nom}] : pièce sans référence FNE, écartée.",
+                    [
+                        'piece'    => $brute['id'] ?? '(sans id)',
+                        'emetteur' => $brute['company']['name'] ?? '(inconnu)',
+                        'montant'  => $brute['totalDue'] ?? null,
+                    ]
+                );
                 continue;
             }
 
@@ -332,7 +418,26 @@ class ImportFacturesRecuesService
             ]);
 
             $existait = $facture->exists;
-            $facture->fill($valeurs)->save();
+            $facture->fill($valeurs);
+
+            // Jamais par-dessus une affectation déjà faite : un utilisateur qui
+            // a rangé cette facture sous un site ne doit pas voir son choix
+            // défait par le relevé de la nuit.
+            if ($siteUnique !== null && $facture->point_de_vente_id === null) {
+                $facture->point_de_vente_id = $siteUnique;
+            }
+
+            // Le document que le scraper a rapporté, s'il l'a rapporté.
+            //
+            // Posé seulement quand le fichier est là, et jamais remis à nul :
+            // un portail momentanément avare — ou un dossier non encore
+            // synchronisé — effacerait sinon le lien vers un PDF déjà sur le
+            // disque, et l'écran retomberait sans raison sur la reconstruction.
+            if ($nomPdf = $this->pdfDepose($reference)) {
+                $facture->fichier_pdf = $nomPdf;
+            }
+
+            $facture->save();
 
             // Les lignes sont refaites plutôt que rapprochées une à une : le
             // portail ne garantit aucun ordre, et une facture certifiée ne voit
@@ -357,7 +462,7 @@ class ImportFacturesRecuesService
             'import_id'     => $import->id,
             'entreprise_id' => $import->entreprise_id,
             'date_scraping' => $import->date_scraping,
-            'contenu_brut'  => $brute,
+            'contenu_brut'  => $this->sansLesSecretsDeLEmetteur($brute),
         ];
 
         foreach (self::CHAMPS as $champ => $colonne) {
@@ -395,6 +500,30 @@ class ImportFacturesRecuesService
             : PortailFneFactureRecue::ORPHELINE;
 
         return $valeurs;
+    }
+
+    /**
+     * Le payload débarrassé des secrets d'exploitation de l'émetteur.
+     *
+     * Seul le bloc `company` est touché, et seules les clés énumérées : tout le
+     * reste part intact dans `contenu_brut`, y compris les champs que le portail
+     * ajouterait demain. Écarter au ras plutôt que retenir une liste blanche,
+     * parce que c'est la conservation qui doit se justifier, pas l'oubli.
+     *
+     * @param  array<string, mixed>  $brute
+     * @return array<string, mixed>
+     */
+    private function sansLesSecretsDeLEmetteur(array $brute): array
+    {
+        if (!is_array($brute['company'] ?? null)) {
+            return $brute;
+        }
+
+        foreach (self::SECRETS_DE_L_EMETTEUR as $secret) {
+            unset($brute['company'][$secret]);
+        }
+
+        return $brute;
     }
 
     /**
@@ -643,6 +772,94 @@ class ImportFacturesRecuesService
     }
 
     /**
+     * Rattache les documents déposés depuis, aux pièces qui n'en avaient pas.
+     *
+     * Le relevé et le document ne voyagent pas ensemble : le premier est un
+     * JSON écrit à chaque passage, le second un PDF téléchargé une seule fois.
+     * Une pièce entrée en base hier voit donc son document arriver aujourd'hui,
+     * sans que rien du relevé n'ait bougé.
+     *
+     * Ne regarde que les pièces sans document : une colonne déjà renseignée
+     * n'est jamais réécrite, et le disque n'est pas parcouru pour rien.
+     *
+     * @return int  le nombre de documents nouvellement rattachés
+     */
+    private function rattacherLesPdf(string $login): int
+    {
+        $rattaches = 0;
+
+        PortailFneFactureRecue::query()
+            ->where('login', $login)
+            ->whereNull('fichier_pdf')
+            ->each(function (PortailFneFactureRecue $facture) use (&$rattaches) {
+                if ($nom = $this->pdfDepose((string) $facture->reference)) {
+                    $facture->update(['fichier_pdf' => $nom]);
+                    $rattaches++;
+                }
+            });
+
+        return $rattaches;
+    }
+
+    /**
+     * Le nom du PDF déposé par le scraper pour cette pièce, s'il l'a été.
+     *
+     * Le scraper nomme le fichier d'après la référence FNE, qui est l'identité
+     * de la pièce — le portail, lui, y ajoute la date (`…588_2026-09-04.pdf`),
+     * ce qui ferait deux fichiers pour une même facture le jour où il change de
+     * convention.
+     *
+     * Rend le nom seul, jamais le chemin : c'est le dossier d'import qui dit où,
+     * et il se déplace d'un poste à l'autre.
+     */
+    private function pdfDepose(string $reference): ?string
+    {
+        // La référence vient du portail et sert de nom de fichier : tout ce qui
+        // n'est pas une lettre ou un chiffre est écarté avant d'aller sur le
+        // disque. Une pièce dont la référence porterait un séparateur ferait
+        // autrement chercher — ou écrire — ailleurs que dans le dossier prévu.
+        $nom = preg_replace('/[^A-Za-z0-9._-]/', '', $reference) . '.pdf';
+
+        $chemin = rtrim((string) config('selflow.portail_fne.dossier_import'), "/\\")
+            . DIRECTORY_SEPARATOR . 'achats'
+            . DIRECTORY_SEPARATOR . 'pdf'
+            . DIRECTORY_SEPARATOR . $nom;
+
+        return is_file($chemin) ? $nom : null;
+    }
+
+    /**
+     * Une ligne dans le journal du cycle du portail, qui ne casse jamais l'import.
+     *
+     * Monolog lève quand il ne peut pas ouvrir son fichier — disque plein,
+     * droits changés, ou, sous Windows, un processus détaché qui a hérité du
+     * handle du parent et le tient encore. Le ramassage passe toutes les cinq
+     * minutes pendant que le scraper tourne : les deux se croisent.
+     *
+     * Perdre une ligne de journal est un incident ; perdre un relevé de factures
+     * parce qu'on n'a pas pu le raconter en serait un autre.
+     *
+     * @param  array<string, mixed>  $contexte
+     */
+    private function tracer(string $niveau, string $message, array $contexte = []): void
+    {
+        try {
+            Log::channel('portail_fne')->{$niveau}($message, $contexte);
+        } catch (\Throwable) {
+            // Volontairement muet : signaler ici demanderait d'écrire quelque
+            // part, et c'est précisément ce qui vient d'échouer.
+        }
+    }
+
+    /**
+     * Le verdict d'un fichier, et sa trace.
+     *
+     * Tous les chemins de `importerFichier()` passent par ici — c'est ce qui en
+     * fait le bon endroit pour journaliser : une sortie ajoutée demain sera
+     * tracée sans que personne y pense. Le niveau suit le verdict, de sorte
+     * qu'un `grep ERROR` sur le journal rende exactement les fichiers qui n'ont
+     * pas pu être lus.
+     *
      * @return array{fichier: string, statut: string, message: string, import_id: int|null, lignes: int}
      */
     private function resultat(
@@ -652,6 +869,18 @@ class ImportFacturesRecuesService
         ?int $importId = null,
         int $lignes = 0
     ): array {
+        $trace = "achats[{$fichier}] : {$statut} — {$message}";
+        $contexte = ['import_id' => $importId, 'factures' => $lignes];
+
+        match ($statut) {
+            'erreur'   => $this->tracer('error', $trace, $contexte),
+            'importe'  => $this->tracer('info', $trace, $contexte),
+            // « inchangé » et « déjà lu » sont le cas ordinaire, 288 fois par
+            // jour : au niveau debug, ils restent consultables sans noyer ce
+            // qu'on vient chercher.
+            default    => $this->tracer('debug', $trace, $contexte),
+        };
+
         return [
             'fichier'   => $fichier,
             'statut'    => $statut,

@@ -7,6 +7,7 @@ use App\Modules\Admin\Modeles\AchatDetail;
 use App\Modules\Admin\Modeles\Fournisseur;
 use App\Modules\Admin\Modeles\FneRejet;
 use App\Modules\Admin\Modeles\MouvementStock;
+use App\Modules\Admin\Modeles\PortailFneFactureRecue;
 use App\Modules\Admin\Modeles\Produit;
 use App\Modules\Admin\Modeles\TresorerieJournal;
 use App\Modules\Admin\Modeles\CodeJournal;
@@ -479,7 +480,66 @@ class AchatControleur
             $facturesDispo = $facturesDispoQuery->latest()->get();
         }
 
-        return view('admin::achats.factures', compact('achats', 'etapeActive', 'nbDP', 'nbBC', 'nbFacture', 'type', 'facturesDispo'));
+        // Les factures que la DGI détient pour l'entreprise et que Selflow n'a
+        // pas encore rattachées à un achat.
+        //
+        // Elles n'apparaissaient que sur `/admin/achats/factures-recues`, un
+        // écran séparé que rien n'obligeait à ouvrir : une facture certifiée par
+        // un fournisseur pouvait rester des semaines sans être rapprochée, alors
+        // que l'écran des factures d'achat était consulté tous les jours.
+        //
+        // **Le filtre par point de vente ne s'y applique pas**, et ce n'est pas
+        // un oubli : le portail ne dit pas à quel site de l'entreprise une
+        // facture reçue se rattache — ses champs `clientEstablishment` et
+        // `clientPointOfSale` décrivent l'émetteur, comme `FneService` envoie
+        // les nôtres quand c'est nous qui émettons. Les masquer sous prétexte
+        // qu'elles n'ont pas de site les rendrait invisibles partout, et
+        // personne ne les rapprocherait jamais. Le site leur vient de l'achat
+        // auquel on les rattache.
+        //
+        // Cet écran ne totalise aucun montant : les y faire figurer ne fausse
+        // donc aucun cumul, contrairement à l'écran FNE qui, lui, les écarte
+        // dès qu'un site précis est demandé.
+        $facturesPortail = collect();
+        if ($type !== 'avoir' && $etapeActive === 'Facture') {
+            $facturesPortail = PortailFneFactureRecue::where('entreprise_id', $entreprise->id)
+                ->whereNull('achat_id')
+                ->where('statut_rapprochement', '!=', PortailFneFactureRecue::ECARTEE)
+                // Le site retenu, plus celles que personne n'a encore rangées.
+                // Les secondes n'appartiennent à aucun site : les masquer les
+                // rendrait invisibles sous tous, et personne ne les affecterait
+                // jamais. Les premières, elles, encombreraient la vue d'un site
+                // qui ne les a pas supportées.
+                ->when($pointDeVenteId, fn ($q) => $q->where(function ($qs) use ($pointDeVenteId) {
+                    $qs->where('point_de_vente_id', $pointDeVenteId)
+                       ->orWhereNull('point_de_vente_id');
+                }))
+                ->when(request()->filled('recherche'), function ($q) {
+                    $recherche = request('recherche');
+                    $q->where(function ($qr) use ($recherche) {
+                        $qr->where('reference', 'like', "%{$recherche}%")
+                           ->orWhere('emetteur_nom', 'like', "%{$recherche}%")
+                           ->orWhere('emetteur_ncc', 'like', "%{$recherche}%");
+                    });
+                })
+                // « Non normalisée » n'a pas de sens pour une pièce que la DGI
+                // détient : le filtre ne la retient que du côté « normalisée ».
+                ->when(request('dgi_filtre') === 'non', fn ($q) => $q->whereRaw('1 = 0'))
+                ->when(request()->filled('date_debut'), fn ($q) => $q->whereDate('date_facture', '>=', request('date_debut')))
+                ->when(request()->filled('date_fin'), fn ($q) => $q->whereDate('date_facture', '<=', request('date_fin')))
+                ->with(['lignes', 'pointDeVente'])
+                ->orderByDesc('date_facture')
+                ->get();
+        }
+
+        // Pour le sélecteur de site des factures du portail. Chargés une fois
+        // plutôt qu'à chaque ligne.
+        $sitesDisponibles = $facturesPortail->isEmpty()
+            ? collect()
+            : \App\Modules\Admin\Modeles\PointDeVente::where('entreprise_id', $entreprise->id)
+                ->orderBy('nom')->get();
+
+        return view('admin::achats.factures', compact('achats', 'etapeActive', 'nbDP', 'nbBC', 'nbFacture', 'type', 'facturesDispo', 'facturesPortail', 'sitesDisponibles'));
     }
 
 

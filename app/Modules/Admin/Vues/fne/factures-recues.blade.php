@@ -246,6 +246,34 @@
                 </div>
             @endif
 
+            {{-- Le site qui supporte la charge.
+
+                 Le portail ne le dit pas : son `clientPointOfSale` décrit
+                 l'émetteur — sur le relevé du 07/09/2026, le champ voisin
+                 `clientEstablishment` valait « CIAN SIEGE », le nom du
+                 fournisseur. C'est donc une décision de l'entreprise, prise
+                 seule quand elle n'a qu'un site, héritée de l'achat au
+                 rattachement, et demandée ici sinon. --}}
+            <div style="margin-top:10px; font-size:13px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span style="color:var(--text-3);"><i class="fas fa-store"></i> Point de vente :</span>
+                @if($facture->pointDeVente)
+                    <strong>{{ $facture->pointDeVente->nom }}</strong>
+                @elseif($facture->achat_id)
+                    <span style="color:var(--text-3); font-style:italic;">hérité de l'achat rattaché</span>
+                @else
+                    <form method="POST" action="{{ route('admin.achats.factures_recues.affecter', $facture) }}" style="margin:0;">
+                        @csrf
+                        <select name="point_de_vente_id" onchange="this.form.submit()"
+                                style="font-size:12px; padding:4px 8px; border:1px solid var(--border); border-radius:6px;">
+                            <option value="">à affecter…</option>
+                            @foreach($pointsDeVente as $site)
+                                <option value="{{ $site->id }}">{{ $site->nom }}</option>
+                            @endforeach
+                        </select>
+                    </form>
+                @endif
+            </div>
+
             {{-- Le détail des lignes --}}
             @if($facture->lignes->isNotEmpty())
             <div class="tableau-scroll">
@@ -276,6 +304,21 @@
             @endif
 
             <div class="actions">
+                {{-- Le document de la DGI quand le scraper l'a rapporté, la
+                     reconstruction de Selflow sinon. Le libellé le dit : les
+                     deux ne valent pas la même chose devant un contrôle. --}}
+                @if($facture->pdfDisponible())
+                    <a href="{{ route('admin.achats.factures_recues.pdf', $facture) }}" target="_blank" class="btn btn-primary btn-sm"
+                       title="Le document de la DGI, tel que le fournisseur l'a établi">
+                        <i class="fas fa-file-pdf"></i> Voir le document
+                    </a>
+                @else
+                    <a href="{{ route('admin.achats.factures_recues.imprimer', $facture) }}" class="btn btn-primary btn-sm"
+                       title="Reconstitué du relevé : le document de la DGI n'a pas encore été rapporté">
+                        <i class="fas fa-file-invoice"></i> Voir le relevé
+                    </a>
+                @endif
+
                 @if($facture->achat_id)
                     <form method="POST" action="{{ route('admin.achats.factures_recues.detacher', $facture) }}">
                         @csrf
@@ -293,13 +336,30 @@
                 @endif
 
                 @if($facture->statut_rapprochement !== \App\Modules\Admin\Modeles\PortailFneFactureRecue::ECARTEE)
-                    <form method="POST" action="{{ route('admin.achats.factures_recues.ecarter', $facture) }}">
+                    <form method="POST" action="{{ route('admin.achats.factures_recues.ecarter', $facture) }}"
+                          onsubmit="return confirm('Écarter {{ $facture->reference }} ?\n\nElle disparaîtra de l\'écran des achats et du registre FNE. Vous pourrez la remettre depuis le filtre « Écartées ».');">
                         @csrf
                         <input type="hidden" name="motif" value="">
                         <button type="submit" class="btn btn-outline btn-sm">
                             <i class="fas fa-eye-slash"></i> Écarter
                         </button>
                     </form>
+                @else
+                    {{-- La porte de retour. Sans elle, écarter était définitif :
+                         la pièce quittait tous les écrans, et seule la base
+                         disait pourquoi. --}}
+                    <form method="POST" action="{{ route('admin.achats.factures_recues.reintegrer', $facture) }}">
+                        @csrf
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="fas fa-rotate-left"></i> Remettre dans la liste
+                        </button>
+                    </form>
+                @endif
+
+                @if($facture->urlDeVerification())
+                    <a href="{{ $facture->urlDeVerification() }}" target="_blank" class="btn btn-outline btn-sm">
+                        <i class="fas fa-eye"></i> Voir chez la DGI
+                    </a>
                 @endif
 
                 @if($facture->token)

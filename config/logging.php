@@ -73,6 +73,39 @@ return [
             'replace_placeholders' => true,
         ],
 
+        /*
+        | Le cycle du portail FNE — relevé, dépôt, ramassage, appels d'API.
+        |
+        | Les journaux PHP de la chaîne partaient jusqu'ici dans `laravel.log`,
+        | au milieu de tout le reste, pendant que la sortie des scripts Node
+        | allait dans `portail-fne.log`. Chercher pourquoi une facture n'était
+        | pas arrivée demandait d'ouvrir deux fichiers et de recouper à la main
+        | des horodatages qui n'existaient que d'un côté. Ce canal règle la
+        | première moitié : tout ce que PHP dit du portail est ici, et daté.
+        |
+        | **Deux fichiers, et non un seul — l'essai a été fait le 08/09/2026.**
+        | Les verser ensemble paraissait mieux, et ne marche pas sous Windows :
+        | `appendOutputTo` redirige la sortie d'une tâche par `>>`, ce qui
+        | verrouille le fichier ; Monolog ne peut plus l'ouvrir et lève
+        | « Resource temporarily unavailable » — au moment précis où la commande
+        | journalisait. Un journal qui casse ce qu'il observe est pire que deux
+        | journaux. `portail-fne-sorties.log` reçoit donc ce qu'impriment les
+        | tâches planifiées ; les deux portent le même format de ligne, un
+        | `sort` les remet dans l'ordre.
+        |
+        | `single` et non `daily` : `appendOutputTo` ne sait écrire que dans un
+        | chemin fixe, et deux conventions de nommage pour deux moitiés du même
+        | cycle rendraient le recoupement encore plus pénible. Le fichier
+        | grossit de l'ordre de la centaine de kilo-octets par jour ; il se vide
+        | à la main, ou par la tâche de ménage du jour où il gênera.
+        */
+        'portail_fne' => [
+            'driver' => 'single',
+            'path' => env('PORTAIL_FNE_JOURNAL', storage_path('logs/portail-fne.log')),
+            'level' => env('PORTAIL_FNE_JOURNAL_NIVEAU', 'debug'),
+            'replace_placeholders' => true,
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),

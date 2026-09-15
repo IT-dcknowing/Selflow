@@ -10,9 +10,12 @@ use App\Modules\Admin\Modeles\OrdreProduction;
 use App\Modules\Admin\Modeles\TransfertStock;
 use App\Modules\Admin\Modeles\EcritureComptable;
 use App\Modules\Admin\Modeles\TaxConfiguration;
+use App\Modules\Admin\Modeles\PortailFneFactureRecue;
 use App\Modules\Admin\Services\FiltrePeriodeService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Carbon\Carbon;
@@ -575,9 +578,15 @@ class FneDashboardControleur
                 });
             }
 
-            $documents = $query->orderByDesc('date_achat')->orderByDesc('id')->paginate($parPage);
+            // La certification d'un achat par la pièce que la DGI détient : un
+            // achat saisi ici et retrouvé au portail n'est pas « non normalisé »,
+            // il est certifié par le fournisseur. Chargé en une fois, et non par
+            // ligne, pour ne pas rouvrir la table à chaque document affiché.
+            $certifiees = PortailFneFactureRecue::where('entreprise_id', $entreprise->id)
+                ->whereNotNull('achat_id')
+                ->pluck('reference', 'achat_id');
 
-            $lignes = $documents->getCollection()->map(function (Achat $a) {
+            $enLigne = function (Achat $a) use ($certifiees) {
                 $dgiUrl = $a->fichier_fne_pdf_url;
 
                 return [
@@ -585,12 +594,14 @@ class FneDashboardControleur
                     'type_doc' => $a->type_facture === 'avoir' ? 'Facture Avoir' : ($a->type_facture === 'bapa' ? 'BAPA' : 'Facture'),
                     'is_recu' => false,
                     'num_piece' => $a->numero_facture,
-                    'num_fne' => $a->numero_fne,
+                    // Le numéro que la DGI détient prime sur celui que Selflow a
+                    // émis : c'est lui qui identifie la pièce devant un contrôle.
+                    'num_fne' => $a->numero_fne ?: ($certifiees[$a->id] ?? null),
                     'tiers' => $a->fournisseur?->nom ?? '—',
                     'ht' => (float) $a->montant_ht,
                     'tva' => (float) $a->montant_tva,
                     'ttc' => (float) $a->montant_ttc,
-                    'normalise' => (bool) $a->normalise,
+                    'normalise' => (bool) $a->normalise || isset($certifiees[$a->id]),
                     'date' => $a->date_achat?->toDateString(),
                     'pdv' => $a->pointDeVente?->nom,
                     'facture_origine' => $a->type_facture === 'avoir' ? $a->parent?->numero_facture : null,
@@ -598,8 +609,37 @@ class FneDashboardControleur
                     'telechargement_url' => $dgiUrl,
                     'local_url' => route('admin.achats.imprimer', $a->id),
                     'normaliser_url' => route('admin.achats.normaliser', $a->id),
+                    'origine' => isset($certifiees[$a->id]) ? 'selflow_dgi' : 'selflow',
                 ];
-            });
+            };
+
+            // Les factures relevées au portail ne rejoignent que l'onglet
+            // « Factures Reçues » : ce sont des pièces qu'un fournisseur nous a
+            // adressées, ni des BAPA que nous émettons, ni des avoirs.
+            $portail = $this->facturesDuPortail($entreprise->id, $categorie, $pdvId, $recherche, $request);
+
+            if ($portail === null) {
+                $documents = $query->orderByDesc('date_achat')->orderByDesc('id')->paginate($parPage);
+                $lignes = $documents->getCollection()->map($enLigne);
+            } else {
+                // Deux sources, un seul registre : la pagination se fait en
+                // mémoire faute de pouvoir trier deux tables sans rapport par une
+                // seule requête. La période retenue borne déjà l'ensemble.
+                $fusion = $query->orderByDesc('date_achat')->orderByDesc('id')->get()
+                    ->map($enLigne)
+                    ->concat($portail)
+                    ->sortByDesc(fn (array $d) => [$d['date'] ?? '', $d['num_piece']])
+                    ->values();
+
+                $documents = new LengthAwarePaginator(
+                    $fusion->forPage((int) $request->input('page', 1), $parPage)->values(),
+                    $fusion->count(),
+                    $parPage,
+                    (int) $request->input('page', 1)
+                );
+
+                $lignes = collect($documents->items());
+            }
         }
 
         return response()->json([
@@ -615,6 +655,117 @@ class FneDashboardControleur
                 'ht' => $lignes->sum('ht'),
                 'ttc' => $lignes->sum('ttc'),
             ],
+        ]);
+    }
+
+    /**
+     * Les factures reçues relevées au portail, mises en forme comme un achat.
+     *
+     * ## Pourquoi elles n'apparaissaient pas
+     *
+     * L'onglet « Factures Reçues » ne lisait que la table `achats` : il montrait
+     * ce que **Selflow avait saisi**, jamais ce que **la DGI détient**. Une
+     * facture certifiée par un fournisseur au NCC de l'entreprise, relevée par
+     * le scraper et rangée en base, n'était visible que sur un écran séparé.
+     *
+     * ## Ce qui n'est pas répété
+     *
+     * Une facture du portail déjà rattachée à un achat n'est pas rendue ici :
+     * c'est le même document, et le compter deux fois gonflerait le total TTC
+     * affiché sous le tableau. C'est la ligne de l'achat qui le porte, marquée
+     * comme certifiée. Une facture écartée à la main ne revient pas non plus.
+     *
+     * ## Le point de vente
+     *
+     * Il vient de `point_de_vente_id`, que **l'entreprise a affecté** — à
+     * l'import quand elle n'a qu'un site, au rattachement quand la facture
+     * rejoint un achat, à la main sinon. Jamais du relevé : les champs
+     * `clientEstablishment` et `clientPointOfSale` du portail décrivent
+     * l'**émetteur**, `FneService` envoyant symétriquement nos propres
+     * `establishment` et `pointOfSale` quand c'est nous qui émettons.
+     *
+     * Un filtre sur un site précis ne rend donc que ce qui lui est affecté. Une
+     * facture que personne n'a encore rangée n'appartient à aucun site : l'y
+     * verser gonflerait son total TTC d'un montant dont rien ne dit qu'il lui
+     * revient. Elle reste visible sur « Tous », et sur l'écran des achats qui,
+     * lui, ne totalise pas et propose de l'affecter.
+     *
+     * @return Collection<int, array<string, mixed>>|null  null hors de l'onglet
+     *         « Factures Reçues », où ces pièces n'ont rien à faire.
+     */
+    private function facturesDuPortail(
+        int $entrepriseId,
+        string $categorie,
+        ?string $pdvId,
+        string $recherche,
+        Request $request
+    ): ?Collection {
+        if (in_array($categorie, ['emis', 'avoir_fournisseur'], true)) {
+            return null;
+        }
+
+        $query = PortailFneFactureRecue::where('entreprise_id', $entrepriseId)
+            ->whereNull('achat_id')
+            ->where('statut_rapprochement', '!=', PortailFneFactureRecue::ECARTEE)
+            ->with('pointDeVente');
+
+        // Un site précis ne montre que ce qui lui est affecté. Une facture que
+        // personne n'a encore rangée n'appartient à aucun site : la verser dans
+        // celui-ci gonflerait son total TTC d'un montant dont rien ne dit qu'il
+        // lui revient. Elle reste visible sur « Tous », et sur l'écran des
+        // achats qui, lui, ne totalise pas.
+        if ($pdvId && $pdvId !== 'tous') {
+            $query->where('point_de_vente_id', $pdvId);
+        }
+
+        $this->filtrerPeriode($query, 'date_facture', $request);
+
+        if ($recherche !== '') {
+            $query->where(function ($q) use ($recherche) {
+                $q->where('reference', 'like', "%{$recherche}%")
+                  ->orWhere('emetteur_nom', 'like', "%{$recherche}%")
+                  ->orWhere('emetteur_ncc', 'like', "%{$recherche}%");
+            });
+        }
+
+        return $query->orderByDesc('date_facture')->get()->map(fn (PortailFneFactureRecue $f) => [
+            'id' => $f->id,
+            'type_doc' => $f->libelleDuSousType(),
+            'is_recu' => (bool) $f->est_rne,
+            // Aucun numéro de pièce interne : Selflow ne l'a pas saisie. Mettre
+            // le numéro FNE dans les deux colonnes le ferait lire comme une
+            // référence interne qui n'existe pas.
+            'num_piece' => '—',
+            'num_fne' => $f->reference,
+            'tiers' => $f->emetteur_nom ?: ($f->emetteur_ncc ?: '—'),
+            'ht' => (float) $f->montant_ht,
+            'tva' => (float) $f->montant_tva,
+            'ttc' => (float) $f->montant_ttc,
+            // Certifiée, mais par le fournisseur : c'est bien une pièce que la
+            // DGI détient, et l'afficher « non normalisée » serait faux.
+            'normalise' => true,
+            'date' => $f->date_facture?->toDateString(),
+            // Le site que l'entreprise a affecté, et non un site déduit du
+            // relevé : le portail n'en donne aucun qui nous concerne.
+            'pdv' => $f->pointDeVente?->nom,
+            'facture_origine' => null,
+            'recu_lie' => null,
+            'recu_lie_url' => null,
+            'fichier_recu_url' => null,
+            // La pièce n'est pas la nôtre : rien à imprimer depuis Selflow, rien
+            // à normaliser. Mais elle est consultable chez la DGI, qui la
+            // détient — l'adresse se reconstruit à partir du code de
+            // vérification du relevé.
+            'voir_url' => $f->urlDeVerification(),
+            'telechargement_url' => $f->urlDeVerification(),
+            // Le document tel que Selflow le reconstitue — la colonne « Facture
+            // origine » s'en sert pour l'œil et le téléchargement, exactement
+            // comme pour une pièce que nous avons émise.
+            'local_url' => route('admin.achats.factures_recues.imprimer', $f->id),
+            'normaliser_url' => null,
+            'origine' => 'portail',
+            'statut_rapprochement' => $f->statut_rapprochement,
+            'rapprocher_url' => route('admin.achats.factures_recues', ['statut' => $f->statut_rapprochement]),
         ]);
     }
 

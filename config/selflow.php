@@ -166,6 +166,22 @@ return [
         'dossier_import' => env('PORTAIL_FNE_DOSSIER_IMPORT', storage_path('app/portail-fne')),
 
         /*
+        | Ce que les tâches planifiées impriment — Node et commandes Artisan.
+        |
+        | Un fichier distinct du canal `portail_fne` de `config/logging.php`, et
+        | l'essai du 08/09/2026 dit pourquoi : `appendOutputTo` redirige la sortie
+        | par `>>`, ce qui verrouille le fichier sous Windows ; Monolog ne peut
+        | plus l'ouvrir et lève « Resource temporarily unavailable » au moment
+        | précis où la commande journalise.
+        |
+        | Ici et non lu par `env()` dans le service : `php artisan config:cache`
+        | fige les fichiers de configuration et rend `env()` nul partout
+        | ailleurs. Le chemin serait vide en production, et la sortie des
+        | processus détachés irait nulle part.
+        */
+        'sorties' => env('PORTAIL_FNE_SORTIES', storage_path('logs/portail-fne-sorties.log')),
+
+        /*
         | Au-delà de ce délai, une demande de relevé n'attend plus : elle traîne.
         | Vingt-quatre heures parce qu'un relevé se produit au mieux une fois par
         | jour ; passer la journée sans réponse veut dire que le scraper ne
@@ -225,11 +241,33 @@ return [
             'heure_nocturne' => env('PORTAIL_FNE_SCRAPER_HEURE_NUIT', '02:30'),
 
             /*
-            | Le relevé des factures reçues n'a pas de réglage à lui : `fne.js`
-            | le fait dans la session qu'il vient d'ouvrir, à chaque passage.
-            | Une connexion au portail de la DGI est ce qui coûte, et il n'y a
-            | aucune raison d'en payer deux. `achats.js` reste lançable seul.
+            | Le relevé des factures REÇUES, à son propre rythme.
+            |
+            | Demandé par le propriétaire du projet le 08/09/2026 : « que le
+            | scrapping se lance chaque 5 min ». `fne.js` continue de relever les
+            | factures reçues dans la session qu'il ouvre — c'est gratuit, on y
+            | est déjà —, mais il n'y va que si une pièce a été refusée ou à
+            | 02:30. Un fournisseur qui certifie une facture à 9 h n'apparaissait
+            | donc pas avant le lendemain.
+            |
+            | **Ce rythme se paie.** Chaque passage ouvre une session sur le
+            | portail de la DGI avec le mot de passe du client : à cinq minutes,
+            | 288 connexions par jour. Le lot 22 avait retiré le rendez-vous de
+            | 04:15 pour cette raison exacte, et une facture reçue est un fait
+            | acquis — certifiée par son émetteur, elle ne changera plus.
+            |
+            | D'où trois réglages plutôt qu'un rythme écrit en dur : de quoi
+            | ralentir ou éteindre sans livrer une version, le jour où le portail
+            | se plaint ou où un compte se bloque.
             */
+            'achats_actif' => filter_var(env('PORTAIL_FNE_SCRAPER_ACHATS_ACTIF', true), FILTER_VALIDATE_BOOL),
+
+            // Le pas du planificateur, en minutes. Doit diviser 60 : la cadence
+            // s'écrit `*/N` dans une expression cron, et `*/7` sauterait à
+            // chaque heure ronde.
+            'achats_minutes' => (int) env('PORTAIL_FNE_SCRAPER_ACHATS_MINUTES', 5),
+
+            'script_achats' => env('PORTAIL_FNE_SCRAPER_SCRIPT_ACHATS', base_path('SCRAPER-PORTAIL-FNE/achats.js')),
 
             /*
             | Le relevé à l'ouverture de Selflow.

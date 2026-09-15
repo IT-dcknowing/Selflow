@@ -52,5 +52,15 @@
              31/08/2026, et six épreuves ont vu apparaître un point de
              facturation que personne n'avait écrit. -->
         <env name="PORTAIL_FNE_DOSSIER_IMPORT" value="./storage/framework/testing/portail-fne" force="true"/>
+        <!-- Le journal du cycle du portail, lui aussi détourné.
+             Une épreuve qui allume le scraper pour observer sa décision lance un
+             vrai processus vers un Node volontairement introuvable, et sa
+             plainte partait dans le journal RÉEL du poste : treize lignes de
+             « Le système ne peut trouver le fichier node-qui-n-existe-pas » y
+             ont été retrouvées le 08/09/2026, au milieu des passages du jour.
+             Le canal `portail_fne` et la sortie des processus détachés lisent
+             tous deux ce chemin. -->
+        <env name="PORTAIL_FNE_JOURNAL" value="./storage/framework/testing/portail-fne.log" force="true"/>
+        <env name="PORTAIL_FNE_SORTIES" value="./storage/framework/testing/portail-fne-sorties.log" force="true"/>
     </php>
 </phpunit>
