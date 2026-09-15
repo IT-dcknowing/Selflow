@@ -106,7 +106,12 @@ function verifier(intitule, condition, constate) {
 }
 
 (async () => {
-  const navigateur = await chromium.launch({ headless: true });
+  // `--single-process --no-zygote` : voir fne.js, même correction — utile ici
+  // aussi si ce script tourne sur le même hébergement mutualisé.
+  const navigateur = await chromium.launch({
+    headless: true,
+    args: ['--no-sandbox', '--single-process', '--no-zygote'],
+  });
   const page = await navigateur.newPage();
 
   try {

@@ -641,7 +641,12 @@ async function passage() {
   }
 
   if (relevables.length) {
-    const navigateur = await chromium.launch({ headless: process.env.FNE_HEADLESS !== 'false' });
+    // `--single-process --no-zygote` : voir fne.js, même correction, même
+    // constat le 15/09/2026 sur l'hébergement mutualisé de production.
+    const navigateur = await chromium.launch({
+      headless: process.env.FNE_HEADLESS !== 'false',
+      args: ['--no-sandbox', '--single-process', '--no-zygote'],
+    });
 
     try {
       for (const { login, motDePasse } of relevables) {

@@ -677,7 +677,16 @@ async function passage() {
 
   if (relevables.length) {
     const headless = process.env.FNE_HEADLESS !== 'false';
-    const navigateur = await chromium.launch({ headless });
+    // `--single-process --no-zygote` : constaté le 15/09/2026 sur l'hébergement
+    // mutualisé de production (cPanel/CloudLinux). Le zygote de Chromium fork un
+    // processus par onglet, et le compte y est plafonné en nombre de processus —
+    // invisible depuis `ulimit`, qui répond « illimité » alors que le fork échoue
+    // en `pthread_create: Resource temporarily unavailable`. Ces deux options
+    // font tenir Chromium dans un seul processus.
+    const navigateur = await chromium.launch({
+      headless,
+      args: ['--no-sandbox', '--single-process', '--no-zygote'],
+    });
     try {
       for (const { login, motDePasse } of relevables) {
         dire('INFO', `\n-- ${login} --`);
