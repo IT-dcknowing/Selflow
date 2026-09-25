@@ -27,17 +27,19 @@ Route::prefix('admin')
             Route::get('/factures', [VenteApiControleur::class, 'factures']);
             Route::get('/devis', [VenteApiControleur::class, 'devis']);
             Route::get('/commandes', [VenteApiControleur::class, 'commandes']);
-            Route::get('/historique', [VenteApiControleur::class, 'historique']);
             Route::get('/facture/{vente}', [VenteApiControleur::class, 'details']);
             Route::put('/{vente}/modifier', [VenteApiControleur::class, 'modifierStatut']);
         });
+
+        // `ventes/historique` et `achats/historique` ont ete retirees le
+        // 25/09/2026 : elles doublaient `/factures` sans rien apporter, et
+        // aucun ecran ne les appelait.
 
         // ── Achats ──
         Route::prefix('achats')->group(function () {
             Route::get('/donnees-formulaire', [AchatApiControleur::class, 'donneesFormulaire']);
             Route::post('/enregistrer', [AchatApiControleur::class, 'enregistrer']);
             Route::get('/factures', [AchatApiControleur::class, 'factures']);
-            Route::get('/historique', [AchatApiControleur::class, 'historique']);
             Route::get('/facture/{achat}', [AchatApiControleur::class, 'details']);
             Route::put('/{achat}/modifier', [AchatApiControleur::class, 'modifierStatut']);
         });

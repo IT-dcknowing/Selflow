@@ -41,7 +41,25 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
+            /*
+             * Une adresse relative à la racine, et non bâtie sur `APP_URL`.
+             *
+             * Toutes les images de l'application — photos d'articles, logos,
+             * vitrine — passaient par ici, et donc par `APP_URL`. Une
+             * `APP_URL` restée sur l'adresse de développement, ou en `http`
+             * quand le site est servi en `https`, faisait pointer **chaque
+             * image** vers une machine qui n'existe pas pour le visiteur.
+             *
+             * Le symptôme est exactement celui constaté le 25/09/2026 : une
+             * photo déposée en production ne s'affiche pas, alors que la même
+             * s'affiche en local. La page, elle, se charge normalement — seules
+             * les images manquent, parce qu'elles sont les seules à porter une
+             * adresse absolue.
+             *
+             * `/storage/…` vaut pour les deux : le navigateur la résout sur
+             * l'hôte qu'il est en train de consulter, quel qu'il soit.
+             */
+            'url' => '/storage',
             'visibility' => 'public',
             'throw' => false,
             'report' => false,

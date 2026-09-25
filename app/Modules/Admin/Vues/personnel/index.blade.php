@@ -309,127 +309,16 @@
                     </label>
                 </div>
                 
-                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;" id="habs-checkboxes-grid">
-                    <div>
-                        <div style="font-weight:600; font-size:11px; text-transform:uppercase; color:var(--text-2); margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">Tableau de bord</div>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="tableau_de_bord_personnel" checked> Tableau de bord personnel
-                        </label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="tableau_de_bord_general"> Tableau de bord général
-                        </label>
-                    </div>
-
-                    <div>
-                        <div style="font-weight:600; font-size:11px; text-transform:uppercase; color:var(--text-2); margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">Ventes</div>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="nouvelle_vente" checked> Nouvelle vente
-                        </label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="factures_vente"> Factures vente
-                        </label>
-                        {{-- L'historique etait exige par la route et propose
-                             nulle part : aucune entreprise ne pouvait
-                             l'accorder a son personnel, et l'adresse restait
-                             fermee a tous sauf a l'administrateur. Le superadmin
-                             l'offrait pourtant depuis son propre ecran. --}}
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="historique_ventes"> Historique des ventes
-                        </label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="production_recettes"> Recettes (Fiches techniques)
-                        </label>
-                    </div>
-
-                    <div>
-                        <div style="font-weight:600; font-size:11px; text-transform:uppercase; color:var(--text-2); margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">Achats</div>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="nouvel_achat"> Nouvel achat
-                        </label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="factures_achat"> Factures achat
-                        </label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="historique_achats"> Historique des achats
-                        </label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="production_ordres"> Ordres de production
-                        </label>
-                    </div>
-
-                    <div>
-                        <div style="font-weight:600; font-size:11px; text-transform:uppercase; color:var(--text-2); margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">Stock</div>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="stock_articles"> Articles & stock
-                        </label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="stock_mouvements"> Mouvements
-                        </label>
-                    </div>
-
-                    <div>
-                        <div style="font-weight:600; font-size:11px; text-transform:uppercase; color:var(--text-2); margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">Comptabilité</div>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="tresorerie_encaissements"> Encaissements
-                        </label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="tresorerie_decaissements"> Décaissements
-                        </label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="tresorerie_journal"> Solde & journal
-                        </label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="tresorerie_codes_journaux"> Codes Journaux
-                        </label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="comptabilite_globale"> Opération & écriture globale
-                        </label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="comptabilite_creances"> Créances & règlements
-                        </label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="comptabilite_plan_comptable"> Plan Comptable
-                        </label>
-                    </div>
-
-                    <div>
-                        <div style="font-weight:600; font-size:11px; text-transform:uppercase; color:var(--text-2); margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">Points de vente</div>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="gestion_pdv"> Points de vente
-                        </label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="gestion_personnel"> Personnels & accès
-                        </label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="gestion_habilitations"> Habilitations
-                        </label>
-                    </div>
-
-                    <div>
-                        <div style="font-weight:600; font-size:11px; text-transform:uppercase; color:var(--text-2); margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">Produits</div>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="catalogue_produits"> Produits
-                        </label>
-                        </div>
-
-                    <div>
-                        <div style="font-weight:600; font-size:11px; text-transform:uppercase; color:var(--text-2); margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">Tiers</div>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="tiers_clients"> Clients
-                        </label>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="tiers_fournisseurs"> Fournisseurs
-                        </label>
-                    </div>
-
-                    <div>
-                        <div style="font-weight:600; font-size:11px; text-transform:uppercase; color:var(--text-2); margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">Rapports</div>
-                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                            <input type="checkbox" name="habilitations[]" value="rapports_analyse"> Analyse d'activité
-                        </label>
-                    </div>
+                {{-- Les cases viennent du catalogue, et seuls les modules du
+                     dossier y figurent : une entreprise ne peut pas accorder ce
+                     qu'elle n'a pas. Voir `Habilitations::CATALOGUE`. --}}
+                <div id="habs-checkboxes-grid">
+                    @include('admin::personnel.partials.cases-habilitations', [
+                        'entreprise' => auth()->user()->entreprise,
+                        'accordees'  => ['tableau_de_bord_personnel', 'nouvelle_vente'],
+                    ])
                 </div>
-                
+
                 <div id="admin-notice" style="display:none; color:var(--info); font-size:12.5px; font-weight:500;">
                     <i class="fas fa-circle-info"></i> Les administrateurs disposent de tous les privilèges et accès par défaut. Il n'est pas nécessaire de configurer individuellement leurs habilitations.
                 </div>

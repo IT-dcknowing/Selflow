@@ -90,33 +90,126 @@ class MenagesDesEcransTest extends TestCase
 
     // ══════════════ Les habilitations ══════════════
 
-    public function test_tout_droit_exige_par_une_route_se_propose_a_l_ecran(): void
+    public function test_tout_droit_exige_par_une_route_figure_au_catalogue(): void
     {
         /*
          * `historique_ventes` et `historique_achats` étaient exigés par leurs
          * routes et proposés par **aucune case** : aucune entreprise ne pouvait
-         * les accorder à son personnel, et les deux adresses restaient fermées
-         * à tous sauf à l'administrateur. Le superadmin les offrait pourtant
-         * depuis son propre écran.
+         * les accorder à son personnel. Les deux adresses ont été retirées
+         * depuis — elles doublaient `/factures` —, mais la règle demeure : un
+         * droit qu'une route exige doit pouvoir s'accorder.
          */
-        $droits = array_unique(array_values(Habilitations::PAR_ROUTE));
+        $auCatalogue = [];
 
-        $ecrans = '';
-        foreach (['index', 'details'] as $vue) {
-            $ecrans .= file_get_contents(
-                base_path("app/Modules/Admin/Vues/personnel/{$vue}.blade.php")
-            );
-        }
-
-        $absents = [];
-        foreach ($droits as $droit) {
-            if (!str_contains($ecrans, 'value="' . $droit . '"')) {
-                $absents[] = $droit;
+        foreach (Habilitations::CATALOGUE as $groupes) {
+            foreach ($groupes as $droits) {
+                $auCatalogue = array_merge($auCatalogue, array_keys($droits));
             }
         }
 
+        $absents = array_values(array_diff(
+            array_unique(array_values(Habilitations::PAR_ROUTE)),
+            $auCatalogue
+        ));
+
         $this->assertSame([], $absents,
-            'Ces droits sont exigés par une route et ne se proposent nulle part : ' . implode(', ', $absents));
+            'Ces droits sont exiges par une route et ne figurent pas au catalogue : ' . implode(', ', $absents));
+    }
+
+    public function test_une_entreprise_ne_propose_que_les_modules_qu_elle_a(): void
+    {
+        // Accorder « Ordres de production » à l'employé d'un commerce sans
+        // atelier ne lui ouvrait rien : la route refuse d'abord sur le module.
+        // Le droit ne servait qu'à encombrer l'écran.
+        $this->entreprise->update(['modules_actifs' => ['principal', 'ventes', 'points_de_vente']]);
+
+        $groupes = Habilitations::pourLEntreprise($this->entreprise->fresh());
+
+        $this->assertArrayHasKey('Ventes', $groupes);
+        $this->assertArrayNotHasKey('Production', $groupes);
+        $this->assertArrayNotHasKey('Stock', $groupes);
+        // `principal` n'est gardé par aucun module : tout le monde l'a.
+        $this->assertArrayHasKey('Tableau de bord', $groupes);
+    }
+
+    public function test_la_production_a_son_propre_groupe(): void
+    {
+        // Ses fiches techniques étaient rangées sous « Ventes » et ses ordres
+        // sous « Achats » : le module lui-même ne figurait nulle part.
+        $this->entreprise->update([
+            'modules_actifs' => ['principal', 'ventes', 'achats', 'production'],
+        ]);
+
+        $groupes = Habilitations::pourLEntreprise($this->entreprise->fresh());
+
+        $this->assertSame(
+            ['production_recettes', 'production_ordres'],
+            array_keys($groupes['Production'])
+        );
+        $this->assertArrayNotHasKey('production_recettes', $groupes['Ventes']);
+        $this->assertArrayNotHasKey('production_ordres', $groupes['Achats']);
+    }
+
+    public function test_les_deux_ecrans_dressent_les_memes_cases(): void
+    {
+        // Elles étaient écrites en dur des deux côtés : un droit ajouté dans
+        // l'écran de création manquait dans la fiche, et l'inverse.
+        foreach (['index', 'details'] as $vue) {
+            $source = file_get_contents(base_path("app/Modules/Admin/Vues/personnel/{$vue}.blade.php"));
+
+            $this->assertStringContainsString('personnel.partials.cases-habilitations', $source, $vue);
+            $this->assertStringNotContainsString('name="habilitations[]"', $source, $vue);
+        }
+    }
+
+    public function test_le_menu_garde_la_production_sur_ses_propres_droits(): void
+    {
+        /*
+         * Le menu gardait la production sur `catalogue_produits` et
+         * `stock_articles`, alors que ses routes exigent `production_recettes`
+         * et `production_ordres`. Les deux se contredisaient : un employé à qui
+         * l'on accordait la production ne voyait pas l'entrée, et celui qui la
+         * voyait se faisait refuser à la porte.
+         */
+        $gabarit = file_get_contents(
+            base_path('app/Modules/Admin/Vues/gabarits/application.blade.php')
+        );
+
+        $i = strpos($gabarit, "<!-- 5. Production -->");
+        $this->assertNotFalse($i, 'Le bloc Production a disparu du menu.');
+
+        $bloc = substr($gabarit, $i, 1400);
+
+        $this->assertStringContainsString("aHabilitation('production_recettes')", $bloc);
+        $this->assertStringContainsString("aHabilitation('production_ordres')", $bloc);
+        $this->assertStringNotContainsString("aHabilitation('catalogue_produits')", $bloc);
+        $this->assertStringNotContainsString("aHabilitation('stock_articles')", $bloc);
+    }
+
+    public function test_l_ecran_des_stickers_a_disparu(): void
+    {
+        // « Gestion FNE » porte le solde, la provision et les alertes, et
+        // « Factures & Reçus émis/reçus » porte le reste. L'achat par Mobile
+        // Money part avec l'écran : ce n'était pas Selflow qui vendait les
+        // vignettes, et il n'en tenait qu'un journal parallèle.
+        foreach (['admin.fne.stickers', 'admin.fne.stickers.acheter'] as $nom) {
+            $this->assertNull(app('router')->getRoutes()->getByName($nom), $nom);
+        }
+
+        $this->assertFalse(
+            file_exists(base_path('app/Modules/Admin/Vues/fne/stickers.blade.php'))
+        );
+    }
+
+    public function test_les_adresses_d_historique_ont_disparu(): void
+    {
+        // Elles doublaient `/factures` sans rien apporter, aucun écran ne les
+        // appelait, et leurs droits n'étaient proposés nulle part.
+        $adresses = collect(app('router')->getRoutes()->getRoutes())
+            ->map(fn ($r) => $r->uri())
+            ->filter(fn ($uri) => str_ends_with($uri, '/historique'));
+
+        $this->assertCount(0, $adresses, 'Restent : ' . $adresses->implode(', '));
     }
 
     // ══════════════ La configuration fiscale ══════════════

@@ -382,22 +382,13 @@ class VenteApiControleur
         ]);
     }
 
-    /**
-     * Historique des ventes.
+    /*
+     * `historique()` vivait ici. Retiree le 25/09/2026 : elle doublait
+     * `factures()` sans rien apporter, aucun ecran ne l'appelait, et son
+     * droit `historique_ventes` n'etait propose nulle part -- si bien que
+     * l'adresse restait fermee a tous sauf a l'administrateur.
      */
-    public function historique(Request $request): JsonResponse
-    {
-        $entreprise = Auth::user()->entreprise;
-        $ventes = Vente::with(['client', 'pointDeVente'])
-            ->whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entreprise->id))
-            ->latest()
-            ->paginate(30);
 
-        return response()->json([
-            'statut' => 'succes',
-            'ventes' => $ventes
-        ]);
-    }
 
     /**
      * Détails d'une facture.

@@ -775,14 +775,20 @@
             @endif
             @endif
             <!-- 5. Production -->
-            @if(in_array('production', $modulesActifs) && (auth()->user()->aHabilitation('catalogue_produits') || auth()->user()->aHabilitation('stock_articles')))
+            {{-- Le menu gardait la production sur `catalogue_produits` et
+                 `stock_articles`, alors que ses routes exigent
+                 `production_recettes` et `production_ordres`. Les deux se
+                 contredisaient : un employe a qui l'on accordait la production
+                 ne voyait pas l'entree, et celui qui la voyait se faisait
+                 refuser a la porte. --}}
+            @if(in_array('production', $modulesActifs) && (auth()->user()->aHabilitation('production_recettes') || auth()->user()->aHabilitation('production_ordres')))
             <div class="nav-section"><span>Production</span></div>
-            @if(auth()->user()->aHabilitation('catalogue_produits'))
+            @if(auth()->user()->aHabilitation('production_recettes'))
             <a href="{{ route('admin.production.fiches_techniques.index') }}" class="nav-item {{ request()->routeIs('admin.production.fiches_techniques*') ? 'active' : '' }}">
-                <i class="fas fa-flask"></i> Recettes (FT)
+                <i class="fas fa-flask"></i> Fiches techniques
             </a>
             @endif
-            @if(auth()->user()->aHabilitation('stock_articles'))
+            @if(auth()->user()->aHabilitation('production_ordres'))
             <a href="{{ route('admin.production.ordres.index') }}" class="nav-item {{ request()->routeIs('admin.production.ordres*') ? 'active' : '' }}">
                 <i class="fas fa-industry"></i> Ordres de production
             </a>

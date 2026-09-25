@@ -6434,6 +6434,100 @@ vérifications**. `php artisan verifier:variables` : aucune variable lue sans
 avoir été écrite.
 
 
+### Lot 34 — Les habilitations disent enfin ce que l'entreprise possède — **TERMINÉ le 25/09/2026**
+
+#### 34.1 L'analytique ne se fait pas chez Comptaflow — réponse à une question
+
+Question posée par le propriétaire : *« je veux savoir si l'analytique se fait
+dans Comptaflow lors du déversement »*.
+
+**Non.** Selflow envoie bien `point_de_vente` avec chaque écriture, et le
+commentaire du code le présente comme « un axe analytique et sa section ». Mais
+`ExternalSyncController::deverserEcritures` **ne lit ce champ nulle part** : il
+arrive et il tombe. Comptaflow possède pourtant `AxeAnalytique`,
+`SectionAnalytique` et `VentilationAnalytique` — remplis par son écran de saisie
+et par son import, jamais par le déversement.
+
+Les ventilations par magasin n'existent donc pas côté Comptaflow. C'est à
+traiter avec le passage des écritures par le module d'import, où la ventilation
+se pose naturellement.
+
+#### 34.2 Le catalogue des habilitations
+
+Les cases étaient écrites en dur **deux fois** — dans l'écran de création et
+dans la fiche —, et sans lien avec les modules du dossier. Trois conséquences :
+
+- une entreprise se voyait proposer des droits sur des modules qu'elle n'a pas.
+  Accorder « Ordres de production » à l'employé d'un commerce sans atelier ne
+  lui ouvrait rien : la route refuse d'abord sur le module ;
+- **la production, qui est un module à part entière, était rangée sous Ventes
+  et sous Achats** — ses fiches techniques d'un côté, ses ordres de l'autre, et
+  le module lui-même nulle part ;
+- un droit ajouté d'un côté manquait de l'autre.
+
+`Habilitations::CATALOGUE` porte la liste, une fois, groupée **par module**.
+`pourLEntreprise()` la réduit à ce que le dossier possède, et les deux écrans
+parcourent un partiel commun.
+
+#### 34.3 Le menu de la production se contredisait avec ses propres routes
+
+Trouvé en vérifiant le module : le menu gardait la production sur
+`catalogue_produits` et `stock_articles`, **alors que ses routes exigent**
+`production_recettes` et `production_ordres`.
+
+Les deux ne pouvaient pas coïncider : un employé à qui l'on accordait la
+production ne voyait pas l'entrée du menu, et celui qui la voyait se faisait
+refuser à la porte. Le module était donc inutilisable par tout autre qu'un
+administrateur — ce qui explique qu'il n'ait jamais été éprouvé.
+
+Ses 16 épreuves passent ; le menu suit désormais ses routes, et une épreuve
+compare les deux.
+
+#### 34.4 Deux écrans retirés
+
+**`ventes/historique` et `achats/historique`** : elles doublaient `/factures`
+sans rien apporter, aucun écran ne les appelait, et leurs droits n'étaient
+proposés nulle part — l'adresse restait donc fermée à tous sauf à
+l'administrateur.
+
+**L'écran des stickers**, à la demande du propriétaire. « Gestion FNE » porte le
+solde, la provision et les alertes ; « Factures & Reçus émis/reçus » porte le
+reste. L'achat par Mobile Money part avec lui — *« plus pris en compte »* : ce
+n'était de toute façon pas Selflow qui vendait les vignettes, il n'en tenait
+qu'un journal parallèle.
+
+#### 34.5 Les images en production — la vraie cause, et ce n'est pas celle que j'avais dite
+
+J'avais répondu que les photos n'étaient pas sur le serveur. **C'était à côté.**
+Le propriétaire a précisé : la photo est déposée **depuis la production**, et
+elle ne s'affiche pas là où la même s'affiche en local.
+
+La cause est dans `config/filesystems.php` :
+
+```php
+'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
+```
+
+**Toutes** les images de l'application — photos d'articles, logos, vitrine —
+passent par cette adresse, et donc par `APP_URL`. Une `APP_URL` restée sur
+l'adresse de développement, ou en `http` quand le site est servi en `https`,
+fait pointer **chaque image** vers une machine qui n'existe pas pour le
+visiteur. La page se charge normalement : seules les images manquent, parce
+qu'elles sont les seules à porter une adresse absolue.
+
+`'/storage'` remplace la construction : le navigateur résout une adresse
+relative sur l'hôte qu'il consulte, quel qu'il soit. Même chose pour
+`Produit::photoReelle()`, qui passait par `asset()`.
+
+**Corriger `APP_URL` sur le serveur reste nécessaire** — les courriels et les
+adresses rendues par l'API mobile en dépendent — mais les images ne lui sont
+plus suspendues.
+
+Suite entière : **1 362 épreuves, 1 358 passantes, 4 sautées, 5 275
+vérifications**. `php artisan verifier:variables` : aucune variable lue sans
+avoir été écrite.
+
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

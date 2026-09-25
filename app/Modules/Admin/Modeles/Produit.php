@@ -388,8 +388,14 @@ class Produit extends Model
         //
         // On sert donc par la route quand le lien manque. Elle passe par PHP,
         // donc elle coûte plus cher : on ne l'emprunte que faute de mieux.
+        //
+        // L'adresse est **relative à la racine** et non bâtie par `asset()` :
+        // celui-ci la fabrique depuis `APP_URL`, et une `APP_URL` restée sur
+        // l'adresse de développement faisait pointer la photo vers la machine
+        // du développeur. Le navigateur, lui, résout `/storage/…` sur l'hôte
+        // qu'il consulte.
         return self::lienDeStockagePose()
-            ? asset('storage/' . $this->photo)
+            ? '/storage/' . ltrim($this->photo, '/')
             : route('admin.produits.photo.voir', $this);
     }
 

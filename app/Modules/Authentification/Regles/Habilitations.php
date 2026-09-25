@@ -58,6 +58,126 @@ class Habilitations
     ];
 
     /**
+     * Ce qu'une entreprise peut accorder à son personnel, module par module.
+     *
+     * ## Pourquoi cette liste existe
+     *
+     * Les cases étaient écrites en dur, **deux fois** — dans l'écran de
+     * création et dans la fiche —, et sans lien avec les modules du dossier.
+     * Trois conséquences, toutes constatées le 25/09/2026 :
+     *
+     * - une entreprise se voyait proposer des droits sur des modules qu'elle
+     *   n'a pas. Accorder « Ordres de production » à un employé d'un commerce
+     *   sans atelier ne lui ouvrait rien : la route refuse d'abord sur le
+     *   module, et le droit ne servait qu'à encombrer l'écran ;
+     * - la production, qui est un module à part entière, se trouvait rangée
+     *   **sous Ventes et sous Achats** : ses fiches techniques d'un côté, ses
+     *   ordres de l'autre, et le module lui-même nulle part ;
+     * - deux droits exigés par leurs routes ne figuraient dans aucun des deux
+     *   écrans, et personne ne pouvait donc les accorder.
+     *
+     * La liste est donc ici, une fois, et les écrans la parcourent.
+     *
+     * ## Ce que la clé de premier niveau veut dire
+     *
+     * C'est le **module** au sens de `Entreprise::TOUS_LES_MODULES`. Un groupe
+     * dont le module n'est pas actif chez l'entreprise n'est pas affiché : elle
+     * ne peut pas accorder ce qu'elle n'a pas.
+     *
+     * `principal` désigne ce qui n'est gardé par aucun module — le tableau de
+     * bord, les rapports : tout le monde l'a.
+     *
+     * @var array<string, array<string, array<string, string>>>
+     */
+    public const CATALOGUE = [
+        'principal' => [
+            'Tableau de bord' => [
+                'tableau_de_bord_personnel' => 'Tableau de bord personnel',
+                'tableau_de_bord_general'   => 'Tableau de bord général',
+            ],
+            'Rapports' => [
+                'rapports_analyse' => "Analyse d'activité",
+            ],
+        ],
+        'ventes' => [
+            'Ventes' => [
+                'nouvelle_vente'    => 'Nouvelle vente',
+                'factures_vente'    => 'Factures vente',
+            ],
+        ],
+        'achats' => [
+            'Achats' => [
+                'nouvel_achat'  => 'Nouvel achat',
+                'factures_achat' => 'Factures achat',
+            ],
+        ],
+        'production' => [
+            'Production' => [
+                'production_recettes' => 'Fiches techniques (recettes)',
+                'production_ordres'   => 'Ordres de production',
+            ],
+        ],
+        'stock' => [
+            'Stock' => [
+                'stock_articles'   => 'Articles & stock',
+                'stock_mouvements' => 'Mouvements',
+            ],
+        ],
+        'comptabilite' => [
+            'Comptabilité' => [
+                'tresorerie_encaissements'    => 'Encaissements',
+                'tresorerie_decaissements'    => 'Décaissements',
+                'tresorerie_journal'          => 'Solde & journal',
+                'tresorerie_codes_journaux'   => 'Codes journaux',
+                'comptabilite_globale'        => 'Opération & écriture globale',
+                'comptabilite_creances'       => 'Créances & règlements',
+                'comptabilite_plan_comptable' => 'Plan comptable',
+            ],
+        ],
+        'points_de_vente' => [
+            'Points de vente' => [
+                'gestion_pdv'           => 'Points de vente',
+                'gestion_personnel'     => 'Personnels & accès',
+                'gestion_habilitations' => 'Habilitations',
+            ],
+        ],
+        'produits' => [
+            'Produits' => [
+                'catalogue_produits' => 'Catalogue produits',
+            ],
+        ],
+        'tiers' => [
+            'Tiers' => [
+                'tiers_clients'      => 'Clients',
+                'tiers_fournisseurs' => 'Fournisseurs',
+            ],
+        ],
+    ];
+
+    /**
+     * Le catalogue réduit à ce qu'une entreprise peut réellement accorder.
+     *
+     * @return array<string, array<string, string>>
+     */
+    public static function pourLEntreprise(?\App\Modules\Admin\Modeles\Entreprise $entreprise): array
+    {
+        $groupes = [];
+
+        foreach (self::CATALOGUE as $module => $sesGroupes) {
+            // `principal` n'est gardé par aucun module : tout le monde l'a.
+            if ($module !== 'principal' && $entreprise && !$entreprise->moduleEstActif($module)) {
+                continue;
+            }
+
+            foreach ($sesGroupes as $titre => $droits) {
+                $groupes[$titre] = $droits;
+            }
+        }
+
+        return $groupes;
+    }
+
+    /**
      * Les routes qui exigent une habilitation nommée.
      *
      * @var array<string, string>
@@ -70,7 +190,6 @@ class Habilitations
         'admin.ventes.nouvelle'                      => 'nouvelle_vente',
         'admin.ventes.enregistrer'                   => 'nouvelle_vente',
         'admin.ventes.factures'                      => 'factures_vente',
-        'admin.ventes.historique'                    => 'historique_ventes',
         'admin.ventes.imprimer'                      => 'factures_vente',
         'admin.ventes.ticket'                        => 'factures_vente',
         // Le PDF veritable : meme piece, meme droit. Ce qui change est le
@@ -105,7 +224,6 @@ class Habilitations
         'admin.achats.nouveau'                       => 'nouvel_achat',
         'admin.achats.enregistrer'                   => 'nouvel_achat',
         'admin.achats.factures'                      => 'factures_achat',
-        'admin.achats.historique'                    => 'historique_achats',
         'admin.achats.imprimer'                      => 'factures_achat',
         'admin.achats.pdf'                           => 'factures_achat',
         'admin.achats.bapa'                          => 'factures_achat',
@@ -324,8 +442,6 @@ class Habilitations
         'admin.fne.schedule_batch'      => 'factures_vente',
         'admin.fne.config'              => 'gestion_pdv',
         'admin.fne.config.sauvegarder'  => 'gestion_pdv',
-        'admin.fne.stickers'            => 'tresorerie_journal',
-        'admin.fne.stickers.acheter'    => 'tresorerie_journal',
         // Les pièces refusées par la plateforme se lisent avec les factures.
         'admin.fne.rejets'              => 'factures_vente',
         'admin.fne.rejets.diagnostiquer'=> 'factures_vente',

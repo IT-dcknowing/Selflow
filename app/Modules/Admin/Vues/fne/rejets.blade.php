@@ -441,7 +441,6 @@
             <a href="{{ route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']) }}" class="fne-tab"><i class="fas fa-inbox"></i> Factures
                 reçues</a>
         @endif
-        <a href="{{ route('admin.fne.stickers') }}" class="fne-tab"><i class="fas fa-stamp"></i> Stickers</a>
         <a href="{{ route('admin.fne.rejets') }}" class="fne-tab active"><i class="fas fa-triangle-exclamation"></i> Rejets
             @if($kpis['ouverts'] > 0)
                 <span

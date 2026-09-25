@@ -99,125 +99,17 @@
                         </label>
                     </div>
                     
-                    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;" id="habs-checkboxes-grid">
-                        @php
-                            $userHabs = $personnel->habilitations ?? [];
-                        @endphp
-                        <div>
-                            <div style="font-weight:600; font-size:11px; text-transform:uppercase; color:var(--text-2); margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">Tableau de bord</div>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="tableau_de_bord_personnel" @if(in_array('tableau_de_bord_personnel', $userHabs)) checked @endif> Tableau de bord personnel
-                            </label>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="tableau_de_bord_general" @if(in_array('tableau_de_bord_general', $userHabs)) checked @endif> Tableau de bord général
-                            </label>
-                        </div>
-
-                        <div>
-                            <div style="font-weight:600; font-size:11px; text-transform:uppercase; color:var(--text-2); margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">Ventes</div>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="nouvelle_vente" @if(in_array('nouvelle_vente', $userHabs)) checked @endif> Nouvelle vente
-                            </label>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="factures_vente" @if(in_array('factures_vente', $userHabs)) checked @endif> Factures vente
-                            </label>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="historique_ventes" @if(in_array('historique_ventes', $userHabs)) checked @endif> Historique des ventes
-                            </label>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="production_recettes" @if(in_array('production_recettes', $userHabs)) checked @endif> Recettes (Fiches techniques)
-                            </label>
-                        </div>
-
-                        <div>
-                            <div style="font-weight:600; font-size:11px; text-transform:uppercase; color:var(--text-2); margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">Achats</div>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="nouvel_achat" @if(in_array('nouvel_achat', $userHabs)) checked @endif> Nouvel achat
-                            </label>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="factures_achat" @if(in_array('factures_achat', $userHabs)) checked @endif> Factures achat
-                            </label>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="historique_achats" @if(in_array('historique_achats', $userHabs)) checked @endif> Historique des achats
-                            </label>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="production_ordres" @if(in_array('production_ordres', $userHabs)) checked @endif> Ordres de production
-                            </label>
-                        </div>
-
-                        <div>
-                            <div style="font-weight:600; font-size:11px; text-transform:uppercase; color:var(--text-2); margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">Stock</div>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="stock_articles" @if(in_array('stock_articles', $userHabs)) checked @endif> Articles & stock
-                            </label>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="stock_mouvements" @if(in_array('stock_mouvements', $userHabs)) checked @endif> Mouvements stock
-                            </label>
-                        </div>
-
-                        <div>
-                        <div style="font-weight:600; font-size:11px; text-transform:uppercase; color:var(--text-2); margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">Comptabilité</div>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="tresorerie_encaissements" @if(in_array('tresorerie_encaissements', $userHabs)) checked @endif> Encaissements
-                            </label>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="tresorerie_decaissements" @if(in_array('tresorerie_decaissements', $userHabs)) checked @endif> Décaissements
-                            </label>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="tresorerie_journal" @if(in_array('tresorerie_journal', $userHabs)) checked @endif> Solde & journal
-                            </label>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="tresorerie_codes_journaux" @if(in_array('tresorerie_codes_journaux', $userHabs)) checked @endif> Codes Journaux
-                            </label>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="comptabilite_globale" @if(in_array('comptabilite_globale', $userHabs)) checked @endif> Opération & écriture globale
-                            </label>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="comptabilite_creances" @if(in_array('comptabilite_creances', $userHabs)) checked @endif> Créances & règlements
-                            </label>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="comptabilite_plan_comptable" @if(in_array('comptabilite_plan_comptable', $userHabs)) checked @endif> Plan Comptable
-                            </label>
-                        </div>
-
-                        <div>
-                        <div style="font-weight:600; font-size:11px; text-transform:uppercase; color:var(--text-2); margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">Points de vente</div>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="gestion_pdv" @if(in_array('gestion_pdv', $userHabs)) checked @endif> Points de vente
-                            </label>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="gestion_personnel" @if(in_array('gestion_personnel', $userHabs)) checked @endif> Personnels & accès
-                            </label>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="gestion_habilitations" @if(in_array('gestion_habilitations', $userHabs)) checked @endif> Habilitations
-                            </label>
-                        </div>
-
-                        <div>
-                            <div style="font-weight:600; font-size:11px; text-transform:uppercase; color:var(--text-2); margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">Produits</div>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="catalogue_produits" @if(in_array('catalogue_produits', $userHabs)) checked @endif> Produits
-                            </label>
-                            </div>
-
-                        <div>
-                            <div style="font-weight:600; font-size:11px; text-transform:uppercase; color:var(--text-2); margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">Tiers</div>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="tiers_clients" @if(in_array('tiers_clients', $userHabs)) checked @endif> Clients
-                            </label>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="tiers_fournisseurs" @if(in_array('tiers_fournisseurs', $userHabs)) checked @endif> Fournisseurs
-                            </label>
-                        </div>
-
-                        <div>
-                            <div style="font-weight:600; font-size:11px; text-transform:uppercase; color:var(--text-2); margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:3px;">Rapports</div>
-                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
-                                <input type="checkbox" name="habilitations[]" value="rapports_analyse" @if(in_array('rapports_analyse', $userHabs)) checked @endif> Analyse d'activité
-                            </label>
-                        </div>
+                    {{-- Les cases viennent du catalogue, et seuls les modules
+                         du dossier y figurent. Elles etaient ecrites en dur ici
+                         ET dans l'ecran de creation : un droit ajoute d'un cote
+                         manquait de l'autre. --}}
+                    <div id="habs-checkboxes-grid">
+                        @include('admin::personnel.partials.cases-habilitations', [
+                            'entreprise' => auth()->user()->entreprise,
+                            'accordees'  => $personnel->habilitations ?? [],
+                        ])
                     </div>
-                    
+
                     <div id="admin-notice" style="display:none; color:var(--info); font-size:12.5px; font-weight:500;">
                         <i class="fas fa-circle-info"></i> Les administrateurs disposent de tous les privilèges et accès par défaut. Il n'est pas nécessaire de configurer individuellement leurs habilitations.
                     </div>

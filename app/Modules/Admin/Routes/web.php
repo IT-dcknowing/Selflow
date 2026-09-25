@@ -223,11 +223,15 @@ Route::prefix('admin')
             Route::get('/situation/donnees', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'situationJson'])->name('situation.donnees');
             Route::get('/factures', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'factures'])->name('factures');
             Route::get('/factures/donnees', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'facturesJson'])->name('factures.donnees');
-            // ── Gestion des Stickers ──
-            Route::get('/stickers', [\App\Modules\Admin\Controleurs\StickerControleur::class, 'index'])->name('stickers');
-            // Un achat de stickers engage la trésorerie de l'entreprise et
-            // appelle la plateforme : le répéter coûte de l'argent.
-            Route::post('/stickers/acheter', [\App\Modules\Admin\Controleurs\StickerControleur::class, 'acheter'])->middleware('throttle:plateforme')->name('stickers.acheter');
+            // L'ecran des stickers a ete retire le 25/09/2026, a la demande du
+            // proprietaire : « Gestion FNE » porte deja le solde, la provision
+            // et les alertes, et « Factures & Recus emis/recus » porte le reste.
+            //
+            // L'achat par Mobile Money part avec lui -- « plus pris en compte ».
+            // Ce n'etait de toute facon pas Selflow qui vendait les vignettes :
+            // l'achat se fait sur l'espace FNE de l'entreprise, et l'ecran ne
+            // faisait qu'en tenir un journal parallele.
+
             // ── Configuration Fiscale (TVA / TSE / TDT) ──
             Route::get('/config', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'obtenirConfig'])->name('config');
             Route::post('/config', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'sauvegarderConfig'])->name('config.sauvegarder');

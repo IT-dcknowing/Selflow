@@ -226,22 +226,13 @@ class AchatApiControleur
         ]);
     }
 
-    /**
-     * Historique des achats.
+    /*
+     * `historique()` vivait ici. Retiree le 25/09/2026 : elle doublait
+     * `factures()` sans rien apporter, aucun ecran ne l'appelait, et son
+     * droit `historique_achats` n'etait propose nulle part -- si bien que
+     * l'adresse restait fermee a tous sauf a l'administrateur.
      */
-    public function historique(Request $request): JsonResponse
-    {
-        $entreprise = Auth::user()->entreprise;
-        $achats = Achat::with(['fournisseur', 'pointDeVente'])
-            ->whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entreprise->id))
-            ->latest()
-            ->paginate(30);
 
-        return response()->json([
-            'statut' => 'succes',
-            'achats' => $achats
-        ]);
-    }
 
     /**
      * Détail d'une facture d'achat.

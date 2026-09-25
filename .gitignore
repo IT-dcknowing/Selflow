@@ -56,6 +56,11 @@ image2.png
 # l'ordre des corrections. Il vaut pour la suite du travail, pas seulement pour
 # la session qui l'a ecrit — la regle `*.txt` l'aurait laisse sur ce poste.
 !ETATS DES LIEUX.txt
+# L'etat de la liaison et du deversement Comptaflow, ecrit le 25/09/2026 par
+# lecture des deux depots. La regle `*.txt` l'avait laisse sur le seul poste
+# qui l'avait ecrit : le document qui explique pourquoi le deversement ne
+# marche pas n'etait pas la ou l'on va chercher le deversement.
+!ETAT-LIAISON-ET-DEVERSEMENT-COMPTAFLOW.txt
 
 # Le scraper du portail : le code voyage avec le depot, jamais ses acces.
 # Ces trois regles viennent apres les exceptions ci-dessus, donc elles gagnent.

@@ -175,9 +175,15 @@ class LimitesDeDebitTest extends TestCase
     {
         // La marteler expose l'entreprise à voir sa propre clé ralentie ou
         // coupée par la DGI : la conséquence est chez elle, pas chez nous.
+        // `admin.fne.stickers.acheter` figurait ici. L'écran des stickers a été
+        // retiré le 25/09/2026 : ce n'était pas Selflow qui vendait les
+        // vignettes, et il n'en tenait qu'un journal parallèle.
         foreach (['admin.fne.batch_normaliser', 'admin.fne.schedule_batch',
-                  'admin.fne.stickers.acheter', 'admin.entreprise.fne.tester_connexion',
-                  'admin.entreprise.comptaflow.sync_real'] as $nom) {
+                  'admin.entreprise.fne.tester_connexion',
+                  'admin.entreprise.comptaflow.sync_real',
+                  // Le déversement de l'historique appelle Comptaflow autant de
+                  // fois qu'il y a d'opérations : le marteler est aussi coûteux.
+                  'admin.entreprise.comptaflow.deverser'] as $nom) {
             $route = collect(Route::getRoutes())->first(fn ($r) => $r->getName() === $nom);
 
             $this->assertNotNull($route, "Route introuvable : {$nom}");

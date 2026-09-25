@@ -1,0 +1,296 @@
+================================================================================
+  SELFLOW <-> COMPTAFLOW
+  ETAT DE LA LIAISON ET DU DEVERSEMENT
+  Etabli le 25/09/2026, par lecture des deux depots
+  (c:\laragon\www\Selflow et c:\laragon\www\COMPTAFLOW, commit 9847e4a)
+================================================================================
+
+
+0. CE QUE CE DOCUMENT REPOND
+--------------------------------------------------------------------------------
+« Le deversement ne se fait pas correctement, il ne prend pas en compte la
+configuration de Comptaflow, il ne suit pas ses numerotations, ses regles, le
+couple ne vient pas normalement. »
+
+Les trois reproches sont fondes, mais ils ne portent pas sur la meme chose, et
+ils n'ont pas la meme cause. Ce document separe ce qui marche de ce qui ne
+marche pas, nomme chaque defaut, et dit ce qu'il faut faire.
+
+
+1. LES DEUX CHEMINS, ET POURQUOI UN SEUL EST BON
+--------------------------------------------------------------------------------
+Il n'y a pas UN deversement, il y en a DEUX, et ils ne se ressemblent pas.
+
+  CHEMIN A - LE REFERENTIEL (plan comptable, journaux, tiers)
+  Selflow  : DeversementReferentielService -> POST /api/external/referentiel/deverser
+  Comptaflow : ExternalSyncController::deverserReferentiel
+               -> cree une session d'import
+               -> ImportCommitJob::dispatchSync()
+
+  >>> CE CHEMIN EST BON. <<<
+  Il passe par le MODULE D'IMPORT de Comptaflow. C'est donc la configuration
+  de Comptaflow qui s'applique : nombre de chiffres du compte
+  (`account_digits`), nombre de caracteres du code journal
+  (`journal_code_digits`), regles de normalisation
+  (`standardizeAccountNumber`, `standardizeJournalCode`), regeneration des
+  numeros de tiers. Le numero de Selflow est range dans `numero_original`,
+  SOUS celui que Comptaflow a donne.
+
+  C'est exactement ce que vous demandez : « branche le module import, laisse
+  Comptaflow faire le reste ». Pour le referentiel, c'est deja fait.
+
+
+  CHEMIN B - LES ECRITURES
+  Selflow  : Job DeverserEcritureComptaflow -> POST /api/external/ecritures/deverser
+  Comptaflow : ExternalSyncController::deverserEcritures
+               -> ecrit directement dans `ecritures_comptables`
+
+  >>> CE CHEMIN NE PASSE PAS PAR L'IMPORT. <<<
+  Il ecrit en base sans passer par ImportCommitJob. Il retrouve les comptes,
+  journaux et tiers par `UniformisationImport`, qui lit `numero_original` -
+  donc il RETROUVE bien ce que l'import a cree. Mais quand il ne trouve pas,
+  il ne se comporte pas comme l'import :
+
+    - COMPTE INCONNU  -> il le CREE a la volee (`compteGeneral()`), avec un
+                         `type_de_compte` devine d'apres la classe et un
+                         intitule pris du libelle de l'ecriture. L'import,
+                         lui, aurait applique les regles du modele de plan
+                         du dossier ;
+    - JOURNAL INCONNU -> il REFUSE la ligne. Rien n'est cree ;
+    - TIERS INCONNU   -> l'ecriture se rattache au seul compte general, et le
+                         releve du client devient impossible.
+
+  C'est la source de « il ne suit pas ses numerotations, ses regles ».
+
+
+2. LE COUPLE QUI NE VIENT PAS - LE DEFAUT LE PLUS GRAVE
+--------------------------------------------------------------------------------
+CONSTAT : une operation de Selflow est un ENSEMBLE EQUILIBRE de lignes.
+Une facture de vente en produit quatre ou cinq :
+
+    411xxx  Client            debit  59 000
+    701xxx  Vente                      credit 50 000
+    443xxx  TVA collectee              credit  9 000
+    (+ taxes, + timbre le cas echeant)
+
+Chaque ligne porte UN compte et UN sens - c'est la forme correcte, et c'est
+celle que Comptaflow attend. Jusque-la, tout va bien.
+
+MAIS : `EcritureComptable::created()` (Selflow, modele, ligne 44) lance
+`DeverserEcritureComptaflow::dispatch($ecriture)` LIGNE PAR LIGNE. Chaque
+ligne part dans son propre travail, dans son propre appel HTTP.
+
+CONSEQUENCES, et c'est exactement « le couple ne vient pas normalement » :
+
+  a) UNE OPERATION PEUT ARRIVER A MOITIE. Si la ligne 411 passe et que la
+     ligne 701 est refusee - journal inconnu, exercice en desaccord (409),
+     coupure reseau - Comptaflow garde un debit sans son credit. Sa balance
+     ne balance plus, et RIEN ne recolle les morceaux : chaque ligne ignore
+     l'existence des autres.
+
+  b) LE DEPART EST TROP TOT. Le travail part sur `created`, donc AVANT que
+     `Operation::cloturerEquilibre()` ait verifie l'equilibre, et avant la
+     fin de la transaction. Si la transaction echoue ensuite, Comptaflow
+     detient une ecriture que Selflow n'a pas.
+
+  c) L'ORDRE N'EST PAS GARANTI. Le referentiel part dans son propre travail.
+     Rien n'impose qu'il arrive AVANT la premiere ecriture. Une entreprise
+     dont le referentiel n'est pas encore passe voit toutes ses ecritures
+     refusees sur « journal inconnu ».
+
+CE QUI EXISTE DEJA, ET QUI SAUVE LA SITUATION A MOITIE :
+  - `cle_selflow` = SELFLOW-<entreprise>-<ecriture> : un renvoi ne duplique
+    pas. L'idempotence est correcte ;
+  - `comptaflow_sync_status` sur chaque ecriture (pending/synced/failed) ;
+  - la commande `selflow:sync-ecritures` rejoue les `pending` et `failed`,
+    toutes les 5 minutes par le planificateur.
+  Donc une ligne refusee finit par passer - SI la cause disparait. Si le
+  journal reste inconnu, elle est refusee pour toujours, en silence.
+
+
+3. L'EXERCICE
+--------------------------------------------------------------------------------
+CE QUI MARCHE :
+  - a l'ouverture du dossier, `LiaisonComptaflowService::dossier()` envoie
+    l'exercice ACTIF de Selflow (`exercice.debut`, `.fin`, `.libelle`).
+    Comptaflow le cree. C'est bien ce que vous demandez : a la premiere
+    creation, l'exercice pris est celui de Selflow ;
+  - a chaque deversement d'ecriture, `exercice_debut` et `exercice_fin` sont
+    envoyes, et Comptaflow REFUSE en 409 (Conflict - conflit) si son exercice
+    actif ne correspond pas. Les deux balances ne peuvent plus diverger en
+    silence.
+
+CE QUI MANQUE :
+  - SI SELFLOW N'A PAS D'EXERCICE ACTIF au moment de la liaison, le dossier
+    nait SANS exercice et Comptaflow refuse toutes les ecritures en 422
+    (Unprocessable Content). Le code le dit lui-meme : cinq des huit dossiers
+    de Comptaflow etaient dans ce cas ;
+  - AUCUNE BASCULE AUTOMATIQUE D'ANNEE. Au 1er janvier, personne ne cree le
+    nouvel exercice - ni chez Selflow, ni chez Comptaflow. Les ecritures de
+    la nouvelle annee tomberont sur l'exercice de l'ancienne, ou seront
+    refusees en 409. C'est ce que vous demandez d'automatiser, et ce n'est
+    pas fait.
+
+
+4. LE DECLENCHEMENT - IL N'Y A PAS DE BOUTON
+--------------------------------------------------------------------------------
+Aujourd'hui, le deversement ne se declenche que de deux facons :
+  - automatiquement, ecriture par ecriture, a la creation ;
+  - par la commande `selflow:sync-ecritures`, en ligne de commande.
+
+IL N'EXISTE AUCUN BOUTON « Lancer le deversement » dans les parametres de
+l'entreprise. Une entreprise qui vient d'etre liee n'a aucun moyen, depuis
+l'ecran, de dire « envoie tout ce que j'ai deja ». Son historique reste chez
+elle : seules les ecritures creees APRES la liaison partent.
+
+C'est ce que vous demandez d'ajouter, avec la confirmation qui avertit de
+verifier d'abord la configuration de Comptaflow.
+
+
+5. CE QU'IL FAUT FAIRE - PAR ORDRE
+--------------------------------------------------------------------------------
+  1. DEVERSER PAR OPERATION, ET NON PAR LIGNE.
+     Remplacer le `dispatch` sur `EcritureComptable::created` par un depart
+     sur la CLOTURE de l'operation (`Operation::cloturerEquilibre()`), qui
+     envoie TOUTES ses lignes dans UN SEUL appel - l'API accepte deja un
+     tableau `ecritures`. Cote Comptaflow, refuser l'operation ENTIERE si une
+     seule de ses lignes est refusee : mieux vaut une operation absente
+     qu'une operation boiteuse.
+     >>> C'est la correction de « le couple ne vient pas normalement ». <<<
+
+  2. FAIRE PASSER LES ECRITURES PAR L'IMPORT, comme le referentiel.
+     `deverserEcritures` doit construire une session d'import et appeler
+     `ImportCommitJob`, au lieu d'ecrire en base et de creer des comptes a la
+     volee. C'est la seule facon que la configuration de Comptaflow
+     s'applique aux ecritures comme elle s'applique deja au referentiel.
+     >>> C'est la correction de « il ne suit pas ses numerotations ». <<<
+
+  3. ORDONNER : referentiel d'abord, ecritures ensuite.
+     Tant que le referentiel d'une entreprise n'est pas passe, retenir ses
+     ecritures au lieu de les envoyer se faire refuser.
+
+  4. LE BOUTON « LANCER LE DEVERSEMENT » dans les parametres de l'entreprise,
+     visible une fois la liaison active. Confirmation : « verifiez d'abord la
+     configuration de Comptaflow (modele de plan, de tiers, de journaux) ;
+     sans quoi la configuration actuelle sera utilisee. » Puis : referentiel,
+     puis tout l'historique, puis un compte rendu a l'ecran.
+
+  5. LA BASCULE D'EXERCICE, des deux cotes, sans intervention.
+     Au passage d'annee, Selflow cree son exercice suivant ; le deversement
+     cree le meme chez Comptaflow s'il n'existe pas. Les ecritures de
+     l'ancienne annee restent dans l'ancien exercice, des deux cotes.
+
+  6. NE PLUS SE TAIRE. Un refus definitif - journal inconnu, exercice en
+     desaccord - doit remonter a l'ecran de l'entreprise, pas seulement dans
+     un journal que personne ne lit.
+
+
+6. CE QUI EST DEJA BON, ET QU'IL NE FAUT PAS DEFAIRE
+--------------------------------------------------------------------------------
+  - Le referentiel passe par l'import et respecte la configuration ;
+  - `numero_original` fait le lien entre les deux conventions, dans les deux
+    sens, pour les comptes, les journaux et les tiers ;
+  - l'idempotence par `cle_selflow` : un renvoi ne duplique rien ;
+  - le refus en 409 quand les exercices ne correspondent pas ;
+  - le compte de tiers (`compte_tiers`) est transmis : le releve d'un client
+    particulier reste possible ;
+  - le point de vente est transmis comme axe analytique ;
+  - « ne rien ecraser » : ce que le comptable a saisi chez Comptaflow fait
+    foi, et rien n'y est jamais supprime par Selflow ;
+  - la cle de dossier, sa rotation mensuelle, et la revocation.
+
+
+7. RESERVE DE SECURITE, DEJA SIGNALEE ET TOUJOURS OUVERTE
+--------------------------------------------------------------------------------
+  - `selflow-comptaflow-secret-2026` a circule en clair. Il doit etre change
+    dans les deux `.env` avant toute mise en service ;
+  - le depot Comptaflow versionne une cle d'API Gemini dans `.env.example` et
+    un `APP_KEY` reel dans `.env.example2`. A retirer du depot, et a revoquer
+    chez le fournisseur : ce qui entre dans l'historique d'un depot y reste.
+
+
+8. CE QUI A ETE CORRIGE LE 25/09/2026, DANS LA FOULEE DE CE DIAGNOSTIC
+--------------------------------------------------------------------------------
+  [FAIT] LE COUPLE ARRIVE ENTIER. Le deversement part desormais PAR OPERATION
+         et non plus ligne par ligne :
+           - `EcritureComptable::created` ne declenche plus rien ;
+           - `Operation::cloturerEquilibre()` lance
+             `DeverserOperationComptaflow` en `afterCommit()` - donc apres la
+             verification de l'equilibre ET apres la validation de la
+             transaction ;
+           - une operation DESEQUILIBREE ne part pas du tout : la deverser
+             porterait le desequilibre chez Comptaflow ;
+           - toutes les lignes voyagent dans UN SEUL appel, avec le drapeau
+             `atomique` ;
+           - cote Comptaflow, `deverserEcritures` annule TOUT (rollback) si une
+             seule ligne est refusee, et repond 422 en disant combien.
+         >>> C'est la correction de « le couple ne vient pas normalement ». <<<
+
+  [FAIT] LA REPRISE NE MUTILE PLUS LES ECRITURES. La commande
+         `selflow:sync-ecritures` batissait SA PROPRE charge utile, et trois
+         champs y manquaient :
+           - `cle_selflow` : aucune cle d'idempotence, donc un second passage
+             pouvait DUPLIQUER l'ecriture ;
+           - `compte_tiers` : l'ecriture retombait sur le compte collectif ;
+           - l'exercice : Comptaflow ne pouvait plus verifier l'accord.
+         Une ecriture partie par le chemin ordinaire arrivait complete, la meme
+         ecriture reprise arrivait amputee. La commande passe maintenant par le
+         meme travail que le deversement ordinaire.
+
+  [FAIT] LE BOUTON « LANCER LE DEVERSEMENT », dans les parametres de
+         l'entreprise, visible une fois la liaison active. Il affiche ce qui
+         reste a deverser, avertit par une confirmation qu'il faut d'abord
+         verifier la configuration de Comptaflow (modele de plan, de tiers, de
+         journaux), puis envoie le referentiel D'ABORD et les operations
+         ensuite - dans cet ordre, parce qu'une ecriture dont le journal n'est
+         pas encore connu serait refusee.
+         Il dit aussi ce qui ne partira pas : les operations desequilibrees.
+
+  [FAIT] L'ANCIEN TRAVAIL `DeverserEcritureComptaflow` est retire. Deux chemins
+         pour une meme chose, c'est un chemin de trop.
+
+
+9. CE QUI RESTE, ET QUI DEMANDE UN LOT A PART
+--------------------------------------------------------------------------------
+  [A FAIRE] FAIRE PASSER LES ECRITURES PAR LE MODULE D'IMPORT, comme le
+            referentiel le fait deja. Aujourd'hui `deverserEcritures` ecrit en
+            base et cree les comptes manquants a la volee : le compte nait avec
+            un type devine et un intitule pris du libelle de l'ecriture, au lieu
+            de suivre le modele de plan du dossier. C'est ce qui reste de « il
+            ne suit pas ses numerotations, ses regles ».
+            Le chantier : construire une session d'import et appeler
+            `ImportCommitJob`, cote Comptaflow, exactement comme
+            `deverserReferentiel` le fait.
+
+  [A FAIRE] L'ANALYTIQUE N'ARRIVE PAS. Selflow envoie `point_de_vente` avec
+            chaque ecriture, et son commentaire le presente comme « un axe
+            analytique et sa section ». Mais `deverserEcritures` NE LIT PAS ce
+            champ : il arrive et il tombe. Comptaflow possede pourtant
+            `AxeAnalytique`, `SectionAnalytique` et `VentilationAnalytique`,
+            remplis par son ecran de saisie et par son import - jamais par le
+            deversement. Les ventilations par magasin n'existent donc pas cote
+            Comptaflow. A traiter AVEC le passage par le module d'import, ou la
+            ventilation se pose naturellement.
+
+  [A FAIRE] LA BASCULE D'EXERCICE AUTOMATIQUE. Au passage d'annee, personne ne
+            cree le nouvel exercice - ni chez Selflow, ni chez Comptaflow. Il
+            faut : une tache planifiee qui ouvre l'exercice suivant chez
+            Selflow, et un deversement qui cree le meme chez Comptaflow s'il
+            n'existe pas. Les ecritures de l'ancienne annee restent dans
+            l'ancien exercice, des deux cotes.
+
+  [A FAIRE] REMONTER LES REFUS DEFINITIFS A L'ECRAN. Un journal inconnu ou un
+            desaccord d'exercice se consigne dans un journal que personne ne
+            lit. L'entreprise doit le voir. Le bouton affiche desormais le
+            nombre d'operations en echec : c'est un debut, pas la reponse.
+
+  [A DECIDER] LE RAPPROCHEMENT DES FACTURES RECUES. Question posee par le
+            proprietaire le 25/09/2026 : le rattachement manuel entre une
+            facture scrappee et un achat saisi est-il utile ? Aujourd'hui il ne
+            produit AUCUNE ecriture - il ecrit `achat_id` et rien d'autre.
+            La proposition : ne plus rapprocher deux saisies, mais faire du
+            portail la SOURCE - la facture recue porte deja le fournisseur, la
+            date, le HT, la TVA, le TTC et les lignes.
+
+================================================================================
+FIN

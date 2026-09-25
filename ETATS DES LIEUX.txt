@@ -448,5 +448,41 @@ RESTE A FAIRE - TROIS LOTS
      coeur du reproche sur le deversement.
   3. La bascule d'exercice automatique au passage d'annee, des deux cotes.
 
+
+9. LOT 34 - LES HABILITATIONS (25/09/2026)
+--------------------------------------------------------------------------------
+  [FAIT] Les habilitations ne proposent plus que les modules que l'entreprise
+         possede. Elles etaient ecrites en dur DEUX fois - ecran de creation et
+         fiche - et sans lien avec le dossier.
+  [FAIT] La production a son propre groupe. Ses fiches techniques etaient
+         rangees sous « Ventes » et ses ordres sous « Achats » ; le module
+         lui-meme ne figurait nulle part.
+  [FAIT] Le menu de la production se contredisait avec ses routes : il gardait
+         sur `catalogue_produits` et `stock_articles` la ou les routes exigent
+         `production_recettes` et `production_ordres`. Le module etait donc
+         inutilisable par tout autre qu'un administrateur - ce qui explique
+         qu'il n'ait jamais ete eprouve. Ses 16 epreuves passent.
+  [FAIT] `ventes/historique` et `achats/historique` retirees : elles doublaient
+         `/factures`, aucun ecran ne les appelait.
+  [FAIT] L'ecran des stickers retire, achat Mobile Money compris.
+  [FAIT] LES IMAGES EN PRODUCTION - la vraie cause. Toutes les adresses
+         d'image passaient par `APP_URL` (`config/filesystems.php`). Une
+         `APP_URL` fausse sur le serveur faisait pointer CHAQUE image vers une
+         machine inexistante pour le visiteur ; la page se chargeait, seules les
+         images manquaient. Les adresses sont desormais relatives a la racine.
+         NB : corriger `APP_URL` sur le serveur reste necessaire pour les
+         courriels et l'API mobile.
+
+REPONSE A UNE QUESTION
+  L'analytique NE SE FAIT PAS chez Comptaflow lors du deversement. Le champ
+  `point_de_vente` est envoye et n'est lu nulle part. Voir
+  ETAT-LIAISON-ET-DEVERSEMENT-COMPTAFLOW.txt, section 9.
+
+ORDRE ARRETE POUR LA SUITE
+  1. La refonte de /admin/fne/factures.
+  2. Le passage des ecritures par le module d'import de Comptaflow, AVEC la
+     ventilation analytique.
+  3. La bascule d'exercice automatique.
+
 ================================================================================
 FIN
