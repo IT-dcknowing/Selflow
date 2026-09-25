@@ -139,8 +139,13 @@
                     Modes de paiement
                 </div>
                 @if($repartitionPaiements->count())
-                    <div class="pie-wrap">
-                        <canvas id="chartPaiements" height="180"></canvas>
+                    {{-- Le beignet prenait toute la largeur de sa carte : le
+                         `height` du canvas ne vaut rien sans
+                         `maintainAspectRatio: false`, et Chart.js recalculait
+                         la hauteur sur la largeur du parent. D'où un graphique
+                         qui écrasait tout le reste de la page. --}}
+                    <div class="pie-wrap" style="position:relative; height:190px;">
+                        <canvas id="chartPaiements"></canvas>
                     </div>
                     <div class="pie-legend">
                         @foreach($repartitionPaiements as $i => $rp)
@@ -669,6 +674,7 @@
 
 /* ── Pie chart ── */
 .pie-wrap { display: flex; justify-content: center; margin-bottom: 12px; }
+.pie-wrap canvas { max-height: 190px; }
 .pie-legend { display: flex; flex-direction: column; gap: 6px; }
 .pie-legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
 .pie-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
@@ -760,6 +766,10 @@ if (ctxPay && repartitionPaiements.length) {
             }]
         },
         options: {
+            // Sans cela, la hauteur du cadre est ignoree et le graphique
+            // s'etire sur la largeur du parent.
+            responsive: true,
+            maintainAspectRatio: false,
             cutout: '68%',
             plugins: { legend: { display: false } },
             animation: { animateScale: true }

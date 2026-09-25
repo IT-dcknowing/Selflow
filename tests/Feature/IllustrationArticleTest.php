@@ -25,12 +25,18 @@ use Tests\TestCase;
  * marchandise que l'entreprise ne vend pas. La vraie photo passe toujours
  * devant.
  *
- * **Le 25/09/2026, le propriétaire a fait retirer le filigrane de l'écran de
- * caisse.** La même silhouette revenait sur des articles sans rapport, et la
- * grille en paraissait salie. Le dessin demeure au catalogue, où les cartes
- * sont grandes et où il se lit ; il ne se pose plus sur les cartes de caisse,
- * qui restent nettes quand l'article n'a pas de photo. La vraie photo, elle,
- * n'a pas bougé.
+ * **Le 25/09/2026, le propriétaire a fait retirer le filigrane.** D'abord de
+ * l'écran de caisse : la même silhouette revenait sur des articles sans
+ * rapport, et la grille en paraissait salie. Puis du catalogue le même jour,
+ * en constatant que les deux écrans ne se ressemblaient plus — « si c'est
+ * retiré là-bas, ici doit s'appliquer ».
+ *
+ * Un article sans photo garde donc un cadre net, avec l'icône d'un appareil
+ * photo qui dit ce qui manque. La vraie photo, elle, n'a pas bougé.
+ *
+ * `IllustrationArticleService` reste : il décide encore quel dessin
+ * correspondrait à un article, et les épreuves de ce choix restent ici. Ce qui
+ * a changé est qu'aucun écran ne s'en sert plus.
  */
 class IllustrationArticleTest extends TestCase
 {
@@ -218,13 +224,20 @@ class IllustrationArticleTest extends TestCase
         $this->assertStringNotContainsString('avec-dessin', $carte);
     }
 
-    public function test_le_catalogue_montre_le_dessin(): void
+    public function test_le_catalogue_ne_montre_plus_le_dessin(): void
     {
+        // Le retrait du 25/09/2026 ne visait que l'écran de caisse ; le
+        // propriétaire l'a étendu au catalogue le même jour, en constatant que
+        // les deux écrans ne se ressemblaient plus : « si c'est retiré là-bas,
+        // ici doit s'appliquer ». Un article sans photo garde un cadre net.
         $this->article('Imprimante HP430');
 
         $corps = $this->get(route('admin.produits.index'))->assertOk()->getContent();
 
-        $this->assertStringContainsString('images/articles/informatique.svg', $corps);
+        $this->assertStringNotContainsString('images/articles/informatique.svg', $corps);
+        // Et ce qui manque se dit, plutôt que de laisser un cadre vide sans
+        // explication.
+        $this->assertStringContainsString('fa-camera', $corps);
     }
 
     // ── Simulation d'attaque ─────────────────────────────────────────

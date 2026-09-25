@@ -122,6 +122,9 @@
                                 <input type="checkbox" name="habilitations[]" value="factures_vente" @if(in_array('factures_vente', $userHabs)) checked @endif> Factures vente
                             </label>
                             <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
+                                <input type="checkbox" name="habilitations[]" value="historique_ventes" @if(in_array('historique_ventes', $userHabs)) checked @endif> Historique des ventes
+                            </label>
+                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
                                 <input type="checkbox" name="habilitations[]" value="production_recettes" @if(in_array('production_recettes', $userHabs)) checked @endif> Recettes (Fiches techniques)
                             </label>
                         </div>
@@ -133,6 +136,9 @@
                             </label>
                             <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
                                 <input type="checkbox" name="habilitations[]" value="factures_achat" @if(in_array('factures_achat', $userHabs)) checked @endif> Factures achat
+                            </label>
+                            <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
+                                <input type="checkbox" name="habilitations[]" value="historique_achats" @if(in_array('historique_achats', $userHabs)) checked @endif> Historique des achats
                             </label>
                             <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
                                 <input type="checkbox" name="habilitations[]" value="production_ordres" @if(in_array('production_ordres', $userHabs)) checked @endif> Ordres de production

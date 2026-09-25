@@ -582,6 +582,39 @@
                     </div>
                 </div>
 
+                {{-- Les pièces refusées par la DGI. Elles vivaient dans le menu
+                     « Fiscalité & DGI », comme un écran qu'on visite. Ce n'en
+                     est pas un : c'est une alerte qu'on traite quand elle
+                     survient, et elle relève de la configuration DGI. --}}
+                @php
+                    $rejetsOuverts = \App\Modules\Admin\Modeles\FneRejet::where('entreprise_id', $entreprise->id)
+                        ->whereIn('statut', ['ouvert', 'diagnostique'])->count();
+                @endphp
+                <div class="card" style="padding:24px;">
+                    <div
+                        style="font-size:12px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+                        <span id="rejets" style="scroll-margin-top:90px;"></span><i class="fas fa-triangle-exclamation" style="color:var(--primary);"></i> Pièces refusées par la DGI
+                    </div>
+
+                    <div style="font-size:12px;color:var(--text-3);margin-bottom:14px;line-height:1.6;">
+                        Une pièce que la plateforme a examinée puis refusée. Tant que la cause
+                        n'est pas levée, elle ne repart pas — et le plus souvent, la cause est
+                        un point de vente qui ne porte pas le même nom des deux côtés.
+                        @if($rejetsOuverts > 0)
+                            <br><strong style="color:#c2410c;">{{ $rejetsOuverts }} pièce(s) attendent d'être traitées.</strong>
+                        @else
+                            <br><strong style="color:#15803d;">Aucune pièce en attente.</strong>
+                        @endif
+                    </div>
+
+                    <a href="{{ route('admin.fne.rejets') }}" class="btn btn-outline">
+                        <i class="fas fa-triangle-exclamation"></i> Voir les pièces refusées
+                        @if($rejetsOuverts > 0)
+                            <span style="background:#E53E3E;color:#fff;border-radius:20px;padding:1px 7px;font-size:10px;margin-left:6px;font-weight:700;">{{ $rejetsOuverts }}</span>
+                        @endif
+                    </a>
+                </div>
+
             </div>{{-- /colonne gauche --}}
 
             {{-- Colonne droite — ce que Selflow en fait : la plateforme FNE,

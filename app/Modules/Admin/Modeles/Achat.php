@@ -70,6 +70,31 @@ class Achat extends Model
     {
         static::addGlobalScope(new \App\Modules\Admin\Scopes\PeriodeScope('date_achat'));
 
+        /*
+         * La facture du portail que cet achat vient combler.
+         *
+         * Le relevé arrive souvent **avant** la saisie : le fournisseur
+         * certifie sa facture le jour même, le client l'enregistre le
+         * lendemain. La facture reçue attendait alors qu'on vienne la
+         * rattacher à la main.
+         *
+         * Elle se rattache désormais d'elle-même dans les deux sens : au
+         * relevé quand l'achat est déjà là, et ici quand c'est l'achat qui
+         * arrive en second.
+         *
+         * L'appel est **synchrone et dans la même transaction** : l'achat
+         * qu'on vient d'écrire y est visible, et si la transaction est annulée
+         * le rattachement l'est avec elle. Une file laisserait au contraire
+         * une facture rattachée à un achat qui n'existe plus.
+         */
+        static::created(function (self $achat) {
+            $entrepriseId = $achat->pointDeVente?->entreprise_id;
+
+            if ($entrepriseId) {
+                \App\Modules\Admin\Services\RapprochementAutomatiqueService::pourEntreprise($entrepriseId);
+            }
+        });
+
         static::creating(function ($model) {
             if (auth()->check()) {
                 $model->utilisateur_id = auth()->id();

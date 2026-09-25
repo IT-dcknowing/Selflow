@@ -6334,6 +6334,106 @@ vérifications**. `php artisan verifier:variables` : aucune variable lue sans
 avoir été écrite.
 
 
+### Lot 33 — Le rapprochement sans geste, et le ménage des écrans — **TERMINÉ le 25/09/2026**
+
+#### 33.1 Plus personne ne clique « Rattacher »
+
+Le relevé rapportait les factures que les fournisseurs ont certifiées au NCC de
+l'entreprise, et `rapprochementPropose()` cherchait déjà l'achat correspondant.
+Mais il **proposait** : il fallait cliquer, facture par facture.
+
+Le propriétaire l'a tranché : *« en réalité je veux aucune intervention
+manuelle de l'utilisateur si possible »*. `RapprochementAutomatiqueService`
+applique la proposition au lieu de l'afficher.
+
+| Ce qu'on trouve | Ce qu'on fait |
+|---|---|
+| Un achat, même fournisseur, même date, **même TTC** | rattaché, sans un mot |
+| Un achat, mais le TTC diffère | rattaché **et l'écart est écrit** — ce n'est pas une décision à prendre, c'est une anomalie à regarder |
+| Aucun achat en face | on ne touche à rien |
+
+**Le troisième cas ne crée pas l'achat**, et c'est une consigne explicite : faire
+du portail la source ne vaut *« que dans le cas où on n'enregistre pas »*. Tant
+qu'une entreprise saisit ses achats, en fabriquer un second depuis le relevé
+ferait le doublon que le rapprochement cherche justement à éviter.
+
+**Et le rapprochement joue dans les deux sens.** Le relevé arrive souvent avant
+la saisie — le fournisseur certifie le jour même, le client enregistre le
+lendemain — mais pas toujours : `Achat::booted()` rapproche aussi quand c'est
+l'achat qui arrive en second. L'appel est synchrone et dans la même
+transaction : l'achat qu'on vient d'écrire y est visible, et si la transaction
+est annulée le rattachement l'est avec elle.
+
+Ce qui reste intouchable : une facture **écartée** ne se rerange pas. C'est une
+décision humaine, et elle prime.
+
+#### 33.2 Deux droits que personne ne pouvait accorder
+
+`historique_ventes` et `historique_achats` étaient **exigés par leurs routes** et
+proposés par **aucune case** de l'écran des habilitations. Aucune entreprise ne
+pouvait les accorder à son personnel : les deux adresses restaient fermées à
+tous sauf à l'administrateur — alors que le superadmin, lui, les offrait depuis
+son propre écran.
+
+Une épreuve compare désormais `Habilitations::PAR_ROUTE` aux cases des deux
+écrans : un droit exigé et non proposé fait échouer la suite.
+
+#### 33.3 Le badge qui réclamait une configuration inexistante
+
+« Config. fiscale non définie », en orange, sur une entreprise au régime **TEE**.
+Or en CAS B — non-assujetti (TEE, TCE, RME) —, la TVA et la TSE sont grisées par
+la réglementation elle-même, et le timbre est décidé par la DGI à la
+normalisation. **Il ne reste aucun réglage à poser.** L'écran demandait
+d'enregistrer un formulaire où tout était déjà décidé.
+
+La catégorie se déduit du régime, qui est renseigné dans les paramètres : elle
+est donc toujours connue. Ce qui peut manquer, c'est un *choix*, et il n'y en a
+qu'en CAS A.
+
+#### 33.4 Le ménage des écrans
+
+- **« Factures reçues du portail » ne figure plus qu'une fois.** Elle était au
+  menu Fiscalité & DGI *et* aux Achats, pour le même endroit. Sa place est avec
+  les achats ;
+- **« Gestion des stickers » quitte le menu** : les mêmes chiffres que
+  « Gestion FNE ». *Réserve signalée au propriétaire* : la page porte aussi
+  l'achat de stickers et son historique, que « Gestion FNE » n'a pas. Elle est
+  retirée du menu, pas supprimée ;
+- **« Pièces refusées » passe dans les paramètres**, avec son compteur : ce
+  n'est pas un écran qu'on visite, c'est une alerte qu'on traite ;
+- **le dessin de remplacement quitte le catalogue**, comme il avait quitté
+  l'écran de caisse au lot 30. Le propriétaire l'a relevé : *« si c'est retiré
+  là-bas, ici doit s'appliquer »* ;
+- **le beignet des modes de paiement écrasait sa page.** Le `height` du canvas
+  ne vaut rien sans `maintainAspectRatio: false` : Chart.js recalculait la
+  hauteur sur la largeur du parent. Les quatre autres graphiques de l'écran
+  l'avaient ; celui-là était le seul à l'oublier.
+
+#### 33.5 Les images absentes en ligne — ce n'est pas un défaut
+
+Constaté par le propriétaire : les photos d'articles s'affichent en local et pas
+en ligne. Le code n'y est pour rien. `storage/app/public` est **ignoré par
+git** : les photos déposées n'ont jamais été transférées, et `git pull` ne les
+apportera pas. Elles se copient une fois, à la main, et `php artisan
+storage:link` doit avoir été passé sur le serveur.
+
+#### 33.6 Les épreuves
+
+| Fichier | Cas |
+|---|---|
+| `RapprochementSansGesteTest` | 7 — les trois règles, l'écartée qui reste écartée, la rattachée qui ne change pas d'achat, l'achat saisi après le relevé, et l'étanchéité entre entreprises |
+| `MenagesDesEcransTest` | 7 — l'entrée unique du portail, les stickers hors menu, les pièces refusées dans les paramètres, **tout droit exigé se propose**, les deux états du badge fiscal, et le catalogue sans dessin |
+
+`IllustrationArticleTest` et `ParametresEntrepriseTest` sont **repris** : le
+premier gardait la mémoire d'un dessin que le catalogue ne montre plus, le
+second veille à l'équilibre des deux colonnes — et les deux cartes ajoutées
+étaient tombées du même côté.
+
+Suite entière : **1 356 épreuves, 1 352 passantes, 4 sautées, 5 255
+vérifications**. `php artisan verifier:variables` : aucune variable lue sans
+avoir été écrite.
+
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

@@ -328,6 +328,14 @@
                         <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
                             <input type="checkbox" name="habilitations[]" value="factures_vente"> Factures vente
                         </label>
+                        {{-- L'historique etait exige par la route et propose
+                             nulle part : aucune entreprise ne pouvait
+                             l'accorder a son personnel, et l'adresse restait
+                             fermee a tous sauf a l'administrateur. Le superadmin
+                             l'offrait pourtant depuis son propre ecran. --}}
+                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
+                            <input type="checkbox" name="habilitations[]" value="historique_ventes"> Historique des ventes
+                        </label>
                         <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
                             <input type="checkbox" name="habilitations[]" value="production_recettes"> Recettes (Fiches techniques)
                         </label>
@@ -340,6 +348,9 @@
                         </label>
                         <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
                             <input type="checkbox" name="habilitations[]" value="factures_achat"> Factures achat
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
+                            <input type="checkbox" name="habilitations[]" value="historique_achats"> Historique des achats
                         </label>
                         <label style="display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:5px; cursor:pointer;">
                             <input type="checkbox" name="habilitations[]" value="production_ordres"> Ordres de production

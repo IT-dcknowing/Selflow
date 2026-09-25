@@ -297,12 +297,35 @@ class ImportFacturesRecuesService
 
                 $import->update(['lignes_importees' => $compte['total']]);
 
+                /*
+                 * Et on rapproche, sans demander.
+                 *
+                 * Le relevé proposait un rapprochement qu'il fallait accepter
+                 * facture par facture, d'un clic. Le propriétaire l'a tranché le
+                 * 25/09/2026 : aucune intervention manuelle. Une facture dont
+                 * l'achat est là se range toute seule ; une facture dont le
+                 * montant diffère se range aussi, mais l'écart est écrit ; une
+                 * facture sans achat en face attend, et ne demande rien.
+                 */
+                $rapproche = ['rapprochees' => 0, 'avec_ecart' => 0];
+
+                if ($entreprise) {
+                    $rapproche = \App\Modules\Admin\Services\RapprochementAutomatiqueService::pourEntreprise($entreprise->id);
+                }
+
                 $message = sprintf(
-                    '%d facture(s) : %d nouvelle(s), %d mise(s) à jour.%s',
+                    '%d facture(s) : %d nouvelle(s), %d mise(s) à jour.%s%s',
                     $compte['total'],
                     $compte['creees'],
                     $compte['modifiees'],
-                    $entreprise ? " Rattaché à {$entreprise->nom}." : " NCC {$login} inconnu : conservé sans rattachement."
+                    $entreprise ? " Rattaché à {$entreprise->nom}." : " NCC {$login} inconnu : conservé sans rattachement.",
+                    $rapproche['rapprochees'] > 0
+                        ? sprintf(
+                            ' %d rapprochée(s) automatiquement%s.',
+                            $rapproche['rapprochees'],
+                            $rapproche['avec_ecart'] > 0 ? ", dont {$rapproche['avec_ecart']} avec un écart de montant" : ''
+                        )
+                        : ''
                 );
 
                 return $this->resultat($nom, 'importe', $message, $import->id, $compte['total']);

@@ -737,11 +737,17 @@
             <a href="{{ route('admin.achats.factures') }}" class="nav-item {{ request()->routeIs('admin.achats.factures') && !request()->has('type') ? 'active' : '' }}">
                 <i class="fas fa-file-invoice-dollar"></i> Factures achat
             </a>
-            {{-- « Avoirs fournisseurs » et « Factures reçues (portail FNE) »
-                 ont quitté le menu le 25/09/2026. Le premier n'aurait jamais dû
-                 exister : un acheteur n'établit pas l'avoir de son fournisseur.
-                 Le second montrait ce que la section « Factures achat DGI » de
-                 l'écran des factures d'achat porte désormais. --}}
+            {{-- « Avoirs fournisseurs » a quitté le menu le 25/09/2026 : il
+                 n'aurait jamais dû exister, un acheteur n'établit pas l'avoir
+                 de son fournisseur.
+
+                 « Factures reçues du portail » reste, **et une seule fois** :
+                 elle figurait aussi sous Fiscalité & DGI, et les deux menaient
+                 au même endroit. Sa place est ici, avec les achats. --}}
+            <a href="{{ route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']) }}"
+               class="nav-item {{ request()->routeIs('admin.achats.factures') && request('section') === 'dgi' ? 'active' : '' }}">
+                <i class="fas fa-inbox"></i> Factures re&ccedil;ues (portail FNE)
+            </a>
             @endif
 
             @if(auth()->user()->aHabilitation('nouvel_achat'))
@@ -858,34 +864,19 @@
             <a href="{{ route('admin.fne.factures') }}" class="nav-item {{ request()->routeIs('admin.fne.factures') ? 'active' : '' }}">
                 <i class="fas fa-receipt"></i> Factures &amp; Reçus émis/reçus
             </a>
-            @if(in_array('achats', $modulesActifs))
-            {{-- L'ecran separe des factures recues a ete retire le 25/09/2026 :
-                 la section « Factures achat DGI » de l'ecran des factures
-                 d'achat les porte toutes, avec les memes gestes. --}}
-            <a href="{{ route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']) }}" class="nav-item">
-                <i class="fas fa-inbox"></i> Factures re&ccedil;ues du portail
-            </a>
-            @endif
-            <a href="{{ route('admin.fne.stickers') }}" class="nav-item {{ request()->routeIs('admin.fne.stickers') ? 'active' : '' }}">
-                <i class="fas fa-ticket"></i> Gestion des stickers
-            </a>
-            @php
-                // Le compte des pièces refusées se lit ici et non dans un
-                // composeur de vue : le gabarit calcule déjà le reste de sa barre
-                // de la même façon. L'index (entreprise_id, statut) rend le
-                // décompte négligeable, et sans ce chiffre un refus survenu la
-                // nuit n'appellerait personne — l'écran ne se visite pas au hasard.
-                $rejetsFneOuverts = $entreprise
-                    ? \App\Modules\Admin\Modeles\FneRejet::where('entreprise_id', $entreprise->id)
-                        ->whereIn('statut', ['ouvert', 'diagnostique'])->count()
-                    : 0;
-            @endphp
-            <a href="{{ route('admin.fne.rejets') }}" class="nav-item {{ request()->routeIs('admin.fne.rejets') ? 'active' : '' }}">
-                <i class="fas fa-triangle-exclamation"></i> Pièces refusées
-                @if($rejetsFneOuverts > 0)
-                <span style="background:#E53E3E;color:#fff;border-radius:20px;padding:1px 7px;font-size:10px;margin-left:6px;font-weight:700;">{{ $rejetsFneOuverts }}</span>
-                @endif
-            </a>
+            {{-- « Factures reçues du portail » a quitté ce menu le 25/09/2026 :
+                 il menait à la section « Factures achat DGI » de l'écran des
+                 factures d'achat, que le menu Achats porte déjà. Deux entrées
+                 pour une même liste.
+
+                 « Gestion des stickers » aussi : l'écran « Gestion FNE » porte
+                 le solde, la provision et les alertes. Un second écran pour les
+                 mêmes chiffres invite à les comparer, et ils ne peuvent que
+                 concorder. --}}
+            {{-- « Pièces refusées » a quitté ce menu : ce n'est pas un écran
+                 qu'on visite, c'est une alerte qu'on traite quand elle survient.
+                 Elle vit dans les paramètres de l'entreprise, avec la
+                 configuration DGI dont elle relève. --}}
             @endif
 
             <!-- 6. Points de vente (Inclus Personnel & Habilitations) -->

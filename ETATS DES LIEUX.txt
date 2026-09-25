@@ -409,5 +409,44 @@ ECART ASSUME, A TRANCHER PAR LE PROPRIETAIRE
   retirer aurait supprime le rapprochement en meme temps que l'ecran.
   Dites-le si vous voulez qu'ils partent quand meme.
 
+
+8. LOT 33 - LE RAPPROCHEMENT SANS GESTE (25/09/2026)
+--------------------------------------------------------------------------------
+  [FAIT] Le rapprochement des factures recues du portail se fait tout seul,
+         dans les deux sens : au releve quand l'achat est deja la, et a la
+         saisie de l'achat quand c'est lui qui arrive en second. Trois regles :
+         correspondance exacte -> rattache sans un mot ; ecart de montant ->
+         rattache ET l'ecart est ecrit ; aucun achat en face -> on ne touche a
+         rien. Une facture ecartee reste ecartee : c'est une decision humaine.
+  [FAIT] Deux droits - `historique_ventes` et `historique_achats` - etaient
+         exiges par leurs routes et proposes par AUCUNE case : aucune
+         entreprise ne pouvait les accorder a son personnel. Une epreuve
+         compare desormais les routes aux cases.
+  [FAIT] Le badge « Config. fiscale non definie » reclamait une configuration
+         qui n'avait rien a configurer : en CAS B, tout est decide par la
+         reglementation et par la DGI.
+  [FAIT] Menage des ecrans : une seule entree pour les factures du portail,
+         les stickers hors menu, les pieces refusees dans les parametres, le
+         dessin retire du catalogue, le beignet des modes de paiement ramene a
+         sa taille.
+
+CE QUI N'EST PAS UN DEFAUT
+  Les photos d'articles absentes en ligne : `storage/app/public` est ignore par
+  git. Les fichiers deposes n'ont jamais ete transferes, et `git pull` ne les
+  apportera pas. A copier une fois a la main ; verifier aussi que
+  `php artisan storage:link` a ete passe sur le serveur.
+
+RESERVE SIGNALEE, A TRANCHER
+  « Gestion des stickers » est retiree du MENU mais la page reste : elle porte
+  aussi l'achat de stickers et son historique, que « Gestion FNE » n'a pas. La
+  supprimer ferait perdre ces deux capacites.
+
+RESTE A FAIRE - TROIS LOTS
+  1. La refonte de /admin/fne/factures (sections ventes / avoirs / achats /
+     BAPA, retrait des recus comptant, mise a jour des tableaux).
+  2. Le passage des ecritures par le module d'import de Comptaflow - c'est le
+     coeur du reproche sur le deversement.
+  3. La bascule d'exercice automatique au passage d'annee, des deux cotes.
+
 ================================================================================
 FIN

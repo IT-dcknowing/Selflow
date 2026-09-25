@@ -80,13 +80,22 @@
             onclick="window.location='{{ route('admin.produits.fiche', $p) }}'">
 
             {{-- Photo --}}
-            @php $illustre = $p->photoReelle() === null; @endphp
+            @php $photoReelle = $p->photoReelle(); @endphp
             <div style="height:140px; background:var(--bg3); position:relative; overflow:hidden;">
-                {{-- Une photo remplit le cadre ; un dessin au trait étiré se
-                     déforme. Il tient donc sa place, centré, sans recadrage. --}}
-                <img src="{{ $p->photo_url }}" alt="{{ $p->nom }}"
-                    style="width:100%; height:100%; object-fit:{{ $illustre ? 'contain' : 'cover' }}; {{ $illustre ? 'padding:22px;' : '' }}"
-                    onerror="this.src='{{ $p->illustration() }}'; this.style.objectFit='contain'; this.style.padding='22px';">
+                {{-- Le dessin de remplacement a été retiré ici comme il l'a été
+                     de l'écran de caisse au lot 30 : la même silhouette revenait
+                     sur des articles sans rapport. Un article sans photo garde
+                     un cadre net, avec l'icône de son appareil photo qui dit ce
+                     qui manque. --}}
+                @if($photoReelle)
+                    <img src="{{ $photoReelle }}" alt="{{ $p->nom }}"
+                         style="width:100%; height:100%; object-fit:cover;"
+                         onerror="this.closest('div').classList.add('sans-photo'); this.remove();">
+                @else
+                    <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:var(--text-3); font-size:26px;">
+                        <i class="fas fa-camera" style="opacity:.25;"></i>
+                    </div>
+                @endif
                 {{-- Badge type --}}
                 @php
                     $typeColors = [
