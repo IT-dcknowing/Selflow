@@ -286,8 +286,13 @@
                  une page HTML autonome, faute de moteur PDF dans
                  l'application : dompdf a ete installe le 25/09/2026, et le
                  bouton remet desormais un `.pdf`. --}}
-            <a class="print-btn" href="{{ route($prefixeRoutePdf . '.ventes.pdf', $vente) }}"
-               title="Enregistrer le document au format PDF.">
+            {{-- L'adresse porte le modele actif : elle se reecrit a chaque
+                 changement d'onglet (voir `setModel`). On telechargeait
+                 toujours le premier modele, quel que soit celui qu'on
+                 regardait. --}}
+            <a class="print-btn" id="lien-pdf" data-base="{{ route($prefixeRoutePdf . '.ventes.pdf', $vente) }}"
+               href="{{ route($prefixeRoutePdf . '.ventes.pdf', $vente) }}?modele=1"
+               title="Enregistrer le document au format PDF, dans le modele affiche.">
                 <i class="fas fa-download"></i> Télécharger le PDF
             </a>
             <button class="print-btn main" onclick="telechargerPdf()"
@@ -1783,6 +1788,11 @@ function render() {
 
 function setModel(n, el) {
     curModel = n;
+
+    // Le telechargement suit ce qu'on regarde.
+    var lien = document.getElementById('lien-pdf');
+    if (lien) lien.href = lien.dataset.base + '?modele=' + n;
+
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('act'));
     el.classList.add('act');
     render();

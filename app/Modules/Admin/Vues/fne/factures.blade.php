@@ -44,15 +44,26 @@
     <button id="btn-flux-achats" onclick="changerFlux('achats')"><i class="fas fa-arrow-up" style="color:#ef4444;"></i> Achats</button>
 </div>
 
+{{-- L'onglet « Reçus (comptant) » est parti le 25/09/2026 : le reçu n'est
+     plus une pièce distincte depuis le lot 30, c'est la facture mise en page
+     pour le ticket. Un onglet pour lui aurait montré la même pièce deux fois.
+     « Factures émises » les porte donc toutes. --}}
 <div class="categorie-tabs" id="onglets-ventes">
-    <button class="active" data-cat="emis" onclick="changerCategorie('emis')">Factures Émises</button>
-    <button data-cat="recu_recu" onclick="changerCategorie('recu_recu')">Reçus (comptant)</button>
-    <button data-cat="avoir_client" onclick="changerCategorie('avoir_client')">Avoirs Clients</button>
+    <button class="active" data-cat="emis" onclick="changerCategorie('emis')">Factures émises</button>
+    <button data-cat="avoir_client" onclick="changerCategorie('avoir_client')">Avoirs clients</button>
 </div>
 <div class="categorie-tabs" id="onglets-achats" style="display:none;">
-    <button class="active" data-cat="recu" onclick="changerCategorie('recu')">Factures Reçues</button>
+    <button class="active" data-cat="recu" onclick="changerCategorie('recu')">Factures reçues</button>
     <button data-cat="emis" onclick="changerCategorie('emis')">BAPA (émis par nous)</button>
-    <button data-cat="avoir_fournisseur" onclick="changerCategorie('avoir_fournisseur')">Avoirs Fournisseurs</button>
+    <button data-cat="avoir_fournisseur" onclick="changerCategorie('avoir_fournisseur')">Avoirs fournisseurs</button>
+</div>
+
+<div style="margin-bottom:16px; padding:10px 14px; border-radius:8px; background:var(--bg3);
+            border:1px solid var(--border); font-size:12px; line-height:1.6; color:var(--text-2);">
+    <i class="fas fa-circle-info" style="color:var(--primary);"></i>
+    <strong>Ce registre ne porte que ce que la DGI a certifié.</strong>
+    Une pièce qui n'est pas encore normalisée n'y figure pas — elle se normalise
+    depuis l'écran des ventes ou des achats, là où on la travaille.
 </div>
 
 <table class="doc-table">
@@ -68,14 +79,14 @@
             <th style="text-align:right;">TTC</th>
             <th>Statut DGI</th>
             <th>Site</th>
-            <th>Reçu lié</th>
-            <th>Fichier reçu</th>
-            <th>Facture origine</th>
-            <th style="text-align:center;">Actions</th>
+            {{-- « Reçu lié » et « Fichier reçu » sont partis avec la pièce
+                 liée : la facture et son reçu sont une seule pièce. --}}
+            <th>Originale</th>
+            <th style="text-align:center;">Document DGI</th>
         </tr>
     </thead>
     <tbody id="corps-table">
-        <tr><td colspan="14" style="text-align:center; padding:30px; color:var(--text-3);">Chargement...</td></tr>
+        <tr><td colspan="12" style="text-align:center; padding:30px; color:var(--text-3);">Chargement...</td></tr>
     </tbody>
 </table>
 
@@ -195,12 +206,6 @@ function rafraichirFactures() {
                         <td>${doc.pdv ?? (doc.origine === 'portail'
                             ? '<span style="color:var(--text-3); font-style:italic;" title="Le portail ne dit pas à quel site de l\'entreprise cette facture se rattache. Le site vient de l\'achat auquel on la rapproche.">non affecté</span>'
                             : '—')}</td>
-                        <td>${doc.recu_lie
-                            ? `<a href="${doc.recu_lie_url}" target="_blank" style="font-weight:600;">${doc.recu_lie}</a>`
-                            : '<span style="color:var(--text-3);">—</span>'}</td>
-                        <td style="text-align:center;">${doc.fichier_recu_url
-                            ? `<a href="${doc.fichier_recu_url}" target="_blank" class="btn btn-outline" style="padding:4px 8px; font-size:11px;" title="Ouvrir le reçu"><i class="fas fa-receipt"></i></a>`
-                            : '<span style="color:var(--text-3);">—</span>'}</td>
                         <td>${doc.local_url ? `
                             <div style="display:flex; gap:6px; align-items:center; justify-content:center;">
                                 <span style="font-weight:600; margin-right:4px;">${doc.facture_origine ? doc.facture_origine : doc.num_piece}</span>
@@ -213,37 +218,20 @@ function rafraichirFactures() {
                             </div>
                         ` : '<span style="color:var(--text-3);">—</span>'}</td>
                         <td style="text-align:center;">
+                            {{-- Le bouton « Normaliser » est parti de cet écran.
+                                 C'est un registre : il dit ce que la DGI
+                                 détient. Normaliser est un geste de travail, et
+                                 il a sa place là où l'on travaille la pièce —
+                                 l'écran des ventes, celui des achats. --}}
                             <div style="display:flex; gap:6px; justify-content:center; align-items:center;">
-                                ${doc.origine === 'portail' ? `
-                                    ${doc.voir_url ? `
-                                        <a href="${doc.voir_url}" target="_blank" class="btn btn-outline" style="padding:5px 10px; font-size:12px;" title="Voir la pièce chez la DGI, qui la détient">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <a href="${doc.telechargement_url}" target="_blank" class="btn btn-outline" style="padding:5px 10px; font-size:12px;" title="Ouvrir la page de vérification DGI de cette pièce">
-                                            <i class="fas fa-download"></i>
-                                        </a>
-                                    ` : ''}
-                                    <a href="${doc.rapprocher_url}" class="btn btn-outline" style="padding:5px 10px; font-size:12px; white-space:nowrap;" title="Cette pièce est détenue par la DGI mais n'est rattachée à aucun achat de Selflow. La rapprocher d'un achat existant.">
-                                        <i class="fas fa-link"></i> Rapprocher
-                                    </a>
-                                ` : doc.normalise ? `
-                                    <a href="${doc.voir_url}" target="_blank" class="btn btn-outline" style="padding:5px 10px; font-size:12px;" title="Voir le document original / FNE">
+                                ${doc.voir_url ? `
+                                    <a href="${doc.voir_url}" target="_blank" class="btn btn-outline" style="padding:5px 10px; font-size:12px;" title="${doc.origine === 'portail' ? 'Voir la pièce chez la DGI, qui la détient' : 'Voir le document rendu par la DGI'}">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    <a href="${doc.telechargement_url}" target="_blank" class="btn btn-outline" style="padding:5px 10px; font-size:12px;" title="Télécharger le PDF">
+                                    <a href="${doc.telechargement_url}" target="_blank" download class="btn btn-outline" style="padding:5px 10px; font-size:12px;" title="Télécharger le document DGI">
                                         <i class="fas fa-download"></i>
                                     </a>
-                                ` : `
-                                    <button class="btn btn-outline" style="padding:5px 10px; font-size:12px; opacity:0.5; cursor:not-allowed;" disabled title="Indisponible pour les factures non normalisées">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <form method="POST" action="${doc.normaliser_url}" style="display:inline; margin:0;">
-                                        <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn btn-success" style="padding:5px 10px; font-size:12px; color:#fff;" title="Normaliser auprès de la DGI">
-                                            <i class="fas fa-share-nodes"></i> Normaliser
-                                        </button>
-                                    </form>
-                                `}
+                                ` : '<span style="color:var(--text-3);" title="La plateforme n\'a rendu aucun fichier">—</span>'}
                             </div>
                         </td>
                     </tr>

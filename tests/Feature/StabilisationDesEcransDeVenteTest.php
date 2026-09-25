@@ -124,7 +124,13 @@ class StabilisationDesEcransDeVenteTest extends TestCase
 
     public function test_le_tableau_de_bord_fne_ne_distribue_plus_d_adresses_mortes(): void
     {
-        $vente = $this->facture();
+        // Le registre FNE ne porte que ce que la DGI a certifié depuis le
+        // 25/09/2026 : une pièce non normalisée n'y figure plus, et c'est sur
+        // une pièce certifiée qu'il faut vérifier les adresses qu'il distribue.
+        $vente = $this->facture([
+            'normalise'  => true,
+            'numero_fne' => '1864699A26000000123',
+        ]);
 
         $lignes = $this->getJson(route('admin.fne.factures.donnees') . '?source=selflow')
             ->assertOk()

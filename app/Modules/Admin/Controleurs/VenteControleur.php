@@ -652,7 +652,11 @@ class VenteControleur
         $vente->load(['details.produit', 'details.taxes', 'taxesPersonnalisees', 'client', 'pointDeVente.entreprise', 'parent']);
         $dejaPaye = TresorerieJournal::where('reference_document', $vente->numero_facture)->sum('montant_entree');
 
-        return response($pdf->vente($vente, (float) $dejaPaye), 200, [
+        // Le modele choisi a l'ecran suit la piece : on telechargeait
+        // toujours le premier, quel que soit l'onglet actif.
+        $modele = (int) request()->query('modele', 1);
+
+        return response($pdf->vente($vente, (float) $dejaPaye, $modele), 200, [
             'Content-Type' => 'application/pdf',
             // `attachment` et non `inline` : le bouton dit « Télécharger », et
             // c'est un fichier qu'il doit remettre.

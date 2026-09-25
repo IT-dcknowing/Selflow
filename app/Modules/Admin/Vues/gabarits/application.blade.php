@@ -741,13 +741,11 @@
                  n'aurait jamais dû exister, un acheteur n'établit pas l'avoir
                  de son fournisseur.
 
-                 « Factures reçues du portail » reste, **et une seule fois** :
-                 elle figurait aussi sous Fiscalité & DGI, et les deux menaient
-                 au même endroit. Sa place est ici, avec les achats. --}}
-            <a href="{{ route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']) }}"
-               class="nav-item {{ request()->routeIs('admin.achats.factures') && request('section') === 'dgi' ? 'active' : '' }}">
-                <i class="fas fa-inbox"></i> Factures re&ccedil;ues (portail FNE)
-            </a>
+                 « Factures reçues du portail » est partie du menu le
+                 25/09/2026. Elle menait à la section « Factures achat DGI » de
+                 l'écran ci-dessus, que ses propres onglets atteignent en un
+                 clic : une entrée de menu pour un onglet d'une page déjà au
+                 menu, c'est la même page deux fois. --}}
             @endif
 
             @if(auth()->user()->aHabilitation('nouvel_achat'))

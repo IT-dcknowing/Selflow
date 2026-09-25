@@ -632,7 +632,9 @@ class AchatControleur
         $dejaPaye = \App\Modules\Admin\Modeles\TresorerieJournal::where('reference_document', $achat->numero_facture)
             ->sum('montant_sortie');
 
-        return response($pdf->achat($achat, (float) $dejaPaye), 200, [
+        $modele = (int) request()->query('modele', 1);
+
+        return response($pdf->achat($achat, (float) $dejaPaye, $modele), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="'
                 . \App\Modules\Admin\Services\DocumentPdfService::nomDuFichier($achat) . '"',

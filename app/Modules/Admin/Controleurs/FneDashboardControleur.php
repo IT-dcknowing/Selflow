@@ -504,15 +504,28 @@ class FneDashboardControleur
                 ->where('etape', 'Facture');
             $this->filtrerPeriode($query, 'date_vente', $request);
 
-            // La nature du document vient de `type_piece`, choisie a la saisie.
-            // Auparavant elle etait deduite de l'absence de client, si bien
-            // qu'une vente au comptant apparaissait a tort comme un recu.
+            /*
+             * **Cet écran est le registre de ce que la DGI a certifié.**
+             *
+             * Il listait tout — normalisé ou non — et proposait un bouton
+             * « Normaliser » sur ce qui ne l'était pas. Il faisait donc deux
+             * métiers : un registre fiscal et un poste de travail. Les écrans
+             * des ventes et des achats sont là pour le second, avec leurs
+             * filtres et leurs états ; celui-ci répond à une seule question —
+             * qu'est-ce que la plateforme détient à mon nom ?
+             *
+             * L'onglet « Reçus (comptant) » est parti avec la même logique : le
+             * reçu n'est plus une pièce distincte depuis le lot 30, c'est la
+             * facture mise en page pour le ticket. Un onglet pour lui aurait
+             * montré la même pièce une seconde fois.
+             */
+            $query->where('normalise', true);
+
             $query = match ($categorie) {
                 'avoir_client' => $query->where('type_facture', 'avoir'),
-                'recu_recu'    => $query->where(function ($q) { $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir'); })
-                                        ->where('type_piece', Vente::TYPE_RECU),
-                default        => $query->where(function ($q) { $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir'); })
-                                        ->where('type_piece', '!=', Vente::TYPE_RECU),
+                // « Factures émises » porte tout le reste : la facture et son
+                // reçu sont une seule pièce.
+                default        => $query->where(function ($q) { $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir'); }),
             };
 
             if ($pdvId && $pdvId !== 'tous') $query->where('point_de_vente_id', $pdvId);
@@ -566,10 +579,48 @@ class FneDashboardControleur
                 ->where('etape', 'Facture');
             $this->filtrerPeriode($query, 'date_achat', $request);
 
+            // Les achats que le portail certifie : leur facture reçue leur est
+            // rattachée. Lu avant le tri des onglets, qui s'en sert.
+            $certifiesParLePortail = PortailFneFactureRecue::where('entreprise_id', $entreprise->id)
+                ->whereNotNull('achat_id')
+                ->pluck('achat_id');
+
+            /*
+             * Les trois onglets d'achat, et ce que chacun porte.
+             *
+             * | Onglet | Ce qui s'y range |
+             * |---|---|
+             * | Factures reçues | **uniquement ce que le relèvement rapporte** : des pièces certifiées par un fournisseur |
+             * | BAPA | nos bordereaux, **normalisés seulement** — ce sont les seules pièces d'achat que nous déclarons |
+             * | Avoirs fournisseurs | les avoirs **normalisés** |
+             *
+             * « Factures reçues » listait aussi les factures d'achat saisies
+             * dans Selflow, qui ne partent jamais à la DGI : elles s'y
+             * affichaient « non normalisées » pour toujours, à côté de pièces
+             * que la plateforme détient. Deux natures dans une même liste, dont
+             * une qui n'a rien à y faire.
+             */
             $query = match ($categorie) {
-                'avoir_fournisseur' => $query->where('type_facture', 'avoir'),
-                'emis'              => $query->where('type_facture', 'bapa'),
-                default             => $query->where(function($q) { $q->whereNull('type_facture')->orWhereNotIn('type_facture', ['avoir', 'bapa']); }),
+                'avoir_fournisseur' => $query->where('type_facture', 'avoir')->where('normalise', true),
+                'emis'              => $query->where('type_facture', 'bapa')->where('normalise', true),
+                /*
+                 * Le relevé, et ce qu'il a déjà rapproché.
+                 *
+                 * Les pièces du portail non rattachées arrivent par
+                 * `facturesDuPortail()`. Mais une fois **rapprochée** d'un
+                 * achat — ce que le lot 33 fait tout seul —, la facture
+                 * reçue quitte cette liste : elle porte désormais un
+                 * `achat_id`. Sans la ligne ci-dessous, elle disparaîtrait
+                 * **entielèrement du registre** le jour où on la range, alors
+                 * que la DGI la détient toujours.
+                 *
+                 * On reprend donc les achats de Selflow que le portail
+                 * certifie, et eux seuls : une facture d'achat ordinaire, que
+                 * rien ne certifie, n'a rien à faire ici.
+                 */
+                default             => $certifiesParLePortail->isEmpty()
+                    ? $query->whereRaw('1 = 0')
+                    : $query->whereIn('id', $certifiesParLePortail),
             };
 
             if ($pdvId && $pdvId !== 'tous') $query->where('point_de_vente_id', $pdvId);

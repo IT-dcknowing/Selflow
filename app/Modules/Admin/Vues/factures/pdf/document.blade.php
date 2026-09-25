@@ -12,6 +12,20 @@
 @php
     /** Format des montants : le PDF n'a pas de `toLocaleString`. */
     $f = fn ($n) => number_format((float) $n, 0, ',', ' ') . ' F';
+
+    /*
+     * Le modèle choisi à l'écran. Le PDF rendait toujours le premier : on
+     * téléchargeait un document qui n'était pas celui qu'on regardait.
+     *
+     * Les quatre ne diffèrent pas de structure — mêmes blocs, mêmes colonnes,
+     * mêmes montants : ce serait quatre documents à vérifier au lieu d'un. Ils
+     * diffèrent de **teinte** et de **trait**, ce qui est exactement ce que
+     * l'écran en montre.
+     */
+    $modele = $modele ?? \App\Modules\Admin\Services\DocumentPdfService::modele(1);
+    $teinte = $modele['couleur'];
+    $aplat  = $modele['fond'];
+    $encre  = $modele['texte'];
 @endphp
 <!doctype html>
 <html lang="fr">
@@ -26,11 +40,11 @@
     td, th { vertical-align: top; }
 
     .bandeau td { padding-bottom: 8pt; }
-    .societe { font-size: 13pt; font-weight: bold; color: #002B5C; }
+    .societe { font-size: 13pt; font-weight: bold; color: {{ $teinte }}; }
     .discret { color: #555; font-size: 8pt; }
 
     .etiquette {
-        font-size: 15pt; font-weight: bold; color: #002B5C;
+        font-size: 15pt; font-weight: bold; color: {{ $teinte }};
         text-transform: uppercase; letter-spacing: .5pt;
     }
     .numero { font-size: 10pt; font-weight: bold; }
@@ -43,24 +57,27 @@
 
     table.articles { margin-top: 10pt; }
     table.articles th {
-        background: #002B5C; color: #fff; font-size: 7.5pt; font-weight: bold;
+        background: {{ $modele['encadre'] ? '#fff' : $teinte }};
+        color: {{ $modele['encadre'] ? $encre : '#fff' }};
+        border: {{ $modele['encadre'] ? '.6pt solid ' . $encre : '0' }};
+        font-size: 7.5pt; font-weight: bold;
         text-transform: uppercase; padding: 5pt 4pt; text-align: left;
     }
     table.articles td { padding: 4pt; border-bottom: .4pt solid #e2e8f0; font-size: 8.5pt; }
-    table.articles tr.paire td { background: #f7f9fc; }
+    table.articles tr.paire td { background: {{ $modele['encadre'] ? '#fff' : $aplat }}; }
     .droite { text-align: right; }
     .centre { text-align: center; }
 
     table.totaux td { padding: 3pt 6pt; font-size: 9pt; }
     table.totaux tr.net td {
-        border-top: .8pt solid #002B5C; border-bottom: .8pt solid #002B5C;
-        font-size: 11pt; font-weight: bold; color: #002B5C;
+        border-top: .8pt solid {{ $teinte }}; border-bottom: .8pt solid {{ $teinte }};
+        font-size: 11pt; font-weight: bold; color: {{ $teinte }};
     }
     table.totaux tr.rendu td { color: #15803d; font-weight: bold; }
 
-    .certif { border: .8pt solid #002B5C; padding: 7pt; margin-top: 12pt; }
+    .certif { border: .8pt solid {{ $teinte }}; padding: 7pt; margin-top: 12pt; }
     .certif .titre {
-        font-size: 8pt; font-weight: bold; color: #002B5C;
+        font-size: 8pt; font-weight: bold; color: {{ $teinte }};
         text-transform: uppercase; letter-spacing: .4pt;
     }
     .certif .valeur { font-family: 'DejaVu Sans Mono', monospace; font-size: 8pt; word-wrap: break-word; }

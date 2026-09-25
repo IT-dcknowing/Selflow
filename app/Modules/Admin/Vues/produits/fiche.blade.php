@@ -457,14 +457,44 @@ function uploaderPhotoPrincipal(input, adressePhoto) {
     const formData = new FormData();
     formData.append('photo', input.files[0]);
     formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
-    fetch(adressePhoto, { method: 'POST', body: formData })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById('img-produit-principal').src = data.photo_url + '?t=' + Date.now();
-            }
+    /*
+     * Le message disait « Erreur upload photo. » et rien d'autre, quelle que
+     * soit la cause : fichier refuse, session expiree, repertoire non
+     * inscriptible. Le serveur sait ce qui s'est passe ; il faut le repeter.
+     */
+    fetch(adressePhoto, { method: 'POST', body: formData, headers: { 'Accept': 'application/json' } })
+        .then(function (r) {
+            return r.json()
+                .then(function (data) { return { statut: r.status, data: data }; })
+                .catch(function () { return { statut: r.status, data: null }; });
         })
-        .catch(() => alert('Erreur upload photo.'));
+        .then(function (reponse) {
+            if (reponse.data && reponse.data.success) {
+                document.getElementById('img-produit-principal').src = reponse.data.photo_url + '?t=' + Date.now();
+                return;
+            }
+
+            if (reponse.statut === 419) {
+                alert('Votre session a expire. Rechargez la page, puis reessayez.');
+                return;
+            }
+
+            if (reponse.data && reponse.data.message) {
+                alert(reponse.data.message);
+                return;
+            }
+
+            // Une erreur de validation rend `errors.photo`.
+            if (reponse.data && reponse.data.errors && reponse.data.errors.photo) {
+                alert(reponse.data.errors.photo[0]);
+                return;
+            }
+
+            alert('Le serveur a repondu ' + reponse.statut + ' sans message lisible.');
+        })
+        .catch(function () {
+            alert('Le serveur n\'a pas repondu. Verifiez votre connexion, puis reessayez.');
+        });
 }
 
 // ─── Détails libres répétables ────────────────────────────────────────────────

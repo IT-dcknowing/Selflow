@@ -151,8 +151,9 @@
         </div>
         
         <div style="display: flex; gap: 8px; align-items: center;">
-            <a class="print-btn" href="{{ route('admin.achats.pdf', $achat) }}"
-               title="Enregistrer le document au format PDF.">
+            <a class="print-btn" id="lien-pdf" data-base="{{ route('admin.achats.pdf', $achat) }}"
+               href="{{ route('admin.achats.pdf', $achat) }}?modele=1"
+               title="Enregistrer le document au format PDF, dans le modele affiche.">
                 <i class="fas fa-download"></i> Télécharger le PDF
             </a>
             <button class="print-btn main" onclick="telechargerPdf()"
@@ -931,6 +932,11 @@ function render() {
 
 function setModel(n, el) {
     curModel = n;
+
+    // Le telechargement suit ce qu'on regarde.
+    var lien = document.getElementById('lien-pdf');
+    if (lien) lien.href = lien.dataset.base + '?modele=' + n;
+
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('act'));
     el.classList.add('act');
     render();

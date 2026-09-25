@@ -505,5 +505,31 @@ ORDRE ARRETE POUR LA SUITE
          incomplete est pire qu'aucune. Une epreuve compare desormais les ancres
          de la page aux raccourcis qui y menent.
 
+
+11. LOT 36 - LE REGISTRE FNE (25/09/2026)
+--------------------------------------------------------------------------------
+  [FAIT] CHANTIER 1 sur 3 : la refonte de /admin/fne/factures. L'ecran faisait
+         deux metiers - registre fiscal ET poste de travail. Il ne porte plus
+         que ce que la DGI a certifie, et le bouton « Normaliser » l'a quitte.
+         « Recus (comptant) » est parti : le recu n'est plus une piece
+         distincte. « Factures recues » ne porte plus que le releve - elle
+         listait aussi les factures saisies dans Selflow, qui ne partent jamais
+         a la DGI et s'affichaient « non normalisees » pour toujours.
+  [FAIT] Le PDF rendait TOUJOURS le premier modele, quel que soit l'onglet
+         actif. Le numero suit desormais la piece, et le lien se reecrit a
+         chaque changement d'onglet. Les couleurs sont lues sur la meme liste
+         que l'ecran, et une epreuve les compare.
+  [FAIT] « Erreur upload photo. » disait la meme chose pour tout : fichier
+         refuse, session expiree, repertoire non inscriptible. Le serveur dit
+         desormais lequel. Sur l'hebergement mutualise, la cause la plus
+         probable est `storage/app/public/produits` non inscriptible.
+  [FAIT] L'entree de menu « Factures recues (portail FNE) » retiree : elle
+         menait a un onglet d'une page deja au menu.
+
+RESTE - DEUX CHANTIERS
+  2. Les ecritures par le module d'import de Comptaflow, AVEC la ventilation
+     analytique qui n'arrive pas aujourd'hui.
+  3. La bascule d'exercice automatique au passage d'annee, des deux cotes.
+
 ================================================================================
 FIN

@@ -54,6 +54,34 @@ class DocumentPdfService
     /** Ce que le PDF rend quand la pièce n'a pas de logo lisible. */
     private const LOGO_ABSENT = null;
 
+    /**
+     * Les quatre modèles de document, et leurs couleurs.
+     *
+     * L'écran laisse choisir entre « Classique », « Élégant », « Moderne » et
+     * « Standard », et le PDF rendait **toujours le même** : on téléchargeait
+     * un document qui n'était pas celui qu'on regardait.
+     *
+     * Les teintes sont exactement celles de `getThemeColors()` dans
+     * `factures/vente.blade.php` : deux listes de couleurs pour un même choix
+     * finiraient par diverger, et le PDF cesserait à nouveau de ressembler à
+     * l'écran.
+     *
+     * @var array<int, array{nom: string, couleur: string, fond: string, texte: string, encadre: bool}>
+     */
+    public const MODELES = [
+        1 => ['nom' => 'Classique', 'couleur' => '#0F6E56', 'fond' => '#E1F5EE', 'texte' => '#085041', 'encadre' => false],
+        2 => ['nom' => 'Élégant',   'couleur' => '#185FA5', 'fond' => '#E6F1FB', 'texte' => '#0C447C', 'encadre' => false],
+        3 => ['nom' => 'Moderne',   'couleur' => '#4F46E5', 'fond' => '#EEF2FF', 'texte' => '#3730A3', 'encadre' => false],
+        // Le quatrième est le document administratif : encadré, sans aplat.
+        4 => ['nom' => 'Standard',  'couleur' => '#1E293B', 'fond' => '#F1F5F9', 'texte' => '#0F172A', 'encadre' => true],
+    ];
+
+    /** Le modèle demandé, ou le premier à défaut. */
+    public static function modele(?int $numero): array
+    {
+        return self::MODELES[$numero] ?? self::MODELES[1];
+    }
+
     // ─────────────────────────────────────────────────────────────────
     // CE QUE L'EXTÉRIEUR APPELLE
     // ─────────────────────────────────────────────────────────────────
@@ -61,9 +89,12 @@ class DocumentPdfService
     /**
      * La pièce de vente : facture, avoir, devis, bon de commande.
      */
-    public function vente(Vente $vente, float $dejaPaye = 0): string
+    public function vente(Vente $vente, float $dejaPaye = 0, ?int $modele = null): string
     {
-        return $this->rendre('admin::factures.pdf.document', $this->donneesVente($vente, $dejaPaye));
+        $donnees = $this->donneesVente($vente, $dejaPaye);
+        $donnees['modele'] = self::modele($modele);
+
+        return $this->rendre('admin::factures.pdf.document', $donnees);
     }
 
     /**
@@ -73,6 +104,9 @@ class DocumentPdfService
     {
         $donnees = $this->donneesVente($vente, $dejaPaye);
         $donnees['titre'] = $vente->normalise ? 'REÇU NORMALISÉ' : 'REÇU';
+        // Le ticket n'a qu'une mise en page : 80 mm ne laissent pas la place
+        // à quatre variantes.
+        $donnees['modele'] = self::modele(1);
 
         // 80 mm de large, hauteur libre : un ticket ne se pagine pas.
         return $this->rendre('admin::factures.pdf.ticket', $donnees, [80, $this->hauteurDuTicket($donnees)]);
@@ -81,9 +115,12 @@ class DocumentPdfService
     /**
      * La pièce d'achat : facture fournisseur enregistrée, ou bordereau.
      */
-    public function achat(Achat $achat, float $dejaPaye = 0): string
+    public function achat(Achat $achat, float $dejaPaye = 0, ?int $modele = null): string
     {
-        return $this->rendre('admin::factures.pdf.document', $this->donneesAchat($achat, $dejaPaye));
+        $donnees = $this->donneesAchat($achat, $dejaPaye);
+        $donnees['modele'] = self::modele($modele);
+
+        return $this->rendre('admin::factures.pdf.document', $donnees);
     }
 
     /**

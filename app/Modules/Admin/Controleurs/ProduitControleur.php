@@ -305,7 +305,42 @@ class ProduitControleur
 
         $extension = $request->file('photo')->extension();
         $chemin    = 'produits/' . Str::uuid() . '.' . $extension;
-        $request->file('photo')->storeAs('', $chemin, 'public');
+
+        /*
+         * L'écriture peut échouer, et elle le fait en production.
+         *
+         * Constaté le 25/09/2026 sur le serveur : « Erreur upload photo. »,
+         * sans un mot de plus. Le dépôt écrit dans `storage/app/public`, un
+         * répertoire que l'hébergement mutualisé ne rend pas toujours
+         * inscriptible — et l'écran ne distinguait pas ce cas d'une session
+         * expirée ou d'un fichier refusé.
+         *
+         * Le message dit désormais ce qui s'est passé. Un défaut qu'on ne peut
+         * pas nommer ne se corrige pas : il se contourne, ou on l'abandonne.
+         */
+        try {
+            $ecrit = $request->file('photo')->storeAs('', $chemin, 'public');
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Photo d'article non enregistrée", [
+                'produit' => $produit->id,
+                'chemin'  => $chemin,
+                'erreur'  => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => "Le fichier n'a pas pu être écrit sur le serveur. "
+                    . "Le répertoire « storage/app/public/produits » doit être inscriptible.",
+            ], 500);
+        }
+
+        if ($ecrit === false) {
+            return response()->json([
+                'success' => false,
+                'message' => "Le fichier n'a pas pu être écrit sur le serveur. "
+                    . "Vérifiez les droits du répertoire « storage/app/public/produits ».",
+            ], 500);
+        }
 
         $produit->update(['photo' => $chemin]);
 

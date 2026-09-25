@@ -60,14 +60,19 @@ class MenagesDesEcransTest extends TestCase
     {
         $menu = $this->menu();
 
-        // « Factures reçues du portail », sous Fiscalité & DGI, menait à la
-        // section « Factures achat DGI » que le menu Achats porte déjà. Le
-        // libellé est ce qui se voit ; c'est lui qu'il ne faut plus voir deux
-        // fois.
+        /*
+         * L'entrée a d'abord été dédoublée — sous Fiscalité & DGI **et** sous
+         * Achats —, puis ramenée à une seule, puis retirée tout à fait le
+         * 25/09/2026 : elle menait à la section « Factures achat DGI » de
+         * l'écran des factures d'achat, que ses propres onglets atteignent en
+         * un clic. Une entrée de menu pour un onglet d'une page déjà au menu,
+         * c'est la même page deux fois.
+         */
         $this->assertStringNotContainsString('Factures re&ccedil;ues du portail', $menu);
+        $this->assertStringNotContainsString('Factures re&ccedil;ues (portail', $menu);
 
-        // Et l'entrée des Achats, elle, est restée.
-        $this->assertStringContainsString('Factures re&ccedil;ues (portail', $menu);
+        // L'écran qui la porte, lui, est bien au menu.
+        $this->assertStringContainsString(route('admin.achats.factures'), $menu);
     }
 
     public function test_la_gestion_des_stickers_quitte_le_menu(): void

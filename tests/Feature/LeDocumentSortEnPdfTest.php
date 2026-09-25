@@ -209,6 +209,54 @@ class LeDocumentSortEnPdfTest extends TestCase
         $this->assertStringContainsString('10 000 F', $html);
     }
 
+    public function test_le_pdf_reprend_le_modele_choisi_a_l_ecran(): void
+    {
+        /*
+         * L'écran laisse choisir entre quatre modèles — Classique, Élégant,
+         * Moderne, Standard — et le PDF rendait **toujours le premier** : on
+         * téléchargeait un document qui n'était pas celui qu'on regardait.
+         */
+        $vente = $this->facture();
+
+        $classique = $this->rendreLeGabarit($vente, 1);
+        $moderne   = $this->rendreLeGabarit($vente, 3);
+
+        // La teinte du modèle 1, et celle du modèle 3.
+        $this->assertStringContainsString('#0F6E56', $classique);
+        $this->assertStringNotContainsString('#4F46E5', $classique);
+
+        $this->assertStringContainsString('#4F46E5', $moderne);
+        $this->assertStringNotContainsString('#0F6E56', $moderne);
+    }
+
+    public function test_un_modele_inconnu_retombe_sur_le_premier(): void
+    {
+        // Le numéro vient de l'adresse : il peut être inventé, ou absent.
+        $vente = $this->facture();
+
+        $this->assertSame(
+            \App\Modules\Admin\Services\DocumentPdfService::modele(1),
+            \App\Modules\Admin\Services\DocumentPdfService::modele(99)
+        );
+
+        $this->get(route('admin.ventes.pdf', $vente) . '?modele=99')->assertOk();
+    }
+
+    public function test_les_couleurs_du_pdf_sont_celles_de_l_ecran(): void
+    {
+        // Deux listes de couleurs pour un même choix finiraient par diverger,
+        // et le PDF cesserait de ressembler à l'écran sans que rien ne le dise.
+        $ecran = file_get_contents(base_path('app/Modules/Admin/Vues/factures/vente.blade.php'));
+
+        foreach (\App\Modules\Admin\Services\DocumentPdfService::MODELES as $numero => $modele) {
+            $this->assertStringContainsString(
+                $modele['couleur'],
+                $ecran,
+                "La teinte du modèle {$numero} ne figure plus dans `getThemeColors()`."
+            );
+        }
+    }
+
     // ══════════════ La pièce d'autrui ══════════════
 
     public function test_la_piece_d_une_autre_entreprise_reste_introuvable(): void
@@ -265,12 +313,15 @@ class LeDocumentSortEnPdfTest extends TestCase
      * PDF ; le gabarit, lui, dit exactement ce que dompdf va dessiner, et c'est
      * là que se décide ce qui figure sur le papier.
      */
-    private function rendreLeGabarit(Vente $vente): string
+    private function rendreLeGabarit(Vente $vente, int $modele = 1): string
     {
         $service = app(DocumentPdfService::class);
         $methode = new \ReflectionMethod($service, 'donneesVente');
         $methode->setAccessible(true);
 
-        return view('admin::factures.pdf.document', $methode->invoke($service, $vente->fresh(['details.produit', 'client', 'pointDeVente.entreprise']), 0.0))->render();
+        $donnees = $methode->invoke($service, $vente->fresh(['details.produit', 'client', 'pointDeVente.entreprise']), 0.0);
+        $donnees['modele'] = DocumentPdfService::modele($modele);
+
+        return view('admin::factures.pdf.document', $donnees)->render();
     }
 }

@@ -6605,6 +6605,106 @@ vérifications**. `php artisan verifier:variables` : aucune variable lue sans
 avoir été écrite.
 
 
+### Lot 36 — Le registre FNE ne porte que ce que la DGI détient — **TERMINÉ le 25/09/2026**
+
+Premier des trois chantiers arrêtés avec le propriétaire, dans l'ordre convenu.
+
+#### 36.1 Un écran qui faisait deux métiers
+
+« Factures & Reçus émis/reçus » listait **tout** — normalisé ou non — et
+proposait un bouton « Normaliser » sur ce qui ne l'était pas. Il était à la fois
+un registre fiscal et un poste de travail.
+
+Les écrans des ventes et des achats font le second, avec leurs filtres et leurs
+états. Celui-ci répond à une seule question : **qu'est-ce que la plateforme
+détient à mon nom ?** Il ne porte donc plus que le certifié, et le bouton
+« Normaliser » l'a quitté — normaliser est un geste, et sa place est là où l'on
+travaille la pièce.
+
+| Onglet | Ce qui s'y range désormais |
+|---|---|
+| Factures émises | les ventes **normalisées**, reçus compris |
+| Avoirs clients | les avoirs **normalisés** |
+| Factures reçues | **uniquement ce que le relèvement rapporte** |
+| BAPA | nos bordereaux, **normalisés seulement** |
+| Avoirs fournisseurs | les avoirs **normalisés**, sans bouton |
+
+**« Reçus (comptant) » est parti.** Le reçu n'est plus une pièce distincte
+depuis le lot 30 : c'est la facture mise en page pour le ticket. Un onglet pour
+lui aurait montré la même pièce une seconde fois. Les colonnes « Reçu lié » et
+« Fichier reçu » l'ont suivi.
+
+**« Factures reçues » listait aussi les factures d'achat saisies dans Selflow**,
+qui ne partent jamais à la DGI : elles s'y affichaient « non normalisées » pour
+toujours, à côté de pièces que la plateforme détient. Deux natures dans une même
+liste, dont une qui n'avait rien à y faire.
+
+#### 36.1 bis Un trou creusé, et refermé aussitôt
+
+En restreignant « Factures reçues » au seul relevé, j'ai fait disparaître du
+registre les factures **rapprochées**.
+
+Une facture reçue qu'on range sous un achat porte un `achat_id` et quitte la
+liste des pièces non rattachées — c'est ce que le lot 33 fait tout seul, à
+chaque relevé. Sans reprise des achats que le portail certifie, elle sortait
+donc du registre **le jour où on la rangeait**, alors que la DGI la détient
+toujours.
+
+L'onglet reprend maintenant les deux : les pièces du portail non rattachées, et
+les achats de Selflow que le portail certifie. Une épreuve le garde.
+
+C'est la suite d'épreuves existante qui l'a trouvé, sur un cas écrit pour une
+autre raison — exactement ce qu'on lui demande.
+
+#### 36.2 Le PDF rendait un autre modèle que celui qu'on regardait
+
+Constaté par le propriétaire : *« les modèles pris ne sont pas ceux
+téléchargés »*. C'était exact — `DocumentPdfService` rendait **toujours le
+premier**, quel que soit l'onglet actif.
+
+Le numéro du modèle suit maintenant la pièce jusqu'au PDF, et le lien de
+téléchargement se réécrit à chaque changement d'onglet. Les quatre ne diffèrent
+pas de structure — ce serait quatre documents à vérifier au lieu d'un — mais de
+teinte et de trait, ce qui est exactement ce que l'écran en montre. **Les
+couleurs sont lues sur la même liste que l'écran** : deux listes pour un même
+choix finiraient par diverger, et une épreuve les compare.
+
+#### 36.3 « Erreur upload photo. » et rien d'autre
+
+En production, déposer une photo répondait ce message, quelle que soit la
+cause : fichier refusé, session expirée, répertoire non inscriptible. **Un
+défaut qu'on ne peut pas nommer ne se corrige pas** — il se contourne, ou on
+l'abandonne.
+
+Le serveur attrape l'échec d'écriture et dit lequel ; l'écran répète ce que le
+serveur a dit, au lieu de tout réduire à une phrase. Sur l'hébergement mutualisé,
+la cause la plus probable est `storage/app/public/produits` non inscriptible.
+
+#### 36.4 Une entrée de menu pour un onglet
+
+« Factures reçues (portail FNE) » menait à la section « Factures achat DGI » de
+l'écran des factures d'achat, que ses propres onglets atteignent en un clic. Une
+entrée de menu pour un onglet d'une page déjà au menu, c'est la même page deux
+fois. Elle est partie.
+
+#### 36.5 Les épreuves
+
+`RegistreFneNePorteQueLeCertifieTest` — **9 cas** : le certifié seul, les reçus
+rangés avec les factures, l'onglet disparu, les avoirs séparés, les factures
+reçues qui ne viennent que du relevé, les BAPA et avoirs normalisés seulement,
+l'absence du bouton, et les colonnes retirées.
+
+`LeDocumentSortEnPdfTest` gagne trois cas : le modèle suivi, le modèle inconnu
+qui retombe sur le premier, et les couleurs comparées à celles de l'écran.
+
+`RegistreFneNePorteQueLeCertifieTest` en porte un dixième : la facture
+rapprochée qui reste au registre.
+
+Suite entière : **1 383 épreuves, 1 379 passantes, 4 sautées, 5 346
+vérifications**. `php artisan verifier:variables` : aucune variable lue sans
+avoir été écrite.
+
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
