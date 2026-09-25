@@ -6528,6 +6528,83 @@ vérifications**. `php artisan verifier:variables` : aucune variable lue sans
 avoir été écrite.
 
 
+### Lot 35 — Les tableaux de bord additionnaient les avoirs — **TERMINÉ le 25/09/2026**
+
+Demandé par le propriétaire : *« vérifie chaque tableau, chaque élément… les
+alertes stock, les KPI »*. Aucun des défauts trouvés ne se voyait à l'œil.
+
+#### 35.1 Cinq endroits, une seule faute
+
+**Un avoir annule une facture : il se retranche du chiffre d'affaires.** Les
+cartes du haut le faisaient depuis un lot précédent. Cinq autres calculs, sur le
+même écran, faisaient encore l'inverse — ils additionnaient l'avoir et le
+comptaient pour une vente de plus :
+
+| Où | Ce que ça donnait |
+|---|---|
+| La courbe des 7 jours | annuler une facture faisait **monter** la courbe du jour |
+| Le classement des vendeurs | celui qui annulait montait au classement |
+| Le chiffre d'affaires par site | le site voyait son total gonfler |
+| Le tableau des points de vente (jour) | même chose, et une vente de plus |
+| *(les cartes, déjà corrigées)* | — |
+
+Les cartes disaient donc une chose et la courbe juste en dessous le contraire,
+sur le même écran. Sur l'épreuve écrite : 118 000 F de facture et 47 200 F
+d'avoir donnaient **165 200 F** au lieu de 70 800 F.
+
+#### 35.2 Un compteur qui plafonnait à huit
+
+La liste des alertes stock est limitée à huit — c'est un tableau de bord, pas un
+inventaire — mais le compteur lisait `count()` **sur cette liste tronquée**.
+Trente articles en rupture s'annonçaient « 8 alertes stock », et le chiffre ne
+montait jamais au-delà.
+
+**Un indicateur qui plafonne est pire que pas d'indicateur : il rassure.** Le
+compte se fait désormais sur la requête entière, et le tableau dit quand il ne
+montre pas tout.
+
+#### 35.3 La marge comparait du HT à du TTC
+
+`margeBrute = ventes HT − achats TTC`. La TVA supportée à l'achat venait donc en
+diminution de la marge, alors qu'elle est **récupérable** et n'est pas une
+charge. Sur des achats à 18 %, la marge était sous-estimée de 18 % du montant
+acheté : un commerce qui gagne de l'argent pouvait s'afficher à perte.
+
+Les deux côtés se comptent maintenant hors taxes, et l'écran le dit —
+« ventes HT − achats HT ».
+
+#### 35.4 Les paramètres, rangés par sujet
+
+Les raccourcis de la page étaient **une seule rangée de onze pastilles**, toutes
+pareilles, et rien ne disait laquelle regardait quoi. Une liste de onze choses
+indifférenciées ne se lit pas : elle se parcourt, ce qui est exactement ce
+qu'elle devait éviter.
+
+Elles sont rangées en quatre familles — l'entreprise, Fiscalité & DGI,
+Comptabilité, Documents. **Et deux cartes ajoutées depuis n'y figuraient pas du
+tout** : les libellés d'écriture et les pièces refusées. Une barre de raccourcis
+incomplète est pire qu'aucune — on la croit exhaustive, et l'on conclut que le
+réglage n'existe pas. Une épreuve compare désormais les ancres posées dans la
+page aux raccourcis qui y mènent.
+
+Le bloc « Votre configuration » passe en grille : ses trois lignes n'avaient pas
+de largeur commune, et les pastilles ne s'alignaient pas.
+
+#### 35.5 Les épreuves
+
+`TableauxDeBordDisentLeVraiTest` — **6 cas** : le compteur qui ne plafonne plus,
+la mention de troncature, l'absence de mention quand tout tient, le service hors
+alertes, la marge hors taxes des deux côtés, et l'avoir qui fait baisser le
+chiffre d'affaires.
+
+`ParametresEntrepriseTest` gagne deux cas : tout ancre a son raccourci, et les
+raccourcis sont rangés.
+
+Suite entière : **1 370 épreuves, 1 366 passantes, 4 sautées, 5 303
+vérifications**. `php artisan verifier:variables` : aucune variable lue sans
+avoir été écrite.
+
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

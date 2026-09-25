@@ -270,6 +270,41 @@ class ParametresEntrepriseTest extends TestCase
         }
     }
 
+    public function test_les_raccourcis_menent_a_toutes_les_cartes(): void
+    {
+        /*
+         * Les raccourcis étaient une liste écrite à la main, et deux cartes
+         * ajoutées depuis n'y figuraient pas — les libellés d'écriture et les
+         * pièces refusées. Une barre de raccourcis incomplète est pire qu'aucune :
+         * on la croit exhaustive, et l'on conclut que le réglage n'existe pas.
+         */
+        $page = $this->get(route('admin.entreprise.parametres'))->assertOk()->getContent();
+
+        // Chaque ancre posée dans la page doit avoir son raccourci.
+        preg_match_all('/<span id="([a-z-]+)" style="scroll-margin-top/', $page, $ancres);
+
+        $sans = [];
+        foreach (array_unique($ancres[1]) as $ancre) {
+            if (!str_contains($page, 'href="#' . $ancre . '"')) {
+                $sans[] = $ancre;
+            }
+        }
+
+        $this->assertSame([], $sans,
+            "Ces sections n'ont pas de raccourci : " . implode(', ', $sans));
+    }
+
+    public function test_les_raccourcis_sont_ranges_par_sujet(): void
+    {
+        // Une seule rangée de onze pastilles indifférenciées ne se lit pas :
+        // elle se parcourt, ce qui est ce qu'elle devait éviter.
+        $page = $this->get(route('admin.entreprise.parametres'))->assertOk()->getContent();
+
+        foreach (["L&#039;entreprise", 'Fiscalité &amp; DGI', 'Comptabilité', 'Documents'] as $famille) {
+            $this->assertStringContainsString($famille, $page, $famille);
+        }
+    }
+
     public function test_la_procedure_de_conformite_occupe_toute_la_largeur(): void
     {
         $corps = $this->get(route('admin.entreprise.parametres'))->assertOk()->getContent();

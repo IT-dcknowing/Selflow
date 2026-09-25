@@ -86,7 +86,17 @@ class AdminControleur
         // Sans ce filtre, un service traine dans les alertes de rupture.
         // Un article archivé ne se réapprovisionne pas : le porter en rupture
         // pousserait à commander ce qu'on a décidé de ne plus vendre.
-        $produitsEnAlerte = Produit::where('entreprise_id', $entreprise->id)
+        /*
+         * Les articles sous leur seuil.
+         *
+         * **Le compte et la liste sont deux choses.** Le tableau n'en montre
+         * que huit — c'est un tableau de bord, pas un inventaire — mais le
+         * compteur affichait `count()` sur cette liste tronquée : trente
+         * articles en rupture s'annonçaient « 8 alertes stock », et le chiffre
+         * ne montait jamais au-delà. Un indicateur qui plafonne est pire que
+         * pas d'indicateur : il rassure.
+         */
+        $requeteAlertes = Produit::where('entreprise_id', $entreprise->id)
             ->stockables()
             ->selectionnables()
             ->whereHas('stocks', function($q) use ($pointDeVenteId) {
@@ -94,10 +104,11 @@ class AdminControleur
                     $q->where('point_de_vente_id', $pointDeVenteId);
                 }
                 $q->whereRaw('quantite_disponible <= stock_minimum');
-            })
-            ->with(['stocks'])
-            ->limit(8)
-            ->get();
+            });
+
+        $nbProduitsEnAlerte = (clone $requeteAlertes)->count();
+
+        $produitsEnAlerte = $requeteAlertes->with(['stocks'])->limit(8)->get();
 
         // ── Dernières ventes personnelles ─────────────────────────────────────
         $qLast = Vente::with(['client', 'pointDeVente'])
@@ -107,7 +118,21 @@ class AdminControleur
 
         // ── Évolution 7 derniers jours (ventes personnelles - sans PeriodeScope) ──
         $evolution7j = DB::table('ventes')
-            ->select(DB::raw("DATE(date_vente) as jour"), DB::raw('SUM(montant_ttc) as total'), DB::raw('COUNT(*) as nb'))
+            /*
+             * Un avoir se retranche de la courbe, comme il se retranche du
+             * chiffre d'affaires.
+             *
+             * `SUM(montant_ttc)` l'additionnait, et `COUNT(*)` le comptait pour
+             * une vente : annuler une facture faisait **monter** la courbe du
+             * jour. Les cartes du haut avaient ete corrigees ; la courbe juste
+             * en dessous disait encore le contraire, et les deux se
+             * contredisaient sur le meme ecran.
+             */
+            ->select(
+                DB::raw("DATE(date_vente) as jour"),
+                DB::raw("SUM(CASE WHEN type_facture = 'avoir' THEN -montant_ttc ELSE montant_ttc END) as total"),
+                DB::raw("SUM(CASE WHEN type_facture = 'avoir' THEN 0 ELSE 1 END) as nb")
+            )
             ->where('utilisateur_id', $utilisateur->id)
             ->where('etape', 'Facture')
             ->when($pointDeVenteId, fn($q) => $q->where('point_de_vente_id', $pointDeVenteId))
@@ -140,7 +165,7 @@ class AdminControleur
         return view('admin::tableau_de_bord', compact(
             'entreprise', 'montantVentesJour', 'montantAchatsJour',
             'nbVentesJour', 'totalVentesPeriode', 'nbVentesPeriode',
-            'produitsEnAlerte', 'solde', 'dernieresVentes',
+            'produitsEnAlerte', 'nbProduitsEnAlerte', 'solde', 'dernieresVentes',
             'pointDeVenteId', 'jours7', 'meilleurProduit', 'periodeLabel'
         ));
     }
@@ -203,7 +228,19 @@ class AdminControleur
         $totalAchatsPeriode = $montantAchatsJour;
 
         $totalVentesHTPeriode = self::montantNetDesAvoirs($qVentes, 'montant_ht');
-        $margeBrutePeriode    = $totalVentesHTPeriode - $totalAchatsPeriode;
+
+        /*
+         * La marge se compte hors taxes des deux côtés.
+         *
+         * Elle retranchait des ventes **HT** des achats **TTC** : la TVA
+         * supportée sur les achats venait donc en diminution de la marge, alors
+         * qu'elle est récupérable et n'est pas une charge. Sur des achats
+         * à 18 %, la marge était sous-estimée de 18 % du montant acheté, et le
+         * taux avec elle — un commerce qui gagne de l'argent pouvait s'afficher
+         * à perte.
+         */
+        $totalAchatsHTPeriode = self::montantNetDesAvoirs($qAchats, 'montant_ht');
+        $margeBrutePeriode    = $totalVentesHTPeriode - $totalAchatsHTPeriode;
         $tauxMargePeriode     = $totalVentesHTPeriode > 0
             ? round(($margeBrutePeriode / $totalVentesHTPeriode) * 100, 1)
             : 0;
@@ -214,7 +251,17 @@ class AdminControleur
         // Sans ce filtre, un service traine dans les alertes de rupture.
         // Un article archivé ne se réapprovisionne pas : le porter en rupture
         // pousserait à commander ce qu'on a décidé de ne plus vendre.
-        $produitsEnAlerte = Produit::where('entreprise_id', $entreprise->id)
+        /*
+         * Les articles sous leur seuil.
+         *
+         * **Le compte et la liste sont deux choses.** Le tableau n'en montre
+         * que huit — c'est un tableau de bord, pas un inventaire — mais le
+         * compteur affichait `count()` sur cette liste tronquée : trente
+         * articles en rupture s'annonçaient « 8 alertes stock », et le chiffre
+         * ne montait jamais au-delà. Un indicateur qui plafonne est pire que
+         * pas d'indicateur : il rassure.
+         */
+        $requeteAlertes = Produit::where('entreprise_id', $entreprise->id)
             ->stockables()
             ->selectionnables()
             ->whereHas('stocks', function($q) use ($pointDeVenteId) {
@@ -222,10 +269,11 @@ class AdminControleur
                     $q->where('point_de_vente_id', $pointDeVenteId);
                 }
                 $q->whereRaw('quantite_disponible <= stock_minimum');
-            })
-            ->with(['stocks'])
-            ->limit(8)
-            ->get();
+            });
+
+        $nbProduitsEnAlerte = (clone $requeteAlertes)->count();
+
+        $produitsEnAlerte = $requeteAlertes->with(['stocks'])->limit(8)->get();
 
         // ── Solde trésorerie global ───────────────────────────────────────────
         // Il ignorait le filtre, la ou la Situation Generale l'applique : les
@@ -243,14 +291,48 @@ class AdminControleur
         $dernieresVentes = $qLast->latest()->limit(8)->get();
 
         // ── Points de vente avec métriques du jour ────────────────────────────
+        /*
+         * Ce que chaque site a fait aujourd'hui.
+         *
+         * Le compte et la somme ignoraient les avoirs : annuler une facture
+         * faisait **monter** le site de son montant, et le comptait pour une
+         * vente de plus. Cinquieme endroit ou la meme faute vivait -- les
+         * cartes, la courbe, le classement des vendeurs, le chiffre par site,
+         * et celui-ci.
+         */
         $pointsDeVente = $entreprise->pointsDeVente()
-            ->withCount(['ventes as ventes_jour' => fn($q) => $q->whereDate('date_vente', $aujourd_hui)])
-            ->withSum(['ventes as montant_ventes_jour' => fn($q) => $q->whereDate('date_vente', $aujourd_hui)], 'montant_ttc')
-            ->get();
+            ->withCount(['ventes as ventes_jour' => fn($q) => $q
+                ->whereDate('date_vente', $aujourd_hui)
+                ->where(fn($qa) => $qa->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir'))])
+            ->withSum(['ventes as ventes_hors_avoir' => fn($q) => $q
+                ->whereDate('date_vente', $aujourd_hui)
+                ->where(fn($qa) => $qa->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir'))], 'montant_ttc')
+            ->withSum(['ventes as avoirs_du_jour' => fn($q) => $q
+                ->whereDate('date_vente', $aujourd_hui)
+                ->where('type_facture', 'avoir')], 'montant_ttc')
+            ->get()
+            ->each(function ($site) {
+                $site->montant_ventes_jour = (float) ($site->ventes_hors_avoir ?? 0)
+                    - (float) ($site->avoirs_du_jour ?? 0);
+            });
 
         // ── Évolution 7 derniers jours (globale - sans PeriodeScope) ──────────
         $evolution7j = DB::table('ventes')
-            ->select(DB::raw("DATE(date_vente) as jour"), DB::raw('SUM(montant_ttc) as total'), DB::raw('COUNT(*) as nb'))
+            /*
+             * Un avoir se retranche de la courbe, comme il se retranche du
+             * chiffre d'affaires.
+             *
+             * `SUM(montant_ttc)` l'additionnait, et `COUNT(*)` le comptait pour
+             * une vente : annuler une facture faisait **monter** la courbe du
+             * jour. Les cartes du haut avaient ete corrigees ; la courbe juste
+             * en dessous disait encore le contraire, et les deux se
+             * contredisaient sur le meme ecran.
+             */
+            ->select(
+                DB::raw("DATE(date_vente) as jour"),
+                DB::raw("SUM(CASE WHEN type_facture = 'avoir' THEN -montant_ttc ELSE montant_ttc END) as total"),
+                DB::raw("SUM(CASE WHEN type_facture = 'avoir' THEN 0 ELSE 1 END) as nb")
+            )
             ->whereIn('point_de_vente_id', $pdvIds)
             ->where('etape', 'Facture')
             ->when($pointDeVenteId, fn($q) => $q->where('point_de_vente_id', $pointDeVenteId))
@@ -286,8 +368,11 @@ class AdminControleur
             ->select('ventes.utilisateur_id',
                 'utilisateurs.prenom as employe_prenom',
                 'utilisateurs.nom as employe_nom',
-                DB::raw('SUM(ventes.montant_ttc) as total'),
-                DB::raw('COUNT(*) as nb_ventes'))
+                // Un avoir se retranche du total du vendeur et ne compte pas
+                // pour une vente : sans cela, annuler une facture faisait
+                // monter celui qui l'avait annulee dans le classement.
+                DB::raw("SUM(CASE WHEN ventes.type_facture = 'avoir' THEN -ventes.montant_ttc ELSE ventes.montant_ttc END) as total"),
+                DB::raw("SUM(CASE WHEN ventes.type_facture = 'avoir' THEN 0 ELSE 1 END) as nb_ventes"))
             ->whereIn('ventes.id', $idsVentesFiltrees)
             ->groupBy('ventes.utilisateur_id', 'utilisateurs.prenom', 'utilisateurs.nom')
             ->orderByDesc('total')
@@ -306,8 +391,9 @@ class AdminControleur
         $caPdvPeriode = DB::table('ventes')
             ->join('points_de_vente', 'points_de_vente.id', '=', 'ventes.point_de_vente_id')
             ->select('points_de_vente.nom as pdv_nom',
-                DB::raw('SUM(ventes.montant_ttc) as ca'),
-                DB::raw('COUNT(*) as nb'))
+                // Meme regle : l'avoir se retranche du site qui l'a emis.
+                DB::raw("SUM(CASE WHEN ventes.type_facture = 'avoir' THEN -ventes.montant_ttc ELSE ventes.montant_ttc END) as ca"),
+                DB::raw("SUM(CASE WHEN ventes.type_facture = 'avoir' THEN 0 ELSE 1 END) as nb"))
             ->whereIn('ventes.id', $idsVentesFiltrees)
             ->groupBy('ventes.point_de_vente_id', 'points_de_vente.nom')
             ->orderByDesc('ca')
@@ -317,7 +403,7 @@ class AdminControleur
             'entreprise', 'montantVentesJour', 'montantAchatsJour',
             'nbVentesJour', 'totalVentesPeriode', 'totalVentesHTPeriode', 'nbVentesPeriode',
             'totalAchatsPeriode', 'margeBrutePeriode', 'tauxMargePeriode',
-            'produitsEnAlerte', 'solde', 'totalEncaissements', 'totalDecaissements',
+            'produitsEnAlerte', 'nbProduitsEnAlerte', 'solde', 'totalEncaissements', 'totalDecaissements',
             'dernieresVentes', 'pointsDeVente', 'pointDeVenteId',
             'jours7', 'topVendeurs', 'caPdvPeriode', 'periodeLabel'
         ));

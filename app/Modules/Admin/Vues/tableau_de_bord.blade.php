@@ -111,12 +111,12 @@
             <div class="tdb-kpi-lbl">Mon solde trésorerie</div>
         </div>
     </div>
-    <div class="tdb-kpi {{ $produitsEnAlerte->count() > 0 ? 'tdb-kpi-warning' : 'tdb-kpi-green' }}">
+    <div class="tdb-kpi {{ $nbProduitsEnAlerte > 0 ? 'tdb-kpi-warning' : 'tdb-kpi-green' }}">
         <div class="tdb-kpi-icon"><i class="fas fa-boxes-stacked"></i></div>
         <div>
-            <div class="tdb-kpi-val">{{ $produitsEnAlerte->count() }}</div>
+            <div class="tdb-kpi-val">{{ $nbProduitsEnAlerte }}</div>
             <div class="tdb-kpi-lbl">Alertes stock</div>
-            <div class="tdb-kpi-sub">produit{{ $produitsEnAlerte->count() > 1 ? 's' : '' }} en alerte</div>
+            <div class="tdb-kpi-sub">produit{{ $nbProduitsEnAlerte > 1 ? 's' : '' }} en alerte</div>
         </div>
     </div>
 </div>
@@ -242,10 +242,10 @@
 </div>
 
 {{-- ── ALERTES STOCK ─────────────────────────────────────────────────── --}}
-@if($produitsEnAlerte->count())
+@if($nbProduitsEnAlerte > 0)
 <div class="card" style="margin-bottom:20px;">
     <div class="card-header">
-        <h2><i class="fas fa-triangle-exclamation" style="color:var(--warning)"></i> Alertes stock ({{ $produitsEnAlerte->count() }})</h2>
+        <h2><i class="fas fa-triangle-exclamation" style="color:var(--warning)"></i> Alertes stock ({{ $nbProduitsEnAlerte }})</h2>
         @if(auth()->user()->aHabilitation('stock_articles'))
         <a href="{{ route('admin.stock.index') }}" class="btn btn-outline btn-sm"><i class="fas fa-boxes-stacked"></i> Gérer le stock</a>
         @endif
@@ -280,6 +280,16 @@
             </tbody>
         </table>
     </div>
+    @if($nbProduitsEnAlerte > $produitsEnAlerte->count())
+    {{-- Le tableau n'en montre que huit : le dire, plutôt que de laisser
+         croire que la liste est complète. --}}
+    <div style="padding:10px 16px; font-size:12px; color:var(--text-3); border-top:1px solid var(--border);">
+        {{ $produitsEnAlerte->count() }} article(s) sur {{ $nbProduitsEnAlerte }} affiché(s).
+        @if(auth()->user()->aHabilitation('stock_articles'))
+            <a href="{{ route('admin.stock.index') }}">Voir tout le stock</a>.
+        @endif
+    </div>
+    @endif
 </div>
 @endif
 

@@ -484,5 +484,26 @@ ORDRE ARRETE POUR LA SUITE
      ventilation analytique.
   3. La bascule d'exercice automatique.
 
+
+10. LOT 35 - LES TABLEAUX DE BORD (25/09/2026)
+--------------------------------------------------------------------------------
+  [FAIT] CINQ endroits additionnaient les avoirs au lieu de les retrancher :
+         la courbe des 7 jours, le classement des vendeurs, le chiffre par
+         site, le tableau des points de vente, et le compte des ventes du jour.
+         Les cartes du haut disaient donc une chose et la courbe juste en
+         dessous le contraire, sur le meme ecran. Sur l'epreuve : 118 000 F de
+         facture et 47 200 F d'avoir donnaient 165 200 F au lieu de 70 800 F.
+  [FAIT] Le compteur d'alertes stock plafonnait a 8 : il lisait `count()` sur
+         la liste tronquee du tableau. Trente articles en rupture s'annoncaient
+         « 8 alertes stock », et le chiffre ne montait jamais. Un indicateur qui
+         plafonne est pire que pas d'indicateur : il rassure.
+  [FAIT] La marge brute comparait des ventes HT a des achats TTC : la TVA
+         supportee, pourtant recuperable, venait en diminution de la marge. Sur
+         des achats a 18 %, un commerce rentable pouvait s'afficher a perte.
+  [FAIT] Les raccourcis des parametres, ranges en quatre familles. Deux cartes
+         ajoutees depuis n'y figuraient pas du tout - une barre de raccourcis
+         incomplete est pire qu'aucune. Une epreuve compare desormais les ancres
+         de la page aux raccourcis qui y menent.
+
 ================================================================================
 FIN

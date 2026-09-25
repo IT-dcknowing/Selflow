@@ -61,33 +61,62 @@
         </div>
     </div>
 
-    {{-- La page porte dix cartes sur deux colonnes et trois écrans de haut :
-         on y cherchait un réglage en faisant défiler. Les ancres disent d'un
-         coup d'œil ce qu'elle contient, et y mènent. Leur ordre suit celui des
-         cartes à l'écran — colonne gauche, puis colonne droite, puis la
-         conformité en pleine largeur — sans quoi un raccourci renverrait plus
-         haut que le précédent. --}}
+    {{-- La page porte treize cartes sur deux colonnes et trois écrans de
+         haut : on y cherchait un réglage en faisant défiler.
+
+         Les raccourcis étaient une seule rangée de onze pastilles, toutes
+         pareilles — « Identité », « Identité fiscale », « Liaison Comptaflow »,
+         « DGI & local »… —, et rien ne disait laquelle regardait quoi. Une
+         liste de onze choses indifférenciées ne se lit pas : elle se parcourt,
+         ce qui est exactement ce qu'elle devait éviter.
+
+         Elles sont donc rangées par sujet. Et deux cartes ajoutées depuis n'y
+         figuraient pas du tout — les libellés d'écriture et les pièces
+         refusées : les raccourcis ne menaient pas à tout ce que la page
+         portait. --}}
+    @php
+        $familles = [
+            "L'entreprise" => [
+                'identite'   => ['Identité', 'fa-info-circle'],
+                'fiscal'     => ['Identité fiscale', 'fa-file-invoice'],
+                'exercices'  => ['Exercices comptables', 'fa-calendar-alt'],
+            ],
+            'Fiscalité & DGI' => [
+                'dgi'        => ['DGI & local', 'fa-map-marker-alt'],
+                'compte-fne' => ['Compte FNE', 'fa-id-card-clip'],
+                'statut-fne' => ['Statut FNE', 'fa-key'],
+                'options'    => ['Options fiscales', 'fa-check-square'],
+                'conformite' => ['Conformité FNE', 'fa-clipboard-check'],
+                'rejets'     => ['Pièces refusées', 'fa-triangle-exclamation'],
+            ],
+            'Comptabilité' => [
+                'comptaflow' => ['Liaison Comptaflow', 'fa-link'],
+                'tiers'      => ['Numérotation des tiers', 'fa-hashtag'],
+                'libelles'   => ["Libellés d'écriture", 'fa-pen-nib'],
+            ],
+            'Documents' => [
+                'impression' => ['Impression', 'fa-print'],
+            ],
+        ];
+    @endphp
     <nav aria-label="Sections des paramètres"
-         style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px;">
-        @foreach([
-            'identite'      => ['Identité', 'fa-info-circle'],
-            'fiscal'        => ['Identité fiscale', 'fa-file-invoice'],
-            'comptaflow'    => ['Liaison Comptaflow', 'fa-link'],
-            'dgi'           => ['DGI & local', 'fa-map-marker-alt'],
-            'tiers'         => ['Numérotation des tiers', 'fa-hashtag'],
-            'compte-fne'    => ['Compte FNE', 'fa-id-card-clip'],
-            'options'       => ['Options fiscales', 'fa-check-square'],
-            'impression'    => ['Impression', 'fa-print'],
-            'conformite'    => ['Conformité FNE', 'fa-clipboard-check'],
-            'exercices'     => ['Exercices comptables', 'fa-calendar-alt'],
-            'statut-fne'    => ['Statut FNE', 'fa-key'],
-        ] as $ancre => [$libelle, $icone])
-            <a href="#{{ $ancre }}"
-               style="display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:20px;
-                      background:var(--bg3);border:1px solid var(--border);color:var(--text-2);
-                      font-size:12px;font-weight:600;text-decoration:none;">
-                <i class="fas {{ $icone }}" style="color:var(--primary);font-size:11px;"></i>{{ $libelle }}
-            </a>
+         style="display:flex;flex-wrap:wrap;gap:18px 26px;margin-bottom:24px;padding:14px 16px;
+                background:var(--bg3);border:1px solid var(--border);border-radius:12px;">
+        @foreach($familles as $famille => $ancres)
+        <div>
+            <div style="font-size:10.5px;font-weight:700;color:var(--text-3);text-transform:uppercase;
+                        letter-spacing:.6px;margin-bottom:8px;">{{ $famille }}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                @foreach($ancres as $ancre => [$libelle, $icone])
+                <a href="#{{ $ancre }}"
+                   style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;
+                          background:var(--surface);border:1px solid var(--border);color:var(--text-2);
+                          font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;">
+                    <i class="fas {{ $icone }}" style="color:var(--primary);font-size:11px;"></i>{{ $libelle }}
+                </a>
+                @endforeach
+            </div>
+        </div>
         @endforeach
     </nav>
 
@@ -121,20 +150,21 @@
                     ];
                 @endphp
 
-                <div style="display:flex;flex-direction:column;gap:12px;">
+                {{-- Trois lignes, un intitulé et ses valeurs. Elles etaient
+                     posees cote a cote sans largeur commune : les pastilles ne
+                     s'alignaient pas d'une ligne a l'autre, et l'oeil ne
+                     retrouvait pas ou commencait chaque reponse. --}}
+                <div style="display:grid;grid-template-columns:120px 1fr;gap:10px 14px;align-items:start;">
                     @foreach($lignesConfig as [$intitule, $valeurs])
-                        <div style="display:flex;gap:14px;align-items:flex-start;">
-                            <span
-                                style="font-size:12px;color:var(--text-3);min-width:120px;padding-top:3px;">{{ $intitule }}</span>
-                            <div style="display:flex;flex-wrap:wrap;gap:6px;flex:1;">
+                        <span style="font-size:12px;color:var(--text-3);padding-top:4px;">{{ $intitule }}</span>
+                        <div style="display:flex;flex-wrap:wrap;gap:6px;">
                                 @forelse($valeurs as $valeur)
                                     <span
                                         style="display:inline-block;padding:4px 11px;border-radius:20px;background:var(--bg3);border:1px solid var(--border);font-size:12px;font-weight:600;">{{ $valeur }}</span>
                                 @empty
                                     <span style="font-size:12px;color:var(--text-3);font-style:italic;">— pas encore
                                         choisi —</span>
-                                @endforelse
-                            </div>
+                        @endforelse
                         </div>
                     @endforeach
                 </div>
