@@ -169,6 +169,10 @@ Route::prefix('admin')
             Route::get('/journal', [TresorerieControleur::class, 'journal'])->name('journal');
             Route::get('/codes-journaux', [TresorerieControleur::class, 'codesJournaux'])->name('codes_journaux');
             Route::post('/codes-journaux', [TresorerieControleur::class, 'creerCodeJournal'])->name('creer_code_journal');
+            // Une entreprise doit pouvoir renommer ses propres journaux : le
+            // trousseau pose un intitule generique, et « Journal des ventes »
+            // n'est pas ce que tout le monde appelle son journal de ventes.
+            Route::put('/codes-journaux/{code}', [TresorerieControleur::class, 'modifierCodeJournal'])->name('modifier_code_journal');
             Route::delete('/codes-journaux/{code}', [TresorerieControleur::class, 'supprimerCodeJournal'])->name('supprimer_code_journal');
             // Le trousseau se posait a la creation de l'entreprise, et jamais
             // plus : une entreprise creee avant qu'un journal soit ajoute au
@@ -401,6 +405,11 @@ Route::prefix('admin')
         // n'annonce que ce qu'elle fait.
         Route::post('/entreprise/comptaflow/demander', [EntrepriseControleur::class, 'demanderComptaflow'])->middleware('throttle:plateforme')->name('entreprise.comptaflow.demander');
         Route::post('/entreprise/comptaflow/sync', [EntrepriseControleur::class, 'synchroniserComptaflow'])->middleware('throttle:plateforme')->name('entreprise.comptaflow.sync_real');
+        // Envoyer chez Comptaflow ce que Selflow detient deja : le referentiel,
+        // puis tout l'historique des operations. Rien ne le permettait depuis
+        // un ecran -- une entreprise reliee apres six mois d'activite gardait
+        // ses six mois.
+        Route::post('/entreprise/comptaflow/deverser', [EntrepriseControleur::class, 'lancerLeDeversement'])->middleware('throttle:plateforme')->name('entreprise.comptaflow.deverser');
         Route::post('/entreprise/onboarding/entreprise-nom', [EntrepriseControleur::class, 'enregistrerNomOnboarding'])->name('onboarding.entreprise_nom');
 
 

@@ -742,7 +742,28 @@
                 expose pas : Selflow ne peut ni les lire ni les modifier.
                 Elles servent donc à noter ici l'état constaté chez la DGI,
                 en attendant que l'API le communique. --}}
+                                {{-- Les libellés d'écriture : ce que le journal dira d'une
+                     opération. C'était un écran du menu Comptabilité, où il
+                     n'avait rien à faire — on ne le consulte pas, on le règle
+                     une fois. --}}
                 <div class="card" style="padding:24px;">
+                    <div
+                        style="font-size:12px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+                        <span id="libelles" style="scroll-margin-top:90px;"></span><i class="fas fa-pen-nib" style="color:var(--primary);"></i> Libellés d'écriture
+                    </div>
+
+                    <div style="font-size:12px;color:var(--text-3);margin-bottom:14px;line-height:1.6;">
+                        Ce que le journal écrit en face de chaque opération — une vente, un
+                        encaissement, un achat. Les modèles sont propres à votre entreprise ;
+                        sans réglage, Selflow emploie l'intitulé du compte.
+                    </div>
+
+                    <a href="{{ route('admin.comptabilite.libelles') }}" class="btn btn-outline">
+                        <i class="fas fa-pen-nib"></i> Régler les libellés d'écriture
+                    </a>
+                </div>
+
+<div class="card" style="padding:24px;">
                     <div
                         style="font-size:12px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
                         <span id="options" style="scroll-margin-top:90px;"></span><i class="fas fa-check-square" style="color:var(--primary);"></i> Options fiscales
@@ -1312,6 +1333,29 @@
                         </div>
                     </div>
 
+                    {{-- Lancer le déversement de tout ce que Selflow détient.
+                         Rien ne le permettait depuis un écran : une entreprise
+                         reliée après six mois d'activité gardait ses six mois,
+                         et seules les écritures créées ensuite partaient. --}}
+                    @php $resteADeverser = \App\Modules\Admin\Services\DeversementHistoriqueService::reste($entreprise); @endphp
+                    <div style="margin-top:14px;padding:12px 14px;background:#fff;border:1px solid var(--border);border-radius:8px;font-size:12.5px;line-height:1.7;">
+                        <strong>Déverser tout l'historique</strong><br>
+                        @if($resteADeverser['operations'] > 0)
+                            <span style="color:#c2410c;">
+                                {{ $resteADeverser['operations'] }} opération(s) ne sont pas encore chez Comptaflow@if($resteADeverser['en_echec'] > 0), dont {{ $resteADeverser['en_echec'] }} en échec@endif.
+                            </span>
+                        @else
+                            <span style="color:var(--text-3);">Tout est déversé.</span>
+                        @endif
+                        <div style="margin-top:10px;">
+                            <button type="button" id="btn-deverser-tout" onclick="lancerLeDeversementComptaflow()"
+                                    class="btn btn-outline btn-sm" style="padding:7px 14px;">
+                                <i class="fas fa-cloud-arrow-up"></i> Lancer le déversement
+                            </button>
+                        </div>
+                        <div id="retour-deversement" style="display:none;margin-top:10px;padding:10px 12px;border-radius:6px;font-size:12px;line-height:1.5;"></div>
+                    </div>
+
                     <div style="margin-top:12px;font-size:11.5px;color:var(--text-3);line-height:1.6;">
                         Pour délier ce dossier, écrivez au support : la clé doit être révoquée
                         des deux côtés le même jour.
@@ -1458,4 +1502,59 @@
                 });
         }
     </script>
+<script>
+/**
+ * Lancer le deversement de l'historique vers Comptaflow.
+ *
+ * La confirmation avertit de ce qui compte : **la configuration de Comptaflow
+ * s'applique**, et c'est celle qui est en place au moment du deversement. La
+ * verifier apres coup ne rattraperait rien -- les numeros seront deja poses.
+ */
+function lancerLeDeversementComptaflow() {
+    var avertissement =
+        "Avant de lancer le deversement, verifiez la configuration de votre dossier Comptaflow :\n\n"
+        + "  \u2022 le modele de plan comptable ;\n"
+        + "  \u2022 le modele de tiers ;\n"
+        + "  \u2022 le modele de journaux.\n\n"
+        + "C'est cette configuration qui sera utilisee pour numeroter vos comptes, "
+        + "vos journaux et vos tiers. La changer apres coup ne renumerotera pas "
+        + "ce qui aura deja ete depose.\n\n"
+        + "Lancer le deversement maintenant ?";
+
+    if (!window.confirm(avertissement)) return;
+
+    var bouton = document.getElementById('btn-deverser-tout');
+    var retour = document.getElementById('retour-deversement');
+    bouton.disabled = true;
+    bouton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deversement en cours...';
+
+    fetch(@json(route('admin.entreprise.comptaflow.deverser')), {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json',
+        },
+    })
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+    .then(function (res) {
+        retour.style.display = 'block';
+        retour.style.background = res.d.success ? '#f0fdf4' : '#fef2f2';
+        retour.style.border = '1px solid ' + (res.d.success ? '#86efac' : '#fca5a5');
+        retour.style.color = res.d.success ? '#15803d' : '#991b1b';
+        retour.textContent = res.d.message || 'Reponse illisible du serveur.';
+    })
+    .catch(function () {
+        retour.style.display = 'block';
+        retour.style.background = '#fef2f2';
+        retour.style.border = '1px solid #fca5a5';
+        retour.style.color = '#991b1b';
+        retour.textContent = 'Le serveur n\'a pas repondu. Reessayez.';
+    })
+    .finally(function () {
+        bouton.disabled = false;
+        bouton.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Lancer le deversement';
+    });
+}
+</script>
+
 @endsection

@@ -37,16 +37,25 @@ class EcritureComptable extends Model
             }
         });
 
-        // Déversement vers COMPTAFLOW, en arrière-plan : voir
-        // `App\Jobs\DeverserEcritureComptaflow`. L'appel partait en
-        // synchrone ici même, et faisait attendre la caisse la réponse de
-        // Comptaflow (jusqu'à 3 secondes) à chaque écriture.
-        static::created(function ($ecriture) {
-            $entreprise = $ecriture->entreprise;
-            if ($entreprise && $entreprise->comptaflow_sync_status === 'active' && $entreprise->comptaflow_sync_key) {
-                \App\Jobs\DeverserEcritureComptaflow::dispatch($ecriture);
-            }
-        });
+        /*
+         * Le déversement vers Comptaflow ne part plus d'ici.
+         *
+         * Il partait **ligne par ligne**, sur `created` : une facture de vente
+         * en produit quatre ou cinq, et chacune faisait son propre appel. Deux
+         * défauts en découlaient, et le second est celui qu'on a constaté :
+         *
+         * - `created` se déclenche **avant** `Operation::cloturerEquilibre()`
+         *   et avant la fin de la transaction : une transaction annulée
+         *   ensuite laissait chez Comptaflow une écriture que Selflow n'avait
+         *   pas ;
+         * - une ligne refusée pendant que les autres passaient laissait chez
+         *   Comptaflow une **opération à moitié** — un débit sans son crédit —,
+         *   et rien ne recollait les morceaux.
+         *
+         * L'opération part désormais d'un bloc, une fois close et vérifiée
+         * équilibrée : voir `Operation::cloturerEquilibre()` et
+         * `App\Jobs\DeverserOperationComptaflow`.
+         */
     }
 
     protected $fillable = [

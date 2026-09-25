@@ -8,7 +8,7 @@
         <i class="fas fa-arrow-left"></i> Retour aux livraisons
     </a>
     <span style="color:var(--text-3); font-size:13px;">
-        Expédition / Livraison de la commande <strong>{{ $vente->numero_facture }}</strong> pour <strong>{{ $vente->client->nom }}</strong>
+        Expédition / Livraison de la commande <strong>{{ $vente->numero_facture }}</strong> pour <strong>{{ $vente->client?->nom ?? 'Client de passage' }}</strong>
     </span>
 </div>
 
@@ -16,7 +16,9 @@
     <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:20px; padding:10px 14px;">
         <div>
             <div style="font-size:11px; color:var(--text-3); text-transform:uppercase; letter-spacing:.5px;">Client</div>
-            <strong style="font-size:16px; color:var(--text-1);">{{ $vente->client->nom }}</strong>
+            {{-- Une vente au comptoir n'a pas de fiche client : `client_id` est
+                 nul, et la lecture directe repondait 500. --}}
+            <strong style="font-size:16px; color:var(--text-1);">{{ $vente->client?->nom ?? 'Client de passage' }}</strong>
         </div>
         <div>
             <div style="font-size:11px; color:var(--text-3); text-transform:uppercase; letter-spacing:.5px;">Entrepôt de départ</div>
@@ -32,6 +34,24 @@
         </div>
     </div>
 </div>
+
+@php
+    // Rien à expédier : toutes les lignes sont des services, ou tout est déjà
+    // sorti. Le dire ici plutôt que de laisser cliquer sur un formulaire vide.
+    $rienALivrer = $vente->details->every(
+        fn ($d) => !$d->produit || !$d->produit->estStockable() || $d->quantite_livree >= $d->quantite
+    );
+@endphp
+@if($rienALivrer)
+<div class="card" style="padding:18px; margin-bottom:16px; background:#f8fafc; border:1px solid var(--border);">
+    <div style="font-size:13px; color:var(--text-2); line-height:1.6;">
+        <i class="fas fa-circle-info" style="color:var(--primary);"></i>
+        <strong>Il n'y a rien à expédier sur cette pièce.</strong>
+        Soit tout est déjà sorti, soit elle ne porte que des prestations de
+        service — et une prestation ne sort pas d'un stock.
+    </div>
+</div>
+@endif
 
 <form method="POST" action="{{ route('admin.stock.livraisons.valider', $vente) }}">
     @csrf

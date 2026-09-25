@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Jobs\DeverserEcritureComptaflow;
+use App\Jobs\DeverserOperationComptaflow;
 use App\Modules\Admin\Modeles\EcritureComptable;
 use App\Modules\Admin\Modeles\Entreprise;
 use App\Modules\Admin\Modeles\Operation;
@@ -75,6 +75,15 @@ class PasserelleComptaflowTest extends TestCase
         ]);
     }
 
+    /**
+     * Une opération entière : son débit, son crédit, et sa clôture.
+     *
+     * Elle n'écrivait qu'une ligne, et le déversement partait sur `created`.
+     * Il part désormais à la clôture, et **seulement si l'opération est
+     * équilibrée** : une ligne seule ne partirait pas, et c'est voulu —
+     * déverser la moitié d'une opération porterait le déséquilibre chez
+     * Comptaflow.
+     */
     private function ecrire(array $attributs = []): EcritureComptable
     {
         $operation = Operation::creer(
@@ -82,7 +91,7 @@ class PasserelleComptaflowTest extends TestCase
             'test', 'VTE', 'FAC-001', 'Vente de marchandises'
         );
 
-        return EcritureComptable::create(array_merge([
+        $commun = [
             'operation_id'       => $operation->id,
             'entreprise_id'      => $this->entreprise->id,
             'point_de_vente_id'  => $this->site->id,
@@ -90,11 +99,53 @@ class PasserelleComptaflowTest extends TestCase
             'libelle'            => 'Vente de marchandises',
             'reference_document' => 'FAC-001',
             'code_journal'       => 'VTE',
-            'compte_debit'       => '411000',
-            'compte_tiers'       => 'CL0001',
-            'debit'              => 100000,
-            'credit'             => 0,
+        ];
+
+        $debit = EcritureComptable::create(array_merge($commun, [
+            'compte_debit'  => '411000',
+            'compte_tiers'  => 'CL0001',
+            'debit'         => 100000,
+            'credit'        => 0,
         ], $attributs));
+
+        // La contrepartie, sans quoi l'opération ne serait pas équilibrée et
+        // ne partirait pas.
+        EcritureComptable::create(array_merge($commun, [
+            'compte_credit' => '701000',
+            'debit'         => 0,
+            'credit'        => 100000,
+        ]));
+
+        $operation->cloturerEquilibre();
+
+        return $debit;
+    }
+
+    /** L'opération que la dernière écriture porte. */
+    private function operation(EcritureComptable $ecriture): Operation
+    {
+        return Operation::findOrFail($ecriture->operation_id);
+    }
+
+    /**
+     * Le corps de la requête tel qu'il part sur le fil.
+     *
+     * L'exercice y vit désormais, et non dans chaque ligne : il vaut pour
+     * l'opération entière, et c'est là que Comptaflow le lit.
+     */
+    private function corps(): array
+    {
+        $envoye = [];
+
+        Http::recorded(function ($requete) use (&$envoye) {
+            if (isset($requete->data()['ecritures'])) {
+                $envoye = $requete->data();
+            }
+
+            return true;
+        });
+
+        return $envoye;
     }
 
     /**
@@ -145,15 +196,17 @@ class PasserelleComptaflowTest extends TestCase
         // Une facture produit plusieurs ecritures sous la meme reference : la
         // cle doit les distinguer, sinon la seconde passerait pour un doublon
         // de la premiere et serait perdue.
-        $a = $this->ecrire();
-        $cleA = $this->payload()['cle_selflow'];
+        $this->ecrire();
 
-        Http::fake(['*' => Http::response(['success' => true], 200)]);
-        $b = $this->ecrire(['compte_debit' => null, 'compte_credit' => '701000',
-                            'debit' => 0, 'credit' => 100000]);
+        // L'opération porte son débit et son crédit, sous la même référence de
+        // pièce. Les deux partent dans le même envoi : leurs clés doivent
+        // différer, sinon la seconde passerait pour un renvoi de la première
+        // et serait perdue.
+        $lignes = $this->corps()['ecritures'];
 
-        $this->assertNotSame($cleA, $this->payload()['cle_selflow']);
-        $this->assertNotSame($a->id, $b->id);
+        $this->assertCount(2, $lignes);
+        $this->assertNotSame($lignes[0]['cle_selflow'], $lignes[1]['cle_selflow']);
+        $this->assertSame($lignes[0]['reference_document'], $lignes[1]['reference_document']);
     }
 
     public function test_le_point_de_vente_part_comme_section_analytique(): void
@@ -170,8 +223,8 @@ class PasserelleComptaflowTest extends TestCase
         // clos se serait rangee dans l'exercice courant.
         $this->ecrire();
 
-        $this->assertSame('2026-01-01', $this->payload()['exercice_debut']);
-        $this->assertSame('2026-12-31', $this->payload()['exercice_fin']);
+        $this->assertSame('2026-01-01', $this->corps()['exercice_debut']);
+        $this->assertSame('2026-12-31', $this->corps()['exercice_fin']);
     }
 
     // ── Ce qui doit continuer de partir ──────────────────────────────
@@ -237,25 +290,107 @@ class PasserelleComptaflowTest extends TestCase
         Http::assertNothingSent();
     }
 
-    // ── Le déversement part en arrière-plan ────────────────────────────
+    // ── Le déversement part en arrière-plan, et par opération ──────────
     //
-    // L'appel HTTP partait en synchrone, dans le hook `created()` du modèle :
-    // chaque écriture faisait attendre la caisse la réponse de Comptaflow.
-    // Il part désormais par un Job mis en file — la caisse n'attend plus rien.
+    // L'appel HTTP partait en synchrone dans le hook `created()` : chaque
+    // écriture faisait attendre la caisse. Il est passé en file, puis — le
+    // 25/09/2026 — **de la ligne à l'opération**.
+    //
+    // Ligne par ligne, une opération pouvait arriver à moitié chez Comptaflow :
+    // le débit du client passait, le crédit de la vente était refusé, et la
+    // balance ne balançait plus sans que rien ne le dise. Rien ne recollait
+    // les morceaux.
 
-    public function test_l_ecriture_met_le_deversement_en_file_au_lieu_d_appeler_en_direct(): void
+    public function test_l_operation_met_le_deversement_en_file_au_lieu_d_appeler_en_direct(): void
     {
         Queue::fake();
 
         $ecriture = $this->ecrire();
 
-        Queue::assertPushed(DeverserEcritureComptaflow::class, function ($job) use ($ecriture) {
-            return $job->ecriture->id === $ecriture->id;
+        Queue::assertPushed(DeverserOperationComptaflow::class, function ($job) use ($ecriture) {
+            return $job->operationId === $ecriture->operation_id;
         });
 
         // La file étant simulée, le Job ne s'exécute pas : rien ne part
         // encore sur le réseau à cet instant.
         Http::assertNothingSent();
+    }
+
+    public function test_une_operation_desequilibree_ne_part_pas(): void
+    {
+        Queue::fake();
+
+        // Un débit sans son crédit. La déverser porterait le déséquilibre
+        // chez Comptaflow, où il serait invisible jusqu'à la révision.
+        $operation = Operation::creer(
+            $this->entreprise->id, $this->site->id, '2026-03-10',
+            'test', 'VTE', 'FAC-002', 'Vente bancale'
+        );
+
+        EcritureComptable::create([
+            'operation_id'       => $operation->id,
+            'entreprise_id'      => $this->entreprise->id,
+            'point_de_vente_id'  => $this->site->id,
+            'date_ecriture'      => '2026-03-10',
+            'libelle'            => 'Vente bancale',
+            'reference_document' => 'FAC-002',
+            'code_journal'       => 'VTE',
+            'compte_debit'       => '411000',
+            'debit'              => 100000,
+            'credit'             => 0,
+        ]);
+
+        $operation->cloturerEquilibre();
+
+        Queue::assertNotPushed(DeverserOperationComptaflow::class);
+    }
+
+    public function test_une_ligne_seule_ne_declenche_rien(): void
+    {
+        Queue::fake();
+
+        // Le déversement ne part plus à la création d'une ligne : à cet
+        // instant, les autres lignes de l'opération n'existent pas encore, et
+        // la transaction qui les écrit n'est pas refermée.
+        $operation = Operation::creer(
+            $this->entreprise->id, $this->site->id, '2026-03-10',
+            'test', 'VTE', 'FAC-003', 'Une ligne'
+        );
+
+        EcritureComptable::create([
+            'operation_id'       => $operation->id,
+            'entreprise_id'      => $this->entreprise->id,
+            'point_de_vente_id'  => $this->site->id,
+            'date_ecriture'      => '2026-03-10',
+            'libelle'            => 'Une ligne',
+            'reference_document' => 'FAC-003',
+            'code_journal'       => 'VTE',
+            'compte_debit'       => '411000',
+            'debit'              => 100000,
+            'credit'             => 0,
+        ]);
+
+        Queue::assertNotPushed(DeverserOperationComptaflow::class);
+    }
+
+    public function test_l_operation_part_d_un_bloc_et_se_dit_atomique(): void
+    {
+        $this->ecrire();
+
+        $corps = [];
+
+        Http::recorded(function ($requete) use (&$corps) {
+            if (isset($requete->data()['ecritures'])) {
+                $corps = $requete->data();
+            }
+
+            return true;
+        });
+
+        // Les deux lignes dans un seul appel, et le drapeau qui dit à
+        // Comptaflow de tout refuser plutôt que d'en garder la moitié.
+        $this->assertCount(2, $corps['ecritures']);
+        $this->assertTrue($corps['atomique']);
     }
 
     public function test_une_entreprise_non_liee_ne_met_rien_en_file(): void
@@ -266,6 +401,6 @@ class PasserelleComptaflowTest extends TestCase
 
         $this->ecrire();
 
-        Queue::assertNotPushed(DeverserEcritureComptaflow::class);
+        Queue::assertNotPushed(DeverserOperationComptaflow::class);
     }
 }

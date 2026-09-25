@@ -365,9 +365,19 @@
                                     <label class="form-label">Prix vente</label>
                                     <input type="number" name="prix_vente" class="form-control" value="{{ $p->prix_vente }}" min="0" required>
                                 </div>
+                                    {{-- La quantite ne se corrige plus ici : elle
+                                         est la consequence des mouvements, pas
+                                         un champ qu'on retape. Une correction
+                                         se fait par l'inventaire, qui ecrit
+                                         l'ecart, le date et le signe. --}}
                                 <div class="form-group group-stock-input-{{ $p->id }}">
                                     <label class="form-label">Stock actuel</label>
-                                    <input type="number" name="stock_actuel" class="form-control" value="{{ $p->stock_actuel }}" required>
+                                    <input type="number" class="form-control" value="{{ $p->stock_actuel }}" readonly tabindex="-1"
+                                           style="background:var(--bg3); cursor:default;">
+                                    <small style="color:var(--text-3); font-size:11px;">
+                                        Pour le corriger, passez par
+                                        <a href="{{ route('admin.stock.inventaire') }}">l'inventaire</a>.
+                                    </small>
                                 </div>
                                 <div class="form-group group-stock-input-{{ $p->id }}">
                                     <label class="form-label">Stock minimum</label>
@@ -527,6 +537,9 @@
                 </div>
                 <div class="form-group group-stock-input-nouveau">
                     <label class="form-label">Stock initial <span style="color:var(--danger)">*</span></label>
+                    {{-- Le stock de depart. Il entre par la porte : un mouvement
+                         « stock initial » est ecrit, et son cout donne le premier
+                         CUMP (Cout Unitaire Moyen Pondere). --}}
                     <input type="number" name="stock_actuel" class="form-control" min="0" value="0" required>
                 </div>
                 <div class="form-group group-stock-input-nouveau">

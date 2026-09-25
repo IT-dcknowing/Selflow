@@ -213,6 +213,47 @@ class TresorerieControleur
         return redirect()->back()->with('succes', 'Code journal créé avec succès !');
     }
 
+    /**
+     * Renommer un journal, et — s'il est de trésorerie — changer son compte.
+     *
+     * Le trousseau pose des intitulés génériques, et une entreprise doit
+     * pouvoir les faire siens sans passer par une suppression suivie d'une
+     * recréation — qui lui ferait perdre le rattachement de ses écritures.
+     *
+     * **Le code ne se change pas.** Il est la clé sous laquelle les écritures
+     * déjà passées sont rangées : le renommer les détacherait de leur journal,
+     * et un grand livre ne se réécrit pas.
+     *
+     * **Le type non plus.** Passer un journal de banque en journal de ventes
+     * lui retirerait son compte de contrepartie, et les écritures qui le
+     * mouvementent resteraient sans lui.
+     */
+    public function modifierCodeJournal(Request $request, CodeJournal $code): RedirectResponse
+    {
+        abort_unless($code->entreprise_id === Auth::user()->entreprise_id, 404);
+
+        $request->validate([
+            'intitule' => ['required', 'string', 'max:255'],
+            'compte'   => [
+                CodeJournal::porteUnCompteDeTresorerie($code->type) ? 'required' : 'nullable',
+                'string', 'max:50',
+            ],
+        ], [
+            'compte.required' => 'Un journal de trésorerie porte le compte qu\'il mouvemente : 521… pour une banque, 571… pour une caisse.',
+        ]);
+
+        $code->update([
+            'intitule' => $request->input('intitule'),
+            // Hors trésorerie, le compte reste nul : la contrepartie d'une
+            // vente est le tiers de la pièce, et il change à chaque écriture.
+            'compte'   => CodeJournal::porteUnCompteDeTresorerie($code->type)
+                ? $request->input('compte')
+                : null,
+        ]);
+
+        return redirect()->back()->with('succes', 'Journal « ' . $code->code . ' » mis à jour.');
+    }
+
     public function supprimerCodeJournal(CodeJournal $code): RedirectResponse
     {
         abort_unless($code->entreprise_id === Auth::user()->entreprise_id, 404);

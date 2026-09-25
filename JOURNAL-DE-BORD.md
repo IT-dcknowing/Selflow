@@ -6226,6 +6226,114 @@ vérifications**. `php artisan verifier:variables` : aucune variable lue sans
 avoir été écrite. `composer audit` : aucun avis de sécurité.
 
 
+### Lot 32 — Le stock par la porte, et le couple qui arrive entier — **TERMINÉ le 25/09/2026**
+
+#### 32.1 Deux écrans qui refusaient ce qu'ils avaient eux-mêmes proposé
+
+**« Le champ reception est obligatoire », sans aucun champ à remplir.** Une
+commande d'achat de **services** figurait dans la file des réceptions : sa
+`quantite_receptionnee` reste à zéro pour toujours, puisque rien n'entre en
+stock. La fiche n'offrait donc aucun champ — l'article n'étant pas stockable —
+et le formulaire exigeait quand même `reception`.
+
+Le filtre porte désormais sur l'article autant que sur la quantité, à la
+réception **comme à la livraison** : le second avait le même défaut, qu'aucune
+capture n'avait encore montré. Et la fiche le dit avant qu'on clique.
+
+**Et une page 500 (Internal Server Error) sur toute vente de passage** :
+`livraison_fiche.blade.php` lisait `$vente->client->nom` sans détour, alors que
+`client_id` est nul sur une vente au comptoir.
+
+#### 32.2 Le stock n'entre plus que par la porte
+
+**C'était la vraie question du module.** Modifier un article réécrivait
+`quantite_disponible` **directement** dans `stocks`, sans passer par
+`StockService` :
+
+- aucun `MouvementStock` n'était écrit — le journal ne montrait rien ;
+- **le CUMP (Coût Unitaire Moyen Pondéré) n'était pas recalculé** ;
+- la quantité montait ou descendait sans trace de qui l'avait fait, ni pourquoi.
+
+C'est une correction d'inventaire déguisée, et l'inventaire a son écran — qui,
+lui, écrit l'écart, le date et le signe. Le catalogue n'y touche plus ; le champ
+est en lecture seule et renvoie à l'inventaire. Le seuil d'alerte reste, lui :
+c'est un réglage, pas une quantité.
+
+**La quantité de départ, elle, entre par la porte** : un motif
+`stock_initial` est né, et le prix d'achat saisi devient le premier CUMP. Elle
+était écrite directement elle aussi, si bien que la première sortie valorisait
+la marchandise **à rien**.
+
+#### 32.3 Un journal de vente ne porte pas de compte
+
+Le compte de contrepartie ne concerne que la trésorerie : c'est le 521 de la
+banque ou le 571 de la caisse. Un journal de ventes n'en a pas — sa contrepartie
+est le tiers de la pièce, qui change à chaque écriture.
+
+Le référentiel le dit depuis le lot 20 (`"compte": null`), mais les entreprises
+créées **avant** gardaient le leur. Une migration l'efface ; rien ne le lisait.
+
+**Et les journaux se modifient.** Le trousseau pose des intitulés génériques, et
+une entreprise doit pouvoir les faire siens sans supprimer puis recréer — ce qui
+détacherait ses écritures. Le code et le type, eux, ne changent pas : le code est
+la clé sous laquelle les écritures sont rangées.
+
+#### 32.4 « Libellés d'écriture » quitte le menu Comptabilité
+
+Ce n'est pas un écran de comptabilité mais un réglage : on ne le consulte pas,
+on le pose une fois. Il vit dans les paramètres de l'entreprise. Il était bien
+propre à l'entreprise — vérifié.
+
+#### 32.5 Le couple qui n'arrivait pas — le défaut le plus grave de la passerelle
+
+Un fichier entier lui est consacré : `ETAT-LIAISON-ET-DEVERSEMENT-COMPTAFLOW.txt`,
+écrit par lecture des **deux** dépôts. Ce qu'il établit :
+
+| Chemin | État |
+|---|---|
+| **Le référentiel** (plan, journaux, tiers) | **bon** — il passe par le module d'import de Comptaflow, donc sa configuration, ses numérotations et ses règles s'appliquent |
+| **Les écritures** | **défaillant** — il écrit en base sans passer par l'import, et crée les comptes manquants à la volée |
+
+Et le défaut central : `EcritureComptable::created` déversait **ligne par
+ligne**. Une facture de vente en produit quatre ou cinq, et chacune partait dans
+son propre appel. Si le débit du client passait et que le crédit de la vente
+était refusé — journal inconnu, exercice en désaccord (409, Conflict), coupure
+réseau —, Comptaflow gardait **un débit sans son crédit**. Sa balance ne
+balançait plus, et rien ne recollait les morceaux.
+
+Pire : `created` se déclenche **avant** `cloturerEquilibre()` et avant la fin de
+la transaction. Une transaction annulée ensuite laissait chez Comptaflow une
+écriture que Selflow n'avait pas.
+
+Corrigé : l'opération part **d'un bloc**, à sa clôture, en `afterCommit()`, et
+seulement si elle est équilibrée. Côté Comptaflow, un refus partiel annule tout
+(rollback) et répond 422 en disant combien de lignes n'ont pas pu être rangées.
+
+**Et la reprise mutilait les écritures.** `selflow:sync-ecritures` bâtissait sa
+propre charge utile, où manquaient `cle_selflow` — donc **aucune idempotence**,
+un second passage pouvait dupliquer —, `compte_tiers` et l'exercice. Une écriture
+partie par le chemin ordinaire arrivait complète ; la même, reprise, arrivait
+amputée. Elle passe par le même travail que les autres.
+
+**Le bouton « Lancer le déversement »** entre dans les paramètres de
+l'entreprise : référentiel d'abord, opérations ensuite, avec la confirmation qui
+avertit de vérifier la configuration de Comptaflow — la changer après coup ne
+renumérote pas ce qui est déjà déposé.
+
+#### 32.6 Les épreuves
+
+`PasserelleComptaflowTest` est **repris** : ses cas écrivaient une ligne seule et
+attendaient un départ immédiat. Ils écrivent maintenant une opération entière —
+son débit, son crédit, sa clôture — et vérifient quatre choses de plus : que
+l'opération part d'un bloc et se dit `atomique`, qu'une opération
+**déséquilibrée** ne part pas, qu'une **ligne seule** ne déclenche rien, et que
+les deux lignes d'une même pièce portent des clés d'idempotence distinctes.
+
+Suite entière : **1 342 épreuves, 1 338 passantes, 4 sautées, 5 224
+vérifications**. `php artisan verifier:variables` : aucune variable lue sans
+avoir été écrite.
+
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

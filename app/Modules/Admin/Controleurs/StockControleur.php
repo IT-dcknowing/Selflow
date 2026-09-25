@@ -72,16 +72,31 @@ class StockControleur
         $categories = $produits->pluck('categorie')->unique()->sort()->values();
 
         // Compteurs interactifs Odoo filtrés par point de vente actif
+        /*
+         * Ce qui reste à recevoir, et à livrer.
+         *
+         * **Une ligne de service ne se réceptionne pas.** Sa
+         * `quantite_receptionnee` reste à zéro pour toujours, puisque rien
+         * n'entre en stock : une prestation de conseil figurait donc
+         * indéfiniment dans « à réceptionner », et le compteur de l'écran de
+         * stock annonçait un travail qui n'existait pas. Pire, la fiche
+         * n'offrait aucun champ à saisir — l'article n'étant pas stockable —
+         * et le formulaire répondait « le champ reception est obligatoire ».
+         *
+         * Le filtre porte donc sur l'article autant que sur la quantité.
+         */
         $qReceptions = Achat::whereIn('etape', ['Bon de commande', 'Facture'])
             ->whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entreprise->id))
             ->whereHas('details', function($q) {
-                $q->whereColumn('quantite', '>', 'quantite_receptionnee');
+                $q->whereColumn('quantite', '>', 'quantite_receptionnee')
+                  ->whereHas('produit', fn($qp) => $qp->stockables());
             });
 
         $qLivraisons = Vente::whereIn('etape', ['Bon de commande', 'Facture'])
             ->whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entreprise->id))
             ->whereHas('details', function($q) {
-                $q->whereColumn('quantite', '>', 'quantite_livree');
+                $q->whereColumn('quantite', '>', 'quantite_livree')
+                  ->whereHas('produit', fn($qp) => $qp->stockables());
             });
 
         $qTransferts = TransfertStock::enAttente()
@@ -401,8 +416,11 @@ class StockControleur
         $achats = Achat::with(['fournisseur', 'pointDeVente', 'details.produit'])
             ->whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entreprise->id))
             ->whereIn('etape', ['Bon de commande', 'Facture'])
+            // Même règle que le compteur : une commande de services n'a rien
+            // à recevoir, et ne doit pas encombrer la file.
             ->whereHas('details', function ($q) {
-                $q->whereColumn('quantite', '>', 'quantite_receptionnee');
+                $q->whereColumn('quantite', '>', 'quantite_receptionnee')
+                  ->whereHas('produit', fn($qp) => $qp->stockables());
             })
             ->latest()
             ->paginate(20);
@@ -428,10 +446,21 @@ class StockControleur
     {
         abort_unless($achat->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
         
+        // `required` sur un formulaire qui n'offre aucun champ : c'est le
+        // message qu'on lisait sur une commande de services — « le champ
+        // reception est obligatoire », sans rien à remplir. La file ne montre
+        // plus ces commandes ; si l'on force l'adresse, on le dit en clair.
         $request->validate([
-            'reception'   => ['required', 'array', 'min:1'],
+            'reception'   => ['nullable', 'array'],
             'reception.*' => Quantite::facultative(),
         ]);
+
+        $aRecevoir = collect($request->input('reception', []))
+            ->filter(fn ($q) => (float) $q > 0);
+
+        if ($aRecevoir->isEmpty()) {
+            return back()->with('erreur', "Aucune quantité à réceptionner. Une prestation de service n'entre pas en stock : il n'y a rien à recevoir sur cette commande.");
+        }
 
         $pointDeVenteId = $achat->point_de_vente_id;
 
@@ -503,8 +532,12 @@ class StockControleur
         $ventes = Vente::with(['client', 'pointDeVente', 'details.produit'])
             ->whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entreprise->id))
             ->whereIn('etape', ['Bon de commande', 'Facture'])
+            // Même règle qu'à la réception : une prestation de service ne se
+            // livre pas depuis un stock, et sa ligne resterait « à livrer »
+            // pour toujours.
             ->whereHas('details', function ($q) {
-                $q->whereColumn('quantite', '>', 'quantite_livree');
+                $q->whereColumn('quantite', '>', 'quantite_livree')
+                  ->whereHas('produit', fn($qp) => $qp->stockables());
             })
             ->latest()
             ->paginate(20);
@@ -531,9 +564,16 @@ class StockControleur
         abort_unless($vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
 
         $request->validate([
-            'livraison'   => ['required', 'array', 'min:1'],
+            'livraison'   => ['nullable', 'array'],
             'livraison.*' => Quantite::facultative(),
         ]);
+
+        $aLivrer = collect($request->input('livraison', []))
+            ->filter(fn ($q) => (float) $q > 0);
+
+        if ($aLivrer->isEmpty()) {
+            return back()->with('erreur', "Aucune quantité à livrer. Une prestation de service ne sort pas d'un stock : il n'y a rien à expédier sur cette pièce.");
+        }
 
         $pointDeVenteId = $vente->point_de_vente_id;
 

@@ -174,6 +174,9 @@ class Habilitations
         'admin.tresorerie.codes_journaux'         => 'tresorerie_codes_journaux',
         'admin.tresorerie.creer_code_journal'     => 'tresorerie_codes_journaux',
         'admin.tresorerie.poser_journaux_defaut' => 'tresorerie_codes_journaux',
+        // Renommer un journal ou changer le compte qu'il mouvemente :
+        // meme droit que le creer ou le supprimer.
+        'admin.tresorerie.modifier_code_journal'  => 'tresorerie_codes_journaux',
         'admin.tresorerie.supprimer_code_journal' => 'tresorerie_codes_journaux',
         'admin.banques.creer'                     => 'nouvelle_vente',
 
@@ -302,6 +305,9 @@ class Habilitations
         'admin.entreprise.fne.tester_connexion'   => 'gestion_pdv',
         'admin.entreprise.comptaflow.demander'    => 'comptabilite_globale',
         'admin.entreprise.comptaflow.sync_real'   => 'comptabilite_globale',
+        // Le deversement de l'historique engage le dossier comptable : meme
+        // droit que la synchronisation du referentiel.
+        'admin.entreprise.comptaflow.deverser'    => 'comptabilite_globale',
 
         // ── FNE ──
         // Les écrans fiscaux : la normalisation engage l'entreprise devant la

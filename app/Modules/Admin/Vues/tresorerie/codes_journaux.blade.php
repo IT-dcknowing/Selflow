@@ -87,15 +87,63 @@
                                 </span>
                             @endif
                         </td>
-                        <td style="font-family:monospace; font-size:13px;">{{ $code->compte }}</td>
+                        {{-- Le compte de contrepartie ne concerne que la trésorerie :
+                             c'est le 521 de la banque ou le 571 de la caisse. Un
+                             journal de ventes n'en a pas — sa contrepartie est le
+                             tiers de la pièce, et il change à chaque écriture. --}}
+                        <td style="font-family:monospace; font-size:13px;">
+                            @if($code->compte)
+                                {{ $code->compte }}
+                            @else
+                                <span style="color:var(--text-3); font-family:inherit;" title="Seuls les journaux de caisse et de banque portent un compte de contrepartie.">—</span>
+                            @endif
+                        </td>
                         <td>
-                            <form method="POST" action="{{ route('admin.tresorerie.supprimer_code_journal', $code) }}" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce code journal ?')" style="display:inline;">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-danger btn-sm" style="padding: 5px 10px;">
-                                    <i class="fas fa-trash"></i> Supprimer
+                            <div style="display:flex; gap:6px; align-items:center;">
+                                <button type="button" class="btn btn-outline btn-sm" style="padding:5px 10px;"
+                                        onclick="ouvrirModificationJournal({{ $code->id }})">
+                                    <i class="fas fa-edit"></i> Modifier
                                 </button>
-                            </form>
+                                <form method="POST" action="{{ route('admin.tresorerie.supprimer_code_journal', $code) }}" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce code journal ?')" style="display:inline;">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-danger btn-sm" style="padding: 5px 10px;">
+                                        <i class="fas fa-trash"></i> Supprimer
+                                    </button>
+                                </form>
+                            </div>
+
+                            {{-- Le formulaire de modification, replié sous la ligne.
+                                 Ni le code ni le type ne s'y changent : le code est
+                                 la clé sous laquelle les écritures sont rangées, et
+                                 changer le type retirerait son compte au journal. --}}
+                            <div id="modif-journal-{{ $code->id }}" style="display:none; margin-top:10px; padding:12px; background:var(--bg3); border-radius:8px; text-align:left;">
+                                <form method="POST" action="{{ route('admin.tresorerie.modifier_code_journal', $code) }}">
+                                    @csrf
+                                    @method('PUT')
+                                    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+                                        <div class="form-group" style="margin:0; flex:1; min-width:180px;">
+                                            <label class="form-label" style="font-size:11px;">Intitulé</label>
+                                            <input type="text" name="intitule" class="form-control" value="{{ $code->intitule }}" required maxlength="255">
+                                        </div>
+                                        @if(\App\Modules\Admin\Modeles\CodeJournal::porteUnCompteDeTresorerie($code->type))
+                                        <div class="form-group" style="margin:0; width:160px;">
+                                            <label class="form-label" style="font-size:11px;">Compte mouvementé</label>
+                                            <input type="text" name="compte" class="form-control" value="{{ $code->compte }}" required maxlength="50" style="font-family:monospace;">
+                                        </div>
+                                        @endif
+                                        <button type="submit" class="btn btn-primary btn-sm" style="padding:7px 14px;">
+                                            <i class="fas fa-check"></i> Enregistrer
+                                        </button>
+                                        <button type="button" class="btn btn-outline btn-sm" style="padding:7px 14px;"
+                                                onclick="ouvrirModificationJournal({{ $code->id }})">Annuler</button>
+                                    </div>
+                                    <small style="color:var(--text-3); font-size:11px; display:block; margin-top:6px;">
+                                        Le code <strong>{{ $code->code }}</strong> et le type <strong>{{ $code->type }}</strong> ne se changent pas :
+                                        les écritures déjà passées y sont rangées.
+                                    </small>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                     @endforeach
@@ -349,4 +397,13 @@ function lancerSyncComptaflow() {
     });
 }
 </script>
+<script>
+/** Ouvre ou referme le formulaire de modification d'un journal. */
+function ouvrirModificationJournal(id) {
+    var bloc = document.getElementById('modif-journal-' + id);
+    if (!bloc) return;
+    bloc.style.display = bloc.style.display === 'none' ? 'block' : 'none';
+}
+</script>
+
 @endsection

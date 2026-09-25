@@ -370,9 +370,18 @@
                     <label class="form-label">Compte achat</label>
                     <input type="text" name="compte_achat" class="form-control" value="{{ $produit->compte_achat }}" required>
                 </div>
+                {{-- La quantite ne se corrige plus ici : elle est la consequence
+                     des mouvements, pas un champ qu'on retape. Une correction se
+                     fait par l'inventaire, qui ecrit l'ecart, le date et le
+                     signe -- et qui recalcule le CUMP. --}}
                 <div class="form-group">
                     <label class="form-label">Stock actuel (site actif)</label>
-                    <input type="number" name="stock_actuel" class="form-control" value="{{ $stock?->quantite_disponible ?? 0 }}" required>
+                    <input type="number" class="form-control" value="{{ $stock?->quantite_disponible ?? 0 }}" readonly tabindex="-1"
+                           style="background:var(--bg3); cursor:default;">
+                    <small style="color:var(--text-3); font-size:11px;">
+                        Pour le corriger, passez par
+                        <a href="{{ route('admin.stock.inventaire') }}">l'inventaire</a>.
+                    </small>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Stock minimum</label>

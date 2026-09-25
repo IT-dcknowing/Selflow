@@ -2,138 +2,118 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
+use App\Jobs\DeverserOperationComptaflow;
 use App\Modules\Admin\Modeles\EcritureComptable;
 use App\Modules\Admin\Modeles\Entreprise;
+use App\Modules\Admin\Modeles\Operation;
+use Illuminate\Console\Command;
 
+/**
+ * Reprendre ce qui n'est pas passé.
+ *
+ * ## Ce que cette commande construisait elle-même, et ce que ça coûtait
+ *
+ * Elle bâtissait **sa propre** charge utile, et ce n'était pas la même que
+ * celle du déversement ordinaire. Trois champs y manquaient, et chacun avait
+ * une conséquence :
+ *
+ * | Champ absent | Ce qui se passait |
+ * |---|---|
+ * | `cle_selflow` | aucune clé d'idempotence : `n_saisie` retombait sur la référence de pièce, et un second passage pouvait **dupliquer** l'écriture. La balance doublait sans que rien ne le signale |
+ * | `compte_tiers` | l'écriture se rattachait au seul compte collectif 411000, et le relevé d'un client particulier devenait impossible |
+ * | `exercice_debut` / `_fin` | Comptaflow ne pouvait plus vérifier l'accord des exercices : une pièce d'un exercice clos se rangeait dans l'exercice courant |
+ *
+ * Une écriture partie par le chemin ordinaire arrivait donc complète, et la
+ * même écriture reprise ici arrivait amputée. Deux chemins pour une même
+ * chose, et l'un des deux faux.
+ *
+ * ## Ce qu'elle fait maintenant
+ *
+ * Rien, ou presque : elle repère les **opérations** dont des lignes ne sont
+ * pas passées, et laisse `DeverserOperationComptaflow` les envoyer — le même
+ * travail que le déversement ordinaire, donc le même format, la même clé, le
+ * même exercice, et le même refus atomique.
+ *
+ * L'opération, et non la ligne : reprendre une ligne seule reconstituerait
+ * exactement le défaut qu'on vient de fermer — une opération à moitié chez
+ * Comptaflow.
+ */
 class SyncEcrituresToComptaflow extends Command
 {
-    /**
-     * The name and signature of the console command.
-     * Usage:
-     *   php artisan selflow:sync-ecritures
-     *   php artisan selflow:sync-ecritures --entreprise=1
-     *   php artisan selflow:sync-ecritures --batch=100
-     */
     protected $signature = 'selflow:sync-ecritures
                             {--entreprise= : ID de l\'entreprise à synchroniser (optionnel, sinon toutes)}
-                            {--batch=50 : Nombre d\'écritures à traiter par lot}
-                            {--all : Re-synchroniser aussi les écritures déjà synchronisées}';
+                            {--batch=50 : Nombre d\'opérations à remettre en file par passage}
+                            {--all : Remettre aussi les opérations déjà déversées}';
 
-    protected $description = 'Synchronise les écritures comptables Selflow (statut failed/pending) vers COMPTAFLOW.';
+    protected $description = 'Remet en file les opérations comptables que Comptaflow n\'a pas encore reçues.';
 
     public function handle(): int
     {
-        $this->info('🔗 Démarrage de la synchronisation des écritures vers COMPTAFLOW...');
+        $this->info('Reprise du déversement vers COMPTAFLOW…');
 
-        $batchSize = (int) $this->option('batch');
+        $parLot       = max(1, (int) $this->option('batch'));
         $entrepriseId = $this->option('entreprise');
-        $resyncAll = $this->option('all');
+        $toutRejouer  = (bool) $this->option('all');
 
-        // Récupérer les entreprises qui ont une liaison active
-        $entreprisesQuery = Entreprise::where('comptaflow_sync_status', 'active')
+        $entreprises = Entreprise::where('comptaflow_sync_status', 'active')
             ->whereNotNull('comptaflow_sync_key')
-            ->whereNotNull('comptaflow_company_id');
-
-        if ($entrepriseId) {
-            $entreprisesQuery->where('id', $entrepriseId);
-        }
-
-        $entreprises = $entreprisesQuery->get();
+            ->whereNotNull('comptaflow_company_id')
+            ->when($entrepriseId, fn ($q) => $q->where('id', $entrepriseId))
+            ->get();
 
         if ($entreprises->isEmpty()) {
-            $this->line('  Aucune entreprise avec liaison COMPTAFLOW active trouvée.');
+            $this->line('  Aucune entreprise avec une liaison COMPTAFLOW active.');
+
             return self::SUCCESS;
         }
 
-        $totalSynced = 0;
-        $totalFailed = 0;
+        $total = 0;
 
         foreach ($entreprises as $entreprise) {
-            $this->line("  → Entreprise : <comment>{$entreprise->nom}</comment> (ID: {$entreprise->id})");
+            $this->line("  → {$entreprise->nom} (n° {$entreprise->id})");
 
-            $comptaflowUrl = config('selflow.comptaflow_api_url', 'http://127.0.0.1:8000');
-            $secret = config('selflow.comptaflow_api_secret');
+            // Les opérations qui portent au moins une ligne non aboutie. Une
+            // opération déséquilibrée est écartée ici comme elle l'est dans le
+            // travail : la déverser porterait le déséquilibre chez Comptaflow.
+            $operations = Operation::withoutGlobalScopes()
+                ->where('entreprise_id', $entreprise->id)
+                ->where('est_equilibree', true)
+                ->when(
+                    !$toutRejouer,
+                    fn ($q) => $q->whereHas('ecritures', fn ($qe) => $qe->where(function ($qs) {
+                        $qs->whereNull('comptaflow_sync_status')
+                           ->orWhere('comptaflow_sync_status', '!=', 'synced');
+                    }))
+                )
+                ->orderBy('id')
+                ->limit($parLot)
+                ->pluck('id');
 
-            // Récupérer les écritures à synchroniser
-            $ecrituresQuery = EcritureComptable::withoutGlobalScopes()
-                ->where('entreprise_id', $entreprise->id);
+            if ($operations->isEmpty()) {
+                $this->line('     <info>Rien en attente.</info>');
 
-            if ($resyncAll) {
-                $ecrituresQuery->whereIn('comptaflow_sync_status', ['pending', 'failed', 'synced']);
-            } else {
-                $ecrituresQuery->whereIn('comptaflow_sync_status', ['pending', 'failed']);
-            }
-
-            $ecritures = $ecrituresQuery->limit($batchSize)->get();
-
-            if ($ecritures->isEmpty()) {
-                $this->line('     <info>✓ Aucune écriture en attente.</info>');
                 continue;
             }
 
-            $this->line("     Traitement de {$ecritures->count()} écriture(s)...");
-
-            // Préparer le payload
-            $payload = $ecritures->map(function ($ec) {
-                $dateStr = $ec->date_ecriture instanceof \Carbon\Carbon
-                    ? $ec->date_ecriture->toDateString()
-                    : (is_string($ec->date_ecriture) ? $ec->date_ecriture : \Carbon\Carbon::parse($ec->date_ecriture)->toDateString());
-
-                return [
-                    'date_ecriture' => $dateStr,
-                    'libelle' => $ec->libelle,
-                    'reference_document' => $ec->reference_document,
-                    'code_journal' => $ec->code_journal,
-                    'compte_debit' => $ec->compte_debit,
-                    'compte_credit' => $ec->compte_credit,
-                    'debit' => (float) $ec->debit,
-                    'credit' => (float) $ec->credit,
-                ];
-            })->values()->toArray();
-
-            try {
-                $response = Http::timeout(30)->post($comptaflowUrl . '/api/external/ecritures/deverser', [
-                    'secret' => $secret,
-                    'selflow_company_id' => $entreprise->id,
-                    'ecritures' => $payload,
-                ]);
-
-                if ($response->successful() && $response->json('success')) {
-                    $count = $response->json('count', 0);
-                    // Marquer toutes comme synchronisées
-                    EcritureComptable::withoutGlobalScopes()
-                        ->whereIn('id', $ecritures->pluck('id'))
-                        ->update(['comptaflow_sync_status' => 'synced']);
-
-                    $totalSynced += $count;
-                    $this->info("     <info>✓ {$count} écriture(s) synchronisée(s) avec succès.</info>");
-                } else {
-                    $msg = $response->json('message', 'Erreur inconnue');
-                    EcritureComptable::withoutGlobalScopes()
-                        ->whereIn('id', $ecritures->pluck('id'))
-                        ->update(['comptaflow_sync_status' => 'failed']);
-
-                    $totalFailed += $ecritures->count();
-                    $this->error("     ✗ Échec : {$msg}");
-                    Log::error("selflow:sync-ecritures - entreprise {$entreprise->id}: {$msg}");
-                }
-            } catch (\Exception $e) {
+            // `--all` renvoie tout : les lignes repassent en attente pour que
+            // le travail les reprenne. L'idempotence de Comptaflow empêche le
+            // doublon.
+            if ($toutRejouer) {
                 EcritureComptable::withoutGlobalScopes()
-                    ->whereIn('id', $ecritures->pluck('id'))
-                    ->update(['comptaflow_sync_status' => 'failed']);
-
-                $totalFailed += $ecritures->count();
-                $this->error("     ✗ Connexion impossible : " . $e->getMessage());
-                Log::error("selflow:sync-ecritures - exception: " . $e->getMessage());
+                    ->whereIn('operation_id', $operations)
+                    ->update(['comptaflow_sync_status' => 'pending']);
             }
+
+            foreach ($operations as $operationId) {
+                DeverserOperationComptaflow::dispatch($operationId);
+            }
+
+            $total += $operations->count();
+            $this->line("     {$operations->count()} opération(s) remise(s) en file.");
         }
 
-        $this->newLine();
-        $this->info("🏁 Synchronisation terminée : <comment>{$totalSynced}</comment> synchronisée(s), <error>{$totalFailed}</error> échouée(s).");
+        $this->info("{$total} opération(s) en file. Le planificateur les envoie dans la minute.");
 
-        return $totalFailed > 0 ? self::FAILURE : self::SUCCESS;
+        return self::SUCCESS;
     }
 }

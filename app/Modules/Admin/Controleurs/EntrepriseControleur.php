@@ -373,6 +373,28 @@ class EntrepriseControleur
     }
 
     /**
+     * Déverser chez Comptaflow tout ce que Selflow détient.
+     *
+     * Le référentiel d'abord — sans plan comptable ni journaux, chaque
+     * écriture serait refusée —, puis les opérations, d'un bloc chacune.
+     *
+     * L'écran avertit avant d'appeler : **la configuration de Comptaflow
+     * (modèle de plan, de tiers, de journaux) s'applique**, et c'est celle qui
+     * est en place au moment du déversement. La vérifier après coup ne
+     * rattraperait rien : les numéros seront déjà posés.
+     */
+    public function lancerLeDeversement(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $entreprise = Auth::user()->entreprise;
+
+        $resultat = \App\Modules\Admin\Services\DeversementHistoriqueService::lancer($entreprise);
+
+        $this->journaliser('deversement_comptaflow', 'Entreprise', $entreprise->id);
+
+        return response()->json($resultat, $resultat['success'] ? 200 : 422);
+    }
+
+    /**
      * Vérifie la joignabilité de l'API FNE avec la clé active de l'entreprise
      * (test ou réelle selon le statut). Ne révèle JAMAIS la clé — la lecture
      * de la clé pour l'appel se fait côté serveur uniquement.

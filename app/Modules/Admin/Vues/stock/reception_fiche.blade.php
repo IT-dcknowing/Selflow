@@ -33,6 +33,25 @@
     </div>
 </div>
 
+@php
+    // Rien à recevoir : toutes les lignes sont des services, ou tout a déjà
+    // été reçu. Le dire ici plutôt que de laisser cliquer sur un formulaire
+    // vide, qui répondait « le champ reception est obligatoire ».
+    $riensARecevoir = $achat->details->every(
+        fn ($d) => !$d->produit || !$d->produit->estStockable() || $d->quantite_receptionnee >= $d->quantite
+    );
+@endphp
+@if($riensARecevoir)
+<div class="card" style="padding:18px; margin-bottom:16px; background:#f8fafc; border:1px solid var(--border);">
+    <div style="font-size:13px; color:var(--text-2); line-height:1.6;">
+        <i class="fas fa-circle-info" style="color:var(--primary);"></i>
+        <strong>Il n'y a rien à réceptionner sur cette commande.</strong>
+        Soit tout a déjà été reçu, soit elle ne porte que des prestations de
+        service — et une prestation n'entre pas en stock.
+    </div>
+</div>
+@endif
+
 <form method="POST" action="{{ route('admin.stock.receptions.valider', $achat) }}">
     @csrf
     

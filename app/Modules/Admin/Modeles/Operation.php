@@ -123,6 +123,28 @@ class Operation extends Model
             \Illuminate\Support\Facades\Log::error(
                 "Opération #{$this->numero_saisie} déséquilibrée : solde = {$solde}"
             );
+
+            // Une opération déséquilibrée ne se déverse pas : l'envoyer
+            // porterait le déséquilibre chez Comptaflow.
+            return;
+        }
+
+        /*
+         * C'est ici que l'opération part vers Comptaflow — et non à la
+         * création de chaque ligne.
+         *
+         * Le point est le bon pour trois raisons : toutes les lignes existent,
+         * l'équilibre vient d'être vérifié, et la transaction qui les a écrites
+         * est sur le point de se refermer. `afterCommit()` fait le reste : rien
+         * ne part tant qu'elle n'est pas validée, si bien qu'une transaction
+         * annulée ne laisse plus rien chez Comptaflow.
+         */
+        $entreprise = \App\Modules\Admin\Modeles\Entreprise::find($this->entreprise_id);
+
+        if ($entreprise
+            && $entreprise->comptaflow_sync_status === 'active'
+            && $entreprise->comptaflow_sync_key) {
+            \App\Jobs\DeverserOperationComptaflow::dispatch($this->id)->afterCommit();
         }
     }
 }

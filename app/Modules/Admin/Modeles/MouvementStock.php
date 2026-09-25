@@ -46,13 +46,22 @@ class MouvementStock extends Model
     public const PRODUCTION_ENTREE      = 'production_entree';
     public const PRODUCTION_CONSOMMATION = 'production_consommation';
     public const CONTREPASSATION        = 'contrepassation';
+    /**
+     * Ce qu'il y avait en rayon le jour où l'article est entré au catalogue.
+     *
+     * Cette quantité était écrite **directement** dans `stocks`, sans passer
+     * par le service : aucun mouvement ne la portait, le journal ne la montrait
+     * pas, et le CUMP (Coût Unitaire Moyen Pondéré) restait à zéro — si bien
+     * que la première sortie valorisait la marchandise à rien.
+     */
+    public const STOCK_INITIAL          = 'stock_initial';
 
     /** @var array<int, string> */
     public const MOTIFS = [
         self::RECEPTION, self::RETOUR_CLIENT, self::RETOUR_FOURNISSEUR,
         self::LIVRAISON, self::TRANSFERT, self::REBUT,
         self::INVENTAIRE, self::PRODUCTION_ENTREE, self::PRODUCTION_CONSOMMATION,
-        self::CONTREPASSATION,
+        self::CONTREPASSATION, self::STOCK_INITIAL,
     ];
 
     protected $fillable = [

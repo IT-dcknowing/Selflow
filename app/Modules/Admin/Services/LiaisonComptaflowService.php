@@ -233,7 +233,7 @@ class LiaisonComptaflowService
      * la première panne réseau.
      *
      * **Les écritures déjà en file d'attente repartent avec la bonne clé.**
-     * `DeverserEcritureComptaflow` sérialise le modèle et le relit en base au
+     * `DeverserOperationComptaflow` relit l'opération en base au
      * moment de s'exécuter : elle lira donc la nouvelle.
      *
      * **Une requête déjà partie avec l'ancienne clé doit encore être

@@ -839,9 +839,10 @@
                 <i class="fas fa-store"></i> Résultat par site
             </a>
             @endif
-            <a href="{{ route('admin.comptabilite.libelles') }}" class="nav-item {{ request()->routeIs('admin.comptabilite.libelles') ? 'active' : '' }}">
-                <i class="fas fa-pen-nib"></i> Libellés d'écriture
-            </a>
+            {{-- « Libellés d'écriture » a quitté ce menu le 25/09/2026. Ce
+                 n'est pas un écran de comptabilité mais un réglage : il se
+                 pose une fois et ne se consulte plus. Il vit désormais dans
+                 les paramètres de l'entreprise, avec les autres. --}}
             @endif
             @endif
 

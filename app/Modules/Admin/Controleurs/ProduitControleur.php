@@ -178,15 +178,40 @@ class ProduitControleur
             ?? auth()->user()->point_de_vente_id 
             ?? ($pdvs->first()->id ?? null);
 
+        /*
+         * La fiche s'ouvre à zéro partout, et la quantité de départ entre par
+         * la porte.
+         *
+         * Elle était écrite ici, directement dans `stocks` : aucun mouvement ne
+         * la portait, le journal des mouvements ne la montrait pas, et le CUMP
+         * (Coût Unitaire Moyen Pondéré) restait à zéro — si bien que la
+         * première sortie valorisait la marchandise à rien, et que la
+         * comptabilité de stock partait fausse dès le premier article.
+         */
         foreach ($pdvs as $pdv) {
             $isDefault = ($pdv->id == $defaultPdvId);
             \App\Modules\Admin\Modeles\Stock::create([
                 'produit_id'          => $produit->id,
                 'point_de_vente_id'   => $pdv->id,
-                'quantite_disponible' => $isDefault ? $request->input('stock_actuel', 0) : 0,
+                'quantite_disponible' => 0,
                 'stock_minimum'       => $isDefault ? $request->input('stock_minimum', 5) : 5,
                 'stock_maximum'       => 100,
             ]);
+        }
+
+        $quantiteDeDepart = (float) $request->input('stock_actuel', 0);
+
+        if ($defaultPdvId && $quantiteDeDepart > 0 && $produit->estStockable()) {
+            \App\Modules\Admin\Services\StockService::entree(
+                $produit,
+                (int) $defaultPdvId,
+                $quantiteDeDepart,
+                \App\Modules\Admin\Modeles\MouvementStock::STOCK_INITIAL,
+                // Le prix d'achat saisi vaut coût d'entrée : c'est la seule
+                // valeur connue le jour où l'article naît, et elle devient le
+                // premier CUMP.
+                ['cout_unitaire' => (float) $produit->prix_achat, 'reference' => $produit->reference]
+            );
         }
 
         return back()->with('succes', 'Produit ajouté au catalogue avec succès. Référence générée : ' . $produit->reference);
@@ -311,7 +336,11 @@ class ProduitControleur
             'taux_tva'      => ['required', 'numeric', 'min:0'],
             'compte_vente'  => ['required', 'string', 'max:20'],
             'compte_achat'  => ['required', 'string', 'max:20'],
-            'stock_actuel'  => [$isNoStock ? 'nullable' : 'required', 'integer'],
+            // La quantite n'est plus modifiable depuis le catalogue : le champ
+            // est en lecture seule et rien ne l'envoie. La regle reste
+            // permissive pour ne pas refuser une requete qui le porterait
+            // encore -- elle sera simplement ignoree.
+            'stock_actuel'  => ['nullable', 'integer'],
             'stock_minimum' => [$isNoStock ? 'nullable' : 'required', 'integer', 'min:0'],
             'unite'         => ['nullable', 'string', 'max:20'],
             // Champs FNE (DGI)
@@ -417,13 +446,25 @@ class ProduitControleur
             ?? auth()->user()->point_de_vente_id 
             ?? ($entreprise->pointsDeVente->first()->id ?? null);
 
+        /*
+         * **Le catalogue ne corrige plus la quantité.**
+         *
+         * Modifier un article réécrivait `quantite_disponible` avec ce que
+         * portait le formulaire : la quantité montait ou descendait sans
+         * mouvement, sans trace de qui l'avait fait ni pourquoi, et sans que le
+         * CUMP en tienne compte. C'est une correction d'inventaire déguisée, et
+         * l'inventaire a son écran — qui, lui, écrit l'écart, le date et le
+         * signe.
+         *
+         * Le seuil d'alerte, lui, reste ici : c'est un réglage, pas une
+         * quantité.
+         */
         if ($pdvId && !$isNoStock) {
             \App\Modules\Admin\Modeles\Stock::updateOrCreate([
                 'produit_id'        => $produit->id,
                 'point_de_vente_id' => $pdvId,
             ], [
-                'quantite_disponible' => $request->input('stock_actuel', 0),
-                'stock_minimum'       => $request->input('stock_minimum', 5),
+                'stock_minimum' => $request->input('stock_minimum', 5),
             ]);
         }
 
