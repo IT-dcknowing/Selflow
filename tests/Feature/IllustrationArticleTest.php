@@ -24,6 +24,13 @@ use Tests\TestCase;
  * internet « une bouteille qui ressemble à la vôtre » montrerait une
  * marchandise que l'entreprise ne vend pas. La vraie photo passe toujours
  * devant.
+ *
+ * **Le 25/09/2026, le propriétaire a fait retirer le filigrane de l'écran de
+ * caisse.** La même silhouette revenait sur des articles sans rapport, et la
+ * grille en paraissait salie. Le dessin demeure au catalogue, où les cartes
+ * sont grandes et où il se lit ; il ne se pose plus sur les cartes de caisse,
+ * qui restent nettes quand l'article n'a pas de photo. La vraie photo, elle,
+ * n'a pas bougé.
  */
 class IllustrationArticleTest extends TestCase
 {
@@ -170,7 +177,7 @@ class IllustrationArticleTest extends TestCase
 
     /**
      * La carte de l'article, et non la page entière : la feuille de style
-     * nomme les deux classes, si bien qu'y chercher « avec-dessin » ne
+     * nommait les deux classes, si bien qu'y chercher « avec-dessin » ne
      * prouverait rien.
      */
     private function carteDeLArticle(): string
@@ -183,15 +190,18 @@ class IllustrationArticleTest extends TestCase
         return substr($corps, $debut, strpos($corps, 'onclick="ajouterAuPanier', $debut) - $debut);
     }
 
-    public function test_la_carte_de_caisse_porte_le_dessin_en_filigrane(): void
+    public function test_la_carte_de_caisse_ne_porte_plus_de_filigrane(): void
     {
+        // Retiré le 25/09/2026 à la demande du propriétaire. L'article sans
+        // photo garde une carte nette : aucune classe, aucune variable, aucune
+        // adresse de dessin ne sont posées.
         $this->article('Bougie');
 
         $carte = $this->carteDeLArticle();
 
-        $this->assertStringContainsString('avec-dessin', $carte);
-        $this->assertStringContainsString('--dessin-produit', $carte);
-        $this->assertStringContainsString('images/articles/energie.svg', $carte);
+        $this->assertStringNotContainsString('avec-dessin', $carte);
+        $this->assertStringNotContainsString('--dessin-produit', $carte);
+        $this->assertStringNotContainsString('images/articles/energie.svg', $carte);
     }
 
     public function test_la_carte_avec_photo_ne_porte_pas_de_filigrane(): void
@@ -221,25 +231,25 @@ class IllustrationArticleTest extends TestCase
 
     public function test_un_nom_d_article_ne_peut_pas_ecrire_dans_la_page(): void
     {
-        // Le nom de l'article traverse le service et revient dans un attribut
-        // `style`, entre apostrophes. Un nom bien choisi refermerait
-        // l'attribut. Le nom ne sert qu'à choisir un dessin parmi une liste
-        // fermée : rien de ce qu'il contient n'atteint l'adresse.
+        // Le nom de l'article revenait dans un attribut `style`, entre
+        // apostrophes : un nom bien choisi refermerait l'attribut. Le
+        // filigrane retiré, l'attribut est vide sur une carte sans photo —
+        // mais le nom, lui, voyage toujours dans la carte, et c'est là que la
+        // sûreté se vérifie.
         $article = $this->article("Bougie'); alert(1); //");
 
+        // Le service reste en place : il sert le catalogue.
         $this->assertSame('energie', IllustrationArticleService::cle($article));
 
         $carte = $this->carteDeLArticle();
 
-        // Le nom voyage bien dans la carte — il faut bien l'afficher — mais
-        // son apostrophe y est échappée : elle ne referme donc aucun attribut,
-        // et ce qui suit reste du texte. C'est là qu'est la sûreté, non dans
+        // L'apostrophe est échappée : elle ne referme aucun attribut, et ce
+        // qui suit reste du texte. C'est là qu'est la sûreté, non dans
         // l'absence du mot.
         $this->assertStringNotContainsString("Bougie');", $carte);
         $this->assertStringContainsString('Bougie&#039;);', $carte);
 
-        // Et l'adresse du dessin ne porte rien du nom : elle vient d'une
-        // liste fermée de vingt-deux dessins.
-        $this->assertStringContainsString('images/articles/energie.svg', $carte);
+        // Et plus rien du nom n'atteint une adresse : il n'y en a plus.
+        $this->assertStringNotContainsString('images/articles/', $carte);
     }
 }

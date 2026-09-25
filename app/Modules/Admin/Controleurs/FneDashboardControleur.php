@@ -536,10 +536,10 @@ class FneDashboardControleur
                     // Reçu dont la facture est issue, ou facture issue du reçu
                     'recu_lie' => $v->pieceLiee?->estRecu() ? $v->pieceLiee->numero_facture : null,
                     'recu_lie_url' => $v->pieceLiee?->estRecu()
-                        ? route('admin.ventes.ticket', $v->pieceLiee->id)
+                        ? route('admin.ventes.ticket', $v->pieceLiee)
                         : null,
                     'fichier_recu_url' => $v->estRecu()
-                        ? route('admin.ventes.ticket', $v->id)
+                        ? route('admin.ventes.ticket', $v)
                         : null,
                     'num_piece' => $v->numero_facture,
                     'num_fne' => $v->numero_fne,
@@ -553,8 +553,11 @@ class FneDashboardControleur
                     'facture_origine' => $v->type_facture === 'avoir' ? $v->parent?->numero_facture : null,
                     'voir_url' => $dgiUrl,
                     'telechargement_url' => $dgiUrl,
-                    'local_url' => route('admin.ventes.imprimer', $v->id),
-                    'normaliser_url' => route('admin.ventes.normaliser', $v->id),
+                    // Les adresses du tableau de bord FNE se liaient par le
+                    // numéro de ligne : « voir » et « normaliser » répondaient
+                    // 404 (Not Found — introuvable) sur chaque ligne.
+                    'local_url' => route('admin.ventes.imprimer', $v),
+                    'normaliser_url' => route('admin.ventes.normaliser', $v),
                 ];
             });
         } else {
@@ -607,8 +610,8 @@ class FneDashboardControleur
                     'facture_origine' => $a->type_facture === 'avoir' ? $a->parent?->numero_facture : null,
                     'voir_url' => $dgiUrl,
                     'telechargement_url' => $dgiUrl,
-                    'local_url' => route('admin.achats.imprimer', $a->id),
-                    'normaliser_url' => route('admin.achats.normaliser', $a->id),
+                    'local_url' => route('admin.achats.imprimer', $a),
+                    'normaliser_url' => route('admin.achats.normaliser', $a),
                     'origine' => isset($certifiees[$a->id]) ? 'selflow_dgi' : 'selflow',
                 ];
             };

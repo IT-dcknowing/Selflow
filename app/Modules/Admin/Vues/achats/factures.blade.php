@@ -194,6 +194,9 @@
                     <th>Étape</th>
                     <th style="text-align: center;">Normalisé (DGI)</th>
                     <th>Fichier DGI</th>
+                    {{-- Ce que Selflow établit, avant tout passage par la
+                         plateforme : le même partage que sur les ventes. --}}
+                    <th>Originale</th>
                     <th>Action</th>
                 </tr>
             </thead>
@@ -384,10 +387,18 @@
                             <span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:4px 10px; border-radius:20px; font-weight:800; font-size:12px; display:inline-flex; align-items:center; gap:5px;" title="Facture normalisée avec succès par la DGI">
                                 <i class="fas fa-check-circle" style="color:#16a34a;"></i> Oui
                             </span>
-                        @else
-                            <span style="background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; padding:4px 10px; border-radius:20px; font-weight:700; font-size:12px; display:inline-flex; align-items:center; gap:5px;" title="Facture en attente de normalisation / relève FNE en cours">
-                                <i class="fas fa-spinner fa-spin" style="font-size:11px; color:#ea580c;"></i> En cours
+                        @elseif($achat->type_facture === 'bapa' && $achat->etape === 'Facture')
+                            {{-- Le bordereau attend la main qui le normalisera :
+                                 il n'y a pas d'envoi automatique à l'achat. --}}
+                            <span style="background:#f8fafc; color:#475569; border:1px solid #cbd5e1; padding:4px 10px; border-radius:20px; font-weight:700; font-size:12px; display:inline-flex; align-items:center; gap:5px;" title="Le bordereau se normalise par le bouton « Normaliser ».">
+                                <i class="fas fa-hourglass-half" style="font-size:11px;"></i> En attente
                             </span>
+                        @else
+                            {{-- Une facture d'achat ordinaire ne part jamais à la
+                                 DGI : c'est le fournisseur qui l'a certifiée. La
+                                 roue qui tournait ici annonçait indéfiniment un
+                                 envoi qui n'existait pas. --}}
+                            <span style="color:var(--text-3); font-size:12px;" title="Seul le bordereau d'achat (BAPA) se normalise à l'achat : la facture du fournisseur est certifiée par lui.">—</span>
                         @endif
                     </td>
                     <td>
@@ -399,7 +410,7 @@
                                 <a href="{{ $dgiVoirUrl }}" target="_blank" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Voir le document DGI">
                                     <i class="fas fa-eye"></i>
                                 </a>
-                                <a href="{{ $dgiVoirUrl }}" target="_blank" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Télécharger le fichier DGI">
+                                <a href="{{ $dgiVoirUrl }}" target="_blank" download class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Télécharger le fichier DGI">
                                     <i class="fas fa-download"></i>
                                 </a>
                             @else
@@ -412,12 +423,24 @@
                             @endif
                         </div>
                     </td>
+                    {{-- « Originale » : les documents établis par Selflow. Ce
+                         ne sont pas des actions, et ils encombraient la colonne
+                         qui en porte. --}}
                     <td>
                         <div style="display:flex; gap:6px; align-items:center;">
-                            <a href="{{ route('admin.achats.imprimer', $achat) }}" class="btn btn-primary btn-sm">
-                                <i class="fas fa-eye"></i> Voir
+                            <a href="{{ route('admin.achats.imprimer', $achat) }}" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Voir la facture d'achat établie par Selflow">
+                                <i class="fas fa-file-invoice"></i> Facture
                             </a>
+                            @if($achat->type_facture === 'bapa' && $achat->etape === 'Facture')
+                                <a href="{{ route('admin.achats.bapa', $achat) }}" class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger); font-size:11px; padding:4px 8px;" title="Bordereau d'achat de produits agricoles">
+                                    <i class="fas fa-file-lines"></i> BAPA
+                                </a>
+                            @endif
+                        </div>
+                    </td>
 
+                    <td>
+                        <div style="display:flex; gap:6px; align-items:center;">
                             {{-- Normalisation manuelle (BAPA uniquement) --}}
                             @if(!$achat->normalise && $achat->etape === 'Facture' && $achat->type_facture === 'bapa')
                                 <form method="POST" action="{{ route('admin.achats.normaliser', $achat) }}" style="display:inline; margin:0;">
@@ -426,12 +449,6 @@
                                         <i class="fas fa-share-nodes"></i> Normaliser
                                     </button>
                                 </form>
-                            @endif
-
-                            @if($achat->type_facture === 'bapa' && $achat->etape === 'Facture')
-                                <a href="{{ route('admin.achats.bapa', $achat) }}" class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger); font-size:11px; padding:4px 8px;" title="Générer le Bordereau d'Achat BAPA">
-                                    <i class="fas fa-file-invoice"></i> BAPA
-                                </a>
                             @endif
 
                             @if($achat->statut === 'En attente B2B')

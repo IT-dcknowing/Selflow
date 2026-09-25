@@ -12,7 +12,7 @@
             <span style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#002B5C,#0ea5e9);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:18px;">
                 <i class="fas fa-building"></i>
             </span>
-            Tableau de bord général 🏢
+            Tableau de bord général
         </h1>
         <p style="color:var(--text-2); margin-top:6px; font-size:13px;">
             <i class="fas fa-calendar-day"></i> {{ now()->locale('fr')->isoFormat('dddd D MMMM YYYY') }}

@@ -178,11 +178,17 @@ class EntrepriseControleur
         if ($request->filled('possede_compte_fne')) {
             $data['possede_compte_fne'] = $request->input('possede_compte_fne') === '1';
         }
-        $data['bapa']             = $request->boolean('bapa');
+        // `bapa` ne se regle plus ici : la case ne commandait rien, et
+        // l'ouverture du bordereau se fait sur l'espace FNE de l'entreprise.
+        // La colonne reste en base, inchangee, pour ne rien perdre.
 
         // Quand certifier : des l'emission, ou a la main apres verification.
-        $data['normalisation_auto_factures'] = $request->boolean('normalisation_auto_factures');
-        $data['normalisation_auto_recus']    = $request->boolean('normalisation_auto_recus');
+        // Une seule case commande les deux colonnes : le recu emprunte la
+        // porte de la facture, et les regler separement laissait croire a deux
+        // decisions la ou il n'y en a qu'une.
+        $auto = $request->boolean('normalisation_auto');
+        $data['normalisation_auto_factures'] = $auto;
+        $data['normalisation_auto_recus']    = $auto;
 
         // La convention de numerotation des tiers. Absente du formulaire, elle
         // ne change pas : les fiches deja creees gardent leur numero, et rien

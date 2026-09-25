@@ -5851,6 +5851,162 @@ rattachement d'un PDF arrivé après le relevé.
 Suite entière : **1 251 épreuves, 1 235 passantes, 4 871 vérifications**. Les
 **16 échecs restent ceux du lot 27**, aux mêmes tests.
 
+### Lot 30 — Les écrans de vente cessent de mentir — **TERMINÉ le 25/09/2026**
+
+Six constats du propriétaire, relevés le même jour sur la démonstration en
+ligne et sur le poste local, et l'état des lieux qui les accompagne :
+`ETATS DES LIEUX.txt`, à la racine du dépôt.
+
+#### 30.1 Treize adresses construites avec le numéro de ligne
+
+« Imprimer le reçu » et « Créer la facture » ouvraient une page **404 (Not
+Found — introuvable)**. La cause est celle du modal des clés FNE du lot 25, au
+même endroit du raisonnement : `Vente`, `Achat` et `BonLivraison` portent
+`IdentifiantOpaque`, et leurs adresses se lient par `uuid`. Treize appels les
+construisaient avec `->id`.
+
+Le défaut n'était pas propre à la mise en ligne — il était identique en local,
+et il touchait bien plus que les deux boutons signalés :
+
+| Fichier | Ce qui répondait 404 |
+|---|---|
+| `Vues/factures/vente.blade.php` ×3 | le reçu, la pièce liée, la conversion |
+| `VenteControleur` ×2 | les redirections après conversion |
+| `BonLivraisonControleur` | la redirection après création du BL |
+| `FneDashboardControleur` ×6 | **tout** le tableau de bord FNE : « voir » et « normaliser » sur chaque ligne |
+
+`FneDashboardControleur:764` n'est pas en cause : `PortailFneFactureRecue` ne
+porte pas le trait et se lie bien par son numéro.
+
+#### 30.2 Une file que personne ne servait
+
+`QUEUE_CONNECTION=database`. La normalisation automatique appelle
+`NormaliserFactureFne::dispatch()`, qui **dépose** le travail dans la table
+`jobs` et rend la main. Sans `queue:work`, il y restait — indéfiniment. La case
+« normaliser automatiquement » était cochée, l'écran affichait « En cours », et
+rien n'était jamais parti à la DGI. La normalisation manuelle, elle,
+fonctionnait : elle appelle `dispatchSync()`.
+
+Pas de service permanent — l'hébergement mutualisé n'en admet pas. Le
+planificateur vide la file chaque minute :
+
+```php
+Schedule::command('queue:work --stop-when-empty --max-time=50')
+    ->everyMinute()->withoutOverlapping();
+```
+
+Le délai de certification devient donc d'une minute au pire. Les tentatives
+restent celles que le travail déclare — trois, à trente secondes — et non
+celles qu'on écrirait ici.
+
+#### 30.3 « En cours » sur une pièce que personne n'envoyait
+
+La colonne « Normalisée (DGI) » affichait une roue animée sur **toute** pièce
+non certifiée. Trois états la remplacent :
+
+| État | Quand |
+|---|---|
+| **Oui** | la plateforme a certifié |
+| **Rejetée** | un `FneRejet` est ouvert : plus rien ne part tant que la cause n'est pas levée |
+| **En cours** | la normalisation automatique est cochée : la pièce part au prochain passage |
+| **En attente** | elle est décochée : rien ne partira tant que personne n'aura cliqué |
+
+Même correction au tableau des achats, où le mensonge était plus grand encore :
+une facture fournisseur ordinaire **ne part jamais** à la DGI — c'est le
+fournisseur qui l'a certifiée. Elle affichait pourtant « En cours » pour
+toujours. Seul le bordereau (BAPA) s'y normalise, et il attend la main.
+
+#### 30.4 Une seule case, et une case qui ne commandait rien
+
+Les deux réglages — factures, reçus — n'en font plus qu'un. Le reçu emprunte la
+porte de la facture ; deux réglages pour une seule décision ne disaient pas
+lequel commandait la pièce qu'on avait sous les yeux. **Les deux colonnes
+restent en base** et restent lues séparément : une base peuplée avant ce jour
+peut porter deux valeurs différentes, et elles doivent être respectées.
+
+Le **BAPA** était une case à cocher. Vérification faite, `entreprises.bapa`
+n'était lue **nulle part** ailleurs que dans le résumé de la page des
+paramètres : le bordereau se choisit à la saisie de l'achat, par `type_facture`,
+et c'est l'espace FNE de l'entreprise qui l'autorise. Décocher n'empêchait
+aucun bordereau. Elle devient une information, qui dit où le réglage se trouve
+vraiment. La colonne reste en base, et l'enregistrement n'y touche plus.
+
+#### 30.5 Facture et reçu : une pièce, deux documents
+
+**Ce lot traverse le périmètre gelé de la FNE**, et il faut le dire :
+`type_piece` figure nommément parmi les colonnes gelées par `CLAUDE.md`. La
+troisième exception s'applique — le propriétaire l'a demandé explicitement le
+25/09/2026 — et la règle exige que la traversée soit signalée. Elle l'est ici,
+et dans `ETATS DES LIEUX.txt`.
+
+Ce qui change est ce que Selflow **établit** et **imprime**, jamais ce qu'il
+**déclare** : la saisie ne propose plus « Facture » puis « Reçu » mais un seul
+choix **« Facture + Reçu »**, et `type_piece` part à `facture` — la valeur que
+la plateforme reçoit déjà. Un envoi, un code QR, un sticker, deux mises en
+page. `FnePayloadTest` reste vert **sans avoir été retouché** : c'est le juge de
+cette correction, et s'il avait fallu le modifier, la correction aurait été
+mauvaise.
+
+Une caisse qui choisissait « Reçu » se retrouvait sans facture. Le sens
+reçu → facture reste en place pour les pièces déjà établies.
+
+#### 30.6 Le tableau des factures
+
+| Colonne | Avant | Après |
+|---|---|---|
+| Fichier DGI | un bouton « télécharger » | **deux documents** : la facture rendue par la plateforme, et le reçu normalisé |
+| Reçu lié | le numéro de la pièce liée | *retirée* — le reçu n'est plus une seconde pièce |
+| Fichier reçu | le ticket | *absorbée* par « Fichier DGI » |
+| **Originale** | — | **nouvelle** : la facture et le reçu établis par Selflow |
+| Actions | Voir, Reçu, pièce liée, télécharger, **modifier**, normaliser | **Normaliser, et rien d'autre** |
+
+« Modifier » est retiré des factures. Il s'affichait tant que la pièce n'était
+pas normalisée, c'est-à-dire **après** qu'elle avait pu être remise au client.
+Les devis et bons de commande le gardent : ce sont des offres, elles se
+reprennent.
+
+Même partage au tableau des achats : « Voir » et le bordereau passent sous
+« Originale ».
+
+#### 30.7 Télécharger, et non imprimer
+
+Un bouton **Télécharger** entre sur la page de la pièce, sur le bordereau
+d'achat et sur le reçu. Il enregistre un fichier, sans qu'aucune boîte ne
+s'ouvre — l'impression par le navigateur reste à côté, inchangée.
+
+**Le format est HTML et non PDF**, et il faut le dire franchement :
+l'application n'embarque aucun moteur PDF — ni `dompdf`, ni `wkhtmltopdf`. Le
+fichier rendu porte ses styles, s'ouvre dans n'importe quel navigateur et
+s'imprime à l'identique. Un vrai `.pdf` demande une dépendance nouvelle et une
+remise en page complète des documents : à décider, pas à improviser.
+
+#### 30.8 Le filigrane des cartes d'article
+
+Retiré de l'écran de caisse et de l'écran de modification : la même silhouette
+revenait sur des articles sans rapport, et la grille en paraissait salie. Un
+article sans photo garde une carte nette. **La vraie photo n'a pas bougé** —
+elle porte une information que le texte ne porte pas. Le catalogue garde le
+dessin, où les cartes sont grandes et où il se lit.
+
+Et les deux émojis des tableaux de bord — 👋 et 🏢 — sont partis.
+
+#### 30.9 Les épreuves
+
+`StabilisationDesEcransDeVenteTest` — **10 cas** : l'adresse publique sur la
+page de la pièce, le numéro de ligne qui ne désigne rien, le tableau de bord
+FNE qui ne distribue plus d'adresses mortes, les deux états du libellé DGI, la
+file servie par le planificateur, les nouvelles colonnes, la facture qui ne se
+modifie plus, les boutons de téléchargement, et les émojis.
+
+`IllustrationArticleTest` et `NormalisationAutomatiqueTest` sont **repris, non
+supprimés** : ils portaient la mémoire des décisions d'hier, ils portent celle
+d'aujourd'hui. Six de leurs cas ont changé de sens, quatre sont nés.
+
+Suite entière : **1 306 épreuves, 1 302 passantes, 4 sautées, 5 090
+vérifications**. `php artisan verifier:variables` : aucune variable lue sans
+avoir été écrite.
+
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

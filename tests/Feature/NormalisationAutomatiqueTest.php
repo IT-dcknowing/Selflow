@@ -21,10 +21,15 @@ use Tests\TestCase;
  * qui tourne, mais pas pour une entreprise qui vérifie ses pièces avant de les
  * certifier — **et une pièce certifiée ne se reprend pas**.
  *
- * Deux réglages, séparés parce que les deux usages le sont : une boutique peut
- * vouloir vérifier ses factures et laisser partir ses tickets de caisse tout
- * seuls. Le défaut reste l'automatique, pour ne rien changer aux entreprises
- * déjà en service sans qu'elles l'aient demandé.
+ * Le réglage se posait d'abord en deux cases, une par nature de pièce. **Le
+ * 25/09/2026 elles ont été réunies en une seule** : le reçu emprunte la porte de
+ * la facture — même envoi, même code QR, même sticker —, et deux réglages pour
+ * une seule décision ne disaient pas lequel commandait la pièce qu'on avait
+ * sous les yeux. Les deux colonnes restent en base et restent lues séparément :
+ * une base peuplée avant cette date peut porter deux valeurs différentes.
+ *
+ * Le défaut reste l'automatique, pour ne rien changer aux entreprises déjà en
+ * service sans qu'elles l'aient demandé.
  */
 class NormalisationAutomatiqueTest extends TestCase
 {
@@ -126,12 +131,15 @@ class NormalisationAutomatiqueTest extends TestCase
         Queue::assertNotPushed(NormaliserFactureFne::class);
     }
 
-    // ══════════════ Les deux réglages sont indépendants ══════════════
+    // ══════════════ Les deux colonnes restent lues séparément ══════════════
+    //
+    // L'écran ne propose plus qu'une case, qui écrit la même valeur dans les
+    // deux colonnes — voir plus bas. Le modèle, lui, continue de lire celle qui
+    // correspond à la pièce : une base peuplée avant le 25/09/2026 peut porter
+    // deux valeurs différentes, et elles doivent continuer d'être respectées.
 
     public function test_le_reglage_des_recus_ne_retient_pas_les_factures(): void
     {
-        // Le cas d'usage qui justifie deux réglages plutôt qu'un : vérifier ses
-        // factures à la main, laisser partir ses tickets de caisse.
         $this->entreprise->update([
             'normalisation_auto_factures' => true,
             'normalisation_auto_recus'    => false,
@@ -156,11 +164,12 @@ class NormalisationAutomatiqueTest extends TestCase
 
     // ══════════════ Le réglage se pose depuis l'écran ══════════════
 
-    public function test_le_reglage_se_decoche_depuis_les_parametres(): void
+    /**
+     * Les paramètres de l'entreprise, avec le minimum exigé par l'écran.
+     */
+    private function enregistrerParametres(array $ajouts = []): void
     {
-        // Une case non cochée n'est pas transmise : sans lecture explicite,
-        // décocher n'aurait aucun effet.
-        $this->put(route('admin.entreprise.parametres.enregistrer'), [
+        $this->put(route('admin.entreprise.parametres.enregistrer'), array_merge([
             'nom'               => $this->entreprise->nom,
             'regime_imposition' => 'RNI',
             'adresse'           => 'Plateau, Abidjan',
@@ -168,14 +177,61 @@ class NormalisationAutomatiqueTest extends TestCase
             'ncc'               => '2603210A',
             'gerant_fonction'   => 'Gérant',
             'secteurs_activite' => ['Commerce'],
-            // `normalisation_auto_factures` volontairement absent : décoché.
-            'normalisation_auto_recus' => '1',
+        ], $ajouts));
+    }
+
+    public function test_une_seule_case_commande_les_deux_colonnes(): void
+    {
+        // Réuni le 25/09/2026 : deux réglages pour une seule décision ne
+        // disaient pas lequel commandait la pièce qu'on avait sous les yeux.
+        // Le reçu emprunte la porte de la facture ; la case écrit donc la même
+        // valeur dans les deux colonnes.
+        $this->entreprise->update([
+            'normalisation_auto_factures' => false,
+            'normalisation_auto_recus'    => false,
         ]);
+
+        $this->enregistrerParametres(['normalisation_auto' => '1']);
+
+        $entreprise = $this->entreprise->fresh();
+
+        $this->assertTrue((bool) $entreprise->normalisation_auto_factures);
+        $this->assertTrue((bool) $entreprise->normalisation_auto_recus);
+    }
+
+    public function test_le_reglage_se_decoche_depuis_les_parametres(): void
+    {
+        // Une case non cochée n'est pas transmise : sans lecture explicite,
+        // décocher n'aurait aucun effet.
+        $this->entreprise->update([
+            'normalisation_auto_factures' => true,
+            'normalisation_auto_recus'    => true,
+        ]);
+
+        // `normalisation_auto` volontairement absent : décoché.
+        $this->enregistrerParametres();
 
         $entreprise = $this->entreprise->fresh();
 
         $this->assertFalse((bool) $entreprise->normalisation_auto_factures);
-        $this->assertTrue((bool) $entreprise->normalisation_auto_recus);
+        $this->assertFalse((bool) $entreprise->normalisation_auto_recus);
+    }
+
+    /**
+     * L'ancienne case du bordereau ne commandait rien.
+     *
+     * `entreprises.bapa` n'était lue nulle part ailleurs que dans le résumé de
+     * la page des paramètres : le bordereau se choisit à la saisie de l'achat,
+     * et c'est l'espace FNE de l'entreprise qui l'autorise. La case est devenue
+     * une information, et l'enregistrement ne doit plus y toucher.
+     */
+    public function test_l_enregistrement_ne_touche_plus_au_bapa(): void
+    {
+        $this->entreprise->update(['bapa' => true]);
+
+        $this->enregistrerParametres(['normalisation_auto' => '1']);
+
+        $this->assertTrue((bool) $this->entreprise->fresh()->bapa);
     }
 
     // ══════════════ Ce que l'écran en dit ══════════════
@@ -192,25 +248,42 @@ class NormalisationAutomatiqueTest extends TestCase
 
         $this->assertStringNotContainsString('Normalisation RNE en attente', $corps);
         $this->assertStringNotContainsString('champs de mappage du reçu', $corps);
-        $this->assertStringContainsString('Le reçu se certifie comme une facture', $corps);
+        $this->assertStringContainsString('Une seule pièce, deux documents', $corps);
     }
 
-    public function test_l_ecran_dit_que_le_recu_part_des_son_emission(): void
+    /**
+     * Le choix « Reçu » a disparu de la saisie.
+     *
+     * Une caisse qui le choisissait se retrouvait sans facture, alors que le
+     * reçu n'est que la facture mise en page pour le ticket. Un seul bouton
+     * établit les deux, et c'est `facture` qui part à la plateforme — la
+     * valeur qu'elle reçoit déjà.
+     */
+    public function test_la_saisie_ne_propose_plus_le_recu_comme_piece_a_part(): void
     {
-        $this->entreprise->update(['normalisation_auto_recus' => true]);
+        $corps = $this->get(route('admin.ventes.nouvelle'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('Facture + Reçu', $corps);
+        $this->assertStringNotContainsString('data-etape-vente="Reçu"', $corps);
+        $this->assertStringContainsString('id="typePieceInput" value="facture"', $corps);
+    }
+
+    public function test_l_ecran_dit_que_la_piece_part_des_son_emission(): void
+    {
+        $this->entreprise->update(['normalisation_auto_factures' => true]);
 
         $corps = $this->get(route('admin.ventes.nouvelle'))->assertOk()->getContent();
 
-        $this->assertStringContainsString('Il part à la certification dès son émission', $corps);
+        $this->assertStringContainsString('part à la certification dès son émission', $corps);
     }
 
-    public function test_l_ecran_dit_que_le_recu_attend_quand_le_reglage_est_decoche(): void
+    public function test_l_ecran_dit_que_la_piece_attend_quand_le_reglage_est_decoche(): void
     {
-        $this->entreprise->update(['normalisation_auto_recus' => false]);
+        $this->entreprise->update(['normalisation_auto_factures' => false]);
 
         $corps = $this->get(route('admin.ventes.nouvelle'))->assertOk()->getContent();
 
         $this->assertStringContainsString('est décochée dans vos', $corps);
-        $this->assertStringNotContainsString('Il part à la certification dès son émission', $corps);
+        $this->assertStringNotContainsString('part à la certification dès son émission', $corps);
     }
 }

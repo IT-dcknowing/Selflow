@@ -128,6 +128,7 @@ class BonLivraisonControleur extends Controller
         ]);
 
         $blId = null;
+        $blCle = null;
 
         // Vérification de disponibilité AVANT toute écriture en base.
         foreach ($request->lignes as $ligne) {
@@ -145,7 +146,7 @@ class BonLivraisonControleur extends Controller
             }
         }
 
-        DB::transaction(function () use ($request, $vente, $entreprise, &$blId) {
+        DB::transaction(function () use ($request, $vente, $entreprise, &$blId, &$blCle) {
             $numeroBL    = NumerotationService::genererNumeroBL($entreprise->id);
             $totalCom    = 0;
             $totalLivre  = 0;
@@ -238,6 +239,9 @@ class BonLivraisonControleur extends Controller
             $vente->update(['statut' => $estPartiel ? 'Partiel' : 'En livraison']);
 
             $blId = $bl->id;
+            // Le journal retient le numéro de ligne ; l'adresse, elle, se lie
+            // par `uuid` — `BonLivraison` porte `IdentifiantOpaque`.
+            $blCle = $bl->getRouteKey();
         });
 
         $this->journaliser('creation_bon_livraison', 'BonLivraison', $blId);
@@ -246,7 +250,7 @@ class BonLivraisonControleur extends Controller
             ? 'caissier.ventes.livraison.voir'
             : 'admin.ventes.livraison.voir';
 
-        return redirect()->route($routeVoir, $blId)
+        return redirect()->route($routeVoir, $blCle)
             ->with('succes', 'Bon de livraison créé avec succès.');
     }
 

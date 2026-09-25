@@ -23,6 +23,30 @@ Artisan::command('inspire', function () {
  */
 $sortiesPortail = \App\Modules\Admin\Services\ScraperPortailFneService::sorties();
 
+/*
+ * Quelqu'un doit servir la file d'attente.
+ *
+ * `QUEUE_CONNECTION=database` : la normalisation automatique d'une facture
+ * DÉPOSE son travail dans la table `jobs` et rend la main. Sans personne pour
+ * l'y prendre, il y reste. C'est ce qui a été constaté le 25/09/2026 — la case
+ * « normaliser automatiquement » était cochée, l'écran affichait « En cours »,
+ * et rien n'était jamais parti à la DGI. La normalisation manuelle, elle,
+ * fonctionnait : elle exécute sur-le-champ.
+ *
+ * Pas de service permanent : l'hébergement mutualisé n'en admet pas. Le
+ * planificateur passe chaque minute, vide ce qui attend, et s'arrête —
+ * `--stop-when-empty` pour ne pas tenir la minute à ne rien faire,
+ * `--max-time=50` pour laisser la place au passage suivant. Le délai de
+ * certification est donc d'une minute au pire, et non de l'infini.
+ *
+ * Les tentatives et le délai entre elles restent ceux que le travail déclare
+ * (`NormaliserFactureFne` : trois tentatives, trente secondes) : les écrire
+ * ici les écraserait.
+ */
+Schedule::command('queue:work --stop-when-empty --max-time=50')
+    ->everyMinute()
+    ->withoutOverlapping();
+
 // Re-synchronisation des écritures COMPTAFLOW échouées (toutes les 5 minutes)
 Schedule::command('selflow:sync-ecritures')->everyFiveMinutes()->withoutOverlapping();
 

@@ -151,6 +151,10 @@
         </div>
         
         <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="print-btn" onclick="telechargerFichier('.invoice')"
+                    title="Enregistrer le document dans un fichier, sans passer par l'impression.">
+                <i class="fas fa-download"></i> Télécharger
+            </button>
             <button class="print-btn main" onclick="telechargerPdf()"
                     title="Choisissez la destination « Enregistrer au format PDF » pour obtenir le fichier, ou votre imprimante pour une sortie papier.">
                 <i class="fas fa-file-pdf"></i> Imprimer / PDF

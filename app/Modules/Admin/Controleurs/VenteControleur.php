@@ -1551,9 +1551,9 @@ class VenteControleur
             return back()->with('erreur', $obstacle);
         }
 
-        $nouvelleFactureId = null;
+        $nouvelleFactureCle = null;
 
-        DB::transaction(function () use ($vente, &$nouvelleFactureId) {
+        DB::transaction(function () use ($vente, &$nouvelleFactureCle) {
             // 1. Cloner en Facture (statut Crédit par défaut, en attente de finalisation)
             $entrepriseId = $vente->pointDeVente->entreprise_id;
             $nouveauNumero = \App\Modules\Admin\Services\NumerotationService::genererNumeroVente($entrepriseId, 'Facture');
@@ -1592,12 +1592,15 @@ class VenteControleur
             //    facturé deux fois.
             $vente->update(['archived' => true, 'converti_en_id' => $clone->id]);
 
-            $nouvelleFactureId = $clone->id;
+            // La clé d'adressage, et non le numéro de ligne : la route
+            // `ventes.modifier` se lie par `uuid`, et la redirection tombait
+            // sur une page introuvable (404).
+            $nouvelleFactureCle = $clone->getRouteKey();
         });
 
         // Rediriger vers la modification pour finaliser le paiement
         $route = request()->routeIs('caissier.*') ? 'caissier.ventes.modifier' : 'admin.ventes.modifier';
-        return redirect()->route($route, $nouvelleFactureId)
+        return redirect()->route($route, $nouvelleFactureCle)
             ->with('succes', 'Bon de commande converti en facture. Veuillez renseigner le mode de paiement et valider.');
     }
 
@@ -1635,9 +1638,9 @@ class VenteControleur
         }
 
         $versRecu = false;
-        $nouvelleId = null;
+        $nouvelleCle = null;
 
-        DB::transaction(function () use ($vente, $versRecu, &$nouvelleId) {
+        DB::transaction(function () use ($vente, $versRecu, &$nouvelleCle) {
             $entrepriseId = $vente->pointDeVente->entreprise_id;
 
             $clone = $vente->replicate([
@@ -1686,12 +1689,12 @@ class VenteControleur
             // Lien symétrique : chaque pièce désigne sa contrepartie
             $vente->update(['piece_liee_id' => $clone->id]);
 
-            $nouvelleId = $clone->id;
+            $nouvelleCle = $clone->getRouteKey();
         });
 
         $route = request()->routeIs('caissier.*') ? 'caissier.ventes.imprimer' : 'admin.ventes.imprimer';
 
-        return redirect()->route($route, $nouvelleId)
+        return redirect()->route($route, $nouvelleCle)
             ->with('succes', "La facture du reçu « {$vente->numero_facture} » a été établie. Elle reste à normaliser auprès de la DGI.");
     }
 

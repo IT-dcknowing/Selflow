@@ -1,0 +1,350 @@
+================================================================================
+  SELFLOW - ETAT DES LIEUX
+  Etabli le 25/09/2026 - avant le lot 30 « stabilisation »
+  Base : depot meledjeabrahamagnimel-lgtm/Selflow, branche main, commit 56af65f
+================================================================================
+
+
+0. CE QUE CET ETAT DES LIEUX COUVRE
+--------------------------------------------------------------------------------
+Les points releves le 25/09/2026 sur la demonstration en ligne
+(selflow.dc-knowing.com) et sur le poste local (127.0.0.1:8003). Pour chacun :
+ce qui a ete constate, la cause trouvee dans le code, le fichier et la ligne, et
+ce que la correction engage.
+
+Ce document ne corrige rien. Il dit ou nous en sommes, pour que les corrections
+partent d'un constat et non d'une impression.
+
+
+1. ETAT GENERAL DU DEPOT
+--------------------------------------------------------------------------------
+Branche            : main, propre (aucune modification non enregistree)
+Dernier commit     : 56af65f - repli sur un dump HTML quand la capture echoue
+Depots             : origin        = meledjeabrahamagnimel-lgtm/Selflow (base)
+                     nouveau-repo  = IT-dcknowing/Selflow (miroir, a jour)
+Lots termines      : jusqu'au lot 28 ; le lot 29 (facture recue sans portail) est
+                     marque « chaine d'affichage prete, telechargement en attente »
+Jeu de tests       : 1 199 tests repartis sur 80 fichiers dans tests/Feature
+Branches tierces   : toutes fusionnees (ServiceScrapping, suite-scrapping)
+
+Rien n'est en attente de fusion. Le serveur a ete mis a jour, les caches de
+configuration et de routes reconstruits, et la tache planifiee d'une minute a
+ete ajoutee dans cPanel.
+
+
+2. LES POINTS RELEVES
+--------------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+POINT 1 - « Not Found » sur « Imprimer le recu » et « Creer la facture »
+------------------------------------------------------------------------
+Constate   : depuis la page d'une facture de vente, les deux boutons ouvrent une
+             page « Not Found » (404 - ressource introuvable).
+Gravite    : BLOQUANT. Le recu est inatteignable depuis la facture.
+
+Cause      : CONFIRMEE, et de la meme famille que le defaut du modal des cles
+             FNE corrige au lot 25.
+
+             Les modeles Vente, Achat et BonLivraison portent le trait
+             IdentifiantOpaque : leurs adresses se lient par la colonne `uuid`,
+             jamais par le numero de ligne. Or ces boutons construisent leur
+             adresse avec `->id`, le numero de ligne. L'adresse produite
+             (/admin/ventes/facture/1234/ticket) ne designe donc aucune piece,
+             et Laravel repond 404 (Not Found - introuvable).
+
+             Ce n'est pas propre a la mise en ligne : le defaut est identique en
+             local. Il ne se voyait pas parce que ces deux boutons ne s'affichent
+             que sur une facture a l'etape « Facture » qui n'est pas un avoir.
+
+Emplacements (13 occurrences, toutes a reprendre) :
+  app/Modules/Admin/Vues/factures/vente.blade.php:256      ticket
+  app/Modules/Admin/Vues/factures/vente.blade.php:262      piece liee
+  app/Modules/Admin/Vues/factures/vente.blade.php:269      convertir_piece
+  app/Modules/Admin/Controleurs/VenteControleur.php:1600   redirection apres avoir
+  app/Modules/Admin/Controleurs/VenteControleur.php:1694   redirection apres
+                                                           conversion recu->facture
+  app/Modules/Admin/Controleurs/BonLivraisonControleur.php:249  redirection BL
+  app/Modules/Admin/Controleurs/FneDashboardControleur.php:539, 542, 556, 557,
+                                                           610, 611
+
+             Le tableau de bord FNE distribue donc lui aussi des adresses mortes :
+             « voir la piece » et « normaliser » y repondent 404.
+
+A noter    : FneDashboardControleur.php:764 n'est PAS en cause - le modele
+             PortailFneFactureRecue ne porte pas le trait et se lie bien par son
+             numero de ligne.
+
+Engagement : aucune regle FNE n'est touchee. C'est une correction d'adressage.
+
+
+------------------------------------------------------------------------
+POINT 2 - La normalisation ne suit pas le reglage de l'entreprise
+------------------------------------------------------------------------
+Constate   : apres l'enregistrement d'une facture, la normalisation ne part pas
+             d'elle-meme ; la colonne « Normalisee (DGI) » reste indefiniment sur
+             « En cours » avec une roue qui tourne.
+Gravite    : ELEVEE. L'ecran annonce un travail en cours qui n'a pas commence.
+
+Ce qui existe deja et fonctionne :
+  - deux colonnes en base, `normalisation_auto_factures` et
+    `normalisation_auto_recus` (migration 2026_08_19_000001) ;
+  - deux cases a cocher dans les parametres (parametres.blade.php:817 et 835) ;
+  - la decision est bien lue a l'enregistrement - VenteControleur.php:366 appelle
+    `Entreprise::normaliseAutomatiquement($vente)` (Entreprise.php:156), qui
+    choisit la colonne selon que la piece est un recu ou une facture.
+
+Deux causes distinctes, a ne pas confondre :
+
+  2a. LA FILE D'ATTENTE N'EST PAS SERVIE. - CONFIRMEE
+      `.env` porte QUEUE_CONNECTION=database. La normalisation automatique passe
+      par `NormaliserFactureFne::dispatch()`, qui DEPOSE le travail dans la table
+      `jobs` et rend la main. Sans `php artisan queue:work` en service, rien ne
+      le prend jamais. La normalisation manuelle, elle, fonctionne : elle appelle
+      `dispatchSync()` (VenteControleur.php:1343), qui execute sur-le-champ.
+      C'est exactement ce qui est observe - la case est cochee, et rien ne part.
+
+  2b. LE LIBELLE MENT. - CONFIRMEE
+      ventes/factures.blade.php:426 affiche « En cours » avec une roue animee
+      pour TOUTE piece non normalisee, y compris celles que personne n'a
+      envoyees et que personne n'enverra. Il faut distinguer :
+        - « En attente » : la normalisation automatique est decochee, ou le
+                           travail n'a pas encore ete pris ;
+        - « En cours »   : le travail est reellement depose et en traitement ;
+        - « Rejetee »    : la plateforme a refuse (un FneRejet existe).
+
+Demande du proprietaire : reunir les deux cases en une seule. Cochee, la
+             normalisation est automatique ; decochee, elle est manuelle - pour
+             la facture comme pour le recu, puisque le recu est une mise en page
+             de la facture et emprunte la meme porte.
+
+
+------------------------------------------------------------------------
+POINT 3 - Facture et recu doivent devenir une seule piece
+------------------------------------------------------------------------
+Demande    : a la saisie (admin/ventes/nouvelle), les boutons « Facture » et
+             « Recu » deviennent un seul choix « Facture + Recu » : les deux sont
+             etablis ensemble, puisque le recu reprend les informations de la
+             facture. Le bouton « Normaliser » certifie les deux d'un coup.
+
+Etat actuel :
+  - le selecteur propose quatre pieces - Devis, Commande, Facture, Recu
+    (nouvelle.blade.php:335-348), et pose `type_piece` ;
+  - le passage du recu a la facture existe deja, mais dans un seul sens et apres
+    coup : `convertirPiece()` (VenteControleur.php:1617) duplique le recu en
+    facture, recopie lignes et taxes SANS les identifiants de certification de
+    l'original, et pose le lien symetrique `piece_liee_id`. Le sens inverse est
+    explicitement refuse - « la DGI ne prevoit pas l'operation inverse ».
+
+*** AVERTISSEMENT - REGLE D'OR FNE ***
+    `type_piece` figure nommement parmi les colonnes gelees par CLAUDE.md, au
+    meme titre que `est_rne` et `numero_rne`. Reunir facture et recu en une seule
+    piece traverse donc le perimetre gele de la conformite DGI.
+
+    La regle prevoit trois exceptions, dont la troisieme : « le proprietaire du
+    projet le demande explicitement ». C'est le cas ici, et la demande est datee
+    du 25/09/2026. La correction est donc recevable - mais elle doit etre
+    signalee, et elle l'est par le present document.
+
+    Ce qui reste interdit, meme sous cette exception : modifier ce que le payload
+    transmet a la plateforme. Une piece doit continuer de partir avec le meme
+    `type_piece` qu'aujourd'hui pour la DGI. Ce qui change est ce que Selflow
+    ETABLIT et IMPRIME, pas ce qu'il DECLARE. Concretement : un seul envoi a la
+    DGI, deux mises en page. FnePayloadTest doit rester vert sans etre retouche -
+    c'est le juge de cette correction.
+
+
+------------------------------------------------------------------------
+POINT 4 - Le tableau des factures de vente est a refaire
+------------------------------------------------------------------------
+Ecran      : /admin/ventes/factures?etape=Facture
+             (app/Modules/Admin/Vues/ventes/factures.blade.php)
+
+Colonnes actuelles (lignes 335-360) :
+  N Facture . Date . Client . Point de vente . TTC . Mode paiement . Statut .
+  Normalisee (DGI) . Fichier DGI . Recu lie . Fichier recu . Actions
+
+Colonne « Actions » actuelle (lignes 492-615) : Voir . Recu . piece liee ou
+  -> Facture . Telecharger . Modifier . Normaliser. Six boutons.
+
+Demande :
+  - RETIRER le bouton « Modifier » : une facture etablie ne se modifie pas.
+    Il est aujourd'hui affiche des que la piece n'est pas normalisee (ligne 597),
+    ce qui ouvre la reprise d'une facture deja remise au client.
+  - RETIRER la colonne « Recu lie » : elle n'aura plus d'objet une fois la
+    facture et le recu reunis.
+  - « Fichier DGI » porte desormais DEUX documents : la facture normalisee ET le
+    recu normalise, a la place du seul bouton « Telecharger ».
+  - NOUVELLE colonne « Originale » : y deplacer les deux boutons de la facture
+    d'origine et du recu d'origine, aujourd'hui dans « Actions ».
+  - « Actions » ne garde QUE le bouton « Normaliser ».
+  - Dans chaque page ouverte par un bouton « Voir » - sauf la facture qui vient
+    de la DGI - ajouter un bouton TELECHARGER (et non « Imprimer »).
+  - Reporter la meme structure sur les tableaux voisins : avoirs clients,
+    factures d'achat, avoirs fournisseurs.
+
+Constat annexe : le telechargement passe aujourd'hui par `telechargerDirectement`
+  avec `?download=1` ou `?print=1`, c'est-a-dire par la boite d'impression du
+  navigateur. L'impression par le navigateur reste en place tant qu'elle n'est
+  pas explicitement retiree ; le bouton demande ici s'ajoute, il ne la remplace
+  pas encore.
+
+
+------------------------------------------------------------------------
+POINT 5 - Le fond des cartes d'articles a la vente
+------------------------------------------------------------------------
+Ecran      : /admin/ventes/nouvelle
+Constate   : les dessins poses en fond des articles sans photo sont disgracieux.
+Demande    : retirer les images de fond. Un article sans photo reste sans fond.
+
+Cause      : nouvelle.blade.php lignes 16-57 (feuille de style) et 213-218. Deux
+             mecanismes cohabitent :
+               `.produit-card.avec-photo`  -> la vraie photo de l'article ;
+               `.produit-card.avec-dessin` -> une illustration de remplacement
+                                              tiree de `Produit::illustration()`.
+             C'est le second qui est en cause.
+
+Engagement : purement visuel. Ne touche ni les donnees ni la FNE.
+A trancher : la vraie photo, quand elle existe, reste-t-elle ? La demande vise
+             les articles sans image ; la photo reelle sera conservee sauf
+             indication contraire.
+
+
+------------------------------------------------------------------------
+POINT 6 - Deux emojis a retirer des tableaux de bord
+------------------------------------------------------------------------
+  app/Modules/Admin/Vues/tableau_de_bord.blade.php:15          « Bonjour, ... »
+  app/Modules/Admin/Vues/tableau_de_bord_general.blade.php:15  « ... general »
+
+Engagement : nul. Deux caracteres.
+
+
+------------------------------------------------------------------------
+POINT 7 - Le reglage BAPA : a quoi sert-il encore ?
+------------------------------------------------------------------------
+Question posee : faut-il retirer la case « Bordereau d'Achat de Produits
+             Agricoles (BAPA) », la laisser, ou la transformer en information ?
+
+Verification faite - LE REGLAGE NE COMMANDE RIEN.
+             La colonne `entreprises.bapa` n'est lue qu'a UN seul endroit dans
+             tout le code : parametres.blade.php:1022, pour ecrire « BAPA :
+             ouvert » ou « BAPA : ferme » dans le resume de la page des
+             parametres. Elle se raconte elle-meme.
+
+             Le bordereau d'achat, lui, ne consulte jamais cette case : il est
+             commande par `type_facture = 'bapa'` choisi a la saisie de l'achat
+             (AchatControleur.php:86, 336, 560).
+
+             Autrement dit, decocher la case n'empeche aujourd'hui aucun
+             bordereau. Une case qui ne commande rien mais parait commander
+             quelque chose est pire qu'une case absente.
+
+Recommandation : la transformer en INFORMATION (texte, non cliquable), disant ce
+             qui est vrai - que l'ouverture des bordereaux se regle sur l'espace
+             FNE de l'entreprise, et que Selflow n'a rien a y ajouter. C'est la
+             solution qui ne ment pas et qui ne retire aucune capacite. La
+             colonne en base peut rester : elle ne gene pas, et la retirer
+             demanderait une migration pour rien.
+
+
+3. CE QUI N'EST PAS EN CAUSE, ET QU'IL NE FAUT PAS DERANGER
+--------------------------------------------------------------------------------
+  - La construction et l'envoi des payloads DGI (FneService) ;
+  - le bareme du timbre de quittance ; le code QR ; l'alerte de stickers ;
+  - les codes TVA, taux et regimes d'exoneration ;
+  - les blocs de certification des documents imprimes ;
+  - tests/Feature/FnePayloadTest.php.
+
+Aucune des sept corrections ci-dessus n'a besoin d'y toucher. Le point 3 en
+approche le bord ; le juge sera FnePayloadTest, qui doit rester vert SANS etre
+modifie. S'il faut le retoucher pour faire passer une correction, c'est que la
+correction est mauvaise.
+
+
+4. ORDRE DE CORRECTION PROPOSE
+--------------------------------------------------------------------------------
+Du plus urgent et du moins risque, au plus engageant.
+
+  1. Point 1 - les 13 adresses construites avec le numero de ligne.
+     BLOQUANT, sans risque, et il ferme aussi les adresses mortes du tableau de
+     bord FNE que personne n'avait encore signalees.
+
+  2. Point 6 - les deux emojis. Deux caracteres.
+
+  3. Point 5 - le fond des cartes d'articles. Visuel.
+
+  4. Point 2b - « En cours » devient « En attente » / « En cours » / « Rejetee ».
+     L'ecran cesse de mentir, meme avant que la file soit servie.
+
+  5. Point 2a - servir la file d'attente. Decision d'exploitation autant que de
+     code : soit un service `queue:work` permanent, soit le passage de la
+     normalisation automatique en execution immediate. A trancher ensemble.
+
+  6. Point 7 - le reglage BAPA passe en information.
+
+  7. Point 2 (reunion des deux cases) puis point 3 (facture + recu en une piece).
+     Les deux vont ensemble : une seule case n'a de sens que si les deux pieces
+     n'en font plus qu'une.
+
+  8. Point 4 - le tableau des factures, puis les tableaux voisins.
+     Le plus long, et il depend du point 3 : la colonne « Recu lie » ne disparait
+     qu'une fois la reunion faite.
+
+Avant tout envoi : `php artisan test` et `php artisan verifier:variables`.
+Envoi sur les DEUX depots : origin, puis nouveau-repo.
+
+
+5. POINTS RESTES EN SUSPENS, HORS DE CETTE LISTE
+--------------------------------------------------------------------------------
+  - Les entreprises de demonstration sont toujours dans la base en ligne. Elles
+    ne seront pas supprimees sans la liste explicite de leurs numeros sur le
+    serveur.
+  - Le releve du portail FNE ne tournera en ligne que si Node est installe et si
+    PORTAIL_FNE_SCRAPER_ACTIF=true figure dans le `.env` du serveur. La tache
+    planifiee d'une minute est en place ; elle execute deja le reste.
+  - Le lot 29 (telechargement de la facture recue) reste ouvert.
+  - Les deux PDF - Plan-de-travail-Selflow.pdf et Etat-de-Selflow.pdf - n'ont pas
+    ete reedites depuis le commit 4a1fc65. A refaire a la cloture du lot 30.
+
+
+6. CE QUI A ETE CORRIGE LE 25/09/2026 (lot 30)
+--------------------------------------------------------------------------------
+  [FAIT] Point 1 - les 13 adresses construites avec le numero de ligne, y
+         compris les six du tableau de bord FNE que personne n'avait signalees.
+  [FAIT] Point 2a - le planificateur vide la file chaque minute
+         (queue:work --stop-when-empty --max-time=50). Delai de certification :
+         une minute au pire, au lieu de l'infini.
+  [FAIT] Point 2b - quatre etats au lieu d'un : Oui, Rejetee, En cours,
+         En attente. Meme correction au tableau des achats, ou une facture
+         fournisseur ordinaire affichait "En cours" pour toujours alors qu'elle
+         ne part jamais a la DGI.
+  [FAIT] Point 2 - une seule case "Normaliser automatiquement". Les deux
+         colonnes restent en base et restent lues separement.
+  [FAIT] Point 3 - un seul choix "Facture + Recu" a la saisie. type_piece
+         part a la valeur "facture" : rien de ce que la plateforme recoit n'a
+         change, et FnePayloadTest est reste vert sans etre retouche.
+  [FAIT] Point 4 - colonnes Fichier DGI (deux documents), Originale (nouvelle),
+         Recu lie et Fichier recu retirees, Actions reduite a "Normaliser".
+         "Modifier" retire des factures ; conserve sur les devis et bons de
+         commande, qui sont des offres et se reprennent.
+  [FAIT] Point 4 NB - bouton Telecharger sur la page de la piece, sur le
+         bordereau d'achat et sur le recu. RESERVE : le format est HTML et non
+         PDF, faute de moteur PDF dans l'application. Un vrai .pdf demande une
+         dependance nouvelle (dompdf) et une remise en page des documents.
+  [FAIT] Point 5 - filigrane retire des cartes d'article, a la caisse et a la
+         modification. La vraie photo est conservee ; le catalogue garde le
+         dessin.
+  [FAIT] Point 6 - les deux emojis.
+  [FAIT] Point 7 - le BAPA devient une information ; l'enregistrement n'y
+         touche plus.
+
+Epreuves : 1 306, dont 1 302 passantes et 4 sautees, 5 090 verifications.
+php artisan verifier:variables : aucune variable lue sans avoir ete ecrite.
+
+RESTE A DECIDER
+  - Le telechargement en PDF veritable (dependance dompdf).
+  - La suppression des entreprises de demonstration en ligne : elle attend la
+    liste explicite de leurs numeros sur le serveur.
+  - La reedition des deux PDF du projet.
+
+================================================================================
+FIN

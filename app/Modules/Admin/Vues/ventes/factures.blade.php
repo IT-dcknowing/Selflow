@@ -352,15 +352,18 @@
                     @if(!$estDevisOuBC)
                     <th style="white-space: nowrap; text-align: center;">Normalisée (DGI)</th>
                     @endif
+                    {{-- Ce que la DGI a certifié : la facture rendue par la
+                         plateforme, et le reçu qui en reprend les informations.
+                         La colonne « Reçu lié » a disparu avec la pièce liée —
+                         le reçu n'est plus une seconde pièce. --}}
                     <th style="white-space: nowrap;">Fichier DGI</th>
-                    @if(!$estDevisOuBC)
-                    <th style="white-space: nowrap;">Reçu lié</th>
-                    <th style="white-space: nowrap;">Fichier reçu</th>
-                    @endif
+                    {{-- Ce que Selflow a établi, avant la DGI. --}}
+                    <th style="white-space: nowrap;">Originale</th>
                     <th style="white-space: nowrap;">Actions</th>
                 </tr>
             </thead>
             <tbody>
+                @php $entrepriseNormalisation = Auth::user()->entreprise; @endphp
                 @foreach($ventes as $vente)
                 @php
                     $routeImprimer = $isCaissier ? route('caissier.ventes.imprimer', $vente) : route('admin.ventes.imprimer', $vente);
@@ -369,6 +372,11 @@
                     $routeConvertirCommande = $isCaissier ? route('caissier.ventes.convertir.commande', $vente) : route('admin.ventes.convertir.commande', $vente);
                     $routeConvertirFacture  = $isCaissier ? route('caissier.ventes.convertir.facture', $vente) : route('admin.ventes.convertir.facture', $vente);
                     $routeSupprimer = $isCaissier ? route('caissier.ventes.supprimer', $vente) : route('admin.ventes.supprimer', $vente);
+                @endphp
+                @php
+                    // Une pièce non normalisée n'est pas forcément en route :
+                    // c'est le réglage de l'entreprise qui le dit.
+                    $normalisationAutomatique = $entrepriseNormalisation?->normaliseAutomatiquement($vente) ?? true;
                 @endphp
                 <tr @if($vente->normalise) style="background:#ecfdf5; border-left:4px solid #10b981;" @else style="background:#fffbeb; border-left:4px solid #f59e0b;" @endif>
                     @if($activerSelectionGroup)
@@ -421,84 +429,100 @@
                             <span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:4px 10px; border-radius:20px; font-weight:800; font-size:12px; display:inline-flex; align-items:center; gap:5px;" title="Facture normalisée avec succès par la DGI">
                                 <i class="fas fa-check-circle" style="color:#16a34a;"></i> Oui
                             </span>
-                        @else
-                            <span style="background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; padding:4px 10px; border-radius:20px; font-weight:700; font-size:12px; display:inline-flex; align-items:center; gap:5px;" title="Facture en attente de normalisation / relève FNE en cours">
+                        @elseif($vente->aRejetEnCours())
+                            {{-- La plateforme a examiné la pièce et l'a refusée.
+                                 Ce n'est pas « en cours » : plus rien ne part
+                                 tant que la cause n'est pas levée. --}}
+                            <span style="background:#fef2f2; color:#991b1b; border:1px solid #fca5a5; padding:4px 10px; border-radius:20px; font-weight:800; font-size:12px; display:inline-flex; align-items:center; gap:5px;" title="La DGI a refusé cette pièce. Voyez l'écran des rejets FNE.">
+                                <i class="fas fa-triangle-exclamation" style="font-size:11px;"></i> Rejetée
+                            </span>
+                        @elseif($normalisationAutomatique)
+                            {{-- Déposée dans la file : elle part au prochain
+                                 passage du planificateur, dans la minute. --}}
+                            <span style="background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; padding:4px 10px; border-radius:20px; font-weight:700; font-size:12px; display:inline-flex; align-items:center; gap:5px;" title="Déposée pour certification : elle part au prochain passage.">
                                 <i class="fas fa-spinner fa-spin" style="font-size:11px; color:#ea580c;"></i> En cours
+                            </span>
+                        @else
+                            {{-- La normalisation automatique est décochée : rien
+                                 ne partira tant que personne n'aura cliqué. La
+                                 roue qui tournait ici annonçait un travail qui
+                                 n'avait pas commencé et ne commencerait pas. --}}
+                            <span style="background:#f8fafc; color:#475569; border:1px solid #cbd5e1; padding:4px 10px; border-radius:20px; font-weight:700; font-size:12px; display:inline-flex; align-items:center; gap:5px;" title="La normalisation automatique est décochée dans vos paramètres : normalisez cette pièce vous-même.">
+                                <i class="fas fa-hourglass-half" style="font-size:11px;"></i> En attente
                             </span>
                         @endif
                     </td>
                     @endif
 
+                    {{-- Les deux documents certifiés. La facture est celle que
+                         la plateforme rend ; le reçu est le ticket de Selflow,
+                         qui ne porte le code QR, le visuel FNE et la
+                         numérotation qu'une fois la pièce normalisée — d'où
+                         sa place ici, et non sous « Originale ». --}}
                     <td>
                         @php
                             $dgiVoirUrl = $vente->fichier_fne_pdf_url;
+                            $ticketUrl = $vente->type_facture === 'avoir'
+                                ? null
+                                : ($isCaissier ? route('caissier.ventes.ticket', $vente) : route('admin.ventes.ticket', $vente));
                         @endphp
-                        <div style="display:flex; gap:6px; align-items:center;">
-                            @if($dgiVoirUrl)
-                                <a href="{{ $dgiVoirUrl }}" target="_blank" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Voir le document DGI">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="{{ $dgiVoirUrl }}" target="_blank" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Télécharger le fichier DGI">
-                                    <i class="fas fa-download"></i>
-                                </a>
-                            @else
-                                <button type="button" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px; opacity:.5; cursor:not-allowed;" title="Aucun document DGI retourné" disabled>
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                                <button type="button" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px; opacity:.5; cursor:not-allowed;" title="Aucun document DGI retourné" disabled>
-                                    <i class="fas fa-download"></i>
-                                </button>
-                            @endif
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <div style="display:flex; gap:6px; align-items:center;">
+                                <span style="font-size:10px; color:var(--text-3); width:52px;">Facture</span>
+                                @if($dgiVoirUrl)
+                                    <a href="{{ $dgiVoirUrl }}" target="_blank" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Voir la facture rendue par la DGI">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ $dgiVoirUrl }}" target="_blank" download class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Télécharger la facture DGI">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                @else
+                                    <span style="color:var(--text-3); font-size:11px;" title="La plateforme n'a rendu aucun fichier">—</span>
+                                @endif
+                            </div>
+                            <div style="display:flex; gap:6px; align-items:center;">
+                                <span style="font-size:10px; color:var(--text-3); width:52px;">Reçu</span>
+                                @if($ticketUrl && $vente->normalise)
+                                    <a href="{{ $ticketUrl }}" target="_blank" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Voir le reçu normalisé">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <button type="button" onclick="telechargerDirectement('{{ $ticketUrl }}?telecharger=1')"
+                                            class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Télécharger le reçu normalisé">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                @else
+                                    <span style="color:var(--text-3); font-size:11px;" title="Le reçu ne porte le visuel FNE qu'une fois la pièce normalisée">—</span>
+                                @endif
+                            </div>
                         </div>
                     </td>
 
-                    @if(!$estDevisOuBC)
-                    {{-- Pièce d'origine : le reçu dont la facture est issue, ou
-                         la facture issue de ce reçu. --}}
+                    {{-- « Originale » : les documents que Selflow établit,
+                         avant tout passage par la plateforme. Les deux boutons
+                         étaient dans « Actions », où ils se mêlaient aux
+                         commandes ; ce ne sont pas des actions, ce sont des
+                         documents. --}}
                     <td style="white-space: nowrap;">
-                        @if($vente->pieceLiee)
-                            <a href="{{ $isCaissier ? route('caissier.ventes.imprimer', $vente->pieceLiee) : route('admin.ventes.imprimer', $vente->pieceLiee) }}"
-                               style="font-weight:600;" title="{{ $vente->pieceLiee->libelleTypeDocument() }}">
-                                {{ $vente->pieceLiee->numero_facture }}
-                            </a>
-                        @else
-                            <span style="color:var(--text-3);">—</span>
-                        @endif
-                    </td>
-
-                    {{-- Fichier du reçu : celui de la pièce si c'est un reçu,
-                         sinon celui du reçu dont elle est issue. --}}
-                    <td>
-                        @php
-                            $recuAssocie = $vente->estRecu() ? $vente : ($vente->pieceLiee?->estRecu() ? $vente->pieceLiee : null);
-                            $urlRecu = $recuAssocie
-                                ? ($isCaissier ? route('caissier.ventes.ticket', $recuAssocie) : route('admin.ventes.ticket', $recuAssocie))
-                                : null;
-                        @endphp
                         <div style="display:flex; gap:6px; align-items:center;">
-                            @if($urlRecu)
-                                <a href="{{ $urlRecu }}" target="_blank" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Voir le reçu">
-                                    <i class="fas fa-eye"></i>
+                            <a href="{{ $routeImprimer }}" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;"
+                               title="{{ $estDevisOuBC ? 'Voir le document' : 'Voir la facture établie par Selflow' }}">
+                                <i class="fas fa-file-invoice"></i> {{ $estDevisOuBC ? 'Voir' : 'Facture' }}
+                            </a>
+                            @if(!$estDevisOuBC && $ticketUrl)
+                                <a href="{{ $ticketUrl }}" target="_blank" class="btn btn-outline btn-sm"
+                                   style="padding:4px 8px; font-size:11px; border-color:var(--success); color:var(--success);"
+                                   title="Voir le reçu, établi à partir de cette facture">
+                                    <i class="fas fa-receipt"></i> Reçu
                                 </a>
-                                <button type="button" onclick="telechargerDirectement('{{ $urlRecu }}?print=1')"
-                                        class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Télécharger le reçu">
-                                    <i class="fas fa-download"></i>
-                                </button>
-                            @else
-                                <span style="color:var(--text-3);">—</span>
                             @endif
                         </div>
                     </td>
-                    @endif
 
                     {{-- Colonne Actions --}}
                     <td style="white-space: nowrap;">
                         <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-                            {{-- Voir le document --}}
-                            <a href="{{ $routeImprimer }}" class="btn btn-primary btn-sm">
-                                <i class="fas fa-eye"></i> Voir
-                            </a>
-
+                            {{-- « Voir » est passé sous « Originale » : ce n'est
+                                 pas une action, c'est un document. --}}
                             @if($voirArchives)
                                 {{-- Mode archives : seul bouton Supprimer --}}
                                 <form method="POST" action="{{ $routeSupprimer }}" onsubmit="return confirm('Supprimer définitivement ce document ? Cette action est irréversible.')" style="display:inline; margin:0;">
@@ -554,63 +578,22 @@
                                 @endif
 
                             @else
-                                {{-- Mode Facture : actions habituelles --}}
-                                @if($type === 'avoir')
-                                    <button type="button" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px; opacity:.5; cursor:not-allowed;" title="Ticket indisponible pour les avoirs" disabled>
-                                        <i class="fas fa-print"></i> Ticket
-                                    </button>
-                                    <button type="button" onclick="telechargerDirectement('{{ $routeImprimer }}?download=1')"
-                                            class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Télécharger le PDF">
-                                        <i class="fas fa-download"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px; opacity:.5; cursor:not-allowed;" title="La facture d'avoir ne peut pas être modifiée" disabled>
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                @else
-                                    <a href="{{ $isCaissier ? route('caissier.ventes.ticket', $vente) : route('admin.ventes.ticket', $vente) }}"
-                                       class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px; border-color:var(--success); color:var(--success);" title="{{ $vente->estRecu() ? 'Imprimer le reçu' : 'Aperçu du reçu' }}">
-                                        <i class="fas fa-receipt"></i> Reçu
-                                    </a>
-
-                                    {{-- Etablir la contrepartie : une facture depuis un recu,
-                                         un recu depuis une facture. --}}
-                                    @if($vente->pieceLiee)
-                                        <a href="{{ $isCaissier ? route('caissier.ventes.imprimer', $vente->pieceLiee) : route('admin.ventes.imprimer', $vente->pieceLiee) }}"
-                                           class="btn btn-sm" style="background:#eef2ff; color:#4338ca; border:0.5px solid #c7d2fe; font-weight:700; font-size:11px; padding:4px 8px;"
-                                           title="{{ $vente->pieceLiee->libelleTypeDocument() }} liée : {{ $vente->pieceLiee->numero_facture }}">
-                                            <i class="fas fa-link"></i> {{ $vente->pieceLiee->numero_facture }}
-                                        </a>
-                                    @elseif($vente->estRecu())
-                                        {{-- Seul le sens reçu → facture est prévu par la DGI --}}
-                                        <form method="POST" action="{{ $isCaissier ? route('caissier.ventes.convertir_piece', $vente) : route('admin.ventes.convertir_piece', $vente) }}" style="display:inline; margin:0;">
-                                            @csrf
-                                            <button type="submit" class="btn btn-sm"
-                                                    style="background:#eef2ff; color:#4338ca; border:0.5px solid #c7d2fe; font-weight:700; font-size:11px; padding:4px 8px;"
-                                                    title="Établir la facture correspondant à ce reçu, en reprenant ses informations">
-                                                <i class="fas fa-file-invoice"></i> &rarr; Facture
-                                            </button>
-                                        </form>
-                                    @endif
-                                    <button type="button" onclick="telechargerDirectement('{{ $routeImprimer }}?download=1')"
-                                            class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Télécharger le PDF">
-                                        <i class="fas fa-download"></i>
-                                    </button>
-
-                                    @if(!$vente->normalise)
-                                    <a href="{{ $routeModifier }}" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Modifier">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    @endif
-                                @endif
-
-                                {{-- Normalisation DGI --}}
+                                {{-- Mode Facture : une seule action. Le
+                                     téléchargement et le reçu sont passés dans
+                                     leurs colonnes ; « Modifier » a été retiré —
+                                     une facture établie ne se reprend pas, et le
+                                     bouton l'offrait dès qu'elle n'était pas
+                                     encore normalisée, c'est-à-dire après
+                                     qu'elle avait pu être remise au client. --}}
                                 @if(!$vente->normalise)
                                 <form method="POST" action="{{ $isCaissier ? route('caissier.ventes.normaliser', $vente) : route('admin.ventes.normaliser', $vente) }}" style="display:inline; margin:0;">
                                     @csrf
-                                    <button type="submit" class="btn btn-success btn-sm" style="font-weight:700; font-size:11px; padding:4px 8px;" title="Normaliser manuellement">
+                                    <button type="submit" class="btn btn-success btn-sm" style="font-weight:700; font-size:11px; padding:4px 8px;" title="Envoyer cette pièce à la DGI : la facture et le reçu sont certifiés ensemble.">
                                         <i class="fas fa-share-nodes"></i> Normaliser
                                     </button>
                                 </form>
+                                @else
+                                <span style="color:var(--text-3); font-size:11px;">—</span>
                                 @endif
                             @endif
                         </div>

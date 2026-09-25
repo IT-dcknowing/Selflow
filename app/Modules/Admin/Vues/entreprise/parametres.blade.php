@@ -793,57 +793,53 @@
                             </div>
                         </div>
 
-                        <label
-                            style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:14px;background:var(--bg3);border-radius:10px;border:1px solid var(--border);">
-                            <input type="checkbox" name="bapa" value="1" {{ old('bapa', $entreprise->bapa) ? 'checked' : '' }} style="margin-top:3px;width:16px;height:16px;cursor:pointer;">
+                        {{-- Le BAPA était une case à cocher. Elle ne commandait
+                             rien : aucune ligne du code ne la lisait, hors le
+                             résumé de cette page. Le bordereau se choisit à la
+                             saisie de l'achat, et c'est l'espace FNE de
+                             l'entreprise qui l'autorise ou le refuse. Une case
+                             qui paraît commander ce qu'elle ne commande pas est
+                             pire qu'une case absente : elle devient une
+                             information, qui dit où le réglage se trouve
+                             vraiment. --}}
+                        <div style="display:flex;align-items:flex-start;gap:12px;padding:14px;background:var(--bg3);border-radius:10px;border:1px solid var(--border);">
+                            <i class="fas fa-circle-info" style="margin-top:3px;color:var(--primary);"></i>
                             <div>
                                 <div style="font-weight:600;font-size:13px;color:var(--text);">Bordereau d'Achat de Produits
                                     Agricoles (BAPA)</div>
                                 <div style="font-size:12px;color:var(--text-3);margin-top:2px;">
-                                    Ouvre les bordereaux d'achat auprès de producteurs locaux.
-                                    Vérifiez que l'option est également cochée sur votre espace
-                                    FNE, sans quoi la plateforme refusera les bordereaux.
+                                    Le bordereau se choisit pièce par pièce, à la saisie de l'achat.
+                                    Son ouverture ne se règle pas ici mais sur <strong>votre espace
+                                    FNE</strong> : si l'option n'y est pas cochée, la plateforme
+                                    refusera le bordereau, quoi que Selflow en dise.
                                 </div>
                             </div>
-                        </label>
+                        </div>
 
                         {{-- Quand certifier : dès l'émission, ou à la main.
-                             Les deux réglages sont séparés parce que les deux
-                             usages le sont — une boutique peut vouloir vérifier
-                             ses factures avant de les certifier, et laisser
-                             partir ses tickets de caisse tout seuls. --}}
+                             Une seule case, et non deux. Le reçu et la facture
+                             empruntent la même porte — même envoi, même code QR,
+                             même sticker ; seul le format d'impression les
+                             sépare. Deux réglages pour une seule décision ne
+                             disaient pas lequel commandait la pièce qu'on avait
+                             sous les yeux. Les deux colonnes restent en base :
+                             la case y écrit la même valeur. --}}
                         <label
                             style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:14px;background:var(--bg3);border-radius:10px;border:1px solid var(--border);">
-                            <input type="checkbox" name="normalisation_auto_factures" value="1"
-                                {{ old('normalisation_auto_factures', $entreprise->normalisation_auto_factures ?? true) ? 'checked' : '' }}
+                            <input type="checkbox" name="normalisation_auto" value="1"
+                                {{ old('normalisation_auto', $entreprise->normalisation_auto_factures ?? true) ? 'checked' : '' }}
                                 style="margin-top:3px;width:16px;height:16px;cursor:pointer;">
                             <div>
                                 <div style="font-weight:600;font-size:13px;color:var(--text);">
-                                    Normaliser les factures automatiquement
+                                    Normaliser automatiquement les factures et les reçus
                                 </div>
                                 <div style="font-size:12px;color:var(--text-3);margin-top:2px;">
-                                    Cochée, chaque facture part à la DGI dès son émission. Décochée,
-                                    elle reste enregistrée et vous la normalisez vous-même depuis la
-                                    liste des factures, après vérification.
+                                    Cochée, chaque pièce part à la DGI dès son émission — facture
+                                    comme reçu. Décochée, elle reste enregistrée et porte la mention
+                                    <em>En attente</em> dans la liste des ventes ; vous la normalisez
+                                    vous-même, après vérification, par le bouton
+                                    <strong>Normaliser</strong>.
                                     <strong>Une pièce certifiée ne se reprend pas.</strong>
-                                </div>
-                            </div>
-                        </label>
-
-                        <label
-                            style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:14px;background:var(--bg3);border-radius:10px;border:1px solid var(--border);">
-                            <input type="checkbox" name="normalisation_auto_recus" value="1"
-                                {{ old('normalisation_auto_recus', $entreprise->normalisation_auto_recus ?? true) ? 'checked' : '' }}
-                                style="margin-top:3px;width:16px;height:16px;cursor:pointer;">
-                            <div>
-                                <div style="font-weight:600;font-size:13px;color:var(--text);">
-                                    Normaliser les reçus automatiquement
-                                </div>
-                                <div style="font-size:12px;color:var(--text-3);margin-top:2px;">
-                                    Même règle pour les reçus de caisse. Le reçu emprunte la même
-                                    porte que la facture : ce qui les distingue est le format
-                                    d'impression — le ticket porte le code QR, le visuel FNE et la
-                                    numérotation renvoyés par la plateforme.
                                 </div>
                             </div>
                         </label>
@@ -1019,7 +1015,7 @@
                                 'texte' => 'Le timbre de quittance et le bordereau d\'achat agricole se règlent sur la plateforme, et l\'API ne permet pas de les lire. L\'état affiché plus bas est celui que votre administrateur Selflow y a constaté : s\'il ne correspond plus, signalez-le — vous encaisseriez un timbre que la plateforme ne retiendra pas.',
                                 'fait' => null,
                                 'constat' => 'Timbre de quittance : ' . ($entreprise->timbre_quittance ? 'appliqué' : 'non appliqué')
-                                    . ' · BAPA : ' . ($entreprise->bapa ? 'ouvert' : 'fermé') . '.',
+                                    . ' · Normalisation : ' . (($entreprise->normalisation_auto_factures ?? true) ? 'automatique' : 'manuelle') . '.',
                             ],
                             [
                                 'titre' => 'Surveiller le solde de stickers',

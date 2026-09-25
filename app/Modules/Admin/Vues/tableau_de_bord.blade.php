@@ -12,7 +12,7 @@
             <span style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#002B5C,#1e40af);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:18px;">
                 <i class="fas fa-chart-pie"></i>
             </span>
-            Bonjour, {{ auth()->user()->prenom ?? auth()->user()->nom }} 👋
+            Bonjour, {{ auth()->user()->prenom ?? auth()->user()->nom }}
         </h1>
         <p style="color:var(--text-2); margin-top:6px; font-size:13px;">
             <i class="fas fa-calendar-day"></i> {{ now()->locale('fr')->isoFormat('dddd D MMMM YYYY') }}

@@ -253,25 +253,35 @@
                     $prefixeRoute = request()->routeIs('caissier.*') ? 'caissier' : 'admin';
                 @endphp
 
-                <a href="{{ route($prefixeRoute . '.ventes.ticket', $vente->id) }}" target="_blank" class="print-btn">
+                {{-- La pièce, et non son numéro de ligne : `Vente` porte
+                     `IdentifiantOpaque`, et ses adresses se lient par `uuid`.
+                     Avec `->id`, ces trois boutons menaient à une page
+                     « Not Found » (404 — introuvable), en ligne comme en local. --}}
+                <a href="{{ route($prefixeRoute . '.ventes.ticket', $vente) }}" target="_blank" class="print-btn">
                     <i class="fas fa-receipt"></i> {{ $vente->estRecu() ? 'Imprimer le reçu' : 'Aperçu reçu' }}
                 </a>
 
                 {{-- Conversion recu <-> facture, dans les deux sens --}}
                 @if($vente->pieceLiee)
-                    <a href="{{ route($prefixeRoute . '.ventes.imprimer', $vente->pieceLiee->id) }}" class="print-btn"
+                    <a href="{{ route($prefixeRoute . '.ventes.imprimer', $vente->pieceLiee) }}" class="print-btn"
                        title="Pièce liée déjà créée">
                         <i class="fas fa-link"></i> {{ $vente->pieceLiee->libelleTypeDocument() }} {{ $vente->pieceLiee->numero_facture }}
                     </a>
                 @elseif($vente->estRecu())
                     {{-- Seul le sens reçu → facture est prévu par la DGI --}}
                     <button type="button" class="print-btn"
-                            onclick="executerAction('{{ route($prefixeRoute . '.ventes.convertir_piece', $vente->id) }}')"
+                            onclick="executerAction('{{ route($prefixeRoute . '.ventes.convertir_piece', $vente) }}')"
                             title="Établir la facture correspondant à ce reçu">
                         <i class="fas fa-file-invoice"></i> Créer la facture
                     </button>
                 @endif
             @endif
+            {{-- Un telechargement, et non une impression : le fichier part
+                 sans qu'aucune boite ne s'ouvre. --}}
+            <button class="print-btn" onclick="telechargerFichier('.invoice')"
+                    title="Enregistrer le document dans un fichier, sans passer par l'impression.">
+                <i class="fas fa-download"></i> Télécharger
+            </button>
             <button class="print-btn main" onclick="telechargerPdf()"
                     title="Choisissez la destination « Enregistrer au format PDF » pour obtenir le fichier, ou votre imprimante pour une sortie papier.">
                 <i class="fas fa-file-pdf"></i> Imprimer / PDF

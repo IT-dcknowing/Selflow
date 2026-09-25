@@ -46,19 +46,12 @@
     }
     .produit-card.avec-photo:hover::after { opacity: .86; }
 
-    /* L'article sans photo. La carte etait vide : trente rectangles gris ou
-       seul le texte distinguait un sac de riz d'une prestation de conseil.
-       Le dessin ne remplit pas la carte comme une photo — il se tient au
-       fond a droite, en filigrane, la ou aucun texte ne passe. */
-    .produit-card.avec-dessin::before {
-        content: ''; position: absolute; z-index: 0;
-        right: -6px; top: 6px; width: 62px; height: 62px;
-        background-image: var(--dessin-produit);
-        background-size: contain; background-repeat: no-repeat;
-        background-position: center;
-        opacity: .5; transition: opacity .15s;
-    }
-    .produit-card.avec-dessin:hover::before { opacity: .8; }
+    /* L'article sans photo ne porte plus de dessin de remplacement. Le
+       filigrane tire de la nature de l'article se voulait un repere ; il
+       n'en etait pas un — la meme silhouette revenait sur des articles
+       sans rapport, et la grille en paraissait salie. Une carte nette dit
+       moins, mais elle ne dit rien de faux. La vraie photo, elle, reste :
+       elle porte une information que le texte ne porte pas. */
     /* Sans cela, le texte passerait sous le voile. */
     .produit-card > * { position: relative; z-index: 2; }
     .produit-card:hover { border-color: var(--primary); background: rgba(99,102,241,.08); transform: translateY(-2px); }
@@ -211,11 +204,10 @@
                     @foreach($produits as $produit)
                     @php $suitLeStock = $produit->estStockable(); @endphp
                     @php $photo = $produit->photoReelle(); @endphp
-                    {{-- Une vraie photo tient tout le fond ; a defaut, le dessin
-                         de la nature de l'article se pose en filigrane. Les deux
-                         ne cohabitent pas : la photo dit deja tout. --}}
-                    <div class="produit-card {{ $suitLeStock && $produit->stock_actuel <= 0 ? 'out-of-stock' : '' }} {{ $photo ? 'avec-photo' : 'avec-dessin' }}"
-                         style="{{ $photo ? '--fond-produit: url(\'' . $photo . '\');' : '--dessin-produit: url(\'' . $produit->illustration() . '\');' }}"
+                    {{-- Une vraie photo tient tout le fond. A defaut, la carte
+                         reste nette : aucun fond n'est pose. --}}
+                    <div class="produit-card {{ $suitLeStock && $produit->stock_actuel <= 0 ? 'out-of-stock' : '' }} {{ $photo ? 'avec-photo' : '' }}"
+                         style="{{ $photo ? '--fond-produit: url(\'' . $photo . '\');' : '' }}"
                          data-id="{{ $produit->id }}"
                          data-nom="{{ $produit->nom }}"
                          data-prix="{{ $produit->prix_vente }}"
@@ -340,14 +332,19 @@
                             <button type="button" class="btn payment-toggle-btn" data-etape-vente="Bon de commande" onclick="selectionnerEtapeVente(this)" style="justify-content:center; font-size:12px; padding:8px 4px;">
                                 <i class="fas fa-shopping-basket"></i> Commande
                             </button>
-                            <button type="button" class="btn payment-toggle-btn active" data-etape-vente="Facture" onclick="selectionnerEtapeVente(this)" style="justify-content:center; font-size:12px; padding:8px 4px;">
-                                <i class="fas fa-check-double"></i> Facture
-                            </button>
-                            <button type="button" class="btn payment-toggle-btn" data-etape-vente="Reçu" onclick="selectionnerEtapeVente(this)" style="justify-content:center; font-size:12px; padding:8px 4px;">
-                                <i class="fas fa-receipt"></i> Reçu
+                            {{-- Un seul choix là où il y en avait deux. Le reçu
+                                 n'est pas une autre pièce : ce sont les
+                                 informations de la facture, mises en page pour
+                                 le ticket. Les proposer séparément faisait
+                                 croire qu'il fallait choisir, et une caisse qui
+                                 choisissait « Reçu » se retrouvait sans facture.
+                                 Une pièce, un envoi à la DGI, un sticker — et
+                                 deux documents à imprimer. --}}
+                            <button type="button" class="btn payment-toggle-btn active" data-etape-vente="Facture" onclick="selectionnerEtapeVente(this)" style="grid-column:1 / -1; justify-content:center; font-size:12px; padding:8px 4px;">
+                                <i class="fas fa-check-double"></i> Facture + Reçu
                             </button>
                         </div>
-                        <small id="infoEtapeVente" style="color:var(--text-3); font-size:11px;">Mode facturation avec règlement</small>
+                        <small id="infoEtapeVente" style="color:var(--text-3); font-size:11px;">Facture et reçu établis ensemble, avec règlement</small>
 
                         {{-- Le terme de l'offre. Un devis sans terme engage
                              indéfiniment celui qui l'a fait : il reste
@@ -370,22 +367,24 @@
                              même sticker —, et rien ne le retient. Le texte est
                              resté, et disait à l'utilisateur que ses reçus
                              n'étaient pas certifiés alors qu'ils l'étaient. --}}
-                        <div id="noteRecu" style="display:none; margin-top:8px; padding:10px 12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; font-size:11px; color:#1e40af; line-height:1.5;">
+                        <div id="noteRecu" style="margin-top:8px; padding:10px 12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; font-size:11px; color:#1e40af; line-height:1.5;">
                             <i class="fas fa-circle-info"></i>
-                            <strong>Le reçu se certifie comme une facture.</strong>
-                            Même envoi à la DGI, même code QR, même sticker consommé —
-                            seule la nature du document change.
+                            <strong>Une seule pièce, deux documents.</strong>
+                            Le reçu reprend les informations de la facture : un seul envoi
+                            à la DGI, un seul code QR, un seul sticker consommé. Ce qui les
+                            distingue est le format d'impression.
                             @php
                                 // `null` vaut « automatique » : c'était le seul
                                 // comportement avant que le réglage existe.
-                                $recuAuto = $entrepriseCourante?->normalisation_auto_recus ?? true;
+                                $recuAuto = $entrepriseCourante?->normalisation_auto_factures ?? true;
                             @endphp
                             @if($recuAuto)
-                                Il part à la certification dès son émission.
+                                La pièce part à la certification dès son émission.
                             @else
-                                La normalisation automatique des reçus est décochée dans vos
-                                paramètres : celui-ci s'enregistrera sans être certifié, et
-                                vous pourrez le normaliser depuis la liste des ventes.
+                                La normalisation automatique est décochée dans vos paramètres :
+                                la pièce s'enregistrera sans être certifiée, et portera la
+                                mention <em>En attente</em> dans la liste des ventes jusqu'à ce
+                                que vous la normalisiez.
                             @endif
                         </div>
                     </div>
@@ -673,21 +672,22 @@ function selectionnerEtapeVente(btn) {
     btn.classList.add('active');
     const etape = btn.dataset.etapeVente;
 
-    // Un reçu suit exactement le circuit d'une facture (encaissement,
-    // comptabilité, normalisation) : seule la nature du document diffère.
-    const estRecu = etape === 'Reçu';
-    document.getElementById('etapeInput').value = estRecu ? 'Facture' : etape;
-    document.getElementById('typePieceInput').value = estRecu ? 'recu' : 'facture';
+    // Le reçu n'est plus une pièce à part : il accompagne la facture.
+    // `type_piece` reste « facture » — c'est ce que la plateforme reçoit
+    // aujourd'hui, et ce que la règle d'or interdit de changer.
+    const estRecu = false;
+    document.getElementById('etapeInput').value = etape;
+    document.getElementById('typePieceInput').value = 'facture';
 
     const blocPaiement = document.getElementById('blocPaiementVente');
     const infoEtape = document.getElementById('infoEtapeVente');
     const labelBtn = document.getElementById('labelBtnValiderVente');
     const montantPayeInput = document.getElementById('montantPayeInput');
 
-    // Le reçu est bien enregistré comme tel : il ne bascule pas en facture.
-    // Sa certification suit celle de la facture — voir `#noteRecu`.
+    // La note ne concerne que la pièce encaissée : elle n'a rien à dire
+    // d'un devis ni d'un bon de commande, qui ne se certifient pas.
     const noteRecu = document.getElementById('noteRecu');
-    if (noteRecu) noteRecu.style.display = estRecu ? 'block' : 'none';
+    if (noteRecu) noteRecu.style.display = (etape === 'Facture') ? 'block' : 'none';
 
     // Seules les offres ont un terme : une facture engage des son emission.
     const blocValidite = document.getElementById('blocValidite');
@@ -695,14 +695,9 @@ function selectionnerEtapeVente(btn) {
         blocValidite.style.display = (etape === 'Devis' || etape === 'Bon de commande') ? 'block' : 'none';
     }
 
-    if (estRecu) {
+    if (etape === 'Facture') {
         blocPaiement.style.display = 'block';
-        infoEtape.textContent = 'Reçu encaissé — certifié auprès de la DGI comme une facture';
-        labelBtn.textContent = 'Valider et émettre le reçu';
-        montantPayeInput.removeAttribute('disabled');
-    } else if (etape === 'Facture') {
-        blocPaiement.style.display = 'block';
-        infoEtape.textContent = 'Mode facturation avec règlement';
+        infoEtape.textContent = 'Facture et reçu établis ensemble, avec règlement';
         labelBtn.textContent = 'Valider et facturer';
         montantPayeInput.removeAttribute('disabled');
     } else if (etape === 'Devis') {

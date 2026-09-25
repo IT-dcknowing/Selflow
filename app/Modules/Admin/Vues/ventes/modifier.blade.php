@@ -50,15 +50,8 @@
        seul le texte distinguait un sac de riz d'une prestation de conseil.
        Le dessin ne remplit pas la carte comme une photo — il se tient au
        fond a droite, en filigrane, la ou aucun texte ne passe. */
-    .produit-card.avec-dessin::before {
-        content: ''; position: absolute; z-index: 0;
-        right: -6px; top: 6px; width: 62px; height: 62px;
-        background-image: var(--dessin-produit);
-        background-size: contain; background-repeat: no-repeat;
-        background-position: center;
-        opacity: .5; transition: opacity .15s;
-    }
-    .produit-card.avec-dessin:hover::before { opacity: .8; }
+    /* Le dessin de remplacement a ete retire : voir `ventes/nouvelle`. Une
+       carte sans photo reste nette. */
     /* Sans cela, le texte passerait sous le voile. */
     .produit-card > * { position: relative; z-index: 2; }
     .produit-card:hover { border-color: var(--primary); background: rgba(99,102,241,.08); transform: translateY(-2px); }
@@ -223,8 +216,8 @@
                     {{-- Une vraie photo tient tout le fond ; a defaut, le dessin
                          de la nature de l'article se pose en filigrane. Les deux
                          ne cohabitent pas : la photo dit deja tout. --}}
-                    <div class="produit-card {{ $suitLeStock && $produit->stock_actuel <= 0 ? 'out-of-stock' : '' }} {{ $photo ? 'avec-photo' : 'avec-dessin' }}"
-                         style="{{ $photo ? '--fond-produit: url(\'' . $photo . '\');' : '--dessin-produit: url(\'' . $produit->illustration() . '\');' }}"
+                    <div class="produit-card {{ $suitLeStock && $produit->stock_actuel <= 0 ? 'out-of-stock' : '' }} {{ $photo ? 'avec-photo' : '' }}"
+                         style="{{ $photo ? '--fond-produit: url(\'' . $photo . '\');' : '' }}"
                          data-id="{{ $produit->id }}"
                          data-nom="{{ $produit->nom }}"
                          data-prix="{{ $produit->prix_vente }}"

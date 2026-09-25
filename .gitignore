@@ -52,6 +52,10 @@ image2.png
 # dossier PASSERELLE-COMPTAFLOW sans ce qu'on venait y chercher.
 !PASSERELLE-COMPTAFLOW/**
 !PASSATION-SESSION.txt
+# L'etat des lieux du 25/09/2026 : les constats, leurs causes dans le code et
+# l'ordre des corrections. Il vaut pour la suite du travail, pas seulement pour
+# la session qui l'a ecrit — la regle `*.txt` l'aurait laisse sur ce poste.
+!ETATS DES LIEUX.txt
 
 # Le scraper du portail : le code voyage avec le depot, jamais ses acces.
 # Ces trois regles viennent apres les exceptions ci-dessus, donc elles gagnent.
