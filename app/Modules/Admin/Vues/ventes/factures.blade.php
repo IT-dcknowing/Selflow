@@ -486,10 +486,10 @@
                                     <a href="{{ $ticketUrl }}" target="_blank" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Voir le reçu normalisé">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    <button type="button" onclick="telechargerDirectement('{{ $ticketUrl }}?telecharger=1')"
-                                            class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Télécharger le reçu normalisé">
+                                    <a href="{{ $isCaissier ? route('caissier.ventes.ticket.pdf', $vente) : route('admin.ventes.ticket.pdf', $vente) }}"
+                                       class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Télécharger le reçu normalisé en PDF">
                                         <i class="fas fa-download"></i>
-                                    </button>
+                                    </a>
                                 @else
                                     <span style="color:var(--text-3); font-size:11px;" title="Le reçu ne porte le visuel FNE qu'une fois la pièce normalisée">—</span>
                                 @endif

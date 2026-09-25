@@ -82,48 +82,12 @@ function telechargerPdf() {
     document.body.appendChild(cadre);
 }
 
-/**
- * Enregistrement du document dans un fichier.
+/*
+ * `telechargerFichier()` vivait ici. Elle recopiait le document dans une page
+ * HTML autonome et la remettait comme telechargement -- un vrai fichier, mais
+ * pas un PDF, faute de moteur PDF dans l'application. dompdf a ete installe le
+ * 25/09/2026 : le telechargement passe desormais par une adresse du serveur,
+ * qui rend un `.pdf`. Voir `DocumentPdfService`.
  *
- * « Imprimer / PDF » passe par la boite d'impression du navigateur : c'est une
- * sortie, pas un fichier. Ici, le document est recopie dans une page autonome
- * — ses feuilles de style comprises — et remis au navigateur comme un
- * telechargement. Aucune boite ne s'ouvre, et le fichier porte le numero de la
- * piece.
- *
- * Le format est HTML et non PDF : l'application n'embarque aucun moteur PDF, et
- * en ajouter un (dompdf) engage une dependance et une remise en page complete
- * des documents. Le fichier rendu s'ouvre dans n'importe quel navigateur et
- * s'imprime a l'identique.
+ * L'impression par le navigateur, elle, reste : elle n'a pas ete retiree.
  */
-function telechargerFichier(selecteur) {
-    var piece = document.querySelector(selecteur || '.invoice');
-    if (!piece) return;
-
-    var nom = (typeof nomFichierPdf === 'function') ? nomFichierPdf() : document.title;
-
-    var styles = Array.prototype.map.call(
-        document.querySelectorAll('link[rel="stylesheet"], style'),
-        function (noeud) { return noeud.outerHTML; }
-    ).join('\n');
-
-    var page = '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
-        + '<title>' + nom + '</title>'
-        + '<base href="' + document.baseURI + '">'
-        + styles
-        + '<style>@page { size: A4 portrait; margin: 0; }'
-        + 'html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }'
-        + '.feuille { padding: 12mm 10mm; }</style>'
-        + '</head><body><div class="feuille">'
-        + piece.outerHTML
-        + '</div></body></html>';
-
-    var adresse = URL.createObjectURL(new Blob([page], { type: 'text/html;charset=utf-8' }));
-    var lien = document.createElement('a');
-    lien.href = adresse;
-    lien.download = nom + '.html';
-    document.body.appendChild(lien);
-    lien.click();
-    lien.remove();
-    setTimeout(function () { URL.revokeObjectURL(adresse); }, 2000);
-}

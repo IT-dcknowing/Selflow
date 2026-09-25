@@ -11,31 +11,37 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * L'avoir d'un bordereau d'achat aux producteurs agricoles est fermé.
+ * Ce qui distingue un bordereau d'achat, et pourquoi la distinction porte.
  *
  * ─────────────────────────────────────────────────────────────────────────
- * Pourquoi
+ * Ce que ce fichier gardait
  * ─────────────────────────────────────────────────────────────────────────
  *
- * **La DGI ne normalise pas l'avoir d'un BAPA.** Selflow le proposait quand
- * même : la pièce se serait établie dans les livres, avec son numéro, ses
- * écritures et son mouvement de stock, et rien ne serait jamais parti à la
- * plateforme. Les deux états auraient divergé en silence — le pire des
- * défauts, puisqu'il ne se voit qu'à la révision.
+ * Il fermait l'avoir d'un bordereau : **la DGI ne normalise pas l'avoir d'un
+ * BAPA.** Selflow le proposait quand même, et la pièce se serait établie dans
+ * les livres sans que rien ne parte à la plateforme.
+ *
+ * **Le 25/09/2026, la fermeture s'est élargie à tous les avoirs fournisseurs**
+ * — un acheteur n'établit pas l'avoir de son fournisseur, quel qu'il soit. Les
+ * quatre routes ont disparu ; `TroisNaturesDAchatTest` le vérifie. Les cas qui
+ * visaient ces routes n'ont plus de route à viser.
  *
  * ─────────────────────────────────────────────────────────────────────────
- * Ce qui rendait la fermeture incomplète
+ * Ce qui reste, et qui porte plus qu'avant
  * ─────────────────────────────────────────────────────────────────────────
  *
  * **Deux chemins mènent au bordereau, et un seul se lit dans
  * `type_facture`.** Le second est `validerFacture()` : une facture d'achat
  * ordinaire dont le fournisseur n'a pas de NCC part elle aussi en
- * normalisation BAPA. Fermer sur le seul `type_facture === 'bapa'` aurait
- * laissé passer tous les achats auprès d'un vendeur non immatriculé, c'est-à-
- * dire le cas le plus courant. `Achat::estBapa()` tient les deux ensemble.
+ * normalisation BAPA. `Achat::estBapa()` tient les deux ensemble.
  *
- * Et la fermeture est posée **au contrôleur**, pas seulement à l'écran :
- * masquer un bouton ne ferme pas une route, qui reste atteignable à la main.
+ * Ce critère servait à interdire l'avoir. **Il sert désormais à ranger** : il
+ * décide de quelle section de l'écran des factures d'achat relève une pièce.
+ * S'en tenir à `type_facture` mettrait les achats auprès d'un vendeur non
+ * immatriculé — le cas le plus courant — sous « Factures enregistrées », où
+ * les colonnes DGI annoncent « Aucune donnée » alors qu'elles sont
+ * normalisées. `Achat::scopeBordereaux()` dit la même chose en SQL, parce que
+ * l'écran range en base, et écrire la règle deux fois c'est la voir diverger.
  */
 class AvoirDeBapaTest extends TestCase
 {
@@ -120,101 +126,50 @@ class AvoirDeBapaTest extends TestCase
         $this->assertFalse($this->unAchat('2601234A', 'ACH-2026-0003')->estBapa());
     }
 
-    // ── Les deux listes de choix ─────────────────────────────────────
+    // ── La même règle, en base ───────────────────────────────────────
 
-    public function test_la_liste_deroulante_n_offre_aucun_bordereau(): void
+    public function test_la_portee_range_les_bordereaux_comme_l_accesseur(): void
     {
-        $bordereau = $this->unAchat(null, 'BA-2026-0004', 'bapa');
-        $ordinaire = $this->unAchat('2601234A', 'ACH-2026-0005');
+        // `estBapa()` répond pour une pièce chargée, `scopeBordereaux()` pour
+        // une requête. Les deux doivent dire la même chose, sans quoi une
+        // pièce serait rangée d'un côté et lue de l'autre.
+        $declare  = $this->unAchat('2601234A', 'BA-2026-0001', 'bapa');
+        $sansNcc  = $this->unAchat(null, 'ACH-2026-0002');
+        $ordinaire = $this->unAchat('2601234A', 'ACH-2026-0003');
 
-        $corps = $this->get(route('admin.achats.factures', ['type' => 'avoir']))
-            ->assertOk()->getContent();
+        $bordereaux = Achat::bordereaux()->pluck('numero_facture')->all();
+        $autres     = Achat::horsBordereaux()->pluck('numero_facture')->all();
 
-        $this->assertStringContainsString('value="' . $ordinaire->uuid . '"', $corps);
-        $this->assertStringNotContainsString('value="' . $bordereau->uuid . '"', $corps);
+        $this->assertContains($declare->numero_facture, $bordereaux);
+        $this->assertContains($sansNcc->numero_facture, $bordereaux);
+        $this->assertNotContains($ordinaire->numero_facture, $bordereaux);
+
+        $this->assertContains($ordinaire->numero_facture, $autres);
+        $this->assertNotContains($sansNcc->numero_facture, $autres);
     }
 
-    public function test_la_recherche_n_offre_aucun_bordereau(): void
+    public function test_les_deux_portees_se_partagent_toutes_les_pieces(): void
     {
-        // Le même écran porte deux façons de choisir la pièce. En fermer une
-        // seule laisse l'autre ouverte : c'est ce qui avait laissé vivre le
-        // défaut d'identifiant du lot précédent, sur ce même écran.
-        $this->unAchat(null, 'BA-2026-0006', 'bapa');
-        $ordinaire = $this->unAchat('2601234A', 'ACH-2026-0007');
+        // Aucune pièce ne doit tomber entre les deux, ni figurer dans les
+        // deux : une section perdrait des lignes, ou les compterait deux fois.
+        $this->unAchat('2601234A', 'BA-2026-0004', 'bapa');
+        $this->unAchat(null, 'ACH-2026-0005');
+        $this->unAchat('2601234A', 'ACH-2026-0006');
 
-        $reponse = $this->getJson(route('admin.achats.factures.rechercher', ['q' => '2026']))
-            ->assertOk();
+        $total = Achat::count();
 
-        $reponse->assertJsonFragment(['id' => $ordinaire->uuid]);
-        $reponse->assertJsonMissing(['id' => 'BA-2026-0006']);
-        $this->assertStringNotContainsString('BA-2026-0006', $reponse->getContent());
+        $this->assertSame($total, Achat::bordereaux()->count() + Achat::horsBordereaux()->count());
     }
 
-    // ── La route, que masquer un bouton ne ferme pas ─────────────────
+    // ── L'avoir fournisseur, fermé dans son entier ───────────────────
 
-    public function test_le_detail_d_un_bordereau_est_refuse(): void
+    public function test_plus_aucune_adresse_n_etablit_d_avoir_fournisseur(): void
     {
-        $bordereau = $this->unAchat(null, 'BA-2026-0008', 'bapa');
-
-        $this->getJson(route('admin.achats.factures.details', $bordereau->uuid))
-            ->assertStatus(400);
-    }
-
-    public function test_l_avoir_direct_sur_un_bordereau_est_refuse(): void
-    {
-        $bordereau = $this->unAchat(null, 'BA-2026-0009', 'bapa');
-
-        $this->post(route('admin.achats.avoir', $bordereau), ['raison' => 'Retour de marchandise'])
-            ->assertStatus(400);
-
-        $this->assertSame(0, Achat::where('type_facture', 'avoir')->count());
-    }
-
-    public function test_l_avoir_sur_une_facture_d_un_vendeur_sans_ncc_est_refuse(): void
-    {
-        // Le cas que `type_facture` ne trahit pas — et le plus courant.
-        $bordereau = $this->unAchat(null, 'ACH-2026-0010');
-
-        $this->post(route('admin.achats.avoir', $bordereau), ['raison' => 'Retour de marchandise'])
-            ->assertStatus(400);
-
-        $this->assertSame(0, Achat::where('type_facture', 'avoir')->count());
-    }
-
-    public function test_l_avoir_detaille_sur_un_bordereau_est_refuse(): void
-    {
-        $bordereau = $this->unAchat(null, 'BA-2026-0011', 'bapa');
-
-        $this->post(route('admin.achats.avoir.creer_nouveau'), [
-            'parent_id' => $bordereau->uuid,
-            'raison'    => 'Retour de marchandise',
-            'items'     => [['detail_id' => 1, 'quantite' => 1, 'prix_unitaire' => 1000]],
-        ])->assertStatus(400);
-
-        $this->assertSame(0, Achat::where('type_facture', 'avoir')->count());
-    }
-
-    // ── Ce qui reste ouvert ──────────────────────────────────────────
-
-    public function test_l_avoir_reste_possible_sur_une_facture_d_achat_ordinaire(): void
-    {
-        // La fermeture vise les bordereaux, et eux seuls : un avoir
-        // fournisseur ordinaire doit continuer de s'établir.
-        $facture = $this->unAchat('2601234A', 'ACH-2026-0012');
-
-        $this->post(route('admin.achats.avoir', $facture), ['raison' => 'Article défectueux'])
-            ->assertRedirect();
-
-        $this->assertSame(1, Achat::where('type_facture', 'avoir')->count());
-    }
-
-    public function test_l_ecran_d_une_piece_de_bordereau_n_offre_pas_l_avoir(): void
-    {
-        $bordereau = $this->unAchat(null, 'BA-2026-0013', 'bapa');
-
-        $corps = $this->get(route('admin.achats.imprimer', $bordereau))
-            ->assertOk()->getContent();
-
-        $this->assertStringNotContainsString('id="modalAvoir"', $corps);
+        // La fermeture visait les bordereaux ; elle vaut maintenant pour
+        // toutes les factures d'achat, bordereau ou non. Le détail est dans
+        // `TroisNaturesDAchatTest` ; ce qui est vérifié ici est que ce fichier
+        // ne garde pas la mémoire d'une porte encore ouverte.
+        $this->assertNull(app('router')->getRoutes()->getByName('admin.achats.avoir'));
+        $this->assertNull(app('router')->getRoutes()->getByName('admin.achats.avoir.creer_nouveau'));
     }
 }

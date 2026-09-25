@@ -235,11 +235,20 @@ class VenteControleur
 
             // Calcul du montant payé et statut de la vente
             $montantPaye = 0;
+            // Posé ici plutôt que dans la seule branche qui l'emploie : un
+            // règlement à crédit ne tend rien, et la pièce doit l'enregistrer
+            // comme tel sans qu'on ait à se demander si la variable existe.
+            $montantTendu = 0.0;
             if ($request->mode_paiement === 'Crédit') {
                 $statutVente = 'Crédit';
             } else {
                 $netAPayer = $montantTtc + $montantAutresTaxes;
-                $montantPaye = $request->filled('montant_paye') ? floatval($request->montant_paye) : $netAPayer;
+                // Ce que le client tend, et qui n'est pas ce qu'on encaisse :
+                // une caisse qui reçoit 10 000 F pour une pièce de 6 500 F doit
+                // rendre 3 500 F, et n'a encaissé que 6 500 F. Le plafonnement
+                // se fait plus bas, sur le net réel — timbre compris.
+                $montantTendu = $request->filled('montant_paye') ? floatval($request->montant_paye) : $netAPayer;
+                $montantPaye = $montantTendu;
                 if ($montantPaye <= 0) {
                     $statutVente = 'Crédit';
                     $montantPaye = 0;
@@ -271,6 +280,10 @@ class VenteControleur
                 'remise_taux' => $remiseTaux,
                 'montant_ttc' => $montantTtc,
                 'montant_autres_taxes' => $montantAutresTaxes,
+                // La somme tendue. La monnaie rendue s'en déduit : une valeur
+                // calculée qu'on enregistrerait finirait par contredire ses
+                // termes le jour où l'un d'eux changerait.
+                'montant_recu' => $montantTendu > 0 ? $montantTendu : null,
                 'statut' => $statutVente,
                 'etape' => $etape,
                 // Nature du document : facture par defaut. Un encaissement en
@@ -356,6 +369,12 @@ class VenteControleur
             // Trésorerie et Comptabilité (uniquement si validé en étape Facture)
             // Trésorerie et Comptabilité (uniquement si validé en étape Facture)
             if ($etape === 'Facture') {
+                // On n'encaisse jamais plus que le dû. Auparavant la somme
+                // tendue partait telle quelle en trésorerie ET en comptabilité :
+                // un billet de 10 000 F sur une pièce de 6 500 F gonflait la
+                // caisse de la monnaie qu'on venait de rendre.
+                $montantPaye = min($montantPaye, $vente->netAPayer());
+
                 // Le reçu part par la même porte que la facture : la procédure
                 // d'interfaçage n'expose qu'un seul point d'émission. Ce qui les
                 // sépare est le format d'impression, pas l'envoi.
@@ -613,6 +632,53 @@ class VenteControleur
         $dejaPaye = TresorerieJournal::where('reference_document', $vente->numero_facture)->sum('montant_entree');
 
         return view('admin::factures.vente', compact('vente', 'vendeur', 'dejaPaye'));
+    }
+
+    /**
+     * La pièce, en PDF véritable.
+     *
+     * Et non la boîte d'impression du navigateur, ni une page HTML enregistrée :
+     * un fichier `.pdf`, établi côté serveur, qui s'archive et se joint à un
+     * courriel. Voir `DocumentPdfService` pour ce qui sépare ce rendu de celui
+     * de l'écran, et pourquoi les deux ne peuvent pas être le même.
+     */
+    public function pdf(Vente $vente, \App\Modules\Admin\Services\DocumentPdfService $pdf): \Symfony\Component\HttpFoundation\Response
+    {
+        abort_unless(
+            $vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id,
+            404
+        );
+
+        $vente->load(['details.produit', 'details.taxes', 'taxesPersonnalisees', 'client', 'pointDeVente.entreprise', 'parent']);
+        $dejaPaye = TresorerieJournal::where('reference_document', $vente->numero_facture)->sum('montant_entree');
+
+        return response($pdf->vente($vente, (float) $dejaPaye), 200, [
+            'Content-Type' => 'application/pdf',
+            // `attachment` et non `inline` : le bouton dit « Télécharger », et
+            // c'est un fichier qu'il doit remettre.
+            'Content-Disposition' => 'attachment; filename="'
+                . \App\Modules\Admin\Services\DocumentPdfService::nomDuFichier($vente) . '"',
+        ]);
+    }
+
+    /**
+     * Le reçu, en PDF, au format du ticket.
+     */
+    public function pdfTicket(Vente $vente, \App\Modules\Admin\Services\DocumentPdfService $pdf): \Symfony\Component\HttpFoundation\Response
+    {
+        abort_unless(
+            $vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id,
+            404
+        );
+
+        $vente->load(['details.produit', 'client', 'pointDeVente.entreprise']);
+        $dejaPaye = TresorerieJournal::where('reference_document', $vente->numero_facture)->sum('montant_entree');
+
+        return response($pdf->recuDeVente($vente, (float) $dejaPaye), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'
+                . \App\Modules\Admin\Services\DocumentPdfService::nomDuFichier($vente, '-recu') . '"',
+        ]);
     }
 
     public function imprimerTicket(Vente $vente): View

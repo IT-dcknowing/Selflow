@@ -233,6 +233,12 @@
             @endif
         </div>
         
+        @php
+            // Le prefixe de route de l'ecran courant. Il etait calcule a
+            // l'interieur du bloc des factures ; les boutons du PDF en ont
+            // besoin avant.
+            $prefixeRoutePdf = request()->routeIs('caissier.*') ? 'caissier' : 'admin';
+        @endphp
         <div style="display: flex; gap: 8px; align-items: center;">
             @if(isset($bl))
                 @if(!in_array($bl->statut, ['livre', 'facture']))
@@ -276,12 +282,14 @@
                     </button>
                 @endif
             @endif
-            {{-- Un telechargement, et non une impression : le fichier part
-                 sans qu'aucune boite ne s'ouvre. --}}
-            <button class="print-btn" onclick="telechargerFichier('.invoice')"
-                    title="Enregistrer le document dans un fichier, sans passer par l'impression.">
-                <i class="fas fa-download"></i> Télécharger
-            </button>
+            {{-- Un vrai PDF, etabli cote serveur. Le premier essai rendait
+                 une page HTML autonome, faute de moteur PDF dans
+                 l'application : dompdf a ete installe le 25/09/2026, et le
+                 bouton remet desormais un `.pdf`. --}}
+            <a class="print-btn" href="{{ route($prefixeRoutePdf . '.ventes.pdf', $vente) }}"
+               title="Enregistrer le document au format PDF.">
+                <i class="fas fa-download"></i> Télécharger le PDF
+            </a>
             <button class="print-btn main" onclick="telechargerPdf()"
                     title="Choisissez la destination « Enregistrer au format PDF » pour obtenir le fichier, ou votre imprimante pour une sortie papier.">
                 <i class="fas fa-file-pdf"></i> Imprimer / PDF
@@ -585,6 +593,12 @@ var DATA = {
         mode: {!! json_encode($vente->mode_paiement) !!},
         statut: {!! json_encode($vente->statut) !!},
         deja_paye: {{ $vente->type_facture === 'avoir' ? $vente->montant_ttc : ($dejaPaye ?? 0) }},
+        // Ce que le client a tendu, et ce qu'on lui a rendu. Le second se
+        // calcule cote serveur -- `Vente::monnaieRendue()` -- plutot qu'ici :
+        // deux calculs finiraient par diverger, et c'est un chiffre que le
+        // client verifie.
+        montant_recu: {{ $vente->montant_recu !== null ? (float) $vente->montant_recu : 'null' }},
+        monnaie_rendue: {{ $vente->monnaieRendue() !== null ? $vente->monnaieRendue() : 'null' }},
         autres_taxes_montant: {{ (float) ($vente->montant_autres_taxes ?? 0) }},
         // Droit de timbre de quittance. Le montant renvoye par la plateforme
         // fait foi ; avant normalisation, il est etabli au bareme de
@@ -595,6 +609,22 @@ var DATA = {
         ref_bc: {!! json_encode(isset($bl) ? $bl->bonDeCommande->numero_facture : ($vente->etape === 'Bon de commande' ? $vente->numero_facture : (optional($vente->bonLivraisonSource?->bonDeCommande)->numero_facture ?? ''))) !!}
     }
 };
+
+/**
+ * Le bloc de la monnaie rendue, commun aux quatre modeles.
+ *
+ * Il ne parait que si quelque chose a ete rendu : une ligne a zero sur un
+ * reglement a l'appoint annoncerait une operation qui n'a pas eu lieu.
+ */
+function blocMonnaieRendue(d, petit) {
+    if (!d.monnaie_rendue || d.monnaie_rendue <= 0) return '';
+
+    var taille = petit ? '11px' : '12px';
+    return `
+    <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:${taille};border-bottom:0.5px solid var(--border)"><span style="color:var(--mu)">Reçu</span><span>${fmtFcfa(d.montant_recu)}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:${taille};font-weight:800;color:#15803d;"><span style="text-transform:uppercase;">Monnaie rendue</span><span>${fmtFcfa(d.monnaie_rendue)}</span></div>
+    `;
+}
 
 function getFormattedMode(d) {
     if (d.mode && d.mode.startsWith('Banque')) {
@@ -1175,6 +1205,7 @@ function model1(d) {
                 ${d.etape === 'Facture' ? `
                 <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:0.5px solid var(--border)"><span style="color:var(--mu)">Montant Réglé</span><span>${fmtFcfa(d.deja_paye)}</span></div>
                 <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;color:${d.deja_paye < c.net_a_payer ? '#dc2626' : '#059669'};font-weight:700;"><span style="text-transform:uppercase;">Reste à payer</span><span>${fmtFcfa(Math.max(0, c.net_a_payer - d.deja_paye))}</span></div>
+                ${blocMonnaieRendue(d)}
                 ` : ''}
             </div>
         </div>
@@ -1306,6 +1337,7 @@ function model2(d) {
                     ${d.etape === 'Facture' ? `
                     <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-top:0.5px solid var(--border);margin-top:4px"><span style="color:var(--mu)">Montant Réglé</span><span>${fmtFcfa(d.deja_paye)}</span></div>
                     <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;font-weight:700;color:${d.deja_paye < c.net_a_payer ? '#dc2626' : '#059669'}"><span>Reste à payer</span><span>${fmtFcfa(Math.max(0, c.net_a_payer - d.deja_paye))}</span></div>
+                    ${blocMonnaieRendue(d, true)}
                     ` : ''}
                 </div>
             </div>
@@ -1447,6 +1479,7 @@ function model3(d) {
                 ${d.etape === 'Facture' ? `
                 <div style="display:flex;justify-content:space-between;padding:6px 8px;font-size:12px;border-bottom:0.5px solid var(--border)"><span style="color:var(--mu)">Montant Réglé</span><span style="font-weight:600;">${fmtFcfa(d.deja_paye)}</span></div>
                 <div style="display:flex;justify-content:space-between;padding:6px 8px;font-size:12px;color:${d.deja_paye < c.net_a_payer ? '#dc2626' : '#059669'};font-weight:700;"><span>Reste à payer</span><span>${fmtFcfa(Math.max(0, c.net_a_payer - d.deja_paye))}</span></div>
+                ${blocMonnaieRendue(d)}
                 ` : ''}
             </div>
         </div>
@@ -1539,6 +1572,16 @@ function modelStandard(d) {
                 <td colspan="7" style="padding:6px 10px; border:1px solid #000; text-align:right; font-weight:900; text-transform:uppercase; color:${d.deja_paye < c.net_a_payer ? '#dc2626' : '#000'};">RESTE A PAYER</td>
                 <td style="padding:6px 10px; border:1px solid #000; text-align:right; font-weight:900; color:${d.deja_paye < c.net_a_payer ? '#dc2626' : '#000'}; white-space:nowrap;">${fmt(Math.max(0, c.net_a_payer - d.deja_paye))}</td>
             </tr>
+            ${d.monnaie_rendue > 0 ? `
+            <tr style="background:#fff; color:#000;">
+                <td colspan="7" style="padding:6px 10px; border:1px solid #000; text-align:right; font-weight:700; text-transform:uppercase;">RECU</td>
+                <td style="padding:6px 10px; border:1px solid #000; text-align:right; font-weight:700; white-space:nowrap;">${fmt(d.montant_recu)}</td>
+            </tr>
+            <tr style="background:#fff; color:#000;">
+                <td colspan="7" style="padding:6px 10px; border:1px solid #000; text-align:right; font-weight:900; text-transform:uppercase; color:#15803d;">MONNAIE RENDUE</td>
+                <td style="padding:6px 10px; border:1px solid #000; text-align:right; font-weight:900; color:#15803d; white-space:nowrap;">${fmt(d.monnaie_rendue)}</td>
+            </tr>
+            ` : ''}
             ` : ''}
         `;
     }

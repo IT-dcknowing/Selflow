@@ -151,10 +151,10 @@
         </div>
         
         <div style="display: flex; gap: 8px; align-items: center;">
-            <button class="print-btn" onclick="telechargerFichier('.invoice')"
-                    title="Enregistrer le document dans un fichier, sans passer par l'impression.">
-                <i class="fas fa-download"></i> Télécharger
-            </button>
+            <a class="print-btn" href="{{ route('admin.achats.pdf', $achat) }}"
+               title="Enregistrer le document au format PDF.">
+                <i class="fas fa-download"></i> Télécharger le PDF
+            </a>
             <button class="print-btn main" onclick="telechargerPdf()"
                     title="Choisissez la destination « Enregistrer au format PDF » pour obtenir le fichier, ou votre imprimante pour une sortie papier.">
                 <i class="fas fa-file-pdf"></i> Imprimer / PDF
@@ -184,37 +184,12 @@
     <div id="invoice-wrap"></div>
 </div>
 
-{{-- Modal de confirmation de l'avoir fournisseur.
-     Retire pour les bordereaux d'achat aux producteurs agricoles : la DGI
-     ne normalise pas leur avoir, et une piece etablie ici resterait sans
-     contrepartie fiscale. Le controleur refuse de son cote — masquer le
-     bouton ne ferme pas la route. --}}
-@if(!$achat->estBapa())
-<div class="modal-overlay" id="modalAvoir" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
-    <div class="modal" style="background:#fff; border-radius:12px; max-width:480px; width:100%; box-shadow:0 10px 30px rgba(0,0,0,0.15); overflow:hidden;">
-        <div class="modal-header" style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="font-size:16px; font-weight:700; color:var(--text-1); margin:0;"><i class="fas fa-rotate-left" style="color:var(--danger)"></i> Générer une facture d'avoir fournisseur</h3>
-            <button type="button" class="modal-close" onclick="fermerModalAvoir()" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-3);">&times;</button>
-        </div>
-        <form method="POST" action="{{ route('admin.achats.avoir', $achat) }}" style="margin:0; padding:20px;">
-            @csrf
-            <div style="font-size:13px; color:var(--text-2); margin-bottom:14px; line-height:1.5;">
-                Cette action va enregistrer une facture d'avoir fournisseur pour un montant total de <strong>{{ number_format($achat->montant_ttc, 0, ',', ' ') }} FCFA</strong>. Les stocks des articles stockables associés seront décrémentés (retour fournisseur).
-            </div>
-
-            <div class="form-group" style="margin-bottom:14px;">
-                <label class="form-label">Motif ou Référence de l'avoir fournisseur <span style="color:var(--danger)">*</span></label>
-                <input type="text" name="raison" class="form-control" required placeholder="Ex: Retour d'article défectueux, erreur de prix sur facture..." maxlength="255">
-            </div>
-
-            <div style="border-top:1px solid var(--border); padding-top:14px; margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
-                <button type="button" class="btn btn-outline" onclick="fermerModalAvoir()">Annuler</button>
-                <button type="submit" class="btn btn-danger"><i class="fas fa-check-circle"></i> Confirmer & Enregistrer l'avoir</button>
-            </div>
-        </form>
-    </div>
-</div>
-@endif
+{{-- Le modal « Générer une facture d'avoir fournisseur » vivait ici.
+     Retiré le 25/09/2026 : **un acheteur n'établit pas l'avoir de son
+     fournisseur.** La DGI ne le prévoit pas — la plateforme ne certifie
+     l'avoir que du côté de celui qui a émis la facture. Les avoirs déjà
+     enregistrés restent lisibles : `getAvoirBlock()` plus bas continue de les
+     annoncer pour ce qu'ils sont. --}}
 @endsection
 
 @section('scripts')
@@ -972,11 +947,7 @@ if (urlParams.get('download') === '1') {
     }, 800);
 }
 
-function ouvrirModalAvoir() {
-    document.getElementById('modalAvoir').style.display = 'flex';
-}
-function fermerModalAvoir() {
-    document.getElementById('modalAvoir').style.display = 'none';
-}
+// `ouvrirModalAvoir()` et `fermerModalAvoir()` ouvraient et fermaient le
+// modal de l'avoir fournisseur, retire le 25/09/2026.
 </script>
 @endsection

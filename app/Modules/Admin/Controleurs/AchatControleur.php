@@ -91,6 +91,9 @@ class AchatControleur
             'date_achat'                 => ['required', 'date'],
             'mode_paiement'              => ['nullable', 'string'], // optionnel hors bloc Facture physique/BAPA
             'numero_facture_fournisseur' => ['nullable', 'string', 'max:100'],
+            // La somme tendue : elle n'est pas le décaissement, qui reste borné
+            // au dû. Voir `Achat::monnaieRendue()`.
+            'montant_paye'               => ['nullable', 'numeric', 'min:0'],
             'type_facture'               => ['nullable', 'string', 'in:normale,bapa'],
             'articles'                   => ['required', 'array', 'min:1'],
             'articles.*.produit_id'      => ['nullable', 'integer', Appartenance::a('produits', 'id')],
@@ -198,6 +201,11 @@ class AchatControleur
             // Statut de départ de l'achat : "En attente de confirmation" par défaut
             $statutInitial = ($etape === 'Facture') ? (($request->mode_paiement === 'Crédit') ? 'Crédit' : 'Payé') : 'En attente de confirmation';
 
+            // La somme tendue au fournisseur. Elle ne vaut pas décaissement :
+            // ce qui sort de la caisse est borné au dû, et la différence est
+            // la monnaie rendue, imprimée sur la pièce.
+            $montantTendu = $request->filled('montant_paye') ? (float) $request->input('montant_paye') : 0.0;
+
             $achat = Achat::create([
                 'point_de_vente_id'          => $pointDeVenteId,
                 'fournisseur_id'             => $request->fournisseur_id,
@@ -213,6 +221,7 @@ class AchatControleur
                 'montant_ht'                 => $montantHt,
                 'montant_tva'                => $montantTva,
                 'montant_ttc'                => $montantTtc,
+                'montant_recu'               => $montantTendu > 0 ? $montantTendu : null,
                 'remise'                     => $remise,
                 'remise_taux'                => $remiseTaux,
                 'statut'                     => $statutInitial,
@@ -296,7 +305,13 @@ class AchatControleur
                 // TTC total, y compris pour un achat "Crédit" (statutInitial === 'Crédit'),
                 // ce qui payait à tort une dette fournisseur censée rester impayée.
                 // On ne décaisse désormais que si l'achat n'est pas à crédit.
-                $montantPaye = $statutInitial === 'Crédit' ? 0 : $montantTtc;
+                // Ce qui a été tendu au fournisseur, et ce qui est
+                // réellement décaissé : jamais plus que le dû, timbre du
+                // bordereau compris.
+                $montantPaye = $statutInitial === 'Crédit' ? 0 : min(
+                    $montantTendu > 0 ? $montantTendu : $achat->netAPayer(),
+                    $achat->netAPayer()
+                );
 
                 // Écritures comptables : décide seule si achat comptant (aucune ligne 401)
                 // ou achat à crédit (401 pour le montant non payé immédiatement).
@@ -383,7 +398,15 @@ class AchatControleur
 
         $routeRedirect = request()->routeIs('caissier.*') ? 'caissier.achats.factures' : 'admin.achats.factures';
         $successLabel = $achat->etape === 'Facture' ? 'Achat enregistré et facture générée avec succès.' : $achat->etape . ' enregistré(e) avec succès.';
-        return redirect()->route($routeRedirect, ['type' => strtolower($achat->etape)])
+        // On revient sur la section qui porte la pièce qu'on vient d'établir.
+        // Le paramètre `type` envoyé jusqu'ici ne désignait plus rien depuis le
+        // retrait de l'avoir : on retombait sur la première section, où un
+        // bordereau tout juste saisi ne figurait pas.
+        $retour = $achat->etape === 'Facture'
+            ? ['etape' => 'Facture', 'section' => $achat->estBapa() ? 'bapa' : 'enregistrees']
+            : ['etape' => $achat->etape];
+
+        return redirect()->route($routeRedirect, $retour)
             ->with('succes', $successLabel);
     }
 
@@ -393,7 +416,30 @@ class AchatControleur
         $pointDeVenteId = session('point_de_vente_actif_id') ?? Auth::user()->point_de_vente_id;
 
         $etapeActive = request('etape', 'Facture');
-        $type = request('type');
+
+        /*
+         * Trois natures d'achat, et une seule d'entre elles se normalise.
+         *
+         * Le propriétaire les a énoncées le 25/09/2026 :
+         *
+         *  - la **facture enregistrée** : celle qu'on saisit pour suivre une
+         *    dépense. Elle ne part nulle part — c'est le fournisseur qui a
+         *    certifié la sienne, si tant est qu'il l'ait fait ;
+         *  - le **bordereau (BAPA)** : la seule pièce d'achat qu'un client de
+         *    Selflow ait le droit de normaliser, parce que c'est lui qui
+         *    l'établit, auprès d'un producteur qui n'émet rien ;
+         *  - la **facture d'achat DGI** : celle que le fournisseur a certifiée
+         *    et que le relevé du portail rapporte. Elle est déjà normalisée :
+         *    il n'y a rien à lui faire, seulement à la rapprocher.
+         *
+         * Les mélanger dans un seul tableau obligeait chaque ligne à expliquer
+         * ce qu'elle était, et la colonne « Normalisé (DGI) » à mentir pour les
+         * deux tiers d'entre elles.
+         */
+        $section = request('section', 'enregistrees');
+        if (!in_array($section, ['enregistrees', 'bapa', 'dgi'], true)) {
+            $section = 'enregistrees';
+        }
 
         $baseQuery = Achat::with(['fournisseur', 'pointDeVente', 'details.produit', 'rejets'])
             ->whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entreprise->id));
@@ -402,14 +448,26 @@ class AchatControleur
             $baseQuery->where('point_de_vente_id', $pointDeVenteId);
         }
 
-        if ($type === 'avoir') {
-            $baseQuery->where('type_facture', 'avoir');
-            $etapeActive = 'Facture';
-        } else {
-            $baseQuery->where(function($q) {
-                $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir');
-            });
-            $baseQuery->where('etape', $etapeActive);
+        // L'avoir fournisseur a été retiré le 25/09/2026 : la DGI ne prévoit
+        // pas qu'un acheteur établisse l'avoir de son fournisseur. Les pièces
+        // déjà enregistrées restent en base et sortent simplement des listes.
+        $baseQuery->where(function($q) {
+            $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir');
+        });
+        $baseQuery->where('etape', $etapeActive);
+
+        if ($etapeActive === 'Facture') {
+            if ($section === 'bapa') {
+                // Deux chemins mènent au bordereau, et un seul se lit dans
+                // `type_facture` — voir `Achat::scopeBordereaux()`.
+                $baseQuery->bordereaux();
+            } elseif ($section === 'dgi') {
+                // Aucune pièce de Selflow ici : cette section ne montre que ce
+                // que le portail a rapporté.
+                $baseQuery->whereRaw('1 = 0');
+            } else {
+                $baseQuery->horsBordereaux();
+            }
         }
 
         // Filtres additionnels (recherche, statut, période) — appliqués
@@ -454,31 +512,24 @@ class AchatControleur
         $nbBC = $totaux['Bon de commande'] ?? 0;
         $nbFacture = $totaux['Facture'] ?? 0;
 
+        // Ce que chaque section porte, pour que l'onglet le dise avant qu'on
+        // l'ouvre.
+        $compteFactures = (clone $compteQuery)->where('etape', 'Facture');
+        $nbBapa = (clone $compteFactures)->bordereaux()->count();
+        $nbEnregistrees = (clone $compteFactures)->horsBordereaux()->count();
+        // Le compteur de l'onglet dit ce qu'il y a à regarder, donc sans les
+        // écartées : les compter ferait un nombre qui ne baisse jamais.
+        $nbDgi = PortailFneFactureRecue::where('entreprise_id', $entreprise->id)
+            ->where('statut_rapprochement', '!=', PortailFneFactureRecue::ECARTEE)
+            ->count();
+        $nbEcartees = PortailFneFactureRecue::where('entreprise_id', $entreprise->id)
+            ->where('statut_rapprochement', PortailFneFactureRecue::ECARTEE)
+            ->count();
+
         $achats = $baseQuery->latest()->paginate(20)->appends(request()->query());
 
-        $facturesDispo = collect();
-        if ($type === 'avoir') {
-            $facturesDispoQuery = Achat::with('fournisseur')
-                ->whereHas('pointDeVente', fn($queryPdv) => $queryPdv->where('entreprise_id', $entreprise->id))
-                ->where('etape', 'Facture')
-                ->where(function($queryNum) {
-                    // Accepte l'ancien préfixe (AC-, avant le 22/07/2026) ET le
-                    // nouveau (ACH-, depuis le changement de convention de
-                    // numérotation), pour ne pas exclure les factures récentes.
-                    // `BA-` en est sorti : c'est le préfixe des bordereaux, et
-                    // la DGI ne normalise pas leur avoir.
-                    $queryNum->where('numero_facture', 'LIKE', 'AC-%')
-                             ->orWhere('numero_facture', 'LIKE', 'ACH-%');
-                })
-                ->where(function($queryType) {
-                    $queryType->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir');
-                });
-            self::ecarterLesBapa($facturesDispoQuery);
-            if ($pointDeVenteId) {
-                $facturesDispoQuery->where('point_de_vente_id', $pointDeVenteId);
-            }
-            $facturesDispo = $facturesDispoQuery->latest()->get();
-        }
+        // `$facturesDispo` servait au modal « Créer une facture d'avoir »,
+        // retiré le 25/09/2026. La vue ne la lit plus : elle sort aussi d'ici.
 
         // Les factures que la DGI détient pour l'entreprise et que Selflow n'a
         // pas encore rattachées à un achat.
@@ -501,10 +552,29 @@ class AchatControleur
         // donc aucun cumul, contrairement à l'écran FNE qui, lui, les écarte
         // dès qu'un site précis est demandé.
         $facturesPortail = collect();
-        if ($type !== 'avoir' && $etapeActive === 'Facture') {
+        if ($etapeActive === 'Facture' && $section === 'dgi') {
+            // **Toutes**, et non les seules non rattachées. L'écran séparé
+            // `/admin/achats/factures-recues` était jusqu'ici le seul endroit
+            // où revoir une facture déjà rapprochée ou écartée, et donc le seul
+            // où l'on pouvait revenir sur l'une ou sur l'autre. En les montrant
+            // toutes ici, cet écran n'a plus de raison d'être.
+            /*
+             * Ce qu'on a mis de côté ne revient pas chaque jour.
+             *
+             * L'écran séparé avait un filtre par statut ; il portait seul la
+             * possibilité de revenir sur un écartement. La section le reprend :
+             * par défaut elle montre ce qui vit — à rapprocher et rattachées —,
+             * et `?statut=ecartees` rend ce qu'on a mis de côté, avec le geste
+             * qui l'en sort. Sans ce filtre, écarter n'aurait plus aucun effet.
+             */
+            $ecarteesSeules = request('statut') === 'ecartees';
+
             $facturesPortail = PortailFneFactureRecue::where('entreprise_id', $entreprise->id)
-                ->whereNull('achat_id')
-                ->where('statut_rapprochement', '!=', PortailFneFactureRecue::ECARTEE)
+                ->when(
+                    $ecarteesSeules,
+                    fn ($q) => $q->where('statut_rapprochement', PortailFneFactureRecue::ECARTEE),
+                    fn ($q) => $q->where('statut_rapprochement', '!=', PortailFneFactureRecue::ECARTEE)
+                )
                 // Le site retenu, plus celles que personne n'a encore rangées.
                 // Les secondes n'appartiennent à aucun site : les masquer les
                 // rendrait invisibles sous tous, et personne ne les affecterait
@@ -539,10 +609,35 @@ class AchatControleur
             : \App\Modules\Admin\Modeles\PointDeVente::where('entreprise_id', $entreprise->id)
                 ->orderBy('nom')->get();
 
-        return view('admin::achats.factures', compact('achats', 'etapeActive', 'nbDP', 'nbBC', 'nbFacture', 'type', 'facturesDispo', 'facturesPortail', 'sitesDisponibles'));
+        return view('admin::achats.factures', compact(
+            'achats', 'etapeActive', 'section', 'nbDP', 'nbBC', 'nbFacture',
+            'nbBapa', 'nbEnregistrees', 'nbDgi', 'nbEcartees',
+            'facturesPortail', 'sitesDisponibles'
+        ));
     }
 
 
+
+    /**
+     * La pièce d'achat, en PDF véritable — facture enregistrée ou bordereau.
+     */
+    public function pdf(Achat $achat, \App\Modules\Admin\Services\DocumentPdfService $pdf): \Symfony\Component\HttpFoundation\Response
+    {
+        abort_unless(
+            $achat->pointDeVente->entreprise_id === Auth::user()->entreprise_id,
+            404
+        );
+
+        $achat->load(['details.produit', 'fournisseur', 'pointDeVente.entreprise']);
+        $dejaPaye = \App\Modules\Admin\Modeles\TresorerieJournal::where('reference_document', $achat->numero_facture)
+            ->sum('montant_sortie');
+
+        return response($pdf->achat($achat, (float) $dejaPaye), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'
+                . \App\Modules\Admin\Services\DocumentPdfService::nomDuFichier($achat) . '"',
+        ]);
+    }
 
     public function imprimer(Achat $achat): View
     {
@@ -714,107 +809,6 @@ class AchatControleur
         return back()->with('succes', 'Facture d\'achat validée, stock mis à jour et écritures générées.');
     }
 
-    /**
-     * Générer un avoir sur une facture d'achat (Retour fournisseur)
-     */
-    public function creerAvoir(Request $request, Achat $achat): RedirectResponse
-    {
-        $this->autoriserAcces($achat);
-        abort_if($achat->type_facture === 'avoir', 400, "Impossible de générer un avoir sur un avoir.");
-
-        // La DGI ne normalise pas l'avoir d'un bordereau d'achat aux
-        // producteurs agricoles. Interdit au dernier verrou, et pas
-        // seulement masque a l'ecran : la route reste atteignable a la main.
-        abort_if($achat->estBapa(), 400, self::AVOIR_BAPA_INTERDIT);
-
-        $request->validate([
-            'raison' => ['required', 'string', 'max:255'],
-        ]);
-
-        $avoirId = null;
-
-        DB::transaction(function () use ($achat, $request, &$avoirId) {
-            $numAvoir = \App\Modules\Admin\Services\NumerotationService::genererNumeroAchat(
-                $achat->pointDeVente->entreprise_id, 'Facture', 'avoir'
-            );
-
-            // 1. Création de la facture d'avoir d'achat
-            $avoir = Achat::create([
-                'point_de_vente_id'          => $achat->point_de_vente_id,
-                'fournisseur_id'             => $achat->fournisseur_id,
-                'utilisateur_id'             => Auth::id(),
-                'numero_facture'             => $numAvoir,
-                'numero_facture_fournisseur' => $request->raison, // Raison/Ref de l'avoir fournisseur
-                'date_achat'                 => now()->toDateString(),
-                'mode_paiement'              => $achat->mode_paiement,
-                'moyen_bancaire'             => $achat->moyen_bancaire,
-                'reference_paiement'         => $request->raison,
-                'montant_ht'                 => $achat->montant_ht,
-                'montant_tva'                => $achat->montant_tva,
-                'montant_ttc'                => $achat->montant_ttc,
-                'statut'                     => 'Payé',
-                'type_facture'               => 'avoir',
-                'etape'                      => 'Facture',
-            ]);
-
-            // 2. Copie des détails et retour fournisseur (décrémentation stock)
-            foreach ($achat->details as $detail) {
-                \App\Modules\Admin\Modeles\AchatDetail::create([
-                    'achat_id'      => $avoir->id,
-                    'produit_id'    => $detail->produit_id,
-                    'quantite'      => $detail->quantite,
-                    'prix_unitaire' => $detail->prix_unitaire,
-                    'montant_tva'   => $detail->montant_tva,
-                    'montant_ttc'   => $detail->montant_ttc,
-                ]);
-
-                // Décrémenter le stock si le produit est stockable
-                if ($detail->produit && $detail->produit->estStockable()) {
-                    $disponible = StockService::disponible($detail->produit, (int) $achat->point_de_vente_id);
-
-                    if ($disponible < $detail->quantite) {
-                        throw new \InvalidArgumentException(
-                            "Retour fournisseur impossible pour « {$detail->produit->nom} » : stock actuel ({$disponible}) inférieur à la quantité à retourner ({$detail->quantite}). Une partie a probablement déjà été revendue."
-                        );
-                    }
-
-                    StockService::sortie($detail->produit, (int) $achat->point_de_vente_id,
-                        (float) $detail->quantite, MouvementStock::RETOUR_FOURNISSEUR,
-                        ['piece' => $avoir, 'reference' => $numAvoir,
-                         'fournisseur_id' => $achat->fournisseur_id]);
-                }
-            }
-
-            // 3. Écritures comptables
-            \App\Modules\Admin\Services\ComptabiliteService::genererEcritureAvoirAchat($avoir);
-
-            // 4. Si la facture d'origine était payée en espèces, on simule l'entrée en caisse du remboursement fournisseur
-            if (str_contains(strtolower($achat->mode_paiement), 'espèces') || str_contains(strtolower($achat->mode_paiement), 'caisse')) {
-                $soldeActuel = TresorerieJournal::where('point_de_vente_id', $achat->point_de_vente_id)
-                    ->orderByDesc('created_at')->value('solde_resultat') ?? 0;
-
-                TresorerieJournal::create([
-                    'point_de_vente_id'  => $achat->point_de_vente_id,
-                    'date_operation'     => now()->toDateString(),
-                    'type_operation'     => 'Encaissement', // Remboursement du fournisseur
-                    'libelle'            => 'Remboursement Avoir fournisseur ' . $numAvoir,
-                    'mode_paiement'      => $achat->mode_paiement,
-                    'montant_entree'     => $achat->montant_ttc,
-                    'montant_sortie'     => 0,
-                    'solde_resultat'     => $soldeActuel + $achat->montant_ttc,
-                    'reference_document' => $numAvoir,
-                ]);
-            }
-
-            $avoirId = $avoir->id;
-        });
-
-        $this->journaliser('creation_avoir_achat', 'Achat', $avoirId);
-
-        $routeRedirect = request()->routeIs('caissier.*') ? 'caissier.achats.factures' : 'admin.achats.factures';
-        return redirect()->route($routeRedirect, ['type' => 'avoir'])
-            ->with('succes', "Facture d'avoir fournisseur enregistrée ! Les stocks et écritures comptables d'annulation ont été validés.");
-    }
 
     /**
      * Lot H : Normalisation manuelle DGI/BAPA.
@@ -928,269 +922,9 @@ class AchatControleur
     private const AVOIR_BAPA_INTERDIT = "La DGI ne normalise pas encore l'avoir d'un bordereau d'achat "
         . "aux producteurs agricoles (BAPA) : l'operation est indisponible sur cette piece.";
 
-    /**
-     * Écarte les bordereaux d'achat aux producteurs agricoles d'une liste de
-     * pièces avoirables.
-     *
-     * **La DGI ne normalise pas l'avoir d'un BAPA.** Tant qu'elle ne le fait
-     * pas, un avoir établi ici resterait sans contrepartie fiscale : la pièce
-     * existerait dans Selflow, pas chez la plateforme, et les deux états
-     * divergeraient sans que rien ne le signale. Mieux vaut ne pas proposer
-     * l'opération que d'en produire une que personne ne pourra certifier.
-     *
-     * Les deux chemins sont fermés ensemble, comme dans `Achat::estBapa()` :
-     * le type déclaré, et le fournisseur sans NCC — qui part en BAPA sans que
-     * `type_facture` le dise. Le préfixe `BA-` tombe avec eux : c'est celui que
-     * `NumerotationService` donne aux bordereaux.
-     */
-    private static function ecarterLesBapa($query)
-    {
-        return $query
-            ->where(function ($queryType) {
-                $queryType->whereNull('type_facture')
-                          ->orWhere('type_facture', '!=', 'bapa');
-            })
-            ->whereHas('fournisseur', fn($queryFourn) => $queryFourn
-                ->whereNotNull('ncc')->where('ncc', '!=', ''));
-    }
 
-    public function rechercherFacturesPourAvoir(Request $request): \Illuminate\Http\JsonResponse
-    {
-        $entreprise = Auth::user()->entreprise;
-        $q = $request->query('q');
 
-        $query = Achat::with('fournisseur')
-            ->whereHas('pointDeVente', fn($queryPdv) => $queryPdv->where('entreprise_id', $entreprise->id))
-            ->where('etape', 'Facture')
-            ->where(function($queryNum) {
-                // `BA-` retiré : les bordereaux d'achat aux producteurs
-                // agricoles ne sont plus avoirables.
-                $queryNum->where('numero_facture', 'LIKE', 'AC-%')
-                         ->orWhere('numero_facture', 'LIKE', 'ACH-%');
-            })
-            ->where(function($queryType) {
-                $queryType->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir');
-            })
-            ->where('archived', false);
 
-        self::ecarterLesBapa($query);
-
-        if ($q) {
-            $query->where(function($querySearch) use ($q) {
-                $querySearch->where('numero_facture', 'like', "%{$q}%")
-                    ->orWhere('numero_facture_fournisseur', 'like', "%{$q}%")
-                    ->orWhereHas('fournisseur', fn($queryFourn) => $queryFourn->where('nom', 'like', "%{$q}%"));
-            });
-        }
-
-        $factures = $query->latest()->limit(10)->get()->map(function($f) {
-            $fournNom = $f->fournisseur ? $f->fournisseur->nom : 'Fournisseur inconnu';
-            return [
-                // L'identifiant public, celui que les adresses portent. Le
-                // numérique partait ici et revenait dans une adresse qui
-                // attend un uuid : 404 (Not Found — introuvable), puis une
-                // page HTML lue comme du JSON.
-                'id' => $f->uuid,
-                'text' => "{$f->numero_facture} - {$fournNom} (" . number_format($f->montant_ttc, 0, ',', ' ') . " XOF)"
-            ];
-        });
-
-        return response()->json($factures);
-    }
-
-    public function detailsFacturePourAvoir(Achat $achat): \Illuminate\Http\JsonResponse
-    {
-        $this->autoriserAcces($achat);
-
-        // La DGI ne normalise pas l'avoir d'un bordereau d'achat aux
-        // producteurs agricoles. Interdit au dernier verrou, et pas
-        // seulement masque a l'ecran : la route reste atteignable a la main.
-        abort_if($achat->estBapa(), 400, self::AVOIR_BAPA_INTERDIT);
-        $achat->load(['details.produit', 'fournisseur']);
-
-        return response()->json([
-            'id' => $achat->uuid,
-            'numero_facture' => $achat->numero_facture,
-            'fournisseur_nom' => $achat->fournisseur ? $achat->fournisseur->nom : 'Fournisseur inconnu',
-            'montant_ttc' => $achat->montant_ttc,
-            'details' => $achat->details->map(function($d) {
-                return [
-                    'id' => $d->id,
-                    'produit_id' => $d->produit_id,
-                    'libelle' => $d->produit ? $d->produit->nom : 'Produit inconnu',
-                    'quantite' => $d->quantite,
-                    'prix_unitaire' => $d->prix_unitaire,
-                    'montant_tva' => $d->montant_tva,
-                    'montant_ttc' => $d->montant_ttc,
-                    'unite' => $d->produit ? ($d->produit->unite ?? 'pcs') : 'pcs',
-                    'est_stockable' => $d->produit ? $d->produit->estStockable() : false,
-                ];
-            })
-        ]);
-    }
-
-    public function creerAvoirNouveau(Request $request): RedirectResponse
-    {
-        $request->validate([
-            // La pièce d'origine est désignée par son identifiant public,
-            // celui que l'écran a reçu. Le numérique n'est plus publié.
-            'parent_id' => ['required', 'uuid', Appartenance::a('achats', 'uuid')],
-            'raison'    => ['required', 'string', 'max:255'],
-            'items'     => ['required', 'array'],
-        ]);
-
-        $parent = Achat::where('uuid', $request->parent_id)->firstOrFail();
-        $this->autoriserAcces($parent);
-        abort_if($parent->type_facture === 'avoir', 400, "Impossible de générer un avoir sur un avoir.");
-
-        // La DGI ne normalise pas l'avoir d'un bordereau d'achat aux
-        // producteurs agricoles. Interdit au dernier verrou, et pas
-        // seulement masque a l'ecran : la route reste atteignable a la main.
-        abort_if($parent->estBapa(), 400, self::AVOIR_BAPA_INTERDIT);
-
-        $avoirId = null;
-
-        DB::transaction(function () use ($parent, $request, &$avoirId) {
-            $numAvoir = \App\Modules\Admin\Services\NumerotationService::genererNumeroAchat(
-                $parent->pointDeVente->entreprise_id, 'Facture', 'avoir'
-            );
-
-            // 1. Création de la facture d'avoir d'achat
-            $avoir = Achat::create([
-                'point_de_vente_id'          => $parent->point_de_vente_id,
-                'fournisseur_id'             => $parent->fournisseur_id,
-                'utilisateur_id'             => Auth::id(),
-                'numero_facture'             => $numAvoir,
-                'numero_facture_fournisseur' => $request->raison,
-                'date_achat'                 => now()->toDateString(),
-                'mode_paiement'              => $parent->mode_paiement,
-                'moyen_bancaire'             => $parent->moyen_bancaire,
-                'reference_paiement'         => $request->raison,
-                'statut'                     => 'Payé',
-                'type_facture'               => 'avoir',
-                'etape'                      => 'Facture',
-                'parent_id'                  => $parent->id,
-                'raison_avoir'               => $request->raison,
-                'montant_ht'                 => 0,
-                'montant_tva'                => 0,
-                'montant_ttc'                => 0,
-            ]);
-
-            $totalHt = 0;
-            $totalTva = 0;
-            $totalTtc = 0;
-
-            // 2. Traitement des lignes
-            foreach ($request->items as $itemId => $itemData) {
-                $isNouveau = isset($itemData['est_nouveau']) && $itemData['est_nouveau'] == 1;
-                $qteAvoir = floatval($itemData['quantite']);
-                $prixUnit = floatval($itemData['prix_unitaire']);
-
-                if ($qteAvoir <= 0) continue;
-
-                if ($isNouveau) {
-                    $produitId = $itemData['produit_id'] ?? null;
-                    $libelle = $itemData['libelle_virtuel'] ?? 'Article';
-                    
-                    $produit = null;
-                    if ($produitId) {
-                        $produit = \App\Modules\Admin\Modeles\Produit::find($produitId);
-                    }
-
-                    $tvaRate = (floatval($itemData['taux_tva'] ?? 18.0)) / 100;
-                    $unite = $produit ? $produit->unite : 'pcs';
-                    
-                    $itemHt = $qteAvoir * $prixUnit;
-                    $itemTva = $itemHt * $tvaRate;
-                    $itemTtc = $itemHt + $itemTva;
-
-                    \App\Modules\Admin\Modeles\AchatDetail::create([
-                        'achat_id'        => $avoir->id,
-                        'produit_id'      => $produitId,
-                        'libelle_virtuel' => $libelle,
-                        'quantite'        => $qteAvoir,
-                        'unite'           => $unite,
-                        'prix_unitaire'   => $prixUnit,
-                        'montant_tva'     => $itemTva,
-                        'montant_ttc'     => $itemTtc,
-                    ]);
-
-                    $totalHt += $itemHt;
-                    $totalTva += $itemTva;
-                    $totalTtc += $itemTtc;
-
-                    // Action sur stock (décrémentation stock si retour physique marchandise)
-                    if ($produit && $produit->estStockable()) {
-                        self::rendreAuFournisseur($produit, $parent, $avoir, $numAvoir,
-                            (float) $qteAvoir, $itemData['stock_action'] ?? 'none');
-                    }
-                } else {
-                    $detail = \App\Modules\Admin\Modeles\AchatDetail::where('achat_id', $parent->id)->where('id', $itemId)->first();
-                    if (!$detail) continue;
-
-                    $tvaRate = ($detail->montant_ttc - $detail->montant_ht) > 0 ? 0.18 : 0;
-
-                    $itemHt = $qteAvoir * $prixUnit;
-                    $itemTva = $itemHt * $tvaRate;
-                    $itemTtc = $itemHt + $itemTva;
-
-                    \App\Modules\Admin\Modeles\AchatDetail::create([
-                        'achat_id'      => $avoir->id,
-                        'produit_id'    => $detail->produit_id,
-                        'quantite'      => $qteAvoir,
-                        'prix_unitaire' => $prixUnit,
-                        'montant_tva'   => $itemTva,
-                        'montant_ttc'   => $itemTtc,
-                    ]);
-
-                    $totalHt += $itemHt;
-                    $totalTva += $itemTva;
-                    $totalTtc += $itemTtc;
-
-                    // Action sur stock (décrémentation stock si retour physique marchandise)
-                    if ($detail->produit && $detail->produit->estStockable()) {
-                        self::rendreAuFournisseur($detail->produit, $parent, $avoir, $numAvoir,
-                            (float) $qteAvoir, $itemData['stock_action'] ?? 'none');
-                    }
-                }
-            }
-
-            $avoir->update([
-                'montant_ht'  => $totalHt,
-                'montant_tva' => $totalTva,
-                'montant_ttc' => $totalTtc,
-            ]);
-
-            // 3. Écritures comptables
-            \App\Modules\Admin\Services\ComptabiliteService::genererEcritureAvoirAchat($avoir);
-
-            // 4. Encaissement trésorerie si remboursement fournisseur
-            if (str_contains(strtolower($parent->mode_paiement), 'espèces') || str_contains(strtolower($parent->mode_paiement), 'caisse')) {
-                $soldeActuel = TresorerieJournal::where('point_de_vente_id', $parent->point_de_vente_id)
-                    ->orderByDesc('created_at')->value('solde_resultat') ?? 0;
-
-                TresorerieJournal::create([
-                    'point_de_vente_id'  => $parent->point_de_vente_id,
-                    'date_operation'     => now()->toDateString(),
-                    'type_operation'     => 'Encaissement',
-                    'libelle'            => 'Remboursement Avoir fournisseur ' . $numAvoir,
-                    'mode_paiement'      => $parent->mode_paiement,
-                    'montant_entree'     => $totalTtc,
-                    'montant_sortie'     => 0,
-                    'solde_resultat'     => $soldeActuel + $totalTtc,
-                    'reference_document' => $numAvoir,
-                ]);
-            }
-
-            $avoirId = $avoir->id;
-        });
-
-        $this->journaliser('creation_avoir_achat', 'Achat', $avoirId);
-
-        $routeRedirect = request()->routeIs('caissier.*') ? 'caissier.achats.factures' : 'admin.achats.factures';
-        return redirect()->route($routeRedirect, ['type' => 'avoir'])
-            ->with('succes', "Facture d'avoir fournisseur enregistrée !");
-    }
 
     public function produitsParCategorie(): \Illuminate\Http\JsonResponse
     {
@@ -1275,5 +1009,22 @@ class AchatControleur
         ]);
 
         return back()->with('succes', "Demande transmise avec succès en B2B !");
-    }
+    }    /*
+     * L'avoir fournisseur a été retiré le 25/09/2026.
+     *
+     * `creerAvoir()`, `creerAvoirNouveau()`, `rechercherFacturesPourAvoir()` et
+     * `detailsFacturePourAvoir()` vivaient ici, avec `ecarterLesBapa()` qui ne
+     * servait qu'à elles.
+     *
+     * **Un acheteur n'établit pas l'avoir de son fournisseur.** La DGI ne le
+     * prévoit pas : la plateforme ne certifie l'avoir que du côté de celui qui
+     * a émis la facture. Selflow offrait donc un document que rien ne rendait
+     * opposable, et qui décrémentait pourtant les stocks.
+     *
+     * Les avoirs déjà enregistrés restent en base et restent lisibles : ils
+     * sortent des listes, ils ne sont pas détruits. Ce qui disparaît, c'est la
+     * possibilité d'en établir de nouveaux.
+     */
+
+
 }

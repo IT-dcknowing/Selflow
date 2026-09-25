@@ -37,13 +37,13 @@ class EcranFacturesRecuesTest extends TestCase
         $this->uneFactureRecue($entreprise, ['emetteur_nom' => 'FOURNISSEUR SARL']);
 
         $this->actingAs($utilisateur)
-            ->get(route('admin.achats.factures_recues'))
+            ->get($this->sectionDgi())
             ->assertOk()
             ->assertSee('B0000001X26000000042')
             ->assertSee('FOURNISSEUR SARL')
-            // Le message qui dit ce que l'écran ne fait pas, montré une fois en
-            // haut plutôt que répété sur chaque ligne.
-            ->assertSee('un constat de la DGI', false);
+            // Le bandeau qui dit ce que la section ne fait pas, montré une fois
+            // en haut plutôt que répété sur chaque ligne.
+            ->assertSee('Vos fournisseurs les ont établies et certifiées', false);
     }
 
     public function test_une_facture_sans_fournisseur_connu_le_dit_au_lieu_de_proposer_un_rapprochement(): void
@@ -56,7 +56,7 @@ class EcranFacturesRecuesTest extends TestCase
         ]);
 
         $this->actingAs($utilisateur)
-            ->get(route('admin.achats.factures_recues'))
+            ->get($this->sectionDgi())
             ->assertOk()
             ->assertSee('Aucun fournisseur ne porte ce NCC');
     }
@@ -164,13 +164,13 @@ class EcranFacturesRecuesTest extends TestCase
         );
     }
 
-    public function test_l_ecran_est_joignable_sans_le_module_comptabilite(): void
+    public function test_la_liste_est_joignable_sans_le_module_comptabilite(): void
     {
         // C'est la raison d'etre du deplacement sous `achats` : une entreprise
         // qui achete sans tenir sa comptabilite dans Selflow doit voir les
         // factures que ses fournisseurs lui ont certifiees. Sous le groupe FNE,
         // garde par `modules:comptabilite`, elle recevait un 403 sur l'ecran de
-        // ses propres factures d'achat.
+        // ses propres factures d'achat. La section en herite.
         [$utilisateur, $entreprise] = $this->uneEntrepriseAvecUtilisateur();
 
         $entreprise->update(['modules_actifs' => ['principal', 'achats']]);
@@ -178,12 +178,23 @@ class EcranFacturesRecuesTest extends TestCase
         $this->uneFactureRecue($entreprise);
 
         $this->actingAs($utilisateur)
-            ->get(route('admin.achats.factures_recues'))
+            ->get($this->sectionDgi())
             ->assertOk()
-            ->assertSee('B0000001X26000000042')
-            // Et les onglets FNE ne s'affichent pas : ils pointent vers des
-            // ecrans qui, eux, lui repondraient 403.
-            ->assertDontSee('Stickers');
+            ->assertSee('B0000001X26000000042');
+    }
+
+    /**
+     * Ou la liste vit desormais.
+     *
+     * L'ecran separe `/admin/achats/factures-recues` a ete retire le
+     * 25/09/2026 : il montrait ce que la section « Factures achat DGI » porte,
+     * avec les memes gestes, et deux ecrans pour une meme liste laissaient des
+     * factures certifiees non rapprochees pendant des semaines -- personne
+     * n'ouvrait le second.
+     */
+    private function sectionDgi(): string
+    {
+        return route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']);
     }
 
     /* -------------------------------------------------------------------- */

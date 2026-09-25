@@ -337,7 +337,8 @@ Envoi sur les DEUX depots : origin, puis nouveau-repo.
   [FAIT] Point 7 - le BAPA devient une information ; l'enregistrement n'y
          touche plus.
 
-Epreuves : 1 306, dont 1 302 passantes et 4 sautees, 5 090 verifications.
+Epreuves apres le lot 31 : 1 339, dont 1 335 passantes et 4 sautees,
+5 219 verifications.
 php artisan verifier:variables : aucune variable lue sans avoir ete ecrite.
 
 RESTE A DECIDER
@@ -345,6 +346,68 @@ RESTE A DECIDER
   - La suppression des entreprises de demonstration en ligne : elle attend la
     liste explicite de leurs numeros sur le serveur.
   - La reedition des deux PDF du projet.
+
+
+7. LOT 31 - LE PDF, LA MONNAIE RENDUE, LES TROIS NATURES D'ACHAT (25/09/2026)
+--------------------------------------------------------------------------------
+  [FAIT] Le PDF veritable. dompdf installe ; la piece est etablie cote serveur,
+         en tableaux, dans une mise en page faite pour le papier. Elle ne
+         pouvait pas venir du rendu de l'ecran : celui-ci dessine le document
+         en JavaScript, en quatre modeles, et repose sur `flex` que dompdf
+         n'implemente pas. Les montants ne sont pas recalcules - ils sont lus
+         tels qu'enregistres. Le bloc de certification est reproduit a
+         l'identique, et reste absent tant que la piece n'est pas certifiee.
+  [FAIT] Securite des dependances. `composer audit` remontait 21 avis, dont un
+         de gravite haute sur guzzlehttp/guzzle - le client HTTP par lequel
+         passe FneService. Guzzle 7.13.2 -> 7.15.5, psr7 et commonmark a jour :
+         plus aucun avis. Ces avis etaient anterieurs a ce lot.
+  [FAIT] La monnaie rendue, a la vente et a l'achat. Non saisissable, toujours
+         calculee, imprimee sur la facture et sur le recu.
+         DEFAUT TROUVE EN CHEMIN : la somme tendue partait telle quelle en
+         tresorerie et en comptabilite. Une caisse qui recevait 10 000 F pour
+         une piece de 6 500 F enregistrait 10 000 F d'encaissement. L'encaissement
+         est desormais borne au net a payer, timbre compris.
+  [FAIT] Trois sections d'achat : Factures enregistrees, Factures BAPA,
+         Factures achat DGI. La colonne « Normalise (DGI) » mentait pour les
+         deux tiers des lignes : une facture fournisseur ordinaire affichait
+         « En cours » pour toujours alors qu'elle ne part jamais.
+  [FAIT] L'avoir fournisseur retire : un acheteur n'etablit pas l'avoir de son
+         fournisseur. Les avoirs deja enregistres restent en base.
+  [FAIT] L'ecran separe des factures recues retire : la section « Factures
+         achat DGI » porte les memes pieces et les memes gestes.
+  [FAIT] Ecran de saisie d'un achat : la nature se choisit en tete, le type de
+         document s'efface devant le bordereau, la mention RNE est retiree, le
+         B2B n'apparait qu'avec un fournisseur choisi.
+
+  [FAIT] Deux chemins menent au bordereau, et un seul se lit dans
+         `type_facture` : `validerFacture()` envoie a la normalisation BAPA
+         toute facture d'un fournisseur SANS NCC. Trouve en rangeant les
+         sections. Sans cela, ces pieces - le cas le plus courant - seraient
+         tombees sous « Factures enregistrees », ou les colonnes DGI disent
+         « Aucune donnee » alors qu'elles sont normalisees. La regle vit
+         maintenant en deux endroits qui ne peuvent pas diverger :
+         `Achat::estBapa()` pour une piece chargee, `Achat::scopeBordereaux()`
+         pour une requete.
+
+  [FAIT] Le bareme du timbre n'existe plus qu'a un endroit. L'ecran des achats
+         n'affichait aucun timbre : le net y etait sous-estime sur un bordereau
+         regle en especes, et la monnaie rendue fausse d'autant. L'ecran de
+         vente avait le bareme recopie a la main en JavaScript. Les deux lisent
+         maintenant `TimbreQuittanceService::BAREME` - le service n'est pas
+         modifie, il est lu.
+  [FAIT] Ce qu'on ecarte peut revenir. L'ecran separe portait seul le filtre
+         par statut ; le retirer sans le reprendre aurait fait de l'ecartement
+         une suppression deguisee. La section montre par defaut ce qui vit, et
+         `?statut=ecartees` rend le reste avec le bouton « Remettre ».
+
+ECART ASSUME, A TRANCHER PAR LE PROPRIETAIRE
+  La section « Factures achat DGI » GARDE sa colonne Action. La demande etait
+  de la retirer, au motif que ces pieces sont deja normalisees - ce qui est
+  exact. Mais les boutons qui s'y trouvent ne normalisent pas : ils rattachent,
+  ecartent et remettent. Ce sont les gestes du rapprochement, et c'est parce
+  qu'ils vivent la que l'ecran separe des factures recues a pu disparaitre. Les
+  retirer aurait supprime le rapprochement en meme temps que l'ecran.
+  Dites-le si vous voulez qu'ils partent quand meme.
 
 ================================================================================
 FIN

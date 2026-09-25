@@ -61,9 +61,36 @@
         <div class="card" style="position:sticky; top:calc(var(--topbar-h) + 16px);">
             <div class="card-header"><h2><i class="fas fa-file-invoice"></i> Informations</h2></div>
             <div class="card-body">
+                {{-- Ce qu'on enregistre, choisi d'abord. Ces deux boutons étaient
+                     en bas de la colonne, sous les totaux, dans un encadré
+                     pointillé : on découvrait après avoir tout saisi qu'on
+                     n'avait pas dit de quelle pièce il s'agissait. Ils prennent
+                     la place et la forme des étapes, puisqu'ils décident de la
+                     même chose — ce que la saisie va produire. --}}
+                <div class="form-group">
+                    <label class="form-label">Nature de l'achat</label>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                        <button type="button" class="btn payment-toggle-btn" id="btnFacturePhysique" onclick="toggleFacturePhysique()"
+                                style="justify-content:center; font-size:12px; padding:8px 6px; text-align:center;">
+                            <i class="fas fa-file-invoice" id="iconFacturePhysique"></i>
+                            <span id="labelFacturePhysique">Facture physique fournisseur</span>
+                        </button>
+                        <button type="button" class="btn payment-toggle-btn" id="btnBapa" onclick="toggleBapa()"
+                                style="justify-content:center; font-size:12px; padding:8px 6px; text-align:center;">
+                            <i class="fas fa-file-invoice" id="iconBapa"></i>
+                            <span id="labelBapa">BAPA (DGI)</span>
+                        </button>
+                    </div>
+                    <small style="color:var(--text-3); font-size:11px;" id="aideNatureAchat">
+                        Sans choix, l'achat reste une demande de prix ou un bon de commande.
+                        <strong>Seul le bordereau (BAPA) se normalise auprès de la DGI</strong> :
+                        une facture fournisseur est certifiée par son émetteur, pas par vous.
+                    </small>
+                </div>
+
                 <div class="form-group" id="groupeFournisseurSelect">
                     <label class="form-label">Fournisseur <span style="color:var(--danger)">*</span></label>
-                    <select name="fournisseur_id" id="fournisseurSelect" class="form-control" required>
+                    <select name="fournisseur_id" id="fournisseurSelect" class="form-control" required onchange="basculerB2b()">
                         <option value="">— Choisir un fournisseur —</option>
                         @foreach($fournisseurs as $f)
                         <option value="{{ $f->id }}">{{ $f->nom }}</option>
@@ -91,8 +118,11 @@
 
 
 
-                {{-- Étape du document - Lot F --}}
-                <div class="form-group">
+                {{-- Étape du document - Lot F. Masqué dès que le bordereau est
+                     choisi : un BAPA n'est ni une demande de prix ni un bon de
+                     commande, c'est une pièce qu'on établit et qu'on normalise
+                     d'un coup. --}}
+                <div class="form-group" id="blocTypeDocument">
                     <label class="form-label">Type de document</label>
                     <input type="hidden" name="etape" id="etapeInput" value="Bon de commande">
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
@@ -105,20 +135,9 @@
                     </div>
                 </div>
 
-                {{-- Bouton bascule : Facture physique fournisseur & BAPA --}}
-                <div style="border:1.5px dashed var(--border); border-radius:8px; padding:12px; margin-bottom:14px; background:#fafafa;">
-                    <div style="display:flex; flex-direction:column; gap:8px;">
-                        <button type="button" id="btnFacturePhysique" onclick="toggleFacturePhysique()" 
-                                style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; background:transparent; border:none; color:var(--text-2); font-weight:700; font-size:13px; cursor:pointer;">
-                            <i class="fas fa-file-invoice" id="iconFacturePhysique"></i>
-                            <span id="labelFacturePhysique">Ajouter une facture physique fournisseur</span>
-                        </button>
-                        <button type="button" id="btnBapa" onclick="toggleBapa()" 
-                                style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; background:transparent; border:none; color:var(--danger); font-weight:700; font-size:13px; cursor:pointer; border-top:1px dashed var(--border); padding-top:8px;">
-                            <i class="fas fa-file-invoice" id="iconBapa"></i>
-                            <span id="labelBapa">Enregistrer sous format BAPA (DGI)</span>
-                        </button>
-                    </div>
+                {{-- Le détail de la pièce. Les deux boutons qui l'ouvraient sont
+                     passés en tête de la colonne, avec les autres décisions. --}}
+                <div style="border:1.5px dashed var(--border); border-radius:8px; padding:12px; margin-bottom:14px; background:#fafafa; display:none;" id="cadreFacturePhysique">
                     <input type="hidden" name="type_facture" id="typeFactureInput" value="normale">
                     <div id="blocFacturePhysique" style="display:none; margin-top:14px;">
                         {{-- Champ etape overridé quand facture physique --}}
@@ -217,7 +236,21 @@
                         {{-- Montant en FCFA (champ principal) --}}
                         <div class="form-group" id="blocMontantFcfa" style="display:none; margin-bottom:8px;">
                             <label class="form-label" style="font-size:12px; color:var(--text-2);">Montant payé (FCFA) <span style="color:var(--danger)">*</span></label>
-                            <input type="number" name="montant_paye" id="montantPayeInput" class="form-control" placeholder="Montant en FCFA" oninput="calculerMontantEnDevise()">
+                            <input type="number" name="montant_paye" id="montantPayeInput" class="form-control" placeholder="Montant en FCFA"
+                                   oninput="calculerMontantEnDevise(); calculerRenduMonnaie();">
+                        </div>
+
+                        {{-- La monnaie rendue. Jamais saisie : elle se déduit de
+                             ce qui a été remis et de ce qui est dû. La laisser
+                             saisissable, c'est permettre qu'elle contredise les
+                             deux montants entre lesquels elle se tient. --}}
+                        <div class="form-group" id="blocMonnaieRendue" style="display:none; margin-bottom:8px;">
+                            <label class="form-label" style="font-size:12px; color:var(--text-2);">Monnaie rendue</label>
+                            <input type="text" id="monnaieRendueInput" class="form-control" readonly tabindex="-1" value="0 F"
+                                   style="background:#f0fdf4; border-color:#86efac; color:#15803d; font-weight:800; cursor:default;">
+                            <small style="color:var(--text-3); font-size:11px;">
+                                Calculée : ce qui a été remis, moins le net à payer. Elle figure sur la pièce imprimée.
+                            </small>
                         </div>
                     </div>
                 </div>
@@ -241,49 +274,37 @@
                     <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-2);padding:4px 0;">
                         <span>TVA</span><span id="totTva">0 F</span>
                     </div>
+                    <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-2);padding:4px 0;" id="ligneTimbreAchat">
+                        <span>Timbre de quittance</span><span id="totTimbreAchat">0 F</span>
+                    </div>
                     <div class="total-row" style="display:flex;justify-content:space-between;font-size:17px;font-weight:800;color:var(--text);padding:8px 0 4px;">
                         <span>Total</span><span id="totTtc">0 F</span>
                     </div>
                 </div>
 
-                {{-- Champs transmis a la DGI pour un bordereau d'achat (BAPA) --}}
+                {{-- Le bloc « Mentions DGI (bordereau d'achat) » vivait ici, avec
+                     sa case RNE et le numéro du reçu d'origine. Retiré le
+                     25/09/2026 à la demande du propriétaire : un bordereau
+                     d'achat constate un achat auprès d'un producteur qui n'émet
+                     rien — il n'existe aucun reçu normalisé auquel le rattacher,
+                     et la case invitait à en déclarer un qui n'a jamais été
+                     délivré. Les colonnes `est_rne` et `numero_rne` restent en
+                     base et dans le payload, inchangées : la conformité FNE ne
+                     bouge pas, c'est l'écran qui cesse de demander ce qui n'a
+                     pas lieu d'être. --}}
                 @php $entrepriseCourante = Auth::user()->entreprise; @endphp
-                <div style="margin-top:14px; border:1px solid var(--border); border-radius:10px; padding:12px;">
-                    <div style="font-size:12px; font-weight:700; color:var(--text-2); margin-bottom:10px;">
-                        <i class="fas fa-landmark" style="color:var(--primary);"></i> Mentions DGI (bordereau d'achat)
-                    </div>
-
-                    <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; cursor:pointer; margin:0 0 4px;">
-                        <input type="checkbox" name="est_rne" value="1" id="estRneCheckbox"
-                               onchange="basculerChampRne()" {{ old('est_rne') ? 'checked' : '' }}
-                               style="width:16px; height:16px; cursor:pointer;">
-                        RNE
-                    </label>
-                    <small style="display:block; color:var(--text-3); font-size:11px;">
-                        A cocher si ce bordereau est rattache a un recu normalise deja delivre.
-                    </small>
-                    <div id="champRneContainer" style="display:{{ old('est_rne') ? 'block' : 'none' }}; margin-top:10px;">
-                        <label class="form-label" style="font-size:11px;">Numero du recu</label>
-                        <input type="text" name="numero_rne" id="numeroRneInput" class="form-control"
-                               maxlength="64" value="{{ old('numero_rne') }}" placeholder="N&deg; du recu normalise d'origine">
-                    </div>
-
-                    {{-- Le bloc << Taxes sur total TTC >> vivait ici. Il est
-                         retire -- decision du proprietaire, 24/08/2026. Il
-                         ecrivait dans `achat_taxes`, que rien ne relisait : ni
-                         le payload du bordereau d'achat, qui ne transmet aucune
-                         taxe et dont la conformite est gelee, ni la
-                         comptabilite, ni le document imprime. La taxe saisie
-                         gonflait le total a l'ecran et n'entrait dans aucun
-                         montant enregistre. --}}
-                </div>
 
                 <div style="display:flex; flex-direction:column; gap:8px; margin-top:12px;">
                     <button type="submit" id="btnValiderAchat" class="btn btn-primary" style="width:100%;justify-content:center;" disabled>
                         <i class="fas fa-check-circle"></i> <span id="labelBtnValider">Enregistrer le bon de commande</span>
                     </button>
 
-                    <div style="border-top:1px solid var(--border); padding-top:10px; margin-top:10px;">
+                    {{-- Le B2B transmet la demande à un fournisseur : sans
+                         fournisseur choisi, il n'y a personne à qui l'adresser.
+                         L'option s'affichait quand même, et un bordereau — dont
+                         le vendeur n'est pas immatriculé — pouvait être coché
+                         pour un envoi qui n'aurait eu aucun destinataire. --}}
+                    <div id="blocB2b" style="border-top:1px solid var(--border); padding-top:10px; margin-top:10px; display:none;">
                         <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:var(--text-2); margin-bottom:6px; cursor:pointer;">
                             <input type="checkbox" name="envoyer_rfq_b2b" value="1" id="chkEnvoyerB2b" onchange="toggleB2bOptions()">
                             <i class="fas fa-paper-plane" style="color:var(--primary);"></i> Transmettre en B2B (Inter-Entreprise)
@@ -492,20 +513,20 @@ function supprimerLigne(i) {
     savePanier();
 }
 
-function basculerChampRne() {
-    const coche = document.getElementById('estRneCheckbox').checked;
-    const bloc  = document.getElementById('champRneContainer');
-    const champ = document.getElementById('numeroRneInput');
-
-    bloc.style.display = coche ? 'block' : 'none';
-    if (champ) champ.required = coche;
-}
-
+// `basculerChampRne()` vivait ici. Elle ouvrait le champ du numero de recu
+// sous la case RNE du bordereau, tous deux retires le 25/09/2026 : un
+// bordereau d'achat constate un achat aupres d'un producteur qui n'emet rien.
+// La fonction n'avait plus rien a ouvrir.
 
 /**
  * Ordre de calcul aligne sur celui de la FNE : remise de ligne, puis remise
  * globale sur le total HT, puis taxes sur le total.
  */
+{{-- Le timbre manquait a cet ecran. Le pave des totaux annoncait donc un
+     net inferieur a ce qu'on remet vraiment au vendeur sur un bordereau
+     regle en especes, et la monnaie rendue etait fausse d'autant. --}}
+@include('admin::factures.partials.script-timbre')
+
 function recalculer() {
     let ht  = 0;
     let tva = 0;
@@ -558,7 +579,28 @@ function recalculer() {
     const elTva = document.getElementById('totTva');
     if (elTva) elTva.textContent = fmt(tvaNette);
 
+    // Le timbre ne frappe que le bordereau, et seulement en especes :
+    // `TimbreQuittanceService::pourAchat()` dit la meme chose cote serveur.
+    // L'article 875 du CGI met le droit a la charge du debiteur -- sur un
+    // achat, c'est l'entreprise qui l'acquitte.
+    const modePaiementAchat = document.getElementById('modePaiementInput')?.value;
+    const timbreAchat = bapaActive ? timbreDeQuittance(total, modePaiementAchat) : 0;
+    const ligneTimbreAchat = document.getElementById('ligneTimbreAchat');
+    if (ligneTimbreAchat) ligneTimbreAchat.style.display = timbreAchat > 0 ? 'flex' : 'none';
+    const totTimbreAchat = document.getElementById('totTimbreAchat');
+    if (totTimbreAchat) totTimbreAchat.textContent = fmt(timbreAchat);
+
     document.getElementById('totTtc').textContent = totalText;
+
+    // Le net sert deux fois : a l'afficher, et a etablir la monnaie rendue.
+    // Il se depose ici plutot que d'etre recalcule ailleurs, ou les deux
+    // finiraient par diverger.
+    const blocRendu = document.getElementById('blocMonnaieRendue');
+    if (blocRendu) {
+        blocRendu.dataset.net = total + timbreAchat;
+        calculerRenduMonnaie();
+    }
+
     const noItems = document.querySelectorAll('.ligne').length === 0;
     document.getElementById('btnValiderAchat').disabled = noItems;
 }
@@ -590,28 +632,50 @@ function selectionnerEtape(btn) {
 // Lot F : bascule affichage bloc facture physique & BAPA
 let facturePhysiqueActive = false;
 
+/**
+ * Ce que la saisie va produire.
+ *
+ * Les deux boutons se comportent comme les etapes : celui qui est choisi porte
+ * la classe `active`, l'autre reste visible et cliquable. Avant, chacun cachait
+ * l'autre, et l'on ne voyait plus ce qu'on aurait pu choisir a la place.
+ */
+function marquerNature(actif) {
+    ['btnFacturePhysique', 'btnBapa'].forEach(function (id) {
+        document.getElementById(id).classList.toggle('active', id === actif);
+    });
+    // Le detail de la piece -- numero, reglement, montants -- n'a de sens que
+    // si l'une des deux natures est choisie.
+    document.getElementById('cadreFacturePhysique').style.display = actif ? 'block' : 'none';
+    document.getElementById('blocFacturePhysique').style.display = actif ? 'block' : 'none';
+    // Un BAPA n'est ni une demande de prix ni un bon de commande.
+    document.getElementById('blocTypeDocument').style.display = actif === 'btnBapa' ? 'none' : 'block';
+    basculerB2b();
+}
+
 function toggleFacturePhysique() {
     facturePhysiqueActive = !facturePhysiqueActive;
     if (facturePhysiqueActive) {
-        bapaActive = false;
-        document.getElementById('btnBapa').style.display = 'none';
-        
-        document.getElementById('blocFacturePhysique').style.display = 'block';
-        document.getElementById('labelFacturePhysique').textContent = 'Masquer la facture physique';
-        document.getElementById('iconFacturePhysique').className = 'fas fa-chevron-up';
+        if (bapaActive) { bapaActive = false; restaurerFournisseur(); }
+        marquerNature('btnFacturePhysique');
+
         document.getElementById('etapeInput').value = 'Facture';
         document.getElementById('typeFactureInput').value = 'normale';
         document.getElementById('labelBtnValider').textContent = 'Enregistrer la facture';
         document.getElementById('numeroFactureFournisseur').closest('.form-group').style.display = 'block';
     } else {
-        document.getElementById('btnBapa').style.display = 'flex';
-        
-        document.getElementById('blocFacturePhysique').style.display = 'none';
-        document.getElementById('labelFacturePhysique').textContent = 'Ajouter une facture physique fournisseur';
-        document.getElementById('iconFacturePhysique').className = 'fas fa-file-invoice';
-        
+        marquerNature(null);
         restaurerEtapeParDefaut();
     }
+    recalculer();
+}
+
+/** Le dropdown des fournisseurs reprend sa place apres un bordereau. */
+function restaurerFournisseur() {
+    document.getElementById('groupeFournisseurSelect').style.display = 'block';
+    document.getElementById('fournisseurSelect').required = true;
+    document.getElementById('groupeFournisseurBapa').style.display = 'none';
+    document.getElementById('fournisseurNomBapa').required = false;
+    document.getElementById('fournisseurNomBapa').value = '';
 }
 
 function toggleBapa() {
@@ -621,38 +685,70 @@ function toggleBapa() {
     recalculer();
     if (bapaActive) {
         facturePhysiqueActive = false;
-        document.getElementById('btnFacturePhysique').style.display = 'none';
-        
+        marquerNature('btnBapa');
+
         // Swap fournisseur : masquer le dropdown, afficher le champ libre tiers
         document.getElementById('groupeFournisseurSelect').style.display = 'none';
         document.getElementById('fournisseurSelect').required = false;
         document.getElementById('groupeFournisseurBapa').style.display = 'block';
         document.getElementById('fournisseurNomBapa').required = true;
 
-        document.getElementById('blocFacturePhysique').style.display = 'block';
-        document.getElementById('labelBapa').textContent = 'Annuler le format BAPA';
-        document.getElementById('iconBapa').className = 'fas fa-chevron-up';
         document.getElementById('etapeInput').value = 'Facture';
         document.getElementById('typeFactureInput').value = 'bapa';
         document.getElementById('labelBtnValider').textContent = 'Enregistrer le BAPA (DGI)';
         document.getElementById('numeroFactureFournisseur').closest('.form-group').style.display = 'none';
         document.getElementById('numeroFactureFournisseur').value = '';
     } else {
-        document.getElementById('btnFacturePhysique').style.display = 'flex';
-        
-        // Restaurer le dropdown fournisseur
-        document.getElementById('groupeFournisseurSelect').style.display = 'block';
-        document.getElementById('fournisseurSelect').required = true;
-        document.getElementById('groupeFournisseurBapa').style.display = 'none';
-        document.getElementById('fournisseurNomBapa').required = false;
-        document.getElementById('fournisseurNomBapa').value = '';
-
-        document.getElementById('blocFacturePhysique').style.display = 'none';
-        document.getElementById('labelBapa').textContent = 'Enregistrer sous format BAPA (DGI)';
-        document.getElementById('iconBapa').className = 'fas fa-file-invoice';
-        
+        marquerNature(null);
+        restaurerFournisseur();
         restaurerEtapeParDefaut();
     }
+    basculerB2b();
+}
+
+/**
+ * Le B2B n'a de destinataire que si un fournisseur est choisi.
+ *
+ * Il s'affichait toujours, bordereau compris -- ou le vendeur n'est justement
+ * pas immatricule : on pouvait cocher un envoi qui n'aurait atteint personne.
+ */
+function basculerB2b() {
+    var bloc = document.getElementById('blocB2b');
+    if (!bloc) return;
+
+    var choisi = !bapaActive && !!document.getElementById('fournisseurSelect').value;
+    bloc.style.display = choisi ? 'block' : 'none';
+
+    if (!choisi) {
+        var coche = document.getElementById('chkEnvoyerB2b');
+        if (coche && coche.checked) { coche.checked = false; toggleB2bOptions(); }
+    }
+}
+
+/**
+ * Ce qu'on rend au fournisseur.
+ *
+ * Jamais saisie, toujours calculee : la somme remise moins le net a payer.
+ * Negative, elle n'est pas une monnaie a rendre mais un solde restant du --
+ * le bloc disparait alors, plutot que d'annoncer une dette de la caisse.
+ */
+function calculerRenduMonnaie() {
+    var bloc = document.getElementById('blocMonnaieRendue');
+    var champ = document.getElementById('monnaieRendueInput');
+    if (!bloc || !champ) return;
+
+    var remis = parseFloat(document.getElementById('montantPayeInput')?.value) || 0;
+    var du = parseFloat(bloc.dataset.net || '0') || 0;
+    var rendu = remis - du;
+
+    if (remis <= 0 || rendu <= 0) {
+        bloc.style.display = 'none';
+        champ.value = '0 F';
+        return;
+    }
+
+    bloc.style.display = 'block';
+    champ.value = Math.round(rendu).toLocaleString('fr-FR') + ' F';
 }
 
 function restaurerEtapeParDefaut() {
@@ -700,6 +796,11 @@ function selectionnerModePaiement(btn) {
     } else if (mode === 'Mobile Money') {
         mobileMoneyContainer.style.display = 'block';
     }
+
+    // Le timbre ne frappe que les especes : changer de mode change le net, et
+    // donc la monnaie rendue. Sans ce rappel, le pave gardait le timbre d'un
+    // reglement en especes apres un passage en banque.
+    recalculer();
 }
 
 function changerDevise(code) {

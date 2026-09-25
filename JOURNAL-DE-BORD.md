@@ -6007,6 +6007,225 @@ vérifications**. `php artisan verifier:variables` : aucune variable lue sans
 avoir été écrite.
 
 
+### Lot 31 — Le PDF véritable, la monnaie rendue, et les trois natures d'achat — **TERMINÉ le 25/09/2026**
+
+#### 31.1 Un vrai PDF, et pourquoi il a fallu un second rendu
+
+Le lot 30 rendait une page HTML autonome, faute de moteur PDF. Le propriétaire
+a tranché : « oui vas-y fais le, je veux un bon pdf ». `dompdf/dompdf` v3.1 est
+installé.
+
+Il ne pouvait pas venir du même rendu que l'écran. **Les écrans dessinent la
+pièce en JavaScript**, en quatre modèles : le document n'existe que dans le
+navigateur, et il repose sur `flex`, que dompdf n'implémente pas. Convertir ce
+HTML aurait donné une mise en page effondrée.
+
+`DocumentPdfService` établit donc la pièce **côté serveur**, en tableaux, dans
+une mise en page faite pour le papier — `factures/pdf/document.blade.php` en A4,
+`factures/pdf/ticket.blade.php` en 80 mm.
+
+Ce qui garantit que les deux disent la même chose : **les montants ne sont pas
+recalculés**. Ils sont lus tels qu'ils ont été enregistrés, et le timbre vient
+de `TimbreQuittanceService`. C'est plus sûr que le rendu de l'écran, qui refait
+l'addition en JavaScript.
+
+| Point | Décision |
+|---|---|
+| Bloc de certification | reproduit à l'identique, et **absent** tant que la pièce n'est pas certifiée |
+| Code QR | dessiné en PNG depuis `QrCodeFneService::matrice()`, **lu sans être modifié** — le SVG de l'écran traverse mal un PDF |
+| Chargement distant | **éteint**. Un champ portant `<img src="http://…">` ferait sinon partir une requête depuis le serveur, à une adresse choisie par qui a saisi la pièce |
+| Logo, visuel FNE | entrent par des `data:` fabriqués par le service, jamais par une adresse |
+| Nom du fichier | le numéro FNE d'abord ; filtré sur `[A-Za-z0-9._-]`, sans quoi un `"` dans un numéro refermerait l'en-tête `Content-Disposition` |
+
+L'impression par le navigateur reste en place : elle n'a pas été retirée.
+
+**Au passage, l'audit des dépendances.** `composer audit` remontait 21 avis de
+sécurité sur trois paquets — dont un de gravité haute sur `guzzlehttp/guzzle`,
+le client HTTP par lequel passe `FneService`. Ils étaient antérieurs à ce lot.
+Guzzle 7.13.2 → 7.15.5, `psr7` et `league/commonmark` à jour : **plus aucun
+avis**.
+
+#### 31.2 La monnaie rendue, et ce qu'elle a révélé
+
+Demandée par le propriétaire : un champ non saisissable, toujours calculé, à la
+vente comme à l'achat, qui figure sur la facture et sur le reçu.
+
+En l'écrivant, un défaut est apparu. **La somme tendue partait telle quelle en
+trésorerie et en comptabilité.** Une caisse qui recevait 10 000 F pour une pièce
+de 6 500 F enregistrait 10 000 F d'encaissement : la caisse était gonflée de la
+monnaie qu'on venait de rendre, et rien nulle part ne disait qu'on l'avait
+rendue.
+
+Deux montants distincts désormais :
+
+- `montant_recu` — ce que le client a tendu. Nouvelle colonne sur `ventes` et
+  `achats`. Elle ne sert qu'à établir la monnaie et à l'imprimer ;
+- l'encaissement, **borné au net à payer** : `min($tendu, $piece->netAPayer())`.
+
+La monnaie rendue n'est **pas** une colonne : `Vente::monnaieRendue()` et
+`Achat::monnaieRendue()` la calculent. Une valeur calculée qu'on enregistre finit
+par contredire ses termes le jour où l'un d'eux change.
+
+Trois règles qui tiennent aux documents :
+
+- jamais négative — une somme insuffisante est une avance, pas une dette de la
+  caisse ;
+- `null` quand rien n'a été tendu : on ne rend pas zéro, on ne rend rien, et le
+  document ne porte pas une ligne qui n'a pas eu lieu ;
+- `netAPayer()` porte le timbre. Sans lui, le plafonnement aurait **retiré** le
+  timbre de l'encaissement, là où la somme tendue le couvrait.
+
+Rien ne touche à la FNE : aucun champ du payload ne porte la somme tendue, et la
+plateforme reçoit le même net qu'avant.
+
+#### 31.3 Trois natures d'achat, et une seule se normalise
+
+Le propriétaire les a énoncées :
+
+| Nature | Qui certifie | Ce que Selflow en fait |
+|---|---|---|
+| **Facture enregistrée** | le fournisseur, si tant est qu'il l'ait fait | on la saisit pour suivre la dépense |
+| **Bordereau (BAPA)** | **nous** | la seule pièce d'achat qu'un client de Selflow ait le droit de normaliser |
+| **Facture d'achat DGI** | le fournisseur | relevée au portail ; il n'y a qu'à la rapprocher |
+
+Les trois vivaient dans un seul tableau, où la colonne « Normalisé (DGI) »
+mentait pour les deux tiers des lignes : une facture fournisseur ordinaire y
+affichait « En cours » pour toujours, alors qu'elle ne part **jamais**. Trois
+sections les séparent, chacune avec son bandeau qui dit pourquoi elle existe.
+
+- « Factures enregistrées » : colonnes DGI conservées mais **« Aucune donnée »**,
+  et plus de colonne « Action » — il n'y a rien à faire. Le rapprochement avec
+  les pièces relevées viendra les remplir ;
+- « Factures BAPA » : le fichier DGI comme aux ventes, et le bouton
+  « Normaliser ». **La normalisation par lot ne vise plus qu'elles** : elle
+  proposait d'envoyer des pièces que la plateforme aurait refusées ;
+- « Factures achat DGI » : ce que le portail a rapporté, avec les gestes du
+  rapprochement.
+
+#### 31.4 Deux écrans retirés
+
+**L'avoir fournisseur.** Un acheteur n'établit pas l'avoir de son fournisseur :
+la DGI ne le prévoit pas, la plateforme ne certifie l'avoir que du côté de celui
+qui a émis la facture. Selflow offrait un document que rien ne rendait
+opposable, et qui décrémentait pourtant les stocks. Quatre méthodes et
+344 lignes de contrôleur, un modal de 400 lignes, deux entrées de menu et quatre
+routes sont partis. **Les avoirs déjà enregistrés restent en base et restent
+lisibles** : ils sortent des listes, ils ne sont pas détruits.
+
+**L'écran séparé des factures reçues** (`/admin/achats/factures-recues`). Il
+montrait ce que la section « Factures achat DGI » porte désormais — toutes les
+pièces relevées, rattachées, à rapprocher ou écartées —, avec les mêmes gestes.
+Deux écrans pour une même liste laissaient des factures certifiées non
+rapprochées pendant des semaines : personne n'ouvrait le second. Les adresses
+des gestes, elles, restent : ce sont elles que la section appelle.
+
+Le message du vide disait « lancer `node achats.js <NCC>` ». Il s'affichait à un
+commerçant qui n'a pas de terminal et à qui il n'appartient pas de lancer le
+scraper. Il dit maintenant ce qu'il faut comprendre : la DGI ne détient encore
+aucune facture à son nom, ou le relevé n'est pas passé.
+
+#### 31.5 L'écran de saisie d'un achat
+
+- **La nature de l'achat se choisit en tête**, sur une ligne, comme les étapes.
+  Les deux boutons étaient en bas de la colonne, sous les totaux, dans un
+  encadré pointillé : on découvrait après avoir tout saisi qu'on n'avait pas dit
+  de quelle pièce il s'agissait. Ils ne se cachent plus l'un l'autre — celui qui
+  est choisi porte `active` ;
+- **le type de document s'efface devant le bordereau** : un BAPA n'est ni une
+  demande de prix ni un bon de commande ;
+- **la mention RNE est retirée.** Un bordereau constate un achat auprès d'un
+  producteur qui n'émet rien : il n'existe aucun reçu normalisé auquel le
+  rattacher, et la case invitait à en déclarer un qui n'a jamais été délivré.
+  **Les colonnes `est_rne` et `numero_rne` restent en base et dans le payload** :
+  la conformité FNE ne bouge pas, c'est l'écran qui cesse de demander ce qui n'a
+  pas lieu d'être ;
+- **le B2B n'apparaît qu'avec un fournisseur choisi.** Il s'affichait toujours,
+  bordereau compris — où le vendeur n'est justement pas immatriculé : on pouvait
+  cocher un envoi qui n'aurait atteint personne.
+
+#### 31.5 bis Deux chemins mènent au bordereau
+
+Écrit en rangeant les trois sections, et il aurait été facile de le manquer :
+**un seul des deux chemins vers le bordereau se lit dans `type_facture`.**
+`validerFacture()` envoie à `NormaliserAchatBapaJob` toute facture d'un
+fournisseur **sans NCC**, quel que soit son type.
+
+Filtrer la section BAPA sur `type_facture = 'bapa'` aurait donc rangé les
+achats auprès d'un vendeur non immatriculé — le cas le plus courant — sous
+« Factures enregistrées », où les colonnes DGI annoncent « Aucune donnée ».
+Elles sont pourtant normalisées. C'est exactement le mensonge que ce lot
+retirait.
+
+`Achat::estBapa()` portait déjà la règle pour une pièce chargée ; elle ne
+servait plus qu'à interdire l'avoir, et se serait retrouvée sans emploi. Elle
+gagne `scopeBordereaux()` et `scopeHorsBordereaux()`, qui disent la même chose
+en SQL — parce que l'écran range en base, et qu'écrire la règle deux fois,
+c'est la voir diverger. Une épreuve vérifie que les deux portées se partagent
+**toutes** les pièces, sans recouvrement ni oubli.
+
+**Un message repêché au passage.** L'écran retiré disait « Aucun fournisseur ne
+porte ce NCC » sur une facture orpheline. La section ne le disait pas et
+proposait un rapprochement qui ne menait nulle part. Il est revenu.
+
+#### 31.5 ter Le barème du timbre n'existe plus qu'à un endroit
+
+Trouvé en posant la monnaie rendue : **l'écran des achats n'affichait aucun
+timbre**. Le pavé des totaux y annonçait donc un net inférieur à ce qu'on remet
+vraiment au vendeur sur un bordereau réglé en espèces — et la monnaie rendue
+était fausse d'autant, puisqu'elle se déduit de ce net.
+
+L'écran de vente, lui, avait le barème **recopié à la main en JavaScript**. Deux
+copies auraient été pires qu'une : le journal garde la trace de ce que coûte une
+seconde écriture du barème — le timbre estimé à 1,5 %, taux qui ne figure dans
+aucun texte, là où l'article 873 du CGI fixe un forfait par tranche.
+
+`factures/partials/script-timbre.blade.php` remplace les deux : **il tire ses
+valeurs de `TimbreQuittanceService::BAREME`**, périmètre gelé de la conformité
+FNE. Le service n'est pas modifié ; il est lu. Le jour où la DGI publie un
+nouveau barème, il change à un seul endroit et les deux écrans suivent. Une
+épreuve compare l'un à l'autre, pour que la copie ne puisse pas renaître.
+
+#### 31.5 quater Ce qu'on écarte doit pouvoir revenir
+
+L'écran séparé des factures reçues portait un filtre par statut, et **lui seul
+permettait de revenir sur un écartement**. Le retirer sans reprendre le filtre
+aurait fait de l'écartement une suppression déguisée : la pièce reste en base, le
+portail la redépose, et plus personne n'aurait pu la rappeler.
+
+La section « Factures achat DGI » montre donc par défaut ce qui vit — à
+rapprocher et rattachées — et `?statut=ecartees` rend ce qu'on a mis de côté,
+avec le bouton **Remettre**. Le compteur de l'onglet exclut les écartées : les
+compter ferait un nombre qui ne baisse jamais.
+
+**Un message repêché au passage** : « Aucun fournisseur ne porte ce NCC ». La
+section ne le disait pas et proposait un rapprochement qui ne menait nulle part.
+
+#### 31.6 Les épreuves
+
+| Fichier | Cas |
+|---|---|
+| `LeDocumentSortEnPdfTest` | 9 — le PDF rendu, la pièce jointe, `%PDF`, la certification absente puis présente, les montants enregistrés, la pièce d'autrui (404), le nom du fichier, et **l'injection d'en-tête par le numéro de pièce** |
+| `LaMonnaieRendueTest` | 10 — le calcul, l'appoint, la somme insuffisante, l'absence de ligne, **la caisse qui n'encaisse pas ce qu'elle rend**, les deux écrans, les deux documents |
+| `TroisNaturesDAchatTest` | 17 — les trois sections, la section inventée, **l'achat à un vendeur sans NCC rangé en bordereau**, « Aucune donnée », le bouton et le lot réservés au bordereau, les quatre routes d'avoir disparues, l'avoir conservé en base, l'écran retiré et ses gestes conservés, le message du vide, la nature en tête, le RNE retiré, le B2B conditionnel, les colonnes gelées intactes |
+
+**Trois fichiers ont été repris plutôt que supprimés**, parce qu'ils portaient la
+mémoire d'une décision et qu'ils portent maintenant la suivante :
+
+- `AvoirDeBapaTest` fermait l'avoir d'un bordereau. La fermeture s'étant
+  élargie à tous les avoirs fournisseurs, ses cas visaient des routes qui
+  n'existent plus. Il garde ce qui porte désormais davantage : **le critère des
+  deux chemins**, qui sert maintenant à ranger et non plus seulement à
+  interdire ;
+- `AvoirChoixDeLaPieceTest` perd son cas d'achat et garde ses cas de vente :
+  l'avoir **client** reste, c'est le vendeur qui l'établit ;
+- `EcranFacturesRecuesTest` suit la liste là où elle vit désormais. Ses gestes
+  — rattacher, écarter, l'étanchéité entre entreprises — n'ont pas bougé.
+
+Suite entière : **1 339 épreuves, 1 335 passantes, 4 sautées, 5 219
+vérifications**. `php artisan verifier:variables` : aucune variable lue sans
+avoir été écrite. `composer audit` : aucun avis de sécurité.
+
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

@@ -768,7 +768,7 @@ class FneDashboardControleur
             'normaliser_url' => null,
             'origine' => 'portail',
             'statut_rapprochement' => $f->statut_rapprochement,
-            'rapprocher_url' => route('admin.achats.factures_recues', ['statut' => $f->statut_rapprochement]),
+            'rapprocher_url' => route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']),
         ]);
     }
 

@@ -486,8 +486,24 @@
                         {{-- Montant reçu --}}
                         <div class="form-group">
                             <label class="form-label" id="labelMontantPaye">Montant à encaisser / reçu (FCFA) <span style="color:var(--danger)">*</span></label>
-                            <input type="number" name="montant_paye" id="montantPayeInput" class="form-control" placeholder="Saisir le montant reçu / payé" oninput="calculerMontantEnDevise()">
+                            <input type="number" name="montant_paye" id="montantPayeInput" class="form-control" placeholder="Saisir le montant reçu / payé"
+                                   oninput="calculerMontantEnDevise(); calculerRenduMonnaie();">
                         </div>
+
+                        {{-- La monnaie rendue. Jamais saisie : elle se déduit de
+                             ce qui a été tendu et de ce qui est dû. La laisser
+                             saisissable, c'est permettre qu'elle contredise les
+                             deux montants entre lesquels elle se tient. --}}
+                        <div class="form-group" id="blocMonnaieRendue" style="display:none;">
+                            <label class="form-label">Monnaie rendue</label>
+                            <input type="text" id="monnaieRendueInput" class="form-control" readonly tabindex="-1"
+                                   value="0 F"
+                                   style="background:#f0fdf4; border-color:#86efac; color:#15803d; font-weight:800; cursor:default;">
+                            <small style="color:var(--text-3); font-size:11px;">
+                                Calculée : ce qui a été reçu, moins le net à payer. Elle figure sur la facture et sur le reçu.
+                            </small>
+                        </div>
+
                     </div>
                 </div>
 
@@ -840,6 +856,32 @@ function calculerMontantEnFcfa() {
     if (typeof calculerRenduMonnaie === 'function') {
         calculerRenduMonnaie();
     }
+}
+
+/**
+ * Ce qu'on rend au client.
+ *
+ * Jamais saisie, toujours calculee : la somme tendue moins le net a payer.
+ * Negative, elle n'est pas une monnaie a rendre mais une avance -- le bloc
+ * disparait alors, plutot que d'annoncer une dette de la caisse.
+ */
+function calculerRenduMonnaie() {
+    var bloc = document.getElementById('blocMonnaieRendue');
+    var champ = document.getElementById('monnaieRendueInput');
+    if (!bloc || !champ) return;
+
+    var tendu = parseFloat(document.getElementById('montantPayeInput')?.value) || 0;
+    var du = parseFloat(bloc.dataset.net || '0') || 0;
+    var rendu = tendu - du;
+
+    if (tendu <= 0 || rendu <= 0) {
+        bloc.style.display = 'none';
+        champ.value = '0 F';
+        return;
+    }
+
+    bloc.style.display = 'block';
+    champ.value = Math.round(rendu).toLocaleString('fr-FR') + ' F';
 }
 
 function calculerMontantEnDevise() {
@@ -1468,27 +1510,10 @@ function supprimerTaxeTtc(bouton) {
  * est repris ici pour que le caissier voie la somme a encaisser sans attendre
  * la normalisation. Les bornes sont inclusives : 5 000 F n'est pas timbre.
  */
-const BAREME_TIMBRE = [
-    [5000, 0], [100000, 100], [500000, 500], [1000000, 1000], [5000000, 2000],
-];
-const TIMBRE_TRANCHE_SUPERIEURE = 5000;
-
-/** L'option est declaree active dans les parametres de l'entreprise. */
-const TIMBRE_DECLARE_ACTIF = {{ Auth::user()->entreprise->timbre_quittance ? 'true' : 'false' }};
-
-function timbreDeQuittance(sommeEncaissee, modePaiement) {
-    if (!TIMBRE_DECLARE_ACTIF || sommeEncaissee <= 0) return 0;
-
-    // Le timbre frappe la quittance, c'est-a-dire la piece qui constate un
-    // versement d'especes. Un reglement par banque laisse sa propre trace.
-    const especes = ['caisse', 'especes', 'espèces', 'cash'];
-    if (!especes.includes(String(modePaiement || '').toLowerCase().trim())) return 0;
-
-    for (const [plafond, droit] of BAREME_TIMBRE) {
-        if (sommeEncaissee <= plafond) return droit;
-    }
-    return TIMBRE_TRANCHE_SUPERIEURE;
-}
+{{-- Le bareme vient de `TimbreQuittanceService`, et non d'une copie
+     ecrite ici : c'est le perimetre gele de la conformite FNE, et une
+     seconde copie finit par deriver. --}}
+@include('admin::factures.partials.script-timbre')
 
 function calculerTotaux() {
     let totalHt = 0;
@@ -1554,6 +1579,15 @@ function calculerTotaux() {
 
     const netAPayer = totalTtc + totalAutresTaxes + timbre;
     document.getElementById('netAPayer').textContent = formatFcfa(netAPayer);
+
+    // Le net sert deux fois : a l'afficher, et a etablir la monnaie rendue.
+    // Il se depose ici plutot que d'etre recalcule ailleurs, ou les deux
+    // finiraient par diverger.
+    const blocRendu = document.getElementById('blocMonnaieRendue');
+    if (blocRendu) {
+        blocRendu.dataset.net = netAPayer;
+        calculerRenduMonnaie();
+    }
 
     const inputMontant = document.getElementById('montantPayeInput');
     if (inputMontant) {

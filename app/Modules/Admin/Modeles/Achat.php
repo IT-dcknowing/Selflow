@@ -26,6 +26,7 @@ class Achat extends Model
         'montant_ht',
         'montant_tva',
         'montant_ttc',
+        'montant_recu',    // la somme tendue au fournisseur ; la monnaie rendue s'en déduit
         // `montant_autres_taxes` a été retiré — décision du propriétaire, 24/08/2026.
         // La colonne existait ici depuis la vente, par symétrie. Mais la symétrie
         // ne tient pas : à la vente, une taxe additionnelle est **collectée pour
@@ -126,6 +127,43 @@ class Achat extends Model
             ->where('type_operation', 'Décaissement');
     }
 
+    /**
+     * Le net à payer : ce que la caisse demande.
+     *
+     * Le TTC et, sur un bordereau, le timbre de quittance — c'est-à-dire ce
+     * qu'on remet réellement au vendeur. L'article 875 du CGI met le droit à
+     * la charge du débiteur : sur un achat, c'est l'entreprise qui l'acquitte.
+     *
+     * Sans le timbre, le plafonnement du décaissement le **retirerait** de la
+     * caisse, là où la somme remise le couvrait.
+     */
+    public function netAPayer(): float
+    {
+        // Pas de taxes additionnelles à l'achat : la colonne a été retirée
+        // le 24/08/2026. Le timbre, lui, est dû sur les bordereaux, et c'est
+        // l'entreprise qui l'acquitte (article 875 du CGI).
+        return (float) $this->montant_ttc
+            + \App\Modules\Admin\Services\TimbreQuittanceService::pourAchat($this);
+    }
+
+    /**
+     * Ce qu'on rend au client.
+     *
+     * Jamais négatif : une somme tendue insuffisante est une avance, pas une
+     * monnaie à rendre — et l'annoncer en négatif ferait croire à une dette de
+     * la caisse. `null` quand rien n'a été tendu : on ne rend pas zéro, on ne
+     * rend rien, et le document ne doit pas porter une ligne qui n'a pas eu
+     * lieu.
+     */
+    public function monnaieRendue(): ?float
+    {
+        if ($this->montant_recu === null) {
+            return null;
+        }
+
+        return max(0.0, (float) $this->montant_recu - $this->netAPayer());
+    }
+
     public function getMontantPayeAttribute()
     {
         return $this->paiements()->sum('montant_sortie');
@@ -158,6 +196,43 @@ class Achat extends Model
     {
         return $this->type_facture === 'bapa'
             || empty($this->fournisseur?->ncc);
+    }
+
+    /**
+     * Les bordereaux, en base — la même règle que `estBapa()`, en SQL.
+     *
+     * Elle ne pouvait pas rester dans le seul accesseur : l'écran des factures
+     * d'achat range les pièces en trois sections, et il range en base. Filtrer
+     * sur le seul `type_facture` y aurait mis toutes les factures d'un vendeur
+     * non immatriculé — c'est-à-dire le cas le plus courant — sous
+     * « Factures enregistrées », où les colonnes DGI annoncent « Aucune
+     * donnée ». Elles sont pourtant normalisées : `validerFacture()` les envoie
+     * à `NormaliserAchatBapaJob` sur ce seul critère.
+     *
+     * Écrire la règle deux fois, c'est la voir diverger. Elle est ici, et
+     * `estBapa()` dit la même chose pour une pièce déjà chargée.
+     */
+    public function scopeBordereaux($requete)
+    {
+        return $requete->where(function ($q) {
+            $q->where('type_facture', 'bapa')
+              ->orWhereDoesntHave('fournisseur')
+              ->orWhereHas('fournisseur', function ($qf) {
+                  $qf->whereNull('ncc')->orWhere('ncc', '');
+              });
+        });
+    }
+
+    /** Tout ce qui n'est pas un bordereau : la contrepartie exacte. */
+    public function scopeHorsBordereaux($requete)
+    {
+        return $requete->where(function ($q) {
+            $q->where(function ($qt) {
+                $qt->whereNull('type_facture')->orWhere('type_facture', '!=', 'bapa');
+            })->whereHas('fournisseur', function ($qf) {
+                $qf->whereNotNull('ncc')->where('ncc', '!=', '');
+            });
+        });
     }
 
     public function rejets(): HasMany

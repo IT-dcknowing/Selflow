@@ -42,6 +42,10 @@ Route::prefix('admin')
 
             Route::get('/facture/{vente}', [VenteControleur::class, 'imprimer'])->name('imprimer');
             Route::get('/facture/{vente}/ticket', [VenteControleur::class, 'imprimerTicket'])->name('ticket');
+            // Le PDF veritable, etabli cote serveur. Deux adresses distinctes de
+            // l'affichage : ce qu'elles rendent est un fichier, pas une page.
+            Route::get('/facture/{vente}/pdf', [VenteControleur::class, 'pdf'])->name('pdf');
+            Route::get('/facture/{vente}/ticket/pdf', [VenteControleur::class, 'pdfTicket'])->name('ticket.pdf');
             // Conversion reçu <-> facture, dans les deux sens
             Route::post('/{vente}/convertir-piece', [VenteControleur::class, 'convertirPiece'])->name('convertir_piece');
             Route::get('/{vente}/modifier', [VenteControleur::class, 'modifierFormulaire'])->name('modifier');
@@ -73,16 +77,18 @@ Route::prefix('admin')
             Route::get('/nouveau', [AchatControleur::class, 'nouveau'])->name('nouveau');
             Route::post('/enregistrer', [AchatControleur::class, 'enregistrer'])->name('enregistrer');
             Route::get('/factures', [AchatControleur::class, 'factures'])->name('factures');
-            Route::get('/factures/rechercher', [AchatControleur::class, 'rechercherFacturesPourAvoir'])->name('factures.rechercher');
-            Route::get('/facture-details/{achat}', [AchatControleur::class, 'detailsFacturePourAvoir'])->name('factures.details');
+            // Les trois adresses de l'avoir fournisseur ont été retirées le
+            // 25/09/2026 : la DGI ne prévoit pas qu'un acheteur établisse
+            // l'avoir de son fournisseur, et la plateforme ne certifie l'avoir
+            // que du côté de celui qui a émis la facture. Selflow offrait donc
+            // un document que rien ne rendait opposable.
             Route::get('/factures/produits-categories', [AchatControleur::class, 'produitsParCategorie'])->name('factures.produits_categories');
-            Route::post('/avoir/creer-nouveau', [AchatControleur::class, 'creerAvoirNouveau'])->name('avoir.creer_nouveau');
 
             Route::get('/facture/{achat}', [AchatControleur::class, 'imprimer'])->name('imprimer');
+            Route::get('/facture/{achat}/pdf', [AchatControleur::class, 'pdf'])->name('pdf');
             Route::get('/facture/{achat}/bapa', [AchatControleur::class, 'imprimerBapa'])->name('bapa');
             Route::post('/{achat}/confirmer', [AchatControleur::class, 'confirmerCommande'])->name('confirmer');
             Route::post('/{achat}/facturer', [AchatControleur::class, 'facturer'])->name('facturer');
-            Route::post('/{achat}/avoir', [AchatControleur::class, 'creerAvoir'])->name('avoir');
             Route::post('/{achat}/normaliser', [AchatControleur::class, 'normaliser'])->name('normaliser');
             Route::post('/{achat}/fne', [\App\Modules\Admin\Controleurs\FneControleur::class, 'attacherFneAchat'])->name('fne.attacher');
             Route::post('/{achat}/transmettre-b2b', [AchatControleur::class, 'transmettreB2b'])->name('transmettre_b2b');
@@ -97,7 +103,13 @@ Route::prefix('admin')
             // Rien ici ne crée d'achat ni n'écrit dans les colonnes gelées
             // d'`achats` : `rattacher` pose un lien vers un achat qui existe déjà,
             // dans `portail_fne_factures_recues.achat_id`.
-            Route::get('/factures-recues', [\App\Modules\Admin\Controleurs\FactureRecueControleur::class, 'index'])->name('factures_recues');
+            // L'écran séparé des factures reçues a été retiré le 25/09/2026 :
+            // la section « Factures achat DGI » de `/admin/achats/factures` les
+            // porte toutes — rattachées, à rapprocher et écartées — avec les
+            // mêmes gestes. Un second écran qui montrait la même chose, et que
+            // rien n'obligeait à ouvrir, laissait des factures certifiées non
+            // rapprochées pendant des semaines. Les adresses des gestes, elles,
+            // restent : ce sont elles que la section appelle.
             // La pièce vue comme un document : une copie d'après le relevé, que
             // son bandeau distingue de l'original certifié du fournisseur.
             Route::get('/factures-recues/{facture}/imprimer', [\App\Modules\Admin\Controleurs\FactureRecueControleur::class, 'imprimer'])->name('factures_recues.imprimer');
@@ -533,6 +545,10 @@ Route::prefix('caissier')
 
             Route::get('/facture/{vente}', [VenteControleur::class, 'imprimer'])->name('imprimer');
             Route::get('/facture/{vente}/ticket', [VenteControleur::class, 'imprimerTicket'])->name('ticket');
+            // Le PDF veritable, etabli cote serveur. Deux adresses distinctes de
+            // l'affichage : ce qu'elles rendent est un fichier, pas une page.
+            Route::get('/facture/{vente}/pdf', [VenteControleur::class, 'pdf'])->name('pdf');
+            Route::get('/facture/{vente}/ticket/pdf', [VenteControleur::class, 'pdfTicket'])->name('ticket.pdf');
             // Conversion reçu <-> facture, dans les deux sens
             Route::post('/{vente}/convertir-piece', [VenteControleur::class, 'convertirPiece'])->name('convertir_piece');
             Route::get('/{vente}/modifier', [VenteControleur::class, 'modifierFormulaire'])->name('modifier');

@@ -438,7 +438,7 @@
         <a href="{{ route('admin.fne.situation') }}" class="fne-tab"><i class="fas fa-balance-scale"></i> Situation</a>
         <a href="{{ route('admin.fne.factures') }}" class="fne-tab"><i class="fas fa-file-invoice"></i> Factures</a>
         @if(in_array('achats', (array) ($entreprise->modules_actifs ?? [])))
-            <a href="{{ route('admin.achats.factures_recues') }}" class="fne-tab"><i class="fas fa-inbox"></i> Factures
+            <a href="{{ route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']) }}" class="fne-tab"><i class="fas fa-inbox"></i> Factures
                 reçues</a>
         @endif
         <a href="{{ route('admin.fne.stickers') }}" class="fne-tab"><i class="fas fa-stamp"></i> Stickers</a>

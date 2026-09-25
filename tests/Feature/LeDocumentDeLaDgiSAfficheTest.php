@@ -154,7 +154,7 @@ class LeDocumentDeLaDgiSAfficheTest extends TestCase
         $facture->update(['fichier_pdf' => self::REFERENCE . '.pdf']);
 
         $this->actingAs($utilisateur)
-            ->get(route('admin.achats.factures'))
+            ->get(route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']))
             ->assertOk()
             ->assertSee(route('admin.achats.factures_recues.pdf', $facture), false);
     }
@@ -166,7 +166,7 @@ class LeDocumentDeLaDgiSAfficheTest extends TestCase
         $facture = $this->uneFactureRecue($entreprise);
 
         $this->actingAs($utilisateur)
-            ->get(route('admin.achats.factures'))
+            ->get(route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']))
             ->assertOk()
             ->assertSee(route('admin.achats.factures_recues.imprimer', $facture), false)
             ->assertDontSee(route('admin.achats.factures_recues.pdf', $facture), false);

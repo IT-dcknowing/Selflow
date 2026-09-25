@@ -737,12 +737,11 @@
             <a href="{{ route('admin.achats.factures') }}" class="nav-item {{ request()->routeIs('admin.achats.factures') && !request()->has('type') ? 'active' : '' }}">
                 <i class="fas fa-file-invoice-dollar"></i> Factures achat
             </a>
-            <a href="{{ route('admin.achats.factures', ['type' => 'avoir']) }}" class="nav-item {{ request()->routeIs('admin.achats.factures') && request('type') === 'avoir' ? 'active' : '' }}">
-                <i class="fas fa-file-circle-minus" style="color:#e17055;"></i> Avoirs fournisseurs
-            </a>
-            <a href="{{ route('admin.achats.factures_recues') }}" class="nav-item {{ request()->routeIs('admin.achats.factures_recues*') ? 'active' : '' }}">
-                <i class="fas fa-inbox"></i> Factures re&ccedil;ues (portail FNE)
-            </a>
+            {{-- « Avoirs fournisseurs » et « Factures reçues (portail FNE) »
+                 ont quitté le menu le 25/09/2026. Le premier n'aurait jamais dû
+                 exister : un acheteur n'établit pas l'avoir de son fournisseur.
+                 Le second montrait ce que la section « Factures achat DGI » de
+                 l'écran des factures d'achat porte désormais. --}}
             @endif
 
             @if(auth()->user()->aHabilitation('nouvel_achat'))
@@ -859,7 +858,10 @@
                 <i class="fas fa-receipt"></i> Factures &amp; Reçus émis/reçus
             </a>
             @if(in_array('achats', $modulesActifs))
-            <a href="{{ route('admin.achats.factures_recues') }}" class="nav-item {{ request()->routeIs('admin.achats.factures_recues*') ? 'active' : '' }}">
+            {{-- L'ecran separe des factures recues a ete retire le 25/09/2026 :
+                 la section « Factures achat DGI » de l'ecran des factures
+                 d'achat les porte toutes, avec les memes gestes. --}}
+            <a href="{{ route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']) }}" class="nav-item">
                 <i class="fas fa-inbox"></i> Factures re&ccedil;ues du portail
             </a>
             @endif

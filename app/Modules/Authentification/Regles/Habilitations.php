@@ -73,6 +73,10 @@ class Habilitations
         'admin.ventes.historique'                    => 'historique_ventes',
         'admin.ventes.imprimer'                      => 'factures_vente',
         'admin.ventes.ticket'                        => 'factures_vente',
+        // Le PDF veritable : meme piece, meme droit. Ce qui change est le
+        // format du fichier rendu, pas qui a le droit de le lire.
+        'admin.ventes.pdf'                           => 'factures_vente',
+        'admin.ventes.ticket.pdf'                    => 'factures_vente',
         'admin.ventes.avoir'                         => 'factures_vente',
         'admin.ventes.avoir.creer_nouveau'           => 'factures_vente',
         'admin.ventes.normaliser'                    => 'factures_vente',
@@ -103,6 +107,7 @@ class Habilitations
         'admin.achats.factures'                      => 'factures_achat',
         'admin.achats.historique'                    => 'historique_achats',
         'admin.achats.imprimer'                      => 'factures_achat',
+        'admin.achats.pdf'                           => 'factures_achat',
         'admin.achats.bapa'                          => 'factures_achat',
         'admin.achats.avoir'                         => 'factures_achat',
         'admin.achats.avoir.creer_nouveau'           => 'factures_achat',
@@ -121,7 +126,6 @@ class Habilitations
         // elles se lisent et se rattachent avec les autres. Le rattachement
         // n'écrit que dans `portail_fne_factures_recues.achat_id` — il ne crée
         // aucun achat et ne touche à aucune colonne gelée.
-        'admin.achats.factures_recues'               => 'factures_achat',
         'admin.achats.factures_recues.rattacher'     => 'factures_achat',
         'admin.achats.factures_recues.detacher'      => 'factures_achat',
         'admin.achats.factures_recues.ecarter'       => 'factures_achat',

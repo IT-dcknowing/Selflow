@@ -74,7 +74,7 @@
         </a>
     @endif
     @if(!$facture->achat_id)
-        <a href="{{ route('admin.achats.factures_recues') }}" class="btn btn-outline btn-sm"><i class="fas fa-link"></i> Rapprocher d'un achat</a>
+        <a href="{{ route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']) }}" class="btn btn-outline btn-sm"><i class="fas fa-link"></i> Rapprocher d'un achat</a>
     @endif
 </div>
 

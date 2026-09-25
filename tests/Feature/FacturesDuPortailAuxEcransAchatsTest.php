@@ -24,6 +24,13 @@ use Tests\TestCase;
  * saisi, jamais ce que la DGI détient. Une charge connue du fisc pouvait rester
  * des semaines hors de la comptabilité sans que rien ne le signale.
  *
+ * **Depuis le 25/09/2026, elles ont leur propre section** —
+ * `?etape=Facture&section=dgi` — au lieu d'être mêlées aux pièces saisies. Le
+ * mélange obligeait chaque ligne à expliquer ce qu'elle était, et la colonne
+ * « Normalisé (DGI) » à mentir pour les autres. L'écran séparé a disparu du
+ * même coup : la section porte les mêmes pièces et les mêmes gestes. Ce que
+ * ces épreuves gardent n'a pas changé — seulement l'adresse où le vérifier.
+ *
  * ## Les deux pièges, et pourquoi ils ne sont pas symétriques
  *
  * 1. **Le doublon.** Une facture du portail rattachée à un achat est le même
@@ -49,7 +56,7 @@ class FacturesDuPortailAuxEcransAchatsTest extends TestCase
         $this->uneFactureRecue($entreprise, ['emetteur_nom' => 'CENTRE IVOIRIEN ARCHIVAGE']);
 
         $this->actingAs($utilisateur)
-            ->get(route('admin.achats.factures'))
+            ->get(route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']))
             ->assertOk()
             ->assertSee('B0000001X26000000042')
             ->assertSee('CENTRE IVOIRIEN ARCHIVAGE')
@@ -80,7 +87,7 @@ class FacturesDuPortailAuxEcransAchatsTest extends TestCase
         // Et les deux boutons apparaissent, là où la colonne ne portait qu'un
         // texte « vérifiable » sur lequel rien ne se cliquait.
         $this->actingAs($utilisateur)
-            ->get(route('admin.achats.factures'))
+            ->get(route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']))
             ->assertOk()
             ->assertSee('http://54.247.95.108/fr/verification/01a06bf8-8e1a-7000-8650-7ae311524dfc', false);
     }
@@ -190,7 +197,7 @@ class FacturesDuPortailAuxEcransAchatsTest extends TestCase
         $this->uneFactureRecue($entreprise, ['point_de_vente_id' => $pdv->id]);
 
         $this->actingAs($utilisateur)
-            ->get(route('admin.achats.factures'))
+            ->get(route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']))
             ->assertOk()
             ->assertSee('FACTURATION SIEGE')
             ->assertDontSee('à affecter');
@@ -302,14 +309,36 @@ class FacturesDuPortailAuxEcransAchatsTest extends TestCase
             'statut_rapprochement' => PortailFneFactureRecue::RAPPROCHEE,
         ]);
 
-        $reponse = $this->actingAs($utilisateur)->get(route('admin.achats.factures'))->assertOk();
+        // La section « Factures achat DGI » ne porte que les pièces du portail :
+        // l'achat auquel celle-ci est rattachée vit dans une autre section. Le
+        // doublon que cette épreuve surveillait — la même facture comptée deux
+        // fois dans une liste mêlée — n'est plus possible par construction, et
+        // ce qu'il faut vérifier est qu'elle apparaît une fois, pas zéro.
+        $dgi = $this->actingAs($utilisateur)
+            ->get(route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']))
+            ->assertOk();
 
-        // L'achat porte le document ; la pièce du portail ne se répète pas.
-        $reponse->assertSee('ACH-0001');
-        $this->assertSame(0, substr_count($reponse->getContent(), 'B0000001X26000000042'));
+        // Une ligne, et une seule. La référence elle-même paraît plusieurs fois
+        // dans une ligne — le libellé, l'infobulle, la confirmation d'écartement
+        // — : c'est le marqueur de ligne qu'il faut compter.
+        $dgi->assertSee('B0000001X26000000042');
+        $this->assertSame(1, substr_count($dgi->getContent(), 'Portail DGI'));
+
+        // L'achat n'y a pas de ligne à lui. Son numéro y paraît — la
+        // proposition de rapprochement le nomme, et c'est justement ce qu'on
+        // lui demande — mais son document n'y est pas.
+        $dgi->assertDontSee(route('admin.achats.imprimer', $achat));
+
+        // Et l'achat, lui, est sous « Factures enregistrées », une seule fois.
+        $enregistrees = $this->actingAs($utilisateur)
+            ->get(route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'enregistrees']))
+            ->assertOk();
+
+        $enregistrees->assertSee('ACH-0001');
+        $this->assertSame(0, substr_count($enregistrees->getContent(), 'B0000001X26000000042'));
     }
 
-    public function test_une_facture_ecartee_ne_remonte_pas(): void
+    public function test_une_facture_ecartee_se_retrouve_derriere_son_filtre(): void
     {
         [$utilisateur, $entreprise] = $this->uneEntrepriseAvecUtilisateur();
 
@@ -319,10 +348,20 @@ class FacturesDuPortailAuxEcransAchatsTest extends TestCase
             'statut_rapprochement' => PortailFneFactureRecue::ECARTEE,
         ]);
 
+        // Elle ne revient pas d'elle-même...
         $this->actingAs($utilisateur)
-            ->get(route('admin.achats.factures'))
+            ->get(route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']))
             ->assertOk()
             ->assertDontSee('B0000001X26000000042');
+
+        // ...mais elle se retrouve quand on la demande. L'écran séparé portait
+        // seul ce filtre ; le retirer sans le reprendre aurait fait de
+        // l'écartement une suppression déguisée.
+        $this->actingAs($utilisateur)
+            ->get(route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi', 'statut' => 'ecartees']))
+            ->assertOk()
+            ->assertSee('B0000001X26000000042')
+            ->assertSee('Remettre');
     }
 
     public function test_une_facture_ecartee_peut_revenir(): void
@@ -347,7 +386,7 @@ class FacturesDuPortailAuxEcransAchatsTest extends TestCase
         $this->assertNull($facture->note_rapprochement);
 
         $this->actingAs($utilisateur)
-            ->get(route('admin.achats.factures'))
+            ->get(route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']))
             ->assertOk()
             ->assertSee('B0000001X26000000042');
     }
@@ -388,7 +427,7 @@ class FacturesDuPortailAuxEcransAchatsTest extends TestCase
         // personne ne l'affecterait jamais.
         $this->actingAs($utilisateur)
             ->withSession(['point_de_vente_actif_id' => $autreSite->id])
-            ->get(route('admin.achats.factures'))
+            ->get(route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']))
             ->assertOk()
             ->assertSee('B0000001X26000000042');
     }
@@ -410,14 +449,14 @@ class FacturesDuPortailAuxEcransAchatsTest extends TestCase
         // de l'affectation — sans elle, chaque site verrait les charges de tous.
         $this->actingAs($utilisateur)
             ->withSession(['point_de_vente_actif_id' => $pdv->id])
-            ->get(route('admin.achats.factures'))
+            ->get(route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']))
             ->assertOk()
             ->assertDontSee('B0000001X26000000042');
 
         // Et elle est bien là où on l'a rangée.
         $this->actingAs($utilisateur)
             ->withSession(['point_de_vente_actif_id' => $marcory->id])
-            ->get(route('admin.achats.factures'))
+            ->get(route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']))
             ->assertOk()
             ->assertSee('B0000001X26000000042');
     }
@@ -432,7 +471,7 @@ class FacturesDuPortailAuxEcransAchatsTest extends TestCase
         // mais qui n'a encore rien saisi lisait « aucun élément » — l'exact
         // contraire de ce qu'il fallait comprendre.
         $this->actingAs($utilisateur)
-            ->get(route('admin.achats.factures'))
+            ->get(route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']))
             ->assertOk()
             ->assertSee('B0000001X26000000042')
             ->assertDontSee('Aucun élément disponible');
@@ -559,7 +598,7 @@ class FacturesDuPortailAuxEcransAchatsTest extends TestCase
 
         // Une pièce fiscale lue par le mauvais client ne se répare pas.
         $this->actingAs($utilisateur)
-            ->get(route('admin.achats.factures'))
+            ->get(route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']))
             ->assertOk()
             ->assertDontSee('B0000001X26000000042');
 

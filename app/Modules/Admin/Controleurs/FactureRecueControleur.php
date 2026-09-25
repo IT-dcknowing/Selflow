@@ -5,8 +5,6 @@ namespace App\Modules\Admin\Controleurs;
 use App\Modules\Admin\Modeles\Achat;
 use App\Modules\Admin\Modeles\PointDeVente;
 use App\Modules\Admin\Modeles\PortailFneFactureRecue;
-use App\Modules\Admin\Modeles\PortailFneImport;
-use App\Modules\Admin\Services\ImportFacturesRecuesService;
 use App\Modules\Admin\Services\QrCodeFneService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
@@ -38,89 +36,19 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
  */
 class FactureRecueControleur
 {
-    /** Les filtres de l'écran, dans l'ordre où ils intéressent. */
-    private const STATUTS = [
-        PortailFneFactureRecue::A_RAPPROCHER => 'À rapprocher',
-        PortailFneFactureRecue::RAPPROCHEE   => 'Rapprochées',
-        PortailFneFactureRecue::ORPHELINE    => 'Fournisseur inconnu',
-        PortailFneFactureRecue::ECARTEE      => 'Écartées',
-    ];
-
-    public function index(): View
-    {
-        $entreprise = Auth::user()->entreprise;
-
-        // Une valeur inventée dans l'URL ne filtre rien plutôt que de rendre une
-        // liste vide : un écran vide se lit « aucune facture reçue », ce qui est
-        // exactement le contraire de ce qu'il faut comprendre.
-        $statutActif = array_key_exists(request('statut'), self::STATUTS)
-            ? request('statut')
-            : null;
-
-        $pourEntreprise = fn () => PortailFneFactureRecue::where('entreprise_id', $entreprise->id);
-
-        $factures = $pourEntreprise()
-            ->when($statutActif, fn ($q) => $q->where('statut_rapprochement', $statutActif))
-            ->with(['lignes', 'pointDeVente'])
-            // Les plus récentes d'abord : c'est ce qui vient d'arriver qu'on
-            // vient voir, pas ce qui traîne depuis six mois.
-            ->orderByDesc('date_facture')
-            ->orderByDesc('id')
-            ->paginate(20)
-            // Sans quoi la page 2 revient sur la liste entière, et l'on croit
-            // que le filtre a lâché.
-            ->withQueryString();
-
-        // Un seul passage plutôt qu'une requête par statut.
-        $parStatut = $pourEntreprise()
-            ->selectRaw('statut_rapprochement, COUNT(*) as total')
-            ->groupBy('statut_rapprochement')
-            ->pluck('total', 'statut_rapprochement');
-
-        // Le rapprochement est calculé à l'affichage et non stocké : un
-        // fournisseur créé ce matin doit être vu ce matin, sans attendre le
-        // relevé de la nuit.
-        $propositions = [];
-        foreach ($factures as $facture) {
-            $propositions[$facture->id] = $facture->rapprochementPropose();
-        }
-
-        // Deux dates, comme sur l'écran des rejets : le passage dit que le
-        // scraper fonctionne, le contenu dit ce que le portail détient. Un
-        // relevé identique au précédent n'écrit plus de ligne, donc la seconde
-        // peut être bien plus ancienne que la première sans que rien n'aille mal.
-        $dernierPassage = PortailFneImport::where('entreprise_id', $entreprise->id)
-            ->where('type', ImportFacturesRecuesService::TYPE)
-            ->where('statut', PortailFneImport::STATUT_IMPORTE)
-            ->max('dernier_releve_le');
-
-        // Les onglets FNE pointent vers des ecrans gardes par `modules:comptabilite`.
-        // Une entreprise qui achete sans tenir sa comptabilite dans Selflow verrait
-        // sinon six liens dont cinq lui repondraient 403.
-        $aFne = in_array('comptabilite', (array) ($entreprise->modules_actifs ?? []), true);
-
-        return view('admin::fne.factures-recues', [
-            'entreprise'     => $entreprise,
-            'aFne'           => $aFne,
-            // Pour le sélecteur de site. Chargés une fois plutôt qu'à chaque
-            // ligne : vingt factures rouvraient vingt fois la même table.
-            'pointsDeVente'  => PointDeVente::where('entreprise_id', $entreprise->id)
-                ->orderBy('nom')->get(),
-            'factures'       => $factures,
-            'propositions'   => $propositions,
-            'statutActif'    => $statutActif,
-            'filtres'        => collect(self::STATUTS)
-                ->map(fn (string $libelle, string $cle) => [
-                    'libelle' => $libelle,
-                    'total'   => $parStatut[$cle] ?? 0,
-                ])
-                ->all(),
-            'total'          => $parStatut->sum(),
-            'aRapprocher'    => $parStatut[PortailFneFactureRecue::A_RAPPROCHER] ?? 0,
-            'montantTotal'   => $pourEntreprise()->sum('montant_ttc'),
-            'dernierPassage' => $dernierPassage ? CarbonImmutable::parse($dernierPassage) : null,
-        ]);
-    }
+    /*
+     * `index()` et ses filtres vivaient ici : l'écran `/admin/achats/factures-recues`.
+     *
+     * Retiré le 25/09/2026. Il montrait ce que la section « Factures achat
+     * DGI » de l'écran des factures d'achat porte désormais — toutes les pièces
+     * relevées, rattachées, à rapprocher ou écartées —, avec les mêmes gestes.
+     * Deux écrans pour une même liste laissaient des factures certifiées non
+     * rapprochées pendant des semaines : personne n'ouvrait le second.
+     *
+     * **Les gestes, eux, sont restés** : `rattacher`, `detacher`, `ecarter`,
+     * `reintegrer`, `affecter`, `imprimer` et `pdf` sont appelés depuis la
+     * section, et c'est à eux que l'écran servait de porte.
+     */
 
     /**
      * Rattache une facture du portail à un achat déjà saisi dans Selflow.

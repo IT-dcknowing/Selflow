@@ -132,7 +132,9 @@
 <body>
 
 <div class="no-print-bar">
-    <button class="btn-print" onclick="telechargerRecu()">Télécharger</button>
+    @php $prefixeRecu = request()->routeIs('caissier.*') ? 'caissier' : 'admin'; @endphp
+    <a class="btn-print" href="{{ route($prefixeRecu . '.ventes.ticket.pdf', $vente) }}"
+       style="text-decoration:none; display:inline-block;">Télécharger le PDF</a>
     <button class="btn-print" style="background:#0f766e; margin-left:8px;" onclick="window.print()">Imprimer</button>
     <button class="btn-print" style="background:#4b5563; margin-left:8px;" onclick="window.history.back()">Retour</button>
 </div>
@@ -252,6 +254,16 @@
 <div class="total-box uppercase">
     MONTANT : {{ number_format($vente->montant_ttc, 0, ',', ' ') }} XOF
 </div>
+{{-- Ce qu'on a rendu : le chiffre que le client verifie avant de partir.
+     Absent quand il n'y a rien eu a rendre -- une ligne « monnaie rendue :
+     0 F » sur un reglement a l'appoint dirait une operation qui n'a pas eu
+     lieu. --}}
+@if($vente->monnaieRendue() > 0)
+<div class="grid-info uppercase">
+    RECU : {{ number_format((float) $vente->montant_recu, 0, ',', ' ') }} XOF<br>
+    MONNAIE RENDUE : {{ number_format($vente->monnaieRendue(), 0, ',', ' ') }} XOF
+</div>
+@endif
 @endif
 
 <div class="grid-info uppercase">
@@ -297,49 +309,14 @@
 </div>
 
 <script>
-/**
- * Le recu, enregistre dans un fichier.
- *
- * Le ticket porte ses styles dans la page : le fichier rendu est donc autonome,
- * et s'ouvre tel quel. Tout ce qui ne s'imprime pas — la barre de boutons — est
- * ecarte, sans quoi le fichier porterait « Imprimer » et « Retour ».
- */
-function telechargerRecu() {
-    var corps = document.body.cloneNode(true);
-    corps.querySelectorAll('.no-print-bar, script').forEach(function (noeud) { noeud.remove(); });
-
-    var styles = Array.prototype.map.call(
-        document.querySelectorAll('link[rel="stylesheet"], style'),
-        function (noeud) { return noeud.outerHTML; }
-    ).join('\n');
-
-    var nom = @json(($vente->numero_fne ?: $vente->numero_facture) . '-recu');
-    var page = '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
-        + '<title>' + nom + '</title>'
-        + '<base href="' + document.baseURI + '">'
-        + styles + '</head><body>' + corps.innerHTML + '</body></html>';
-
-    var adresse = URL.createObjectURL(new Blob([page], { type: 'text/html;charset=utf-8' }));
-    var lien = document.createElement('a');
-    lien.href = adresse;
-    lien.download = nom + '.html';
-    document.body.appendChild(lien);
-    lien.click();
-    lien.remove();
-    setTimeout(function () { URL.revokeObjectURL(adresse); }, 2000);
-}
+// `telechargerRecu()` vivait ici : elle fabriquait une page HTML autonome,
+// faute de moteur PDF. dompdf installe, le bouton pointe droit sur l'adresse
+// qui rend le fichier, et il n'y a plus rien a fabriquer dans le navigateur.
 
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('print') === '1') {
     window.onload = function() {
         window.print();
-    }
-}
-// Le telechargement demande depuis la liste des ventes : `?telecharger=1`
-// ouvre le recu et enregistre le fichier, sans boite d'impression.
-if (urlParams.get('telecharger') === '1') {
-    window.onload = function() {
-        telechargerRecu();
     }
 }
 </script>

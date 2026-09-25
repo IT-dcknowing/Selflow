@@ -31,6 +31,7 @@ class Vente extends Model
         'montant_tva',
         'montant_ttc',
         'montant_autres_taxes', // taxes parafiscales collectées, hors TVA
+        'montant_recu',    // la somme tendue par le client ; la monnaie rendue s'en déduit
         'remise',          // montant de la remise globale, en francs
         'remise_taux',     // taux de la remise globale, en % → champ `discount` FNE
         'statut',
@@ -137,6 +138,47 @@ class Vente extends Model
     public function getMontantPayeAttribute()
     {
         return $this->paiements()->sum('montant_entree');
+    }
+
+    /**
+     * Le net à payer : ce que la caisse demande.
+     *
+     * Le TTC, les taxes additionnelles collectées, **et le timbre de
+     * quittance** — c'est-à-dire exactement ce que le pavé des totaux affiche
+     * au caissier, et donc ce que le client tend.
+     *
+     * Le timbre n'est pas décoratif ici : sans lui, le plafonnement de
+     * l'encaissement le **retirerait** de la caisse, là où la somme tendue le
+     * couvrait. Son montant vient de `TimbreQuittanceService`, seule autorité
+     * en la matière — la plateforme d'abord, le barème de l'article 873 à
+     * défaut.
+     *
+     * Le définir ici plutôt qu'à trois endroits évite qu'un écran annonce un
+     * net et qu'un autre en attende un second.
+     */
+    public function netAPayer(): float
+    {
+        return (float) $this->montant_ttc
+            + (float) ($this->montant_autres_taxes ?? 0)
+            + \App\Modules\Admin\Services\TimbreQuittanceService::pourVente($this);
+    }
+
+    /**
+     * Ce qu'on rend au client.
+     *
+     * Jamais négatif : une somme tendue insuffisante est une avance, pas une
+     * monnaie à rendre — et l'annoncer en négatif ferait croire à une dette de
+     * la caisse. `null` quand rien n'a été tendu : on ne rend pas zéro, on ne
+     * rend rien, et le document ne doit pas porter une ligne qui n'a pas eu
+     * lieu.
+     */
+    public function monnaieRendue(): ?float
+    {
+        if ($this->montant_recu === null) {
+            return null;
+        }
+
+        return max(0.0, (float) $this->montant_recu - $this->netAPayer());
     }
 
     /**

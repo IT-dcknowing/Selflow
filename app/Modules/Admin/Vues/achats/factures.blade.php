@@ -1,31 +1,19 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Factures — Achats')
-@section('topbar_titre', $type === 'avoir' ? 'Achats — Avoirs' : 'Achats — Factures & Commandes')
+@section('topbar_titre', 'Achats — Factures & Commandes')
 
 @section('contenu')
 <div class="page-header">
     <div>
-        @if($type === 'avoir')
-            <h1><i class="fas fa-file-circle-minus" style="color:#e17055;"></i> Avoirs Fournisseurs</h1>
-            <p>{{ $achats->total() }} avoir(s) fournisseur(s) au total</p>
-        @else
-            <h1><i class="fas fa-file-invoice-dollar"></i> Cycles d'achat</h1>
-            <p>Suivi complet des demandes de prix, bons de commande et factures</p>
-        @endif
+        <h1><i class="fas fa-file-invoice-dollar"></i> Cycles d'achat</h1>
+        <p>Suivi complet des demandes de prix, bons de commande et factures</p>
     </div>
-    @if($type === 'avoir')
-        <button type="button" class="btn" style="background:#e17055; color:#fff;" onclick="ouvrirModalNouveauAvoir()">
-            <i class="fas fa-plus"></i> Créer une facture d'avoir
-        </button>
-    @else
-        <a href="{{ route('admin.achats.nouveau') }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Nouvel achat
-        </a>
-    @endif
+    <a href="{{ route('admin.achats.nouveau') }}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Nouvel achat
+    </a>
 </div>
 
-{{-- Si ce n'est pas un Avoir, on affiche les onglets cliquables du Workflow Achat --}}
-@if($type !== 'avoir')
+{{-- Les onglets du cycle d'achat --}}
 <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:1.5px solid var(--border); padding-bottom:12px; flex-wrap:wrap;">
     <a href="{{ route('admin.achats.factures', ['etape' => 'Demande de prix']) }}" 
        style="display:flex; align-items:center; gap:8px; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:700; font-size:13.5px; transition:all 0.2s; 
@@ -60,11 +48,78 @@
         </span>
     </a>
 </div>
+
+@php
+    /*
+     * Trois natures d'achat, trois sections. Elles ne se ressemblent pas :
+     * l'une n'est jamais normalisée, l'autre est la seule que nous
+     * normalisions, la troisième arrive déjà certifiée par le fournisseur.
+     * Les mêler obligeait chaque ligne à expliquer ce qu'elle était.
+     */
+    $sections = [
+        'enregistrees' => ['Factures enregistrées', 'fa-file-invoice', $nbEnregistrees],
+        'bapa'         => ['Factures BAPA', 'fa-file-signature', $nbBapa],
+        'dgi'          => ['Factures achat DGI', 'fa-cloud-arrow-down', $nbDgi],
+    ];
+@endphp
+
+@if($etapeActive === 'Facture')
+<div style="display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap;">
+    @foreach($sections as $cle => [$libelle, $icone, $compte])
+    <a href="{{ route('admin.achats.factures', ['etape' => 'Facture', 'section' => $cle]) }}"
+       style="display:flex; align-items:center; gap:8px; padding:8px 16px; border-radius:8px; text-decoration:none; font-weight:700; font-size:12.5px;
+              {{ $section === $cle ? 'background:var(--bg3); color:var(--primary); border:1.5px solid var(--primary);' : 'background:#fff; color:var(--text-2); border:1px solid var(--border);' }}">
+        <i class="fas {{ $icone }}" style="font-size:13px;"></i>
+        {{ $libelle }}
+        <span style="font-size:11px; padding:2px 8px; border-radius:20px; font-weight:800; background:{{ $section === $cle ? '#fff' : 'var(--bg3)' }}; color:var(--primary);">{{ $compte }}</span>
+    </a>
+    @endforeach
+</div>
+
+<div style="margin-bottom:16px; padding:10px 14px; border-radius:8px; font-size:12px; line-height:1.5;
+            background:{{ $section === 'bapa' ? '#fff7ed' : ($section === 'dgi' ? '#eff6ff' : '#f8fafc') }};
+            border:1px solid {{ $section === 'bapa' ? '#fed7aa' : ($section === 'dgi' ? '#bfdbfe' : 'var(--border)') }};
+            color:var(--text-2);">
+    @if($section === 'bapa')
+        <i class="fas fa-circle-info" style="color:#c2410c;"></i>
+        <strong>Le bordereau d'achat est la seule pièce d'achat que vous normalisez.</strong>
+        Vous l'établissez auprès d'un producteur qui n'émet rien : c'est vous qui
+        le déclarez à la DGI. Vérifiez que l'option BAPA est cochée sur votre
+        espace FNE, sans quoi la plateforme le refusera.
+    @elseif($section === 'dgi')
+        <i class="fas fa-circle-info" style="color:#1d4ed8;"></i>
+        <strong>Ces factures viennent du portail de la DGI.</strong>
+        Vos fournisseurs les ont établies et certifiées ; le relevé les rapporte.
+        Il n'y a rien à leur faire — seulement à les rapprocher de vos achats.
+        {{-- Écarter n'est pas supprimer : la pièce reste, et le portail la
+             redéposera. Ce qu'on a mis de côté doit pouvoir revenir, sinon
+             l'écartement serait une suppression déguisée. --}}
+        @if($nbEcartees > 0 || request('statut') === 'ecartees')
+            <div style="margin-top:6px;">
+                @if(request('statut') === 'ecartees')
+                    <a href="{{ route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']) }}" style="font-weight:700;">
+                        &larr; Revenir aux factures à rapprocher
+                    </a>
+                @else
+                    <a href="{{ route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi', 'statut' => 'ecartees']) }}" style="font-weight:700;">
+                        Voir les {{ $nbEcartees }} facture(s) écartée(s)
+                    </a>
+                @endif
+            </div>
+        @endif
+    @else
+        <i class="fas fa-circle-info" style="color:var(--text-3);"></i>
+        <strong>Ces factures ne partent pas à la DGI.</strong>
+        Vous les enregistrez pour suivre vos dépenses ; c'est le fournisseur qui
+        certifie la sienne, pas vous. Les colonnes DGI restent donc vides : plus
+        tard, elles porteront le rapprochement avec les factures relevées au portail.
+    @endif
+</div>
 @endif
 
 <form method="GET" action="{{ route('admin.achats.factures') }}" id="formFiltreAchats" style="display:flex; gap:10px; flex-wrap:wrap; align-items:end; margin-bottom:16px; background:#fff; border:1px solid var(--border); border-radius:12px; padding:14px 16px;">
     <input type="hidden" name="etape" value="{{ $etapeActive }}">
-    @if($type) <input type="hidden" name="type" value="{{ $type }}"> @endif
+    <input type="hidden" name="section" value="{{ $section }}">
 
     <div class="form-group" style="margin-bottom:0; flex:1; min-width:200px;">
         <label class="form-label" style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-3); margin-bottom:4px; display:block;">Recherche</label>
@@ -81,14 +136,18 @@
             @endforeach
         </select>
     </div>
+    {{-- Le filtre DGI n'a de sens que sur les bordereaux : eux seuls
+         peuvent être normalisés ou ne pas l'être encore. --}}
+    @if($section === 'bapa')
     <div class="form-group" style="margin-bottom:0;">
         <label class="form-label" style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-3); margin-bottom:4px; display:block;">Statut DGI</label>
         <select name="dgi_filtre" class="form-control" onchange="document.getElementById('formFiltreAchats').submit();">
             <option value="">— Tous —</option>
-            <option value="oui" {{ request('dgi_filtre') === 'oui' ? 'selected' : '' }}>Normalisée (DGI)</option>
-            <option value="non" {{ request('dgi_filtre') === 'non' ? 'selected' : '' }}>Non normalisée</option>
+            <option value="oui" {{ request('dgi_filtre') === 'oui' ? 'selected' : '' }}>Normalisé (DGI)</option>
+            <option value="non" {{ request('dgi_filtre') === 'non' ? 'selected' : '' }}>Non normalisé</option>
         </select>
     </div>
+    @endif
     @endif
     <div class="form-group" style="margin-bottom:0;">
         <label class="form-label" style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-3); margin-bottom:4px; display:block;">Du</label>
@@ -99,7 +158,7 @@
         <input type="date" name="date_fin" value="{{ request('date_fin') }}" class="form-control" onchange="document.getElementById('formFiltreAchats').submit();">
     </div>
     @if(request('recherche') || request('statut_filtre') || request('dgi_filtre') || request('date_debut') || request('date_fin'))
-        <a href="{{ route('admin.achats.factures', array_filter(['etape' => $etapeActive, 'type' => $type])) }}" class="btn btn-outline" style="white-space:nowrap;"><i class="fas fa-times"></i> Effacer</a>
+        <a href="{{ route('admin.achats.factures', ['etape' => $etapeActive, 'section' => $section]) }}" class="btn btn-outline" style="white-space:nowrap;"><i class="fas fa-times"></i> Effacer</a>
     @endif
 </form>
 <script>
@@ -110,7 +169,25 @@
 </script>
 
 @php
-    $activerSelectionGroup = ($etapeActive === 'Facture' || $type === 'avoir');
+    // La normalisation par lot n'a d'objet que sur les bordereaux : ce sont les
+    // seules pièces d'achat qui partent à la plateforme. Elle s'affichait sur
+    // toutes les factures, et proposait d'envoyer des pièces que la DGI n'aurait
+    // pas acceptées.
+    $activerSelectionGroup = ($etapeActive === 'Facture' && $section === 'bapa');
+
+    /*
+     * La colonne « Action » ne subsiste que là où il y a quelque chose à faire.
+     *
+     *  - sur une facture enregistrée : rien. Elle ne part pas à la DGI, et elle
+     *    ne se reprend pas — le bouton n'aurait rien à commander ;
+     *  - sur une facture relevée au portail : pas de normalisation — elle est
+     *    déjà certifiée par son émetteur —, mais le rapprochement, lui, est un
+     *    geste : rattacher, écarter, remettre. C'est pour lui que l'écran
+     *    séparé des factures reçues peut disparaître ;
+     *  - sur un bordereau, et aux étapes de commande : oui.
+     */
+    $afficherActions = ($etapeActive !== 'Facture') || $section !== 'enregistrees';
+    $sectionSansDgi = ($etapeActive === 'Facture' && $section === 'enregistrees');
 @endphp
 
 @if($activerSelectionGroup)
@@ -160,7 +237,26 @@
         @if($achats->isEmpty() && $facturesPortail->isEmpty())
         <div style="padding:48px; text-align:center; color:var(--text-3);">
             <i class="fas fa-file" style="font-size:48px; display:block; margin-bottom:12px; opacity:.2;"></i>
-            Aucun élément disponible pour cette étape.
+            @if($etapeActive !== 'Facture')
+                Aucun élément disponible pour cette étape.
+            @elseif($section === 'bapa')
+                Aucun bordereau d'achat. Vous en établirez un depuis
+                « Nouvel achat », en choisissant <strong>BAPA (DGI)</strong>.
+            @elseif($section === 'dgi')
+                {{-- Le message disait « lancer node achats.js <NCC> ». C'est la
+                     commande du relevé, qui n'a rien à faire sous les yeux d'un
+                     commerçant : il n'a pas de terminal, et ce n'est pas à lui
+                     de lancer le scraper. Ce qu'il doit savoir, c'est que la
+                     DGI ne détient encore aucune facture à son nom, ou que le
+                     relevé n'est pas encore passé. --}}
+                Aucune facture d'achat relevée au portail de la DGI.
+                Elles y apparaîtront d'elles-mêmes dès qu'un fournisseur aura
+                certifié une pièce à votre nom et que le relevé sera passé.
+            @else
+                Aucune facture enregistrée. Saisissez-en une depuis
+                « Nouvel achat », en choisissant
+                <strong>Facture physique fournisseur</strong>.
+            @endif
         </div>
         @else
         <table>
@@ -173,9 +269,7 @@
                     @endif
                     {{-- Colonne dynamique en fonction de l'étape active --}}
                     <th>
-                        @if($type === 'avoir')
-                            N° Avoir
-                        @elseif($etapeActive === 'Demande de prix')
+                        @if($etapeActive === 'Demande de prix')
                             N° Demande
                         @elseif($etapeActive === 'Bon de commande')
                             N° Bon
@@ -197,7 +291,9 @@
                     {{-- Ce que Selflow établit, avant tout passage par la
                          plateforme : le même partage que sur les ventes. --}}
                     <th>Originale</th>
+                    @if($afficherActions)
                     <th>Action</th>
+                    @endif
                 </tr>
             </thead>
             <tbody>
@@ -327,25 +423,47 @@
                                         écart {{ number_format((float) $propose['ecart_ttc'], 0, ',', ' ') }} F
                                     </span>
                                 @endif
+                            @elseif(!$propose['fournisseur'])
+                                {{-- Le NCC de l'emetteur ne designe aucun de vos
+                                     fournisseurs : il n'y a meme pas de qui
+                                     rapprocher. Le dire, plutot que de proposer
+                                     un geste qui ne menerait nulle part. --}}
+                                <span style="font-size:11px; color:var(--text-3);"
+                                      title="Creez d'abord la fiche de ce fournisseur, avec son NCC.">
+                                    <i class="fas fa-circle-question"></i> Aucun fournisseur ne porte ce NCC
+                                </span>
                             @else
-                                <a href="{{ route('admin.achats.factures_recues') }}" class="btn btn-outline btn-sm" style="font-size:11px; padding:4px 8px;"
+                                <a href="{{ route('admin.achats.nouveau') }}" class="btn btn-outline btn-sm" style="font-size:11px; padding:4px 8px;"
                                    title="Aucun achat de Selflow ne correspond encore. Saisissez-le, puis revenez le rattacher.">
-                                    <i class="fas fa-magnifying-glass"></i> Rapprocher
+                                    <i class="fas fa-magnifying-glass"></i> Saisir l'achat
                                 </a>
                             @endif
+                            @if($recue->statut_rapprochement === \App\Modules\Admin\Modeles\PortailFneFactureRecue::ECARTEE)
+                            {{-- La remettre. C'est le seul geste qui compte sur
+                                 une pièce écartée, et il n'existait que sur
+                                 l'écran séparé. --}}
+                            <form method="POST" action="{{ route('admin.achats.factures_recues.reintegrer', $recue) }}" style="display:inline; margin:0;">
+                                @csrf
+                                <button type="submit" class="btn btn-outline btn-sm" style="font-size:11px; padding:4px 8px;"
+                                        title="Remettre cette pièce parmi les factures à rapprocher">
+                                    <i class="fas fa-rotate-left"></i> Remettre
+                                </button>
+                            </form>
+                            @else
                             {{-- Confirmation, parce que le geste était à sens
                                  unique et tenait à une icône : le 07/09/2026 la
                                  seule facture réelle du dossier a disparu de
                                  tous les écrans d'un clic, et il a fallu la base
                                  pour comprendre pourquoi. --}}
                             <form method="POST" action="{{ route('admin.achats.factures_recues.ecarter', $recue) }}" style="display:inline; margin:0;"
-                                  onsubmit="return confirm('Écarter {{ $recue->reference }} ?\n\nElle disparaîtra de cet écran et du registre FNE. Vous pourrez la remettre depuis « Factures reçues », filtre « Écartées ».');">
+                                  onsubmit="return confirm('Écarter {{ $recue->reference }} ?\n\nElle disparaîtra de cet écran et du registre FNE. Vous pourrez la remettre depuis cette même section.');">
                                 @csrf
                                 <button type="submit" class="btn btn-outline btn-sm" style="font-size:11px; padding:4px 8px; color:var(--text-3);"
                                         title="Écarter cette pièce : elle ne remontera plus ici, sans être supprimée">
                                     <i class="fas fa-eye-slash"></i>
                                 </button>
                             </form>
+                            @endif
                         </div>
                     </td>
                 </tr>
@@ -383,11 +501,18 @@
                         @endif
                     </td>
                     <td style="text-align: center;">
-                        @if($achat->normalise)
+                        @if($sectionSansDgi)
+                            {{-- Rien à dire, et le dire ainsi. Cette facture
+                                 n'est pas la nôtre : c'est le fournisseur qui
+                                 la certifie. Le rapprochement avec les pièces
+                                 relevées au portail viendra plus tard, et c'est
+                                 lui qui remplira cette colonne. --}}
+                            <span style="color:var(--text-3); font-size:12px;" title="Cette facture ne part pas à la DGI : c'est votre fournisseur qui certifie la sienne.">Aucune donnée</span>
+                        @elseif($achat->normalise)
                             <span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; padding:4px 10px; border-radius:20px; font-weight:800; font-size:12px; display:inline-flex; align-items:center; gap:5px;" title="Facture normalisée avec succès par la DGI">
                                 <i class="fas fa-check-circle" style="color:#16a34a;"></i> Oui
                             </span>
-                        @elseif($achat->type_facture === 'bapa' && $achat->etape === 'Facture')
+                        @elseif($achat->estBapa() && $achat->etape === 'Facture')
                             {{-- Le bordereau attend la main qui le normalisera :
                                  il n'y a pas d'envoi automatique à l'achat. --}}
                             <span style="background:#f8fafc; color:#475569; border:1px solid #cbd5e1; padding:4px 10px; border-radius:20px; font-weight:700; font-size:12px; display:inline-flex; align-items:center; gap:5px;" title="Le bordereau se normalise par le bouton « Normaliser ».">
@@ -405,7 +530,13 @@
                         @php
                             $dgiVoirUrl = $achat->fichier_fne_pdf_url;
                         @endphp
+                        @if($sectionSansDgi)
+                            <span style="color:var(--text-3); font-size:12px;">Aucune donnée</span>
+                        @else
+                        {{-- Le même partage qu'aux ventes : le document rendu
+                             par la plateforme, à voir et à emporter. --}}
                         <div style="display:flex; gap:6px; align-items:center;">
+                            <span style="font-size:10px; color:var(--text-3); width:62px;">Bordereau</span>
                             @if($dgiVoirUrl)
                                 <a href="{{ $dgiVoirUrl }}" target="_blank" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Voir le document DGI">
                                     <i class="fas fa-eye"></i>
@@ -414,14 +545,10 @@
                                     <i class="fas fa-download"></i>
                                 </a>
                             @else
-                                <button type="button" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px; opacity:.5; cursor:not-allowed;" title="Aucun document DGI retourné" disabled>
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                                <button type="button" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px; opacity:.5; cursor:not-allowed;" title="Aucun document DGI retourné" disabled>
-                                    <i class="fas fa-download"></i>
-                                </button>
+                                <span style="color:var(--text-3); font-size:11px;" title="La plateforme n'a rendu aucun fichier">—</span>
                             @endif
                         </div>
+                        @endif
                     </td>
                     {{-- « Originale » : les documents établis par Selflow. Ce
                          ne sont pas des actions, et ils encombraient la colonne
@@ -431,7 +558,7 @@
                             <a href="{{ route('admin.achats.imprimer', $achat) }}" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Voir la facture d'achat établie par Selflow">
                                 <i class="fas fa-file-invoice"></i> Facture
                             </a>
-                            @if($achat->type_facture === 'bapa' && $achat->etape === 'Facture')
+                            @if($achat->estBapa() && $achat->etape === 'Facture')
                                 <a href="{{ route('admin.achats.bapa', $achat) }}" class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger); font-size:11px; padding:4px 8px;" title="Bordereau d'achat de produits agricoles">
                                     <i class="fas fa-file-lines"></i> BAPA
                                 </a>
@@ -439,10 +566,11 @@
                         </div>
                     </td>
 
+                    @if($afficherActions)
                     <td>
                         <div style="display:flex; gap:6px; align-items:center;">
                             {{-- Normalisation manuelle (BAPA uniquement) --}}
-                            @if(!$achat->normalise && $achat->etape === 'Facture' && $achat->type_facture === 'bapa')
+                            @if(!$achat->normalise && $achat->etape === 'Facture' && $achat->estBapa())
                                 <form method="POST" action="{{ route('admin.achats.normaliser', $achat) }}" style="display:inline; margin:0;">
                                     @csrf
                                     <button type="submit" class="btn btn-success btn-sm" style="font-weight:700; font-size:11px; padding:4px 8px;" title="Normaliser manuellement auprès de la DGI BAPA">
@@ -477,6 +605,7 @@
                             @endif
                         </div>
                     </td>
+                    @endif
                 </tr>
                 @endforeach
             </tbody>
@@ -485,497 +614,13 @@
         @endif
     </div>
 </div>
-@if($type === 'avoir')
-<div class="modal-overlay" id="modalNouveauAvoir" style="display:none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center; overflow-y: auto; padding: 20px;">
-    <div style="background: #fff; border-radius: 16px; max-width: 800px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); overflow: hidden; display: flex; flex-direction: column; max-height: 90vh;">
-        <div style="padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: #f8fafc;">
-            <h3 style="font-size: 18px; font-weight: 800; color: #0f172a; margin: 0; display: flex; align-items: center; gap: 8px;">
-                <i class="fas fa-file-circle-minus" style="color:#e17055;"></i> Nouvelle Facture d'Avoir Fournisseur
-            </h3>
-            <button type="button" onclick="fermerModalNouveauAvoir()" style="background:none; border:none; font-size:20px; color:#64748b; cursor:pointer;"><i class="fas fa-times"></i></button>
-        </div>
-        <form method="POST" action="{{ route('admin.achats.avoir.creer_nouveau') }}" style="margin:0; display:flex; flex-direction:column; overflow:hidden;">
-            @csrf
-            <div style="padding: 24px; overflow-y: auto; flex-grow: 1; max-height: 60vh;">
-                <!-- Choix de la facture d'origine -->
-                <div style="margin-bottom: 20px;">
-                    <label style="font-weight: 700; font-size: 13px; display: block; margin-bottom: 6px; color: #334155;">Choisir la facture de doit d'origine *</label>
-                    <select id="selectFactureAvoir" onchange="if(this.value) { selectionnerFacturePourAvoir(this.value); } else { masquerDetailsFactureAvoir(); }" class="form-control" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-weight: 600; color: #0f172a; background: #fff;">
-                        <option value="">-- Sélectionner une facture --</option>
-                        {{-- Même défaut qu'à l'avoir de vente : le numéro de
-                             ligne partait dans une adresse qui résout par
-                             `uuid`, la requête tombait en 404 (Not Found —
-                             introuvable), et le script recevait la page
-                             d'erreur en HTML là où il attendait du JSON.
-                             Personne ne l'avait signalé de ce côté. --}}
-                        @foreach($facturesDispo as $f)
-                            <option value="{{ $f->uuid }}">{{ $f->numero_facture }} - {{ $f->fournisseur?->nom ?? 'Fournisseur inconnu' }} ({{ number_format($f->montant_ttc, 0, ',', ' ') }} F)</option>
-                        @endforeach
-                    </select>
-                    <div style="font-size:11.5px; color:#64748b; margin-top:6px; line-height:1.5;">
-                        <i class="fas fa-circle-info"></i>
-                        Les bordereaux d'achat aux producteurs agricoles (BAPA) ne figurent pas
-                        dans cette liste : la DGI ne normalise pas encore leur avoir.
-                    </div>
-                </div>
-
-                <div id="factureDetailsAvoir" style="display: none;">
-                    <input type="hidden" name="parent_id" id="avoir_parent_id">
-                    
-                    <div style="background: #f1f5f9; padding: 14px 18px; border-radius: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #e17055;">
-                        <div>
-                            <div style="font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase;">Facture Sélectionnée</div>
-                            <div id="avoir_facture_ref" style="font-size: 16px; font-weight: 800; color: #0f172a;">FAC-0000</div>
-                        </div>
-                        <div style="text-align: right;">
-                            <div style="font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase;">Fournisseur d'origine</div>
-                            <div id="avoir_fournisseur_nom" style="font-size: 15px; font-weight: 700; color: #0f172a;">—</div>
-                        </div>
-                    </div>
-
-                    <!-- Raison / Motif -->
-                    <div class="form-group" style="margin-bottom: 20px;">
-                        <label style="font-weight: 700; font-size: 13px; display: block; margin-bottom: 6px; color: #334155;">Motif / Raison de l'avoir *</label>
-                        <input type="text" name="raison" class="form-control" required placeholder="Ex: Retour de marchandise abîmée, erreur de tarif..." style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
-                    </div>
-
-                    <!-- Articles -->
-                    <label style="font-weight: 700; font-size: 13px; display: block; margin-bottom: 10px; color: #334155;">Sélectionner les articles et ajuster les quantités à créditer</label>
-                    <table class="table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                        <thead>
-                            <tr style="background:#f8fafc; border-bottom: 1.5px solid #cbd5e1; text-align: left;">
-                                <th style="padding: 10px;">Désignation</th>
-                                <th style="padding: 10px; text-align: center; width: 100px;">Qté Initiale</th>
-                                <th style="padding: 10px; text-align: center; width: 120px;">Qté Avoir</th>
-                                <th style="padding: 10px; text-align: right; width: 120px;">Prix Unit.</th>
-                                <th style="padding: 10px; width: 180px;">Action sur Stock</th>
-                            </tr>
-                        </thead>
-                        <tbody id="avoirItemsTableBody">
-                            <!-- Rempli dynamiquement -->
-                        </tbody>
-                    </table>
-
-                    <!-- Ajout d'autres articles / Saisies libres -->
-                    <div style="margin-top: 24px; border-top: 1.5px solid #cbd5e1; padding-top: 16px;">
-                        <h4 style="font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; text-align: left;">
-                            <i class="fas fa-plus-circle" style="color:#e17055;"></i> Ajouter d'autres articles
-                        </h4>
-                        
-                        <div style="display: flex; gap: 8px; margin-bottom: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
-                            <button type="button" id="tab_catalog_btn" onclick="switchAddMode('catalog')" style="padding: 6px 12px; font-size: 11px; font-weight:700; border-radius: 6px; border: none; cursor: pointer; background: #e17055; color: #fff;">Catalogue Produits</button>
-                            <button type="button" id="tab_free_btn" onclick="switchAddMode('free')" style="padding: 6px 12px; font-size: 11px; font-weight:700; border-radius: 6px; border: 1px solid #cbd5e1; cursor: pointer; background: #fff; color: #475569;">Saisie Libre (Hors Catalogue)</button>
-                        </div>
-
-                        <!-- Panel Catalogue -->
-                        <div id="panel_catalog" style="display: block; background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; align-items: end;">
-                                <div style="text-align: left;">
-                                    <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Sélectionner le produit *</label>
-                                    <select id="catalog_product_id" onchange="onCatalogProductChange()" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background:#fff; font-size: 12px;">
-                                        <option value="">-- Choisir un produit --</option>
-                                    </select>
-                                </div>
-                                <div style="text-align: left;">
-                                    <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Quantité *</label>
-                                    <input type="number" id="catalog_qty" value="1" min="1" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; text-align: center;">
-                                </div>
-                                <div style="text-align: left;">
-                                    <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Prix U. Avoir *</label>
-                                    <input type="number" id="catalog_price" value="0" min="0" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; text-align: right;">
-                                </div>
-                                <div>
-                                    <button type="button" onclick="ajouterArticleDuCatalogue()" style="width: 100%; padding: 8px 12px; background: #e17055; color: #fff; border: none; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; height: 35px;">
-                                        <i class="fas fa-plus"></i> Ajouter
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Panel Saisie Libre -->
-                        <div id="panel_free" style="display: none; background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 10px; align-items: end;">
-                                <div style="text-align: left;">
-                                    <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Description / Libellé *</label>
-                                    <input type="text" id="free_label" placeholder="Ex: Remise ou correction" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px;">
-                                </div>
-                                <div style="text-align: left;">
-                                    <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Quantité *</label>
-                                    <input type="number" id="free_qty" value="1" min="1" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; text-align: center;">
-                                </div>
-                                <div style="text-align: left;">
-                                    <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Prix U. Avoir *</label>
-                                    <input type="number" id="free_price" value="0" min="0" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; text-align: right;">
-                                </div>
-                                <div style="text-align: left;">
-                                    <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Taux TVA</label>
-                                    <select id="free_tva_rate" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background:#fff; font-size: 12px;">
-                                        <option value="18">TVA 18%</option>
-                                        <option value="0">TVA 0%</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <button type="button" onclick="ajouterSaisieLibre()" style="width: 100%; padding: 8px 12px; background: #e17055; color: #fff; border: none; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; height: 35px;">
-                                        <i class="fas fa-plus"></i> Ajouter
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div style="padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 12px; background: #f8fafc;">
-                <button type="button" class="btn btn-outline" onclick="fermerModalNouveauAvoir()">Annuler</button>
-                <button type="submit" id="btnValiderAvoir" class="btn" style="background:#e17055; color:#fff;" disabled>Créer la Facture d'Avoir</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<script>
-let searchTimeout = null;
-let catalogProducts = {};
-let customItemCounter = 0;
-
-function switchAddMode(mode) {
-    const tabCatalog = document.getElementById('tab_catalog_btn');
-    const tabFree = document.getElementById('tab_free_btn');
-    const panelCatalog = document.getElementById('panel_catalog');
-    const panelFree = document.getElementById('panel_free');
-    
-    if (mode === 'catalog') {
-        tabCatalog.style.background = '#e17055';
-        tabCatalog.style.color = '#fff';
-        tabCatalog.style.border = 'none';
-        
-        tabFree.style.background = '#fff';
-        tabFree.style.color = '#475569';
-        tabFree.style.border = '1px solid #cbd5e1';
-        
-        panelCatalog.style.display = 'block';
-        panelFree.style.display = 'none';
-    } else {
-        tabFree.style.background = '#e17055';
-        tabFree.style.color = '#fff';
-        tabFree.style.border = 'none';
-        
-        tabCatalog.style.background = '#fff';
-        tabCatalog.style.color = '#475569';
-        tabCatalog.style.border = '1px solid #cbd5e1';
-        
-        panelCatalog.style.display = 'none';
-        panelFree.style.display = 'block';
-    }
-}
-
-function chargerProduitsParCategorie() {
-    const select = document.getElementById('catalog_product_id');
-    const url = "{{ route('admin.achats.factures.produits_categories') }}";
-    
-    fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            catalogProducts = data;
-            select.innerHTML = '<option value="">-- Choisir un produit --</option>';
-            
-            for (const [catName, list] of Object.entries(data)) {
-                const group = document.createElement('optgroup');
-                group.label = catName;
-                
-                list.forEach(p => {
-                    const opt = document.createElement('option');
-                    opt.value = p.id;
-                    opt.dataset.price = p.prix_achat;
-                    opt.dataset.unit = p.unite;
-                    opt.dataset.stockable = p.est_stockable ? 1 : 0;
-                    opt.dataset.tva = p.taux_tva;
-                    opt.dataset.name = p.nom;
-                    opt.textContent = `${p.nom} (${p.prix_achat} F CFA / ${p.unite})`;
-                    group.appendChild(opt);
-                });
-                
-                select.appendChild(group);
-            }
-        });
-}
-
-function onCatalogProductChange() {
-    const select = document.getElementById('catalog_product_id');
-    const selectedOpt = select.options[select.selectedIndex];
-    if (!selectedOpt || selectedOpt.value === "") {
-        document.getElementById('catalog_price').value = 0;
-        return;
-    }
-    document.getElementById('catalog_price').value = selectedOpt.dataset.price;
-}
-
-function ajouterArticleDuCatalogue() {
-    const select = document.getElementById('catalog_product_id');
-    const selectedOpt = select.options[select.selectedIndex];
-    if (!selectedOpt || selectedOpt.value === "") {
-        alert("Veuillez sélectionner un produit du catalogue.");
-        return;
-    }
-    
-    const productId = selectedOpt.value;
-    const price = parseFloat(document.getElementById('catalog_price').value) || 0;
-    const qty = parseFloat(document.getElementById('catalog_qty').value) || 1;
-    const isStockable = parseInt(selectedOpt.dataset.stockable);
-    const tva = selectedOpt.dataset.tva;
-    const name = selectedOpt.dataset.name;
-    
-    customItemCounter++;
-    const rowId = `new_catalog_${customItemCounter}`;
-    
-    const tbody = document.getElementById('avoirItemsTableBody');
-    const tr = document.createElement('tr');
-    tr.style.borderBottom = '0.5px solid #e2e8f0';
-    
-    // Designation
-    const tdNom = document.createElement('td');
-    tdNom.style.padding = '10px';
-    tdNom.innerHTML = `
-        <strong>${name}</strong> <span style="font-size: 10px; background:#dcfce7; color:#15803d; padding:2px 6px; border-radius:4px; margin-left:4px;">Catalogue</span>
-        <input type="hidden" name="items[${rowId}][est_nouveau]" value="1">
-        <input type="hidden" name="items[${rowId}][produit_id]" value="${productId}">
-        <input type="hidden" name="items[${rowId}][libelle_virtuel]" value="${name}">
-        <input type="hidden" name="items[${rowId}][taux_tva]" value="${tva}">
-    `;
-    tr.appendChild(tdNom);
-    
-    // Original Qty
-    const tdOriginalQty = document.createElement('td');
-    tdOriginalQty.style.padding = '10px';
-    tdOriginalQty.style.textAlign = 'center';
-    tdOriginalQty.style.fontWeight = '600';
-    tdOriginalQty.textContent = `—`;
-    tr.appendChild(tdOriginalQty);
-    
-    // Return Qty
-    const tdReturnQty = document.createElement('td');
-    tdReturnQty.style.padding = '10px';
-    tdReturnQty.innerHTML = `<input type="number" name="items[${rowId}][quantite]" class="form-control" value="${qty}" min="0.001" step="0.001" required style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; text-align: center;">`;
-    tr.appendChild(tdReturnQty);
-    
-    // Price
-    const tdPrice = document.createElement('td');
-    tdPrice.style.padding = '10px';
-    tdPrice.style.textAlign = 'right';
-    tdPrice.innerHTML = `<input type="number" name="items[${rowId}][prix_unitaire]" class="form-control" value="${price}" min="0" required style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; text-align: right;">`;
-    tr.appendChild(tdPrice);
-    
-    // Stock Action
-    const tdStockAction = document.createElement('td');
-    tdStockAction.style.padding = '10px';
-    if (isStockable) {
-        tdStockAction.innerHTML = `
-            <select name="items[${rowId}][stock_action]" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
-                <option value="reinject">Retour physique (Déduire du stock)</option>
-                <option value="none">Aucun impact de stock</option>
-            </select>
-        `;
-    } else {
-        tdStockAction.innerHTML = `<span style="color:#64748b; font-style:italic;">Non stockable</span><input type="hidden" name="items[${rowId}][stock_action]" value="none">`;
-    }
-    tr.appendChild(tdStockAction);
-    
-    tbody.appendChild(tr);
-    
-    // Reset selections
-    select.value = "";
-    document.getElementById('catalog_price').value = 0;
-    document.getElementById('catalog_qty').value = 1;
-}
-
-function ajouterSaisieLibre() {
-    const labelInput = document.getElementById('free_label');
-    const label = labelInput.value.trim();
-    if (label === "") {
-        alert("Veuillez saisir un libellé pour la ligne libre.");
-        return;
-    }
-    
-    const price = parseFloat(document.getElementById('free_price').value) || 0;
-    const qty = parseFloat(document.getElementById('free_qty').value) || 1;
-    const tva = document.getElementById('free_tva_rate').value;
-    
-    customItemCounter++;
-    const rowId = `new_free_${customItemCounter}`;
-    
-    const tbody = document.getElementById('avoirItemsTableBody');
-    const tr = document.createElement('tr');
-    tr.style.borderBottom = '0.5px solid #e2e8f0';
-    
-    // Designation
-    const tdNom = document.createElement('td');
-    tdNom.style.padding = '10px';
-    tdNom.innerHTML = `
-        <strong>${label}</strong> <span style="font-size: 10px; background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px; margin-left:4px;">Saisie libre</span>
-        <input type="hidden" name="items[${rowId}][est_nouveau]" value="1">
-        <input type="hidden" name="items[${rowId}][libelle_virtuel]" value="${label}">
-        <input type="hidden" name="items[${rowId}][taux_tva]" value="${tva}">
-    `;
-    tr.appendChild(tdNom);
-    
-    // Original Qty
-    const tdOriginalQty = document.createElement('td');
-    tdOriginalQty.style.padding = '10px';
-    tdOriginalQty.style.textAlign = 'center';
-    tdOriginalQty.style.fontWeight = '600';
-    tdOriginalQty.textContent = `—`;
-    tr.appendChild(tdOriginalQty);
-    
-    // Return Qty
-    const tdReturnQty = document.createElement('td');
-    tdReturnQty.style.padding = '10px';
-    tdReturnQty.innerHTML = `<input type="number" name="items[${rowId}][quantite]" class="form-control" value="${qty}" min="0.001" step="0.001" required style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; text-align: center;">`;
-    tr.appendChild(tdReturnQty);
-    
-    // Price
-    const tdPrice = document.createElement('td');
-    tdPrice.style.padding = '10px';
-    tdPrice.style.textAlign = 'right';
-    tdPrice.innerHTML = `<input type="number" name="items[${rowId}][prix_unitaire]" class="form-control" value="${price}" min="0" required style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; text-align: right;">`;
-    tr.appendChild(tdPrice);
-    
-    // Stock Action
-    const tdStockAction = document.createElement('td');
-    tdStockAction.style.padding = '10px';
-    tdStockAction.innerHTML = `<span style="color:#64748b; font-style:italic;">Non stockable</span><input type="hidden" name="items[${rowId}][stock_action]" value="none">`;
-    tr.appendChild(tdStockAction);
-    
-    tbody.appendChild(tr);
-    
-    // Reset selections
-    labelInput.value = "";
-    document.getElementById('free_price').value = 0;
-    document.getElementById('free_qty').value = 1;
-}
-
-function ouvrirModalNouveauAvoir() {
-    document.getElementById('modalNouveauAvoir').style.display = 'flex';
-    chargerProduitsParCategorie();
-}
-
-function fermerModalNouveauAvoir() {
-    document.getElementById('modalNouveauAvoir').style.display = 'none';
-    const selectEl = document.getElementById('selectFactureAvoir');
-    if (selectEl) selectEl.value = '';
-    document.getElementById('factureDetailsAvoir').style.display = 'none';
-    document.getElementById('btnValiderAvoir').disabled = true;
-}
-
-function masquerDetailsFactureAvoir() {
-    document.getElementById('factureDetailsAvoir').style.display = 'none';
-    document.getElementById('btnValiderAvoir').disabled = true;
-}
-
-function chercherFactures(query) {
-    clearTimeout(searchTimeout);
-    if (query.length < 2) {
-        document.getElementById('autocompleteResults').style.display = 'none';
-        return;
-    }
-
-    searchTimeout = setTimeout(() => {
-        const url = "{{ route('admin.achats.factures.rechercher') }}?q=" + encodeURIComponent(query);
-        fetch(url)
-            .then(res => res.json())
-            .then(data => {
-                const container = document.getElementById('autocompleteResults');
-                container.innerHTML = '';
-                if (data.length === 0) {
-                    container.innerHTML = '<div style="padding: 10px; color: #64748b; font-style: italic;">Aucune facture trouvée</div>';
-                } else {
-                    data.forEach(item => {
-                        const div = document.createElement('div');
-                        div.style.padding = '10px 14px';
-                        div.style.cursor = 'pointer';
-                        div.style.borderBottom = '0.5px solid #f1f5f9';
-                        div.style.fontSize = '13px';
-                        div.style.fontWeight = '600';
-                        div.style.color = '#0f172a';
-                        div.innerHTML = item.text;
-                        div.onclick = () => selectionnerFacturePourAvoir(item.id);
-                        div.onmouseover = () => div.style.background = '#f1f5f9';
-                        div.onmouseout = () => div.style.background = '#fff';
-                        container.appendChild(div);
-                    });
-                }
-                container.style.display = 'block';
-            });
-    }, 300);
-}
-
-function selectionnerFacturePourAvoir(id) {
-    const baseUrl = "{{ route('admin.achats.factures.details', ':id') }}";
-    const url = baseUrl.replace(':id', id);
-
-    fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById('avoir_parent_id').value = data.id;
-            document.getElementById('avoir_facture_ref').textContent = data.numero_facture;
-            document.getElementById('avoir_fournisseur_nom').textContent = data.fournisseur_nom;
-            
-            const tbody = document.getElementById('avoirItemsTableBody');
-            tbody.innerHTML = '';
-            
-            data.details.forEach(item => {
-                const tr = document.createElement('tr');
-                tr.style.borderBottom = '0.5px solid #e2e8f0';
-                
-                // Designation
-                const tdNom = document.createElement('td');
-                tdNom.style.padding = '10px';
-                tdNom.innerHTML = `<strong>${item.libelle}</strong><input type="hidden" name="items[${item.id}][id]" value="${item.id}">`;
-                tr.appendChild(tdNom);
-                
-                // Original Qty
-                const tdOriginalQty = document.createElement('td');
-                tdOriginalQty.style.padding = '10px';
-                tdOriginalQty.style.textAlign = 'center';
-                tdOriginalQty.style.fontWeight = '600';
-                tdOriginalQty.textContent = `${item.quantite} ${item.unite}`;
-                tr.appendChild(tdOriginalQty);
-                
-                // Return Qty
-                const tdReturnQty = document.createElement('td');
-                tdReturnQty.style.padding = '10px';
-                tdReturnQty.innerHTML = `<input type="number" name="items[${item.id}][quantite]" class="form-control" value="${item.quantite}" min="0" step="0.001" max="${item.quantite}" required style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; text-align: center;">`;
-                tr.appendChild(tdReturnQty);
-                
-                // Price
-                const tdPrice = document.createElement('td');
-                tdPrice.style.padding = '10px';
-                tdPrice.style.textAlign = 'right';
-                tdPrice.innerHTML = `<input type="number" name="items[${item.id}][prix_unitaire]" class="form-control" value="${item.prix_unitaire}" min="0" required style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; text-align: right;">`;
-                tr.appendChild(tdPrice);
-                
-                // Stock Action
-                const tdStockAction = document.createElement('td');
-                tdStockAction.style.padding = '10px';
-                if (item.est_stockable) {
-                    tdStockAction.innerHTML = `
-                        <select name="items[${item.id}][stock_action]" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
-                            <option value="reinject">Sortie de stock (Retour fournisseur)</option>
-                            <option value="none">Aucun retour physique</option>
-                        </select>
-                    `;
-                } else {
-                    tdStockAction.innerHTML = `<span style="color:#64748b; font-style:italic;">Non stockable</span><input type="hidden" name="items[${item.id}][stock_action]" value="none">`;
-                }
-                tr.appendChild(tdStockAction);
-                
-                tbody.appendChild(tr);
-            });
-            
-            document.getElementById('factureDetailsAvoir').style.display = 'block';
-            document.getElementById('btnValiderAvoir').disabled = false;
-        });
-}
-</script>
-@endif
+{{-- Le modal « Créer une facture d'avoir » vivait ici, avec ses quatre cents
+     lignes de script. Retiré le 25/09/2026 à la demande du propriétaire :
+     **un acheteur n'établit pas l'avoir de son fournisseur.** La DGI ne le
+     prévoit pas — la plateforme ne certifie l'avoir que du côté de celui qui a
+     émis la facture —, et Selflow offrait donc un document que rien ne rendait
+     opposable. Les avoirs déjà enregistrés restent en base : ils sortent des
+     listes, ils ne sont pas détruits. --}}
 
 @if($activerSelectionGroup)
 <script>

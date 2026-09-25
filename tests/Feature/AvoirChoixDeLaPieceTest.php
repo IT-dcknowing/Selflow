@@ -137,15 +137,15 @@ class AvoirChoixDeLaPieceTest extends TestCase
         $this->assertStringNotContainsString('value="' . $facture->id . '">VT-2026-0001', $corps);
     }
 
-    public function test_la_liste_des_achats_d_origine_porte_l_identifiant_public(): void
-    {
-        $achat = $this->unAchat();
-
-        $corps = $this->get(route('admin.achats.factures', ['type' => 'avoir']))
-            ->assertOk()->getContent();
-
-        $this->assertStringContainsString('value="' . $achat->uuid . '"', $corps);
-    }
+    /*
+     * `test_la_liste_des_achats_d_origine_porte_l_identifiant_public()` vivait
+     * ici. **L'avoir fournisseur a été retiré le 25/09/2026** : un acheteur
+     * n'établit pas l'avoir de son fournisseur, la DGI ne le prévoit pas, et
+     * la liste déroulante qu'il alimentait n'existe plus.
+     *
+     * L'avoir CLIENT, lui, reste : c'est le vendeur qui l'établit, et la
+     * plateforme le certifie. Les cas qui le concernent sont restés ici.
+     */
 
     // ── Ce que la liste alimente ─────────────────────────────────────
 
