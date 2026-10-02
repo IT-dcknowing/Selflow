@@ -47,6 +47,10 @@ class TrousseauALaDemandeTest extends TestCase
         $this->entreprise = Entreprise::create([
             'nom' => 'Boutique du carrefour',
             'modules_actifs' => ['principal', 'comptabilite', 'tresorerie'],
+            // Cette entreprise tient ses livres dans Selflow : depuis le
+            // lot 39, cela se demande. Sans la case, les ecrans comptables
+            // repondent 404 (Not Found -- introuvable).
+            'comptabilite_activee' => true,
         ]);
 
         $site = PointDeVente::create([

@@ -36,6 +36,13 @@ class Entreprise extends Model
         'secteur_activite',
         'modules_actifs',
         'modules_autorises',
+        // La case que l'entreprise coche elle-même dans ses paramètres.
+        'comptabilite_activee',
+        // `attributions` ne figure PAS ici, et c'est délibéré : c'est ce que
+        // le superadministrateur accorde. Assignable en masse, le formulaire
+        // des paramètres aurait permis à une entreprise de s'accorder
+        // elle-même ce qui ne lui revient pas — le défaut exact de la clé de
+        // liaison Comptaflow, corrigé au lot 15.
         'souscription_etape',
         'souscription_terminee_le',
         'activite_autre',
@@ -90,6 +97,8 @@ class Entreprise extends Model
         'secteur_activite'   => 'array',
         'modules_actifs'     => 'array',
         'modules_autorises'  => 'array',
+        'comptabilite_activee' => 'boolean',
+        'attributions'       => 'array',
         'souscription_terminee_le' => 'datetime',
         'timbre_quittance'   => 'boolean',
         'bapa'               => 'boolean',
@@ -414,6 +423,54 @@ class Entreprise extends Model
             'entreprise_id',
             'profil_id'
         )->withPivot(['familles_creees', 'articles_crees', 'souscrit_le'])->withTimestamps();
+    }
+
+    /**
+     * Ce que le superadministrateur peut ouvrir à une entreprise donnée.
+     *
+     * La clé est ce qui se range dans `attributions`, la valeur ce que l'écran
+     * en dit. Un seul élément aujourd'hui ; la liste est faite pour grossir.
+     */
+    public const ATTRIBUTIONS = [
+        'comptabilite' => 'Comptabilité complète — plan comptable, journaux, balance, grand livre, lettrage',
+    ];
+
+    /**
+     * L'entreprise voit-elle ses écrans comptables ?
+     *
+     * Deux chemins, et un seul suffit :
+     *
+     * 1. **Elle l'a demandé** — la case « Activer la comptabilité » de ses
+     *    paramètres ;
+     * 2. **Le superadministrateur le lui a accordé** — l'écran Attributions,
+     *    qui passe outre son réglage.
+     *
+     * Le second ne se déduit pas du premier, et c'est le point : une
+     * entreprise qui décoche sa case n'annule pas ce qu'on lui a accordé, et
+     * elle ne peut pas s'accorder elle-même ce qui ne lui revient pas.
+     *
+     * Par défaut, **non**. Selflow est vente, achat, facturation, stock : les
+     * numéros de compte, les codes journaux et le plan comptable ne sont pas
+     * nécessaires pour établir une facture. La comptabilité intervient pour
+     * ceux qui la veulent — et ceux-là ont Comptaflow, qui tient les livres.
+     */
+    public function comptabiliteOuverte(): bool
+    {
+        return (bool) $this->comptabilite_activee || $this->aAttribution('comptabilite');
+    }
+
+    /**
+     * Le superadministrateur a-t-il accordé cette chose à cette entreprise ?
+     */
+    public function aAttribution(string $attribution): bool
+    {
+        $accordees = $this->attributions;
+
+        if (is_string($accordees)) {
+            $accordees = json_decode($accordees, true);
+        }
+
+        return is_array($accordees) && in_array($attribution, $accordees, true);
     }
 
     /**

@@ -50,6 +50,13 @@ class VerifierHabilitationRoute
         'superadmin.utilisateurs'                     => 'gestion_entreprises',
         'superadmin.utilisateurs.modifier'            => 'gestion_entreprises',
 
+        // Ce que la plateforme ouvre a une entreprise donnee, quel que soit
+        // son statut -- la comptabilite, fermee par defaut depuis le
+        // 02/10/2026, en fait partie. C'est la meme main que la gestion des
+        // entreprises : decider de ce qu'un dossier comporte.
+        'superadmin.attributions.index'    => 'gestion_entreprises',
+        'superadmin.attributions.basculer' => 'gestion_entreprises',
+
         'superadmin.liaisons.index'            => 'gestion_comptaflow',
         // `lier` et `creerComptaflow` n'existent plus : la cle est delivree par
         // Comptaflow a la validation, elle ne se colle plus a la main.

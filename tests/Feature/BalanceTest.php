@@ -43,6 +43,10 @@ class BalanceTest extends TestCase
             'rccm' => 'CI-ABJ-2026-B-1', 'ncc' => '2601234A',
             'gerant_fonction' => 'Gérant', 'secteur_activite' => ['Commerce'],
             'modules_actifs' => ['principal', 'ventes', 'achats', 'stock', 'comptabilite'],
+            // Cette entreprise tient ses livres dans Selflow : depuis le
+            // lot 39, cela se demande. Sans la case, les ecrans comptables
+            // repondent 404 (Not Found -- introuvable).
+            'comptabilite_activee' => true,
         ]);
 
         $this->magasin = PointDeVente::create([

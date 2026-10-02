@@ -167,52 +167,85 @@ Route::prefix('admin')
             Route::get('/encaissements', [TresorerieControleur::class, 'encaissements'])->name('encaissements');
             Route::get('/decaissements', [TresorerieControleur::class, 'decaissements'])->name('decaissements');
             Route::get('/journal', [TresorerieControleur::class, 'journal'])->name('journal');
-            Route::get('/codes-journaux', [TresorerieControleur::class, 'codesJournaux'])->name('codes_journaux');
-            Route::post('/codes-journaux', [TresorerieControleur::class, 'creerCodeJournal'])->name('creer_code_journal');
-            // Une entreprise doit pouvoir renommer ses propres journaux : le
-            // trousseau pose un intitule generique, et « Journal des ventes »
-            // n'est pas ce que tout le monde appelle son journal de ventes.
-            Route::put('/codes-journaux/{code}', [TresorerieControleur::class, 'modifierCodeJournal'])->name('modifier_code_journal');
-            Route::delete('/codes-journaux/{code}', [TresorerieControleur::class, 'supprimerCodeJournal'])->name('supprimer_code_journal');
-            // Le trousseau se posait a la creation de l'entreprise, et jamais
-            // plus : une entreprise creee avant qu'un journal soit ajoute au
-            // referentiel ne l'obtenait plus par aucun chemin.
-            Route::post('/codes-journaux/poser-le-defaut', [TresorerieControleur::class, 'poserLesJournauxParDefaut'])->name('poser_journaux_defaut');
+
+            /*
+             * Les codes journaux portent un numero de compte : c'est un ecran
+             * de comptabilite. Il ne s'ouvre qu'a qui l'a demandee.
+             *
+             * Encaissements, decaissements et solde restent ouverts a tous :
+             * ce sont des ecrans de caisse. Une entreprise encaisse sans tenir
+             * de livres.
+             */
+            Route::middleware('comptabilite')->group(function () {
+                Route::get('/codes-journaux', [TresorerieControleur::class, 'codesJournaux'])->name('codes_journaux');
+                Route::post('/codes-journaux', [TresorerieControleur::class, 'creerCodeJournal'])->name('creer_code_journal');
+                // Une entreprise doit pouvoir renommer ses propres journaux : le
+                // trousseau pose un intitule generique, et « Journal des ventes »
+                // n'est pas ce que tout le monde appelle son journal de ventes.
+                Route::put('/codes-journaux/{code}', [TresorerieControleur::class, 'modifierCodeJournal'])->name('modifier_code_journal');
+                Route::delete('/codes-journaux/{code}', [TresorerieControleur::class, 'supprimerCodeJournal'])->name('supprimer_code_journal');
+                // Le trousseau se posait a la creation de l'entreprise, et jamais
+                // plus : une entreprise creee avant qu'un journal soit ajoute au
+                // referentiel ne l'obtenait plus par aucun chemin.
+                Route::post('/codes-journaux/poser-le-defaut', [TresorerieControleur::class, 'poserLesJournauxParDefaut'])->name('poser_journaux_defaut');
+            });
         });
 
         // ── Comptabilité ──
         Route::prefix('comptabilite')->name('comptabilite.')->middleware('modules:comptabilite')->group(function () {
-            Route::get('/globale', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'globale'])->name('globale');
-            Route::get('/creances', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'creances'])->name('creances');
-            Route::get('/tiers/{type}/{id}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'releveTiers'])->name('releve_tiers');
-            Route::post('/reglement', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'enregistrerReglement'])->name('enregistrer_reglement');
-            Route::get('/plan-comptable', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'planComptable'])->name('plan_comptable');
-            Route::post('/plan-comptable', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'creerCompteComptable'])->name('creer_compte_comptable');
-            Route::post('/plan-comptable/poser-le-defaut', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'poserLePlanParDefaut'])->name('poser_plan_defaut');
-            Route::post('/ecritures/manuelle', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'creerEcritureManuelle'])->name('ecriture_manuelle');
-
-            // Balance de controle : ce qui permet a un client sans abonnement
-            // Comptaflow de verifier ce que Selflow a ecrit.
-            Route::get('/balance', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'balance'])->name('balance');
-
-            // Grand livre : la balance dit combien un compte a bouge, le grand
-            // livre dit pourquoi.
-            Route::get('/grand-livre', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'grandLivre'])->name('grand_livre');
 
             // Le resultat site par site : l'axe analytique que l'application
             // renseigne reellement.
+            //
+            // HORS du garde-fou `comptabilite`, et c'est voulu : c'est un
+            // rapport d'exploitation -- quel magasin gagne de l'argent -- et
+            // non un ecran de tenue de livres. Il a rejoint le menu Rapports
+            // le 02/10/2026, et doit rester quand la comptabilite est masquee.
             Route::get('/analytique', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'analytique'])->name('analytique');
 
-            // Les libelles d'ecriture : ce que le journal dit d'une operation,
-            // au lieu de repeter l'intitule du compte mouvemente.
-            Route::get('/libelles', [\App\Modules\Admin\Controleurs\ModeleLibelleControleur::class, 'index'])->name('libelles');
-            Route::put('/libelles', [\App\Modules\Admin\Controleurs\ModeleLibelleControleur::class, 'enregistrer'])->name('libelles.enregistrer');
-            Route::post('/libelles/apercu', [\App\Modules\Admin\Controleurs\ModeleLibelleControleur::class, 'apercu'])->name('libelles.apercu');
+            /*
+             * ── Ce qui ne s'ouvre qu'a qui a demande la comptabilite ──
+             *
+             * Selflow est vente, achat, facturation, stock. Les numeros de
+             * compte, les codes journaux et le plan comptable ne sont pas
+             * necessaires pour etablir une facture : la comptabilite
+             * intervient pour ceux qui la veulent, et ceux-la ont Comptaflow.
+             *
+             * Retirer les liens du menu ne suffirait pas -- un lien masque
+             * reste une adresse qu'on peut taper, ou qui dort dans un signet.
+             * Le refus est un 404 (Not Found -- introuvable) : l'entreprise
+             * n'a rien ferme, ces ecrans n'existent pas pour elle.
+             */
+            Route::middleware('comptabilite')->group(function () {
+                Route::get('/globale', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'globale'])->name('globale');
+                Route::get('/creances', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'creances'])->name('creances');
+                Route::get('/tiers/{type}/{id}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'releveTiers'])->name('releve_tiers');
+                Route::post('/reglement', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'enregistrerReglement'])->name('enregistrer_reglement');
+                Route::get('/plan-comptable', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'planComptable'])->name('plan_comptable');
+                Route::post('/plan-comptable', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'creerCompteComptable'])->name('creer_compte_comptable');
+                Route::post('/plan-comptable/poser-le-defaut', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'poserLePlanParDefaut'])->name('poser_plan_defaut');
+                Route::post('/ecritures/manuelle', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'creerEcritureManuelle'])->name('ecriture_manuelle');
 
-            // Lettrage : rapprocher une facture du reglement qui la solde.
-            Route::get('/lettrage', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'lettrage'])->name('lettrage');
-            Route::post('/lettrage', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'lettrer'])->name('lettrer');
-            Route::delete('/lettrage/{lettrage}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'delettrer'])->name('delettrer');
+                // Balance de controle : ce qui permet a un client sans abonnement
+                // Comptaflow de verifier ce que Selflow a ecrit.
+                Route::get('/balance', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'balance'])->name('balance');
+
+                // Grand livre : la balance dit combien un compte a bouge, le grand
+                // livre dit pourquoi.
+                Route::get('/grand-livre', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'grandLivre'])->name('grand_livre');
+
+                // Les libelles d'ecriture : ce que le journal dit d'une operation,
+                // au lieu de repeter l'intitule du compte mouvemente. C'est un
+                // reglage de comptabilite : sans comptabilite, il ne regle rien.
+                Route::get('/libelles', [\App\Modules\Admin\Controleurs\ModeleLibelleControleur::class, 'index'])->name('libelles');
+                Route::put('/libelles', [\App\Modules\Admin\Controleurs\ModeleLibelleControleur::class, 'enregistrer'])->name('libelles.enregistrer');
+                Route::post('/libelles/apercu', [\App\Modules\Admin\Controleurs\ModeleLibelleControleur::class, 'apercu'])->name('libelles.apercu');
+
+                // Lettrage : rapprocher une facture du reglement qui la solde.
+                Route::get('/lettrage', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'lettrage'])->name('lettrage');
+                Route::post('/lettrage', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'lettrer'])->name('lettrer');
+                Route::delete('/lettrage/{lettrage}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'delettrer'])->name('delettrer');
+            });
         });
 
         // ── Module Fiscalité & DGI (Gestion FNE) ──
@@ -503,6 +536,23 @@ Route::prefix('superadmin')
         Route::prefix('referentiel')->name('referentiel.')->group(function () {
             Route::get('/', [\App\Modules\Admin\Controleurs\SuperadminReferentielControleur::class, 'index'])->name('index');
             Route::get('/{code}', [\App\Modules\Admin\Controleurs\SuperadminReferentielControleur::class, 'profil'])->name('profil');
+        });
+
+        /*
+         * ── Attributions ──
+         *
+         * Ce que le superadministrateur ouvre a une entreprise donnee, quel
+         * que soit son statut. La comptabilite en fait partie : elle est
+         * fermee par defaut depuis le 02/10/2026, Selflow etant vente, achat,
+         * facturation et stock.
+         *
+         * C'est la main qu'on garde : une entreprise ne peut pas s'accorder
+         * elle-meme ce qui ne lui revient pas -- `attributions` n'est pas
+         * assignable en masse, et ne se lit d'aucun formulaire d'entreprise.
+         */
+        Route::prefix('attributions')->name('attributions.')->group(function () {
+            Route::get('/', [\App\Modules\Admin\Controleurs\SuperadminAttributionControleur::class, 'index'])->name('index');
+            Route::post('/{entreprise}', [\App\Modules\Admin\Controleurs\SuperadminAttributionControleur::class, 'basculer'])->name('basculer');
         });
 
         // ── Liaisons SELFLOW ↔ COMPTAFLOW ──

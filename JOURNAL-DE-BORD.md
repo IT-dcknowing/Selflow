@@ -6855,6 +6855,108 @@ même être connecté.
 
 ---
 
+### Lot 39 — La comptabilité cesse d'être offerte à tout le monde — **TERMINÉ le 02/10/2026**
+
+Section 2 du plan de correction. Décision du propriétaire : « Selflow c'est
+vente, achat, facturation, stock — maintenant la comptabilité intervient pour
+ceux qui le veulent. » Ceux-là ont Comptaflow, qui tient les livres ; garder
+toute la comptabilité dans Selflow ôtait l'envie d'y aller.
+
+#### 39.0 — Ce qui a été tranché avant de coder : API, et non base directe
+
+La question du propriétaire : passer les écritures en Comptaflow par API, en
+écrivant dans sa base, ou en masquant simplement les pages ?
+
+**Retenu : l'API, plus le masquage. Écarté : l'écriture directe en base.**
+
+| Pourquoi pas la base | |
+|---|---|
+| La logique de Comptaflow vit dans son **code PHP**, pas dans ses contraintes SQL | Exercices, périodes closes, séquences de numérotation, lettrage, contrôles de journal. Y écrire directement contourne exactement ce qu'on veut lui laisser décider — « Comptaflow suit sa logique » |
+| Selflow détiendrait le mot de passe de la base comptable de **tous** les clients | Bien pire qu'une clé d'API bornée à un dossier |
+| Aucune transaction n'est atomique entre deux bases | |
+| Une migration d'un côté casse l'autre **en silence** | |
+
+#### 39.1 — Deux réglages, et un seul suffit
+
+Les confondre en une seule colonne aurait fait qu'une entreprise décochant son
+réglage annulerait ce que le superadministrateur lui a accordé — ou l'inverse,
+qu'elle s'accorderait elle-même ce qui ne lui revient pas.
+
+| Colonne | Qui la pose | Ce qu'elle dit |
+|---|---|---|
+| `comptabilite_activee` | L'entreprise, dans ses paramètres | « Je veux voir mes écrans comptables » |
+| `attributions` | Le superadministrateur, écran Attributions | « Cette entreprise y a droit, quel que soit son statut » |
+
+`attributions` **n'est pas assignable en masse** — même discipline que la clé
+de liaison Comptaflow au lot 15, où une entreprise qui postait la clé d'une
+autre déversait ses écritures dans ses livres. Une épreuve le vérifie en
+postant le champ au formulaire des paramètres.
+
+**Le défaut est FAUX, y compris pour les entreprises existantes.** C'est le
+point à connaître avant de déployer : une entreprise qui consultait hier son
+grand livre ne le verra plus. Rien n'est supprimé, et l'écran revient entier
+d'une case à cocher. L'inverse — ouvrir par défaut ce qui existe — aurait
+laissé le masquage sans effet sur la seule population qui compte aujourd'hui,
+celle déjà en service.
+
+#### 39.2 — Masquer le menu ne ferme rien
+
+Un lien masqué reste une adresse qu'on peut taper, ou qui dort dans un signet.
+Le menu dit ce qu'on propose ; `VerifierComptabiliteOuverte` dit ce qu'on
+autorise.
+
+**Il répond 404 (Not Found — introuvable), et non 403 (Forbidden — accès
+interdit).** `modules:comptabilite`, juste à côté, répond 403 avec « le module
+n'est pas activé » — juste pour un module qu'on a fermé soi-même et qu'on peut
+rouvrir. Ici l'entreprise n'a rien fermé : elle n'a jamais eu ces écrans. Lui
+dire « interdit » la ferait chercher un droit manquant, fouiller ses
+habilitations, appeler le support. C'est la distinction du lot 8 : un refus
+d'appartenance rend 404, un refus d'habilitation rend 403.
+
+| Se masquent | Restent |
+|---|---|
+| Opération & écriture globale, Créances & règlements, Plan Comptable, Codes Journaux, Balance de contrôle, Grand livre, Lettrage, Libellés d'écriture | Encaissements, Décaissements, Solde & journal — **ce sont des écrans de caisse**, et une entreprise encaisse sans tenir de livres |
+
+**Deux écrans restent délibérément hors du garde-fou :**
+
+- **Résultat par site** — c'est un rapport d'exploitation, passé au menu
+  Rapports au lot 37. Quel magasin gagne de l'argent n'est pas une question de
+  tenue de livres ;
+- **la liaison Comptaflow** et la numérotation des tiers, dans les paramètres :
+  c'est par elles que les écritures partent, et elles servent précisément
+  **quand** la comptabilité locale est masquée.
+
+**Trouvé en chemin :** le titre de la section s'appelait encore
+« Comptabilité » alors qu'il ne portait plus que des écrans de caisse. Il
+devient « Trésorerie » — promettre des livres qu'on ne tient pas est le défaut
+que ce chantier corrige.
+
+#### 39.3 — Les écritures tournent quand même
+
+Rien dans le masquage ne touche à leur production. Vente, achat, avoir,
+règlement : chaque événement produit son écriture et la range, comptabilité
+ouverte ou non. C'est ce qui permet d'ouvrir la comptabilité six mois plus tard
+et d'avoir les livres complets — et c'est ce que Comptaflow reçoit. Une épreuve
+relit le middleware pour vérifier qu'il ne connaît ni les écritures ni le
+service qui les pose.
+
+#### 39.4 — L'écran Attributions
+
+Une attribution ouvre des écrans qui ne sont pas compris dans l'offre de base :
+**qui l'a accordée, à qui, et quand** part au journal d'application. Sans
+trace, un écran ouvert « on ne sait plus par qui » ne se referme jamais, de
+peur de casser quelque chose.
+
+La liste des attributions est **fermée** (`Entreprise::ATTRIBUTIONS`) : sans
+cela, n'importe quelle chaîne entrerait en base et ouvrirait quelque chose
+qu'on ne saurait plus nommer. Les routes sont rangées sous
+`gestion_entreprises` — c'est la même main que la gestion des dossiers.
+
+- `tests/Feature/ComptabiliteFacultativeTest.php` — 17 épreuves, **13 tombent**
+  sans le correctif
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

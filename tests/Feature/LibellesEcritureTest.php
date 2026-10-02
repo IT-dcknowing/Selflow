@@ -56,7 +56,13 @@ class LibellesEcritureTest extends TestCase
 
         LibelleEcritureService::oublier();
 
-        $this->entreprise = Entreprise::create(['nom' => 'Quincaillerie du Plateau']);
+        // Cette entreprise tient ses livres dans Selflow : depuis le lot 39,
+        // cela se demande. Sans la case, l'ecran des libelles repond
+        // 404 (Not Found -- introuvable).
+        $this->entreprise = Entreprise::create([
+            'nom' => 'Quincaillerie du Plateau',
+            'comptabilite_activee' => true,
+        ]);
 
         $this->site = PointDeVente::create([
             'entreprise_id' => $this->entreprise->id,

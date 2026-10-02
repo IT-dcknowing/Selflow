@@ -25,6 +25,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'hub.token'       => \App\Modules\Authentification\Middleware\VerifierJetonHub::class,
             'verify.hub.token'   => \App\Http\Middleware\VerifyHubToken::class,
             'inscription.complete' => \App\Modules\Authentification\Middleware\VerifierInscriptionComplete::class,
+            // Les écrans comptables ne s'ouvrent qu'à qui a demandé la
+            // comptabilité, ou à qui le superadministrateur l'a accordée.
+            'comptabilite'    => \App\Modules\Authentification\Middleware\VerifierComptabiliteOuverte::class,
         ]);
 
 

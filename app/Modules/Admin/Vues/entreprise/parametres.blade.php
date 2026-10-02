@@ -75,6 +75,12 @@
          refusées : les raccourcis ne menaient pas à tout ce que la page
          portait. --}}
     @php
+        // Selflow est vente, achat, facturation, stock. La comptabilité
+        // intervient pour ceux qui la veulent — et ceux-là ont Comptaflow.
+        // Tant qu'elle n'est pas demandée, ses raccourcis n'ont rien à
+        // désigner : les laisser mènerait à des cartes absentes.
+        $comptabiliteOuverte = (bool) $entreprise?->comptabiliteOuverte();
+
         $familles = [
             "L'entreprise" => [
                 'identite'   => ['Identité', 'fa-info-circle'],
@@ -89,11 +95,19 @@
                 'conformite' => ['Conformité FNE', 'fa-clipboard-check'],
                 'rejets'     => ['Pièces refusées', 'fa-triangle-exclamation'],
             ],
-            'Comptabilité' => [
-                'comptaflow' => ['Liaison Comptaflow', 'fa-link'],
-                'tiers'      => ['Numérotation des tiers', 'fa-hashtag'],
-                'libelles'   => ["Libellés d'écriture", 'fa-pen-nib'],
-            ],
+            // La liaison Comptaflow et la numérotation des tiers restent quoi
+            // qu'il arrive : c'est par elles que les écritures partent chez
+            // Comptaflow, et elles servent précisément **quand** la
+            // comptabilité locale est masquée. Les libellés d'écriture, eux,
+            // ne règlent plus rien : ils partent avec les écrans.
+            'Comptabilité' => array_merge(
+                [
+                    'comptabilite' => ['Activer la comptabilité', 'fa-toggle-on'],
+                    'comptaflow'   => ['Liaison Comptaflow', 'fa-link'],
+                    'tiers'        => ['Numérotation des tiers', 'fa-hashtag'],
+                ],
+                $comptabiliteOuverte ? ['libelles' => ["Libellés d'écriture", 'fa-pen-nib']] : []
+            ),
             'Documents' => [
                 'impression' => ['Impression', 'fa-print'],
             ],
@@ -805,10 +819,65 @@
                 expose pas : Selflow ne peut ni les lire ni les modifier.
                 Elles servent donc à noter ici l'état constaté chez la DGI,
                 en attendant que l'API le communique. --}}
-                                {{-- Les libellés d'écriture : ce que le journal dira d'une
+                {{-- ── Activer la comptabilité ──
+                     Selflow est vente, achat, facturation, stock. Les numéros
+                     de compte, les codes journaux et le plan comptable ne sont
+                     nécessaires à aucune facture : la comptabilité intervient
+                     pour ceux qui la veulent — et ceux-là ont Comptaflow, qui
+                     tient les livres.
+
+                     La case ne commande que l'affichage. Les écritures
+                     continuent d'être produites et rangées, décochée comme
+                     cochée : c'est ce qui permet d'ouvrir la comptabilité six
+                     mois plus tard et d'avoir les livres complets. --}}
+                <div class="card" style="padding:24px;">
+                    <div
+                        style="font-size:12px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+                        <span id="comptabilite" style="scroll-margin-top:90px;"></span><i class="fas fa-toggle-on" style="color:var(--primary);"></i> Activer la comptabilité
+                    </div>
+
+                    <div style="font-size:12px;color:var(--text-3);margin-bottom:14px;line-height:1.6;">
+                        Selflow établit vos ventes, vos achats, vos factures et votre stock sans
+                        qu'aucun numéro de compte ne vous soit demandé. Ouvrez la comptabilité si
+                        vous tenez vos livres ici : plan comptable, codes journaux, balance,
+                        grand livre et lettrage apparaîtront.
+                    </div>
+
+                    {{-- Le champ caché fait que la case est toujours postée :
+                         décochée, elle vaut « 0 ». Sans lui, une case non
+                         cochée ne s'envoie pas, et le réglage ne pourrait
+                         jamais se refermer. --}}
+                    <input type="hidden" name="comptabilite_activee" value="0">
+                    <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--text);">
+                        <input type="checkbox" name="comptabilite_activee" value="1" style="margin-top:2px;"
+                               {{ $entreprise?->comptabilite_activee ? 'checked' : '' }}
+                               {{ $entreprise?->aAttribution('comptabilite') ? 'disabled' : '' }}>
+                        <span>
+                            <b>Je tiens ma comptabilité dans Selflow.</b><br>
+                            <span style="color:var(--text-3);font-size:12px;">
+                                Refermer ne supprime rien — vos écritures continuent d'être
+                                enregistrées, elles cessent seulement d'être affichées.
+                            </span>
+                        </span>
+                    </label>
+
+                    @if($entreprise?->aAttribution('comptabilite'))
+                    <div style="margin-top:12px;font-size:12px;color:#8a5300;background:#fdf3e2;border:1px solid #f5d9a8;border-radius:8px;padding:10px 12px;line-height:1.6;">
+                        <i class="fas fa-circle-info"></i> La comptabilité vous a été ouverte par
+                        l'administrateur de la plateforme. Elle reste disponible même si vous
+                        décochez cette case.
+                    </div>
+                    @endif
+                </div>
+
+                @if($comptabiliteOuverte)
+                {{-- Les libellés d'écriture : ce que le journal dira d'une
                      opération. C'était un écran du menu Comptabilité, où il
                      n'avait rien à faire — on ne le consulte pas, on le règle
-                     une fois. --}}
+                     une fois.
+
+                     Sans comptabilité, il ne règle rien : la carte part avec
+                     les écrans auxquels elle mène. --}}
                 <div class="card" style="padding:24px;">
                     <div
                         style="font-size:12px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
@@ -825,6 +894,7 @@
                         <i class="fas fa-pen-nib"></i> Régler les libellés d'écriture
                     </a>
                 </div>
+                @endif
 
 <div class="card" style="padding:24px;">
                     <div

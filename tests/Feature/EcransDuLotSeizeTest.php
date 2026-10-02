@@ -54,6 +54,10 @@ class EcransDuLotSeizeTest extends TestCase
         $this->entreprise = Entreprise::create([
             'nom' => 'DC-Knowing CGA', 'regime_imposition' => 'RNI',
             'modules_actifs' => ['principal', 'ventes', 'produits', 'tiers', 'comptabilite', 'tresorerie'],
+            // Cette entreprise tient ses livres dans Selflow : depuis le
+            // lot 39, cela se demande. Sans la case, les ecrans comptables
+            // repondent 404 (Not Found -- introuvable).
+            'comptabilite_activee' => true,
         ]);
 
         $this->site = PointDeVente::create([

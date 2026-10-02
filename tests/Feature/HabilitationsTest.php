@@ -54,6 +54,12 @@ class HabilitationsTest extends TestCase
             'secteur_activite'  => ['Commerce'],
             'modules_actifs'    => ['principal', 'ventes', 'achats', 'stock', 'produits',
                                     'tiers', 'comptabilite', 'production', 'tresorerie'],
+            // Cette entreprise tient ses livres dans Selflow : depuis le lot
+            // 39, cela se demande. L'épreuve qui vérifie que le propriétaire
+            // « garde tout » visite la balance, et sans la case elle répondrait
+            // 404 (Not Found — introuvable) pour une raison qui n'a rien à voir
+            // avec les habilitations.
+            'comptabilite_activee' => true,
         ]);
 
         $this->magasin = PointDeVente::create([

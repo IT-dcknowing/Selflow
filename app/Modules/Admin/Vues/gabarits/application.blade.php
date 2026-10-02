@@ -596,6 +596,16 @@
         $nombreDeSites = $entreprise
             ? \App\Modules\Admin\Modeles\PointDeVente::where('entreprise_id', $entreprise->id)->count()
             : 0;
+
+        // Selflow est vente, achat, facturation, stock. La comptabilité
+        // intervient pour ceux qui la veulent — ceux-là ont Comptaflow, qui
+        // tient les livres. L'entreprise l'ouvre depuis ses paramètres, ou le
+        // superadministrateur la lui accorde.
+        //
+        // Le menu dit ce qu'on propose ; c'est le middleware `comptabilite`
+        // qui dit ce qu'on autorise. Un lien masqué reste une adresse.
+        $comptabiliteOuverte = auth()->user()->estSuperAdmin()
+            || (bool) $entreprise?->comptabiliteOuverte();
     @endphp
 
     @if($nomPdvAffichage)
@@ -686,6 +696,15 @@
              @if(auth()->user()->aHabilitation('administration_interne'))
             <a href="{{ route('superadmin.admins.index') }}" class="nav-item {{ request()->routeIs('superadmin.admins*') ? 'active' : '' }}">
                 <i class="fas fa-user-shield"></i> Admins Internes
+            </a>
+            @endif
+
+            {{-- Ce que la plateforme ouvre à une entreprise donnée, quel que
+                 soit son statut. La comptabilité, fermée par défaut depuis le
+                 02/10/2026, en fait partie : c'est la main qu'on garde. --}}
+            @if(auth()->user()->aHabilitation('gestion_entreprises'))
+            <a href="{{ route('superadmin.attributions.index') }}" class="nav-item {{ request()->routeIs('superadmin.attributions*') ? 'active' : '' }}">
+                <i class="fas fa-sliders"></i> Attributions
             </a>
             @endif
 
@@ -843,7 +862,11 @@
 
             <!-- 6. Comptabilité (Inclus Trésorerie) -->
             @if(in_array('comptabilite', $modulesActifs) && (auth()->user()->aHabilitation('tresorerie_encaissements') || auth()->user()->aHabilitation('tresorerie_decaissements') || auth()->user()->aHabilitation('tresorerie_journal') || auth()->user()->aHabilitation('tresorerie_codes_journaux') || auth()->user()->aHabilitation('comptabilite_globale') || auth()->user()->aHabilitation('comptabilite_creances') || auth()->user()->aHabilitation('comptabilite_plan_comptable')))
-            <div class="nav-section"><span>Comptabilité</span></div>
+            {{-- Sans la comptabilité, il ne reste sous ce titre que les
+                 encaissements, les décaissements et le solde : des écrans de
+                 caisse. Les appeler « Comptabilité » promettrait des livres
+                 qu'on ne tient pas. --}}
+            <div class="nav-section"><span>{{ $comptabiliteOuverte ? 'Comptabilité' : 'Trésorerie' }}</span></div>
             @if(auth()->user()->aHabilitation('tresorerie_encaissements'))
             <a href="{{ route('admin.tresorerie.encaissements') }}" class="nav-item {{ request()->routeIs('admin.tresorerie.encaissements') ? 'active' : '' }}">
                 <i class="fas fa-arrow-down" style="color:#10b981;"></i> Encaissements
@@ -859,6 +882,16 @@
                 <i class="fas fa-wallet"></i> Solde &amp; journal
             </a>
             @endif
+            {{-- ── À partir d'ici, la comptabilité proprement dite ──────────
+                 Encaissements, décaissements et solde restent ouverts à tous :
+                 ce sont des écrans de caisse, et une entreprise encaisse sans
+                 tenir de livres. Ce qui suit porte des numéros de compte, et
+                 ne s'affiche qu'à qui a demandé la comptabilité — ou à qui le
+                 superadministrateur l'a accordée.
+
+                 Le menu dit ce qu'on propose ; c'est le middleware
+                 `comptabilite` qui dit ce qu'on autorise. --}}
+            @if($comptabiliteOuverte)
             @if(auth()->user()->aHabilitation('tresorerie_codes_journaux'))
             <a href="{{ route('admin.tresorerie.codes_journaux') }}" class="nav-item {{ request()->routeIs('admin.tresorerie.codes_journaux') ? 'active' : '' }}">
                 <i class="fas fa-book"></i> Codes Journaux
@@ -889,6 +922,8 @@
             <a href="{{ route('admin.comptabilite.lettrage') }}" class="nav-item {{ request()->routeIs('admin.comptabilite.lettrage') ? 'active' : '' }}">
                 <i class="fas fa-link"></i> Lettrage
             </a>
+            @endif
+            @endif
             {{-- « Résultat par site » a quitté ce menu le 02/10/2026 pour la
                  section Rapports. Comparer ce que rapporte chaque magasin est
                  une question d'exploitation, pas de tenue de livres : l'écran
@@ -897,7 +932,6 @@
                  n'est pas un écran de comptabilité mais un réglage : il se
                  pose une fois et ne se consulte plus. Il vit désormais dans
                  les paramètres de l'entreprise, avec les autres. --}}
-            @endif
             @endif
 
             <!-- Fiscalité & DGI (Module FNE) -->

@@ -138,6 +138,16 @@ class EntrepriseControleur
             // La forme des numeros de tiers. Une valeur inconnue laisserait le
             // service sans instruction devant la prochaine fiche creee.
             'numerotation_tiers'     => ['nullable', 'string', 'in:' . implode(',', array_keys(\App\Modules\Admin\Services\NumerotationTiersService::CONVENTIONS))],
+            // La case « Activer la comptabilité ». Elle ne commande que
+            // l'affichage : les écritures continuent d'être produites et
+            // rangées, décochée comme cochée.
+            //
+            // `attributions` n'est PAS ici et ne doit jamais y être : c'est ce
+            // que le superadministrateur accorde. L'accepter au formulaire
+            // laisserait une entreprise s'accorder elle-même ce qui ne lui
+            // revient pas — le défaut exact de la clé de liaison Comptaflow,
+            // corrigé au lot 15.
+            'comptabilite_activee'   => ['nullable', 'in:0,1'],
         ], [
             'pied_de_page_facture.max'    => 'Le pied de page ne peut pas dépasser 248 caractères.',
             'facture_autres_mentions.max' => 'Les autres mentions ne peuvent pas dépasser 248 caractères.',
@@ -195,6 +205,18 @@ class EntrepriseControleur
         // ne justifie de basculer la suivante sans qu'on l'ait demande.
         if ($request->filled('numerotation_tiers')) {
             $data['numerotation_tiers'] = $request->input('numerotation_tiers');
+        }
+
+        // La comptabilite. Le champ cache qui accompagne la case fait qu'elle
+        // est toujours postee : decochee, elle vaut « 0 ». Se contenter de
+        // `has()` aurait rendu le decochage impossible -- une case non cochee
+        // ne s'envoie pas, et le reglage serait reste ouvert a jamais.
+        //
+        // Rien n'est supprime en refermant : les ecritures continuent d'etre
+        // produites et rangees. Seuls les ecrans disparaissent, et ils
+        // reviennent entiers d'une case a cocher.
+        if ($request->has('comptabilite_activee')) {
+            $data['comptabilite_activee'] = $request->input('comptabilite_activee') === '1';
         }
 
         // Le statut de la liaison Comptaflow se déduisait de la présence du
