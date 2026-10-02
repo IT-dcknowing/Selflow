@@ -42,6 +42,11 @@ image2.png
 # ecrite. Un clone frais n'avait ni la regle d'or FNE, ni l'etat des lots.
 !CLAUDE.md
 !JOURNAL-DE-BORD.md
+# Le plan de correction est au plan ce que le journal est a l'historique :
+# il dit ce qui reste et dans quel ordre. Pris par la regle `*xlsx`
+# ci-dessus, il serait reste sur un seul poste, et la session suivante
+# aurait redecoupe le meme chantier autrement.
+!PLAN-CORRECTION-SELFLOW.xlsx
 !PASSERELLE-COMPTAFLOW/
 !SCRAPER-PORTAIL-FNE/
 !SCRAPER-PORTAIL-FNE/*.md
