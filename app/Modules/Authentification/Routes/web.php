@@ -14,6 +14,26 @@ use Illuminate\Support\Facades\Route;
 Route::get('/presentation', [\App\Modules\Admin\Controleurs\VitrineControleur::class, 'accueil'])
     ->name('vitrine');
 
+/*
+ * Les images de la vitrine, servies quand `public/storage` n'est pas
+ * utilisable.
+ *
+ * Elles passaient par `admin.media`, qui vit derrière `auth` et
+ * `role:admin`. Sur l'hébergement mutualisé — celui-là même où le lien
+ * manque, et donc le seul où cette route sert — **la page de présentation
+ * s'affichait sans aucune de ses images pour un visiteur anonyme** : la
+ * vitrine, dont tout l'objet est d'être vue par qui n'a pas de compte.
+ *
+ * Elles ont leur propre porte, publique, parce qu'elles n'appartiennent à
+ * aucune entreprise : c'est le superadministrateur qui les dépose, et elles
+ * sont montrées à tout le monde. Les trois autres dossiers — logos, photos
+ * d'articles, avatars — restent derrière `admin.media`, qui vérifie
+ * désormais à qui le fichier appartient.
+ */
+Route::get('/presentation/media/{fichier}', [\App\Modules\Admin\Controleurs\VitrineControleur::class, 'servirUnMedia'])
+    ->where('fichier', '.*')
+    ->name('vitrine.media');
+
 // -----------------------------------------------------------------------
 // Routes publiques (accès sans authentification)
 // -----------------------------------------------------------------------

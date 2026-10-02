@@ -39,6 +39,31 @@ class VitrineControleur
         return view('admin::vitrine.publique', compact('sections'));
     }
 
+    /**
+     * Servir une image de la vitrine, sans demander de compte.
+     *
+     * Ces images passaient par `admin.media`, qui vit derrière `auth` et
+     * `role:admin`. Sur l'hébergement mutualisé — le seul où cette route sert,
+     * puisque `public/storage` n'y est pas utilisable — **la page de
+     * présentation s'affichait sans aucune de ses images pour un visiteur
+     * anonyme**. C'est-à-dire pour exactement le public auquel elle s'adresse.
+     *
+     * Le dossier est imposé ici, et non lu dans l'adresse : une route publique
+     * qui accepterait un nom de dossier laisserait demander `logos/…` ou
+     * `avatars/…` sans être connecté.
+     */
+    public function servirUnMedia(string $fichier): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $chemin = 'vitrine/' . $fichier;
+
+        abort_unless(\App\Modules\Admin\Services\FichierPublic::decouper($chemin)[0] === 'vitrine', 404);
+        abort_unless(\App\Modules\Admin\Services\FichierPublic::existe($chemin), 404);
+
+        return Storage::disk('public')->response($chemin, null, [
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
+    }
+
     // ══════════════ L'écran du superadmin ══════════════
 
     public function index(): View

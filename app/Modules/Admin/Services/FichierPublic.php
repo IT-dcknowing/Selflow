@@ -41,6 +41,16 @@ class FichierPublic
     public const DOSSIERS = ['logos', 'produits', 'avatars', 'vitrine'];
 
     /**
+     * Ceux qui n'appartiennent à personne.
+     *
+     * La vitrine est la page de présentation publique : ses images sont
+     * déposées par le superadministrateur et montrées à qui n'a pas de
+     * compte. Les trois autres dossiers portent les fichiers d'entreprises,
+     * et ne se servent qu'à qui ils appartiennent.
+     */
+    public const DOSSIERS_PUBLICS = ['vitrine'];
+
+    /**
      * L'adresse d'affichage d'un fichier du disque public.
      *
      * Rend `null` quand il n'y a rien à montrer — l'appelant décide alors s'il
@@ -84,7 +94,88 @@ class FichierPublic
             return null;
         }
 
+        // La vitrine a sa propre porte, publique. `admin.media` vit derrière
+        // `auth` et `role:admin` : y envoyer les images de la page de
+        // présentation les rendait invisibles au visiteur anonyme, sur
+        // l'hébergement mutualisé qui est justement le seul où cette route
+        // sert.
+        if (in_array($dossier, self::DOSSIERS_PUBLICS, true)) {
+            return route('vitrine.media', ['fichier' => $fichier]);
+        }
+
         return route('admin.media', ['dossier' => $dossier, 'fichier' => $fichier]);
+    }
+
+    /**
+     * Ce fichier peut-il être montré à cette personne ?
+     *
+     * `admin.media` servait **tout fichier de ses quatre dossiers à tout
+     * utilisateur connecté**, sans jamais regarder à qui il appartient.
+     * Contrairement à `admin.produits.photo.voir`, qui vérifie l'entreprise.
+     *
+     * Le nom du fichier est tiré au hasard, ce qui le rend difficile à
+     * deviner — mais **un nom difficile à deviner n'est pas un contrôle
+     * d'accès** : il suffit qu'une adresse ait été partagée, copiée dans un
+     * journal de serveur, ou lue dans l'historique d'un navigateur partagé.
+     *
+     * Le chemin est comparé à la colonne qui le porte. Un fichier qui n'est
+     * réclamé par aucune ligne de l'entreprise n'est pas le sien.
+     */
+    public static function lisiblePar(?string $chemin, mixed $utilisateur): bool
+    {
+        [$dossier] = self::decouper(trim((string) $chemin));
+
+        if ($dossier === null) {
+            return false;
+        }
+
+        if (in_array($dossier, self::DOSSIERS_PUBLICS, true)) {
+            return true;
+        }
+
+        if (!$utilisateur) {
+            return false;
+        }
+
+        // Le superadministrateur tient les dossiers de toutes les entreprises :
+        // les écrans de supervision montrent leurs logos.
+        if (method_exists($utilisateur, 'estSuperAdmin') && $utilisateur->estSuperAdmin()) {
+            return true;
+        }
+
+        $entrepriseId = $utilisateur->entreprise_id ?? null;
+
+        if (!$entrepriseId) {
+            return false;
+        }
+
+        // La colonne peut porter le chemin avec ou sans barre de tête selon
+        // l'écran qui l'a écrit : les deux formes désignent le même fichier.
+        $formes = [ltrim((string) $chemin, '/'), '/' . ltrim((string) $chemin, '/')];
+
+        return match ($dossier) {
+            'produits' => \App\Modules\Admin\Modeles\Produit::query()
+                ->where('entreprise_id', $entrepriseId)
+                ->whereIn('photo', $formes)
+                ->exists(),
+
+            'logos' => \App\Modules\Admin\Modeles\Entreprise::query()
+                ->where('id', $entrepriseId)
+                ->where(function ($requete) use ($formes) {
+                    $requete->whereIn('logo_path', $formes)
+                            ->orWhereIn('logo_fne_path', $formes);
+                })
+                ->exists(),
+
+            // Les avatars des collègues s'affichent sur les écrans du
+            // personnel : la limite est l'entreprise, pas la personne.
+            'avatars' => \App\Modules\Authentification\Modeles\Utilisateur::query()
+                ->where('entreprise_id', $entrepriseId)
+                ->whereIn('avatar_path', $formes)
+                ->exists(),
+
+            default => false,
+        };
     }
 
     /**

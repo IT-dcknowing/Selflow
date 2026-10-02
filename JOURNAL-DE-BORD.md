@@ -6794,6 +6794,67 @@ distinction que le correctif du 25/09 cherchait, et le mutualisé qui répondait
 
 ---
 
+### Lot 38 — Les images servies appartiennent à quelqu'un — **TERMINÉ le 02/10/2026**
+
+Réserve signalée au lot 37, corrigée sur demande du propriétaire le même jour.
+Chantiers 14.2 et 14.4 du plan.
+
+#### 38.1 — `admin.media` ne regardait pas à qui le fichier appartient
+
+La route sert les logos, les photos d'articles, les avatars et les visuels de
+la vitrine quand `public/storage` n'est pas utilisable. Elle servait **tout
+fichier de ses quatre dossiers à tout utilisateur connecté** — contrairement à
+`admin.produits.photo.voir`, juste à côté, qui vérifie l'entreprise.
+
+**Simulation d'attaque.** Le nom du fichier est tiré au hasard : il ne
+s'énumère pas. Mais un nom difficile à deviner n'est pas un contrôle d'accès.
+Il suffit qu'une adresse ait été partagée dans un message, recopiée dans un
+journal de serveur, ou lue dans l'historique d'un navigateur partagé — et le
+fichier d'une autre entreprise se sert, indéfiniment.
+
+`FichierPublic::lisiblePar()` compare le chemin à la colonne qui le porte :
+
+| Dossier | Ce qui le réclame |
+|---|---|
+| `produits/` | `produits.photo`, pour l'entreprise de l'utilisateur |
+| `logos/` | `entreprises.logo_path` ou `logo_fne_path` — le second vit dans une colonne à part, l'oublier aurait fait disparaître le visuel de certification des documents imprimés |
+| `avatars/` | `utilisateurs.avatar_path`, **à l'échelle de l'entreprise et non de la personne** : les portraits des collègues s'affichent sur l'écran du personnel |
+| `vitrine/` | personne — voir 38.2 |
+
+**Un fichier que plus aucune ligne ne réclame n'est à personne** et ne se sert
+pas : un dépôt abandonné ou une ligne supprimée laisse le fichier sur le
+disque, et il cesse d'être atteignable.
+
+Le refus est un **404 (Not Found — introuvable)**, non un **403 (Forbidden —
+accès interdit)** : répondre « interdit » confirmerait que le fichier existe, et
+rendrait les noms énumérables un par un — l'oracle de volume déjà fermé au
+lot 8.
+
+Le superadministrateur passe : les écrans de supervision montrent les
+entreprises, logo compris.
+
+#### 38.2 — Et la vitrine s'affichait sans ses images
+
+Mis au jour en posant la règle : il a fallu décider de qui est propriétaire des
+fichiers de la vitrine. Personne — c'est le superadministrateur qui les dépose,
+et elles s'adressent à qui n'a pas de compte.
+
+Or elles passaient par `admin.media`, **qui vit derrière `auth` et
+`role:admin`**. Sur l'hébergement mutualisé — le seul où cette route sert,
+puisque c'est là que `public/storage` n'est pas utilisable — **la page de
+présentation s'affichait sans aucune de ses images pour un visiteur anonyme.**
+C'est-à-dire pour exactement le public auquel elle s'adresse.
+
+Elles ont leur propre porte, `/presentation/media/…`, publique. **Le dossier y
+est imposé par le contrôleur et non lu dans l'adresse** : une route publique qui
+accepterait un nom de dossier laisserait demander `logos/…` ou `avatars/…` sans
+même être connecté.
+
+- `tests/Feature/MediaAppartenanceTest.php` — 14 épreuves, **8 tombent** sans le
+  correctif
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

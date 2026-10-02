@@ -420,14 +420,24 @@ class AdminControleur
      * lu dans une colonne ecrite par un formulaire -- laisserait remonter
      * l'arborescence.
      *
-     * L'acces reste celui de l'application : ces fichiers sont ceux des
-     * entreprises, et l'on n'y entre pas sans etre connecte.
+     * Etre connecte ne suffisait pas : la route servait **tout fichier de ses
+     * quatre dossiers a tout utilisateur connecte**, sans regarder a qui il
+     * appartient. Le nom du fichier est tire au hasard, mais un nom difficile
+     * a deviner n'est pas un controle d'acces.
+     *
+     * Le refus est un 404 (Not Found -- introuvable) et non un 403 (Forbidden
+     * -- acces interdit) : repondre « interdit » confirmerait que le fichier
+     * existe, et rendrait les noms enumerables un par un.
      */
     public function servirUnFichier(string $dossier, string $fichier): \Symfony\Component\HttpFoundation\StreamedResponse
     {
         $chemin = $dossier . '/' . $fichier;
 
         abort_unless(\App\Modules\Admin\Services\FichierPublic::existe($chemin), 404);
+        abort_unless(
+            \App\Modules\Admin\Services\FichierPublic::lisiblePar($chemin, Auth::user()),
+            404
+        );
 
         return \Illuminate\Support\Facades\Storage::disk('public')->response($chemin, null, [
             // Une image deposee ne change pas : elle porte un identifiant
