@@ -6704,6 +6704,95 @@ Suite entière : **1 383 épreuves, 1 379 passantes, 4 sautées, 5 346
 vérifications**. `php artisan verifier:variables` : aucune variable lue sans
 avoir été écrite.
 
+---
+
+### Lot 37 — La barre latérale se déplie — **TERMINÉ le 02/10/2026**
+
+Premier lot du plan de correction du 2 octobre
+(`PLAN-CORRECTION-SELFLOW.xlsx`, section 1). Le propriétaire a fixé l'ordre :
+la navigation d'abord, la comptabilité ensuite.
+
+#### 37.1 — Neuf sections affichées d'un bloc
+
+« Au lieu d'afficher les sections avec leurs pages comme ça maintenant, ce sera
+de les déplier au clic. » La barre faisait **trois écrans de haut** et on
+cherchait un lien en faisant défiler.
+
+| Décision | Raison |
+|---|---|
+| **Le groupement se fait à l'exécution, pas dans le gabarit** | Le menu est bâti d'une vingtaine de blocs conditionnels imbriqués. Y ouvrir une balise dans une condition pour la refermer dans une autre casserait au premier module retiré — et c'est précisément ce que le lot suivant va faire, en masquant la comptabilité |
+| **Le script est posé juste après le menu, pas dans un `DOMContentLoaded`** | La barre est déjà lue par le navigateur à cet endroit. Replier après le premier affichage montrerait la liste entière, puis la ferait se refermer sous les yeux |
+| **La classe `js-nav` est posée en dernier** | Toute la règle de repli en dépend. Un script interrompu en chemin rend donc le menu d'avant, entier, plutôt qu'un menu à moitié replié dont rien ne s'ouvrirait |
+| **La section de l'écran courant s'ouvre quoi qu'en dise la mémoire** | Sans quoi on arrive sur une page sans voir d'où elle vient |
+| **Une mémoire par rôle** (`selflow.menu.admin`, `.caissier`, `.superadmin`) | Les trois barres ne portent pas les mêmes sections. Une mémoire commune ferait qu'un superadministrateur repliant « Supervision » refermerait « Ventes » dans l'espace d'administration |
+| **Les deux accès à `localStorage` sont enveloppés** | En navigation privée, ou données de site bloquées, l'accès lève. Le menu doit alors fonctionner sans mémoire, et non refuser de s'ouvrir |
+
+**Trouvé en chemin :** un titre de section dont toutes les entrées sont
+retirées par les habilitations restait affiché, seul, et ne menait à rien. Lu à
+l'exécution, le cas se reconnaît tout seul — le titre se retire.
+
+Le titre devenu commande porte `role="button"`, `tabindex="0"`,
+`aria-expanded` et `aria-controls`, et s'actionne à l'Entrée comme à l'Espace.
+
+#### 37.2 — « Résultat par site » passe aux Rapports
+
+Comparer ce que rapporte chaque magasin est une question d'exploitation, pas de
+tenue de livres. La condition « plus d'un site » est conservée : comparer un
+magasin à lui-même n'apprend rien.
+
+**Ce que l'énoncé ne disait pas, et qui comptait :** l'écran était gardé par
+`comptabilite_globale`. Déplacer le lien sans déplacer l'habilitation aurait mis
+dans la section Rapports un lien répondant **403 (Forbidden — accès interdit)**
+à qui n'a que les rapports — et qui disparaîtrait au lot suivant, quand la
+comptabilité se masque. La route est rangée sous `rapports_analyse`.
+
+- `tests/Feature/BarreLateraleDepliableTest.php` — 13 épreuves, **11 tombent**
+  sans le correctif
+
+#### 37.3 — Trois épreuves étaient déjà rouges avant ce lot
+
+Relevées en prenant la suite de référence, et venues des deux derniers commits
+du 25/09 sur les images (`0ff7558`, `030ae34`). Corrigées ici, sans quoi la
+règle « la suite passe avant chaque envoi » n'avait plus de sens.
+
+**`admin.media` n'était classée nulle part.** Le contrôle des habilitations
+refuse ce qui n'est pas classé, et une épreuve le vérifie. La route est déclarée
+**ouverte** : elle sert les logos, les photos d'articles, les avatars et les
+visuels de la vitrine, qui s'affichent sur presque tous les écrans, y compris
+ceux d'un caissier qui ne tient ni le catalogue ni les paramètres. Exiger une
+habilitation rendrait 403 sur chaque image de chaque page.
+
+> **Réserve signalée au propriétaire.** Contrairement à
+> `admin.produits.photo.voir`, ce point d'entrée **ne vérifie l'appartenance à
+> aucune entreprise**. Le nom du fichier est tiré au hasard, ce qui le rend
+> difficile à deviner — mais un nom difficile à deviner n'est pas un contrôle
+> d'accès. À traiter.
+
+**La fixture des deux épreuves de photo était devenue fausse.** Elle annonçait
+« avec le lien de stockage » en posant un simple `mkdir` — c'est-à-dire
+exactement le cas que le correctif du 25/09 rejette, puisqu'il est passé de
+`file_exists()` à `is_link()`. Elle pose désormais un vrai lien.
+
+#### 37.4 — Et ce que cette fixture a mis au jour
+
+En lui faisant poser un vrai lien, le constat est tombé : **`is_link()` répond
+`false` pour une jonction Windows**, celle que `php artisan storage:link` pose
+sur un poste Windows. Le commentaire du correctif du 25/09 affirmait le
+contraire.
+
+Vérifié sur ce dépôt le 02/10/2026 : `public/storage` **est** une jonction,
+`readlink()` la résout, et `is_link()` rendait pourtant `false`. Conséquence :
+**toutes les images de toutes les pages passaient par PHP** au lieu d'être
+servies en fichier statique. Trente cartes sur un écran de caisse faisaient
+trente démarrages de Laravel — à verser au dossier « l'application est lente »
+(section 12 du plan).
+
+`FichierPublic::lienPose()` retient désormais `is_link()` **ou** un
+`readlink()` qui aboutit. Un dossier physique ne passe toujours pas : c'est la
+distinction que le correctif du 25/09 cherchait, et le mutualisé qui répondait
+403 continue d'être traité comme avant.
+
+---
 
 ## 5 bis. La numérotation des comptes — tranché
 

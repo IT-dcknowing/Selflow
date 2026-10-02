@@ -133,9 +133,8 @@ class FichierPublic
      * La correction :
      * 1. `STORAGE_LINK_FORCED=false` dans le `.env` force la route PHP même si
      *    le dossier existe — utile sur les hébergements mutualisés.
-     * 2. `is_link()` détecte les vrais symlinks POSIX et les Junctions Windows.
-     *    Un dossier physique ne passe pas ce test, ce qui évite de construire
-     *    une adresse que le serveur web va rejeter.
+     * 2. On distingue un vrai lien d'un dossier physique, ce qui évite de
+     *    construire une adresse que le serveur web va rejeter.
      *
      * Retenu pour la durée de la requête : un écran pose la question une fois
      * par image, et un accès disque par vignette n'apprendrait rien de neuf.
@@ -158,11 +157,30 @@ class FichierPublic
 
         $chemin = public_path('storage');
 
-        // `is_link()` répond `true` pour un symlink POSIX et pour une Junction
-        // Windows — mais pas pour un dossier physique. C'est la distinction
-        // qui manquait : un dossier physique peut exister sans que le serveur
-        // web soit capable de servir son contenu.
-        return self::$lien = is_link($chemin);
+        if (!file_exists($chemin)) {
+            return self::$lien = false;
+        }
+
+        // Ce qu'il faut distinguer : un **lien**, que le serveur web suit,
+        // d'un **dossier physique**, qui peut exister sans que le serveur
+        // accepte d'en servir le contenu — le cas du mutualisé qui répond
+        // 403 (Forbidden — accès interdit).
+        //
+        // `is_link()` seul ne suffit pas, et le commentaire d'origine le
+        // croyait : **il répond `false` pour une jonction Windows**, celle
+        // que `php artisan storage:link` pose sur un poste Windows. Vérifié
+        // le 02/10/2026 sur ce dépôt — `public/storage` y est une jonction,
+        // `is_link()` rendait `false`, et **toutes les images de toutes les
+        // pages passaient par PHP** au lieu d'être servies en fichier.
+        // Trente cartes de caisse faisaient trente démarrages de Laravel.
+        //
+        // `readlink()`, lui, résout une jonction, et rend `false` sur un
+        // dossier ordinaire : c'est exactement la distinction cherchée.
+        if (is_link($chemin)) {
+            return self::$lien = true;
+        }
+
+        return self::$lien = @readlink($chemin) !== false;
     }
 
     /** Oublier ce qu'on croit savoir — les épreuves posent et retirent le lien. */

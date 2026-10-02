@@ -325,7 +325,15 @@ class Habilitations
         'admin.comptabilite.libelles.apercu'      => 'comptabilite_globale',
         // La ventilation analytique compare les sites entre eux : elle montre
         // le résultat de l'entreprise entière, site par site.
-        'admin.comptabilite.analytique' => 'comptabilite_globale',
+        //
+        // Elle relève de `rapports_analyse` et non de `comptabilite_globale`
+        // depuis le 02/10/2026, où le lien a quitté le menu Comptabilité pour
+        // le menu Rapports : c'est un rapport d'exploitation — quel magasin
+        // gagne de l'argent — et non un écran de tenue de livres. Laisser
+        // l'habilitation comptable aurait donné un lien visible dans Rapports
+        // qui répondait 403 (Forbidden — accès interdit) à qui n'a que les
+        // rapports, et qui disparaîtrait le jour où la comptabilité se masque.
+        'admin.comptabilite.analytique' => 'rapports_analyse',
 
         // ── Immobilisations ──
         // Le parc et son amortissement portent l'actif du bilan et une charge
@@ -476,6 +484,19 @@ class Habilitations
         'admin.visite.reprendre'      => 'Rouvrir la visite guidée.',
         'admin.visite.rejouer'        => 'Rejouer la visite guidée.',
         'admin.produits.photo.voir'   => 'La photo d\'un article de son entreprise, servie quand `public/storage` n\'est pas posé. Le caissier voit ces images sur son écran de vente sans tenir le catalogue : exiger `catalogue_produits` rendrait 403 (Forbidden — accès interdit) sur chaque carte. Le contrôleur vérifie l\'appartenance à l\'entreprise, et l\'image ne dit rien que la carte ne montre déjà.',
+        // Posée le 25/09/2026 pour servir les images là où l'hébergement
+        // mutualisé répond 403 sur `public/storage`. Elle sert les logos, les
+        // photos d'articles, les avatars et les visuels de la vitrine : ces
+        // images s'affichent sur presque tous les écrans, y compris ceux d'un
+        // caissier qui ne tient ni le catalogue ni les paramètres. Exiger une
+        // habilitation rendrait 403 sur chaque image de chaque page.
+        //
+        // RÉSERVE, à traiter : contrairement à `admin.produits.photo.voir`
+        // juste au-dessus, ce point d'entrée **ne vérifie l'appartenance à
+        // aucune entreprise**. Le nom du fichier est tiré au hasard, ce qui le
+        // rend difficile à deviner — mais un nom difficile à deviner n'est pas
+        // un contrôle d'accès. Signalé au propriétaire le 02/10/2026.
+        'admin.media'                 => 'Les images de l\'application — logos, photos d\'articles, avatars, vitrine — servies par l\'application quand le lien `public/storage` n\'est pas utilisable. Elles s\'affichent sur tous les écrans, de tous les rôles.',
     ];
 
     /**

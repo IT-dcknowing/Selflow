@@ -96,6 +96,45 @@
         .nav-item.active i { color: #FFC107; }
         .nav-item i { width: 18px; text-align: center; font-size: 14px; }
 
+        /* ── Sections dépliables ──────────────────────────────────────
+           Les neuf sections et toutes leurs pages s'affichaient d'un bloc :
+           la barre faisait trois écrans de haut et on cherchait un lien en
+           faisant défiler.
+
+           Tout ce qui suit ne s'applique QUE si la barre porte `js-nav`,
+           posée par le script qui groupe les entrées. Sans JavaScript, le
+           menu reste la liste complète d'avant — plutôt qu'un menu dont
+           aucune section ne s'ouvrirait. */
+        .js-nav .nav-section {
+            display: flex; align-items: center; gap: 8px;
+            margin: 12px 0 2px; padding: 6px 10px;
+            border-radius: 8px; cursor: pointer;
+            -webkit-user-select: none; user-select: none;
+            transition: background .15s;
+        }
+        .js-nav .nav-section:hover { background: rgba(255, 255, 255, 0.06); }
+        .js-nav .nav-section:focus-visible {
+            outline: 2px solid rgba(255, 255, 255, 0.5); outline-offset: 1px;
+        }
+        .js-nav .nav-section span { padding: 0; flex: 1; }
+        .js-nav .nav-section .nav-chevron {
+            font-size: 10px; color: rgba(255, 255, 255, 0.4);
+            transition: transform .18s; flex-shrink: 0;
+        }
+        .js-nav .nav-section[aria-expanded="true"] .nav-chevron { transform: rotate(90deg); }
+        .js-nav .nav-section[aria-expanded="true"] span { color: rgba(255, 255, 255, 0.7); }
+
+        /* Replier la section où l'on se trouve ferait perdre de vue l'écran
+           courant : son titre passe alors en ambre, comme l'entrée active. */
+        .js-nav .nav-section.contient-actif[aria-expanded="false"] span { color: #FFC107; }
+
+        .js-nav .nav-groupe { display: flex; flex-direction: column; gap: 2px; }
+        .js-nav .nav-section[aria-expanded="false"] + .nav-groupe { display: none; }
+
+        /* Une section dont toutes les entrées sont retirées par les
+           habilitations laissait son titre seul, menant à rien. */
+        .js-nav .nav-section.nav-section-vide { display: none; }
+
         .nav-badge {
             margin-left: auto; background: var(--danger);
             color: #fff; font-size: 10px; font-weight: 700;
@@ -620,7 +659,16 @@
     </div>
     @endif
 
-    <nav class="sidebar-nav">
+    @php
+        // Les trois barres ne portent pas les mêmes sections : chacune garde
+        // donc sa propre mémoire de ce qui est déplié. Sans cette portée, un
+        // superadministrateur qui replie « Supervision » refermerait aussi
+        // « Ventes » dans l'espace d'administration.
+        $porteeDuMenu = (request()->routeIs('superadmin.*') || auth()->user()->role === 'superadmin')
+            ? 'superadmin'
+            : (request()->routeIs('caissier.*') ? 'caissier' : 'admin');
+    @endphp
+    <nav class="sidebar-nav" data-menu="{{ $porteeDuMenu }}">
         @if(request()->routeIs('superadmin.*') || auth()->user()->role === 'superadmin')
             <!-- ── SUPERADMIN SIDEBAR ── -->
             <div class="nav-section"><span>TABLEAU DE BORD</span></div>
@@ -841,14 +889,10 @@
             <a href="{{ route('admin.comptabilite.lettrage') }}" class="nav-item {{ request()->routeIs('admin.comptabilite.lettrage') ? 'active' : '' }}">
                 <i class="fas fa-link"></i> Lettrage
             </a>
-            {{-- La ventilation analytique n'a de sens qu'à plusieurs sites :
-                 comparer un magasin à lui-même n'apprend rien, et le lien
-                 encombrerait le menu d'un commerce qui n'en a qu'un. --}}
-            @if(($nombreDeSites ?? 0) > 1)
-            <a href="{{ route('admin.comptabilite.analytique') }}" class="nav-item {{ request()->routeIs('admin.comptabilite.analytique') ? 'active' : '' }}">
-                <i class="fas fa-store"></i> Résultat par site
-            </a>
-            @endif
+            {{-- « Résultat par site » a quitté ce menu le 02/10/2026 pour la
+                 section Rapports. Comparer ce que rapporte chaque magasin est
+                 une question d'exploitation, pas de tenue de livres : l'écran
+                 doit rester quand la comptabilité est masquée. --}}
             {{-- « Libellés d'écriture » a quitté ce menu le 25/09/2026. Ce
                  n'est pas un écran de comptabilité mais un réglage : il se
                  pose une fois et ne se consulte plus. Il vit désormais dans
@@ -932,6 +976,15 @@
             <a href="{{ route('admin.rapports.analyse_activite') }}" class="nav-item {{ request()->routeIs('admin.rapports.analyse_activite') ? 'active' : '' }}">
                 <i class="fas fa-chart-line"></i> Analyse d'activité
             </a>
+            {{-- Venu du menu Comptabilité le 02/10/2026. La condition « plus
+                 d'un site » reste : comparer un magasin à lui-même n'apprend
+                 rien, et le lien encombrerait le menu d'un commerce qui n'en
+                 a qu'un. --}}
+            @if(($nombreDeSites ?? 0) > 1)
+            <a href="{{ route('admin.comptabilite.analytique') }}" class="nav-item {{ request()->routeIs('admin.comptabilite.analytique') ? 'active' : '' }}">
+                <i class="fas fa-store"></i> Résultat par site
+            </a>
+            @endif
             @endif
 
             <!-- 10. Paramètres entreprise (admin uniquement) -->
@@ -944,6 +997,113 @@
 
         @endif
     </nav>
+
+    {{-- ── Le dépliage des sections ──────────────────────────────────────
+         Le script est ici, juste après le menu, et non dans un écouteur
+         `DOMContentLoaded` : la barre est déjà lue par le navigateur à cet
+         endroit, et replier avant le premier affichage évite de montrer la
+         liste entière puis de la voir se refermer sous les yeux.
+
+         Le groupement se fait à l'exécution plutôt que dans le gabarit : le
+         menu est bâti d'une vingtaine de blocs conditionnels imbriqués, et
+         y ouvrir une balise dans une condition pour la refermer dans une
+         autre casserait au premier module retiré. Lu à l'exécution, un titre
+         dont toutes les entrées ont été retirées par les habilitations se
+         reconnaît aussi tout seul. --}}
+    <script>
+    (function () {
+        'use strict';
+
+        var menu = document.querySelector('.sidebar-nav');
+        if (!menu || !menu.children.length) { return; }
+
+        var cle = 'selflow.menu.' + (menu.dataset.menu || 'admin');
+
+        // Un navigateur en navigation privée, ou dont les données de site
+        // sont bloquées, fait lever `localStorage`. Le menu doit alors
+        // fonctionner sans mémoire, et non refuser de s'ouvrir.
+        function lireLaMemoire() {
+            try {
+                var brut = window.localStorage.getItem(cle);
+                var lu = brut ? JSON.parse(brut) : null;
+                return (lu && typeof lu === 'object') ? lu : {};
+            } catch (e) { return {}; }
+        }
+        function ecrireLaMemoire(etat) {
+            try { window.localStorage.setItem(cle, JSON.stringify(etat)); } catch (e) {}
+        }
+
+        var memoire = lireLaMemoire();
+
+        // Les entrées suivent leur titre à plat. On prend une copie de la
+        // liste avant de déplacer quoi que ce soit : les titres, eux, ne
+        // bougent pas, et restent donc retrouvables pendant le parcours.
+        var noeuds = Array.prototype.slice.call(menu.children);
+        var sections = [];
+
+        noeuds.forEach(function (noeud, rang) {
+            if (!noeud.classList || !noeud.classList.contains('nav-section')) { return; }
+
+            var groupe = document.createElement('div');
+            groupe.className = 'nav-groupe';
+            groupe.id = 'nav-groupe-' + rang;
+
+            var suivant = noeud.nextElementSibling;
+            while (suivant && !(suivant.classList && suivant.classList.contains('nav-section'))) {
+                var apres = suivant.nextElementSibling;
+                groupe.appendChild(suivant);
+                suivant = apres;
+            }
+            menu.insertBefore(groupe, noeud.nextSibling);
+
+            var titre = (noeud.textContent || '').trim();
+            var porteLActif = !!groupe.querySelector('.nav-item.active');
+
+            if (!groupe.children.length) {
+                noeud.classList.add('nav-section-vide');
+                return;
+            }
+
+            noeud.setAttribute('role', 'button');
+            noeud.setAttribute('tabindex', '0');
+            noeud.setAttribute('aria-controls', groupe.id);
+            noeud.insertAdjacentHTML('beforeend',
+                '<i class="fas fa-chevron-right nav-chevron" aria-hidden="true"></i>');
+
+            if (porteLActif) { noeud.classList.add('contient-actif'); }
+
+            // La section de l'écran courant s'ouvre quoi qu'en dise la
+            // mémoire : sans quoi on arrive sur une page sans voir d'où
+            // elle vient.
+            var ouverte = porteLActif || memoire[titre] === true;
+            noeud.setAttribute('aria-expanded', ouverte ? 'true' : 'false');
+
+            sections.push({ titre: titre, entete: noeud });
+        });
+
+        function basculer(section) {
+            var ouverte = section.entete.getAttribute('aria-expanded') === 'true';
+            section.entete.setAttribute('aria-expanded', ouverte ? 'false' : 'true');
+            memoire[section.titre] = !ouverte;
+            ecrireLaMemoire(memoire);
+        }
+
+        sections.forEach(function (section) {
+            section.entete.addEventListener('click', function () { basculer(section); });
+            section.entete.addEventListener('keydown', function (evenement) {
+                if (evenement.key === 'Enter' || evenement.key === ' ' || evenement.key === 'Spacebar') {
+                    evenement.preventDefault();
+                    basculer(section);
+                }
+            });
+        });
+
+        // Posée en dernier : tant qu'elle manque, la feuille de style laisse
+        // tout visible. Un script interrompu en chemin rend donc le menu
+        // d'avant, et non un menu à moitié replié.
+        menu.classList.add('js-nav');
+    })();
+    </script>
 
     <div class="sidebar-footer">
         <div class="sidebar-user">

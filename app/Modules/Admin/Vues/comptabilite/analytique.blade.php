@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Résultat par site')
-@section('topbar_titre', 'Comptabilité — Résultat par site')
+@section('topbar_titre', 'Rapports — Résultat par site')
 
 @php
     $sites  = $ventilation['sites'];

@@ -124,12 +124,59 @@ class PhotoDeLArticleTest extends TestCase
         @mkdir($this->dossierFactice, 0777, true);
 
         if ($avecLien) {
-            @mkdir($this->dossierFactice . DIRECTORY_SEPARATOR . 'storage', 0777, true);
+            $this->poserUnVraiLien($this->dossierFactice . DIRECTORY_SEPARATOR . 'storage');
         }
 
         $this->app->usePublicPath($this->dossierFactice);
 
         Produit::oublierLeLienDeStockage();
+    }
+
+    /**
+     * Poser un lien que `lienPose()` reconnaisse réellement.
+     *
+     * La fixture créait ici un simple `mkdir`. Elle est devenue fausse le
+     * 25/09/2026 : `FichierPublic::lienPose()` est passé de `file_exists()` à
+     * `is_link()`, précisément **parce qu'un dossier physique n'est pas un
+     * lien** — sur un hébergement mutualisé, `public/storage` pouvait exister
+     * comme dossier et le serveur répondre tout de même 403 (Forbidden —
+     * accès interdit) sur son contenu.
+     *
+     * L'épreuve annonçait donc « avec le lien de stockage » en posant
+     * exactement le cas que le correctif rejette. Elle doit poser un vrai
+     * lien : `symlink()` d'abord, et sur un Windows sans privilège, une
+     * jonction — `mklink /J` n'en demande pas, et `is_link()` la reconnaît.
+     */
+    private function poserUnVraiLien(string $lien): void
+    {
+        $cible = storage_path('app' . DIRECTORY_SEPARATOR . 'public');
+        @mkdir($cible, 0777, true);
+
+        if (@symlink($cible, $lien) && is_link($lien)) {
+            return;
+        }
+
+        // `mklink` est une commande interne de `cmd` : lancée seule, elle
+        // n'est pas un exécutable et rien ne se crée. D'où le `cmd /c`.
+        //
+        // Et la jonction ainsi posée ne répond pas à `is_link()` — c'est le
+        // défaut que cette épreuve a mis au jour. On interroge donc
+        // `lienPose()`, qui est le sujet, plutôt qu'une primitive PHP.
+        if (DIRECTORY_SEPARATOR === '\\') {
+            @exec(sprintf('cmd /c mklink /J %s %s 2>&1',
+                escapeshellarg($lien), escapeshellarg($cible)));
+
+            Produit::oublierLeLienDeStockage();
+
+            if (\App\Modules\Admin\Services\FichierPublic::lienPose()) {
+                return;
+            }
+        }
+
+        $this->markTestSkipped(
+            "Ce poste ne permet ni lien symbolique ni jonction : le cas « lien posé » "
+            . "ne peut pas être reproduit honnêtement ici."
+        );
     }
 
     /**
@@ -143,7 +190,16 @@ class PhotoDeLArticleTest extends TestCase
         }
 
         if ($this->dossierFactice !== null) {
-            @rmdir($this->dossierFactice . DIRECTORY_SEPARATOR . 'storage');
+            $lien = $this->dossierFactice . DIRECTORY_SEPARATOR . 'storage';
+
+            // Un lien ne se retire pas comme un dossier, et les deux systèmes
+            // ne s'accordent pas : `unlink()` défait un lien symbolique POSIX,
+            // `rmdir()` une jonction Windows. Les deux ne touchent que le lien,
+            // jamais ce qu'il désigne — l'inverse effacerait le stockage réel.
+            if (is_link($lien)) {
+                @unlink($lien);
+            }
+            @rmdir($lien);
             @rmdir($this->dossierFactice);
             $this->dossierFactice = null;
         }
