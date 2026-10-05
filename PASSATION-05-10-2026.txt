@@ -1,0 +1,244 @@
+================================================================================
+SELFLOW — PASSATION DU 5 OCTOBRE 2026
+Session ayant traité les lots 37 à 40 du plan de correction.
+À coller en premier message d'une nouvelle session Claude Code sur ce dépôt.
+================================================================================
+
+
+0. CE QU'IL FAUT FAIRE EN PREMIER
+---------------------------------
+1. Lire `CLAUDE.md` — la règle d'or FNE y fait foi.
+2. Lire `JOURNAL-DE-BORD.md` — c'est la mémoire du projet. Les lots 37 à 40
+   sont à la fin de la section 5.
+3. Ouvrir `PLAN-CORRECTION-SELFLOW.xlsx` à la racine. **Sa feuille « Index »
+   dit où en est chaque section et à quelle ligne elle commence.** C'est le
+   document de pilotage : il fait foi, et il est versionné.
+
+Dépôt : révision `11f2007` sur `main`, poussée sur les DEUX dépôts
+(`origin` = meledjeabrahamagnimel-lgtm/Selflow, `nouveau-repo` =
+IT-dcknowing/Selflow). Arbre propre.
+
+Suite : **1 442 épreuves, 1 437 passantes, 5 sautées, 5 488 vérifications.**
+
+
+1. LA RÈGLE D'OR, EN RÉSUMÉ
+---------------------------
+La conformité FNE est **gelée**. Ne pas toucher aux payloads, aux champs
+`fne_*`, au barème du timbre, au code QR, aux blocs de certification des
+documents imprimés, ni à `FnePayloadTest`. Trois exceptions seulement :
+nouvelle version du référentiel DGI, rejet prouvé par le journal, demande
+explicite du propriétaire. Hors de ces cas, une modification qui traverse ce
+périmètre doit être **signalée et refusée**, même anodine.
+
+
+2. CONVENTIONS DE TRAVAIL
+-------------------------
+- `php artisan test` ET `php artisan verifier:variables` avant chaque envoi.
+- Vérification au retrait : retirer le correctif, relancer, s'assurer que
+  l'épreuve tombe. Une épreuve qui passe des deux côtés ne garde rien.
+- Commit et push après chaque correction, **sur les deux dépôts**.
+- Les commentaires de code expliquent **pourquoi**, en rapportant ce qui avait
+  échoué — pas ce que le code fait, qui se lit.
+- Tout code HTTP cité porte sa définition : « 404 (Not Found — introuvable) ».
+- Toujours préciser sur quel dépôt l'envoi a été fait.
+- Ne JAMAIS retoucher une migration déjà appliquée en production (lot 21).
+- Tenir `JOURNAL-DE-BORD.md` ET `PLAN-CORRECTION-SELFLOW.xlsx` à chaque lot.
+
+Outillage du plan : les scripts vivent dans le scratchpad de session, qui est
+**volatil**. `relire.py` sait reconstruire `contenu.py` depuis le classeur du
+projet — c'est le classeur qui fait foi. Le générateur a besoin du venv du
+projet : `./.venv/Scripts/python.exe` (openpyxl y est installé).
+
+
+3. CE QUI A ÉTÉ FAIT DANS CETTE SESSION
+---------------------------------------
+
+LOT 37 — La barre latérale se déplie (révision 073ca0c)
+  · Les sections du menu se déplient au clic. Groupement fait à l'exécution,
+    pas dans le gabarit : le menu est bâti d'une vingtaine de blocs
+    conditionnels, et y ouvrir une balise dans une condition pour la refermer
+    dans une autre casserait au premier module retiré.
+  · Script posé juste après le menu, pas dans un `DOMContentLoaded` : sinon la
+    liste entière s'affiche puis se referme sous les yeux.
+  · « Résultat par site » passe au menu Rapports, et son habilitation passe de
+    `comptabilite_globale` à `rapports_analyse` — sans quoi le lien aurait
+    répondu 403 (Forbidden — accès interdit) à qui n'a que les rapports.
+  · Trois épreuves étaient déjà rouges avant ce lot, venues des commits du
+    25/09 sur les images. Corrigées.
+  · TROUVÉ : `is_link()` répond **faux** pour une jonction Windows. Sur ce
+    dépôt, `public/storage` EST une jonction, donc toutes les images de toutes
+    les pages passaient par PHP au lieu d'être servies en fichier statique.
+    Corrigé dans `FichierPublic::lienPose()` — à verser au dossier lenteur.
+
+LOT 38 — Les images servies appartiennent à quelqu'un (révision 217c1d1)
+  · `admin.media` servait tout fichier de ses quatre dossiers à tout
+    utilisateur connecté, sans regarder à qui il appartient.
+    `FichierPublic::lisiblePar()` compare le chemin à la colonne qui le porte.
+    Refus en 404, pas 403 : un 403 confirmerait que le fichier existe.
+  · TROUVÉ : les images de la vitrine passaient par cette route, derrière
+    `auth` + `role:admin`. Sur l'hébergement mutualisé — le seul où la route
+    sert — la page de présentation s'affichait **sans aucune image** pour un
+    visiteur anonyme. Elles ont désormais `/presentation/media/…`, publique.
+
+LOT 39 — La comptabilité cesse d'être offerte à tout le monde (rév. f1c3df4)
+  · DÉCISION D'ARCHITECTURE TRANCHÉE : les écritures vont à Comptaflow par
+    **API**, pas par écriture directe en base. Sa logique (exercices, périodes
+    closes, séquences, lettrage) vit dans son code PHP, pas dans ses
+    contraintes SQL.
+  · Deux réglages, un seul suffit : `entreprises.comptabilite_activee` (la
+    case de l'entreprise) et `entreprises.attributions` (ce que le superadmin
+    accorde). `attributions` n'est PAS assignable en masse.
+  · **Le défaut est FAUX, y compris pour les entreprises existantes.** À
+    savoir avant tout déploiement : une entreprise qui consultait hier son
+    grand livre ne le verra plus. Rien n'est supprimé.
+  · Middleware `VerifierComptabiliteOuverte` → 404, pas 403.
+  · Écran superadmin « Attributions » (`superadmin.attributions.*`).
+  · Les écritures continuent d'être produites, masquage ou non.
+
+LOT 40 — Moyens de paiement, et quatre classes jamais importées (rév. 11f2007)
+  · RÉGRESSION DU LOT 39 REFERMÉE : masquer les Codes Journaux avait fermé le
+    SEUL écran où déclarer une banque ou un mobile money. Nouvel écran
+    « Moyens de paiement », même table vue sans sa colonne de compte. Compte
+    posé par le serveur (521000 / 571000).
+  · Encaissements et décaissements rejoignent le masquage (demande du
+    propriétaire). « Solde & journal » reste ouvert à tous.
+  · Les titres de section du menu sont uniformes ; seul le chevron dit l'état.
+  · QUATRE CLASSES EMPLOYÉES SANS IMPORT, toutes des 500 en attente :
+    `VenteDetail` (validation d'une livraison — signalé par le propriétaire),
+    `AchatDetail` (validation d'une réception), `PointDeVente` (parcours B2B),
+    `Utilisateur` (relations de `TransfertStock` — le plus sournois, `::class`
+    ne charge rien et fabrique une chaîne fausse).
+    `ClassesImporteesTest` relit tout `app/` au tokeniseur PHP.
+  · Articles & stock, Mouvements, Inventaire physique relus : rien d'anormal
+    au cloisonnement.
+
+
+4. CE QUI RESTE, DANS L'ORDRE DU PLAN
+-------------------------------------
+Sections TERMINÉES : 1 (navigation), 2 (principe comptabilité), 4 (moyens de
+paiement), 14 (trouvé en chemin), 16 (rappels DGI — référence, rien à faire).
+
+SECTION 3 — Comptabilité éteinte : ce qui disparaît des écrans  [6 chantiers]
+  3.1 Retirer « Compte comptable général collectif » des fiches client et
+      fournisseur (4 formulaires). Le serveur pose 411000 / 401000.
+  3.2 Le numéro de tiers reste, et devient automatique.
+  3.3 Retirer « Compte vente » / « Compte achat » du catalogue produits.
+  3.4 Masquer les numéros de compte préparamétrés du parcours de domaine.
+  3.5 Ne plus proposer de cocher un module déjà ouvert (image 2 du 02/10).
+  3.6 Épreuve : aucun élément comptable ne subsiste quand c'est fermé.
+
+SECTION 5 — Les écritures tournent quand même  [2 chantiers]
+  5.1 Rien ne change dans leur production.
+  5.2 ORDRE DE PRIORITÉ du choix de compte, écrit UNE FOIS dans un service :
+      (1) exception portée par le produit, (2) configuration globale,
+      (3) compte de la famille, (4) défaut 701000 / 601000.
+      **ET LES TIERS** (précisé le 05/10) : client 411000, fournisseur 401000.
+
+SECTION 6 — Configuration globale  [5 chantiers]
+  Nouvelle page à l'activation de la comptabilité. Deux sections (vente,
+  achat), trois boutons chacune : configuration générale (2 champs), par
+  catégorie, par type. Le plus précis l'emporte. Section « variations de
+  stock » en lecture avec correction possible. La fiche produit affiche
+  « hérite de la configuration globale » + une case qui ouvre deux champs
+  prioritaires. Reprise de l'existant : ce qui diffère du défaut est réputé
+  voulu et bascule en exception.
+
+SECTION 7 — Déversement Comptaflow  [5 chantiers]  ← LE PLUS IMPORTANT
+  7.1 DIAGNOSTIC DÉJÀ POSÉ : `DeverserOperationComptaflow::ligne()` envoie
+      `compte_debit`, `compte_credit`, `debit` et `credit` sur UNE SEULE
+      ligne. C'est le modèle interne de Selflow ; Comptaflow attend une ligne
+      par mouvement de compte. D'où la ligne unique par numéro de saisie et la
+      balance qui ne tombe pas.
+      **PRÉCISÉ LE 05/10 : ce n'est PAS un simple dédoublement.** Une vente
+      avec TVA, timbre et remise fait plus de deux lignes. Le déversement doit
+      porter l'opération ENTIÈRE, et ses lignes se retrouver groupées par leur
+      référence — le numéro de saisie. C'est lui qui fait le couple.
+  7.2 Reprendre le contrat de Comptaflow champ par champ.
+  7.3 Ne pas déverser une opération déséquilibrée (contrôle avant envoi).
+  7.4 Rejouer ce qui est parti de travers — vérifier l'idempotence AVANT.
+  7.5 Vérifier en réel sur une entreprise liée.
+
+SECTION 8 — Avoirs  [4 chantiers]
+  8.1 Un avoir ne peut pas dépasser la facture. Contrôle au serveur.
+  8.2 Retirer de la liste les factures entièrement avoirées.
+  8.3 Marquer les partiellement avoirées avec le reste à avoirer.
+  8.4 **PRÉCISÉ LE 05/10 : l'avoir fournisseur ne concerne QUE les BAPA.**
+      Un achat ordinaire est une pièce du fournisseur : on ne l'avoire pas, on
+      demande au fournisseur son propre avoir. L'écran ne doit pas proposer
+      d'avoir sur les autres achats.
+
+SECTION 9 — Écrans d'entrée  [4 chantiers]
+  9.1 Les icônes des boutons d'inscription ne s'affichent pas.
+  9.2 Un œil sur les DEUX champs de mot de passe, et les deux liés.
+  9.3 La création d'un point de vente est trop longue — mesurer avant.
+  9.4 La visite guidée désigne des écrans qu'on ne voit pas. À reprendre APRÈS
+      les sections 1 et 2, qui changent ce qui est visible.
+
+SECTION 10 — Paramètres, compte FNE  [6 chantiers]
+  10.1 « Compte sur la plateforme FNE » juste après « Votre configuration ».
+  10.2 **PRÉCISÉ LE 05/10** : ne demander QUE les informations fiscales
+       réellement manquantes. Celles prises à l'inscription ne se redemandent
+       pas.
+  10.3 **PRÉCISÉ LE 05/10** : NCC et mot de passe FNE n'apparaissent que s'ils
+       ne sont pas déjà connus.
+  10.4 Relever ce que le scraper ramène des quatre sections, AVANT de retirer
+       quoi que ce soit.
+  10.5 Le logo secondaire FNE reste toujours, posé par le système.
+  10.6 Rappel : périmètre FNE gelé.
+
+SECTION 11 — Modèles d'import  [4 chantiers]
+  Une colonne du modèle = un champ réellement saisi. Retirer
+  `compte_comptable`, `numero_tiers`, et les comptes de vente/achat.
+
+SECTION 12 — Performance  [4 chantiers]
+  Mesurer d'abord. Requêtes N+1 sur les écrans en cartes. Index. Ressources.
+  (Le correctif de jonction du lot 37 y a déjà contribué.)
+
+SECTION 13 — Conduite du chantier  [4 chantiers, permanents]
+
+SECTION 15 — La livraison  [1 chantier restant]
+  15.3 À TRANCHER AVEC LE PROPRIÉTAIRE : la fiche de livraison ne porte que la
+       quantité. Il manque la DESTINATION, QUI livre, et les HEURES de départ
+       et d'arrivée. À ajouter : adresse de livraison, livreur (personnel ou
+       prestataire), véhicule ou immatriculation, heure de départ, heure
+       d'arrivée, nom et signature du réceptionnaire, observations.
+       Demander : lesquels sont obligatoires, et si le bon de livraison
+       imprimé doit les porter.
+
+
+5. LES RÈGLES DGI SUR LES ACHATS — RAPPEL (section 16 du plan)
+--------------------------------------------------------------
+· Une facture reçue du portail **ne produit AUCUNE écriture**.
+  `FactureRecueControleur` ne crée aucun achat : le relevé est un objet de
+  rapprochement, pas une pièce. L'écriture vient de l'achat Selflow auquel la
+  facture est rattachée, et de lui seul.
+· `achats.numero_fne` et `achats.normalise` veulent dire « Selflow a émis
+  cette pièce et la DGI l'a certifiée ». Une facture reçue a été certifiée par
+  le FOURNISSEUR : son numéro FNE est lu depuis
+  `portail_fne_factures_recues.reference`, jamais écrit dans `achats`.
+· Le BAPA est le SEUL achat transmis à la DGI, et il ne collecte aucune TVA.
+  Les autres achats ne sont enregistrés que pour la comptabilité.
+· Le portail NE DIT PAS à quel site de chez nous une facture reçue se
+  rattache. `clientEstablishment` et `clientPointOfSale` décrivent l'ÉMETTEUR.
+  La seule source honnête est l'achat auquel on la rapproche.
+· Les secrets de l'émetteur (clé d'API, soldes, référence bancaire) sont
+  écartés du `contenu_brut` par `SECRETS_DE_L_EMETTEUR`.
+
+
+6. CE QUI N'EST PAS DANS LE PLAN ET DOIT ÊTRE SU
+------------------------------------------------
+· **Déploiement du lot 39** : la comptabilité se ferme pour TOUTES les
+  entreprises, existantes comprises. Prévenir avant de mettre en ligne, ou
+  accorder l'attribution aux dossiers concernés depuis l'écran superadmin.
+· **`EXTERNAL_SYNC_SECRET`** : la valeur en place est publiée dans
+  l'historique du dépôt. À changer dans les deux `.env`, même valeur.
+· **Chez Comptaflow** : le point d'entrée `rotate-key` et sa période de grâce
+  n'existent toujours pas ; les trois tolérances de transition sont encore
+  ouvertes et doivent être retirées ENSEMBLE le jour du déploiement conjoint.
+· **Contenus du propriétaire** : photos et vidéos de la vitrine, trois
+  descriptions de produits (RHFlow, LegalFlow, Agent-AI), présentation de
+  DC-Knowing, adresses de documentation et de politique, choix de
+  l'imprimante thermique 80 mm.
+· **L'impression navigateur (`window.print()`) est conservée volontairement**
+  pour les tests. Elle ne sera retirée que sur ordre explicite du
+  propriétaire.
