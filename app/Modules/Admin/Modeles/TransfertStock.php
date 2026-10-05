@@ -4,6 +4,17 @@ namespace App\Modules\Admin\Modeles;
 
 use App\Modules\Admin\Modeles\Concerns\IdentifiantOpaque;
 use App\Modules\Admin\Traits\JournaliseActions;
+/*
+ * `Utilisateur` n'etait pas importe, et les deux relations ci-dessous le
+ * nommaient par `Utilisateur::class`.
+ *
+ * C'est plus sournois qu'un appel statique : `::class` ne declenche aucun
+ * chargement, il fabrique seulement une chaine. Les relations pointaient donc
+ * sur `App\Modules\Admin\Modeles\Utilisateur`, qui n'existe pas -- sans que
+ * rien ne le signale, jusqu'a ce qu'on lise le demandeur ou l'approbateur
+ * d'un transfert.
+ */
+use App\Modules\Authentification\Modeles\Utilisateur;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 

@@ -296,6 +296,16 @@ class Habilitations
         // meme droit que le creer ou le supprimer.
         'admin.tresorerie.modifier_code_journal'  => 'tresorerie_codes_journaux',
         'admin.tresorerie.supprimer_code_journal' => 'tresorerie_codes_journaux',
+        // Les moyens de paiement : la même table que les codes journaux, vue
+        // sans sa colonne de compte. C'est l'écran qui reste quand la
+        // comptabilité est fermée — même droit, donc, puisque c'est la même
+        // liste. Leur donner une habilitation à part ferait qu'un même
+        // collaborateur pourrait déclarer une banque sans pouvoir la voir le
+        // jour où l'entreprise ouvrirait ses livres.
+        'admin.tresorerie.moyens_paiement'           => 'tresorerie_codes_journaux',
+        'admin.tresorerie.creer_moyen_paiement'      => 'tresorerie_codes_journaux',
+        'admin.tresorerie.modifier_moyen_paiement'   => 'tresorerie_codes_journaux',
+        'admin.tresorerie.supprimer_moyen_paiement'  => 'tresorerie_codes_journaux',
         'admin.banques.creer'                     => 'nouvelle_vente',
 
         // ── Comptabilité ──

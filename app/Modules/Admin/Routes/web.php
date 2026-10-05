@@ -164,19 +164,37 @@ Route::prefix('admin')
 
         // ── Trésorerie ──
         Route::prefix('tresorerie')->name('tresorerie.')->middleware('modules:comptabilite')->group(function () {
-            Route::get('/encaissements', [TresorerieControleur::class, 'encaissements'])->name('encaissements');
-            Route::get('/decaissements', [TresorerieControleur::class, 'decaissements'])->name('decaissements');
             Route::get('/journal', [TresorerieControleur::class, 'journal'])->name('journal');
 
             /*
-             * Les codes journaux portent un numero de compte : c'est un ecran
-             * de comptabilite. Il ne s'ouvre qu'a qui l'a demandee.
+             * Les moyens de paiement : la meme table que les codes journaux,
+             * vue sans sa colonne de compte.
              *
-             * Encaissements, decaissements et solde restent ouverts a tous :
-             * ce sont des ecrans de caisse. Une entreprise encaisse sans tenir
-             * de livres.
+             * C'est la porte qui reste quand la comptabilite est fermee. Sans
+             * elle, le lot 39 avait ferme le seul ecran ou une entreprise
+             * pouvait declarer sa banque ou son mobile money -- elle n'aurait
+             * plus eu aucun moyen d'en ajouter un.
+             */
+            Route::get('/moyens-de-paiement', [TresorerieControleur::class, 'moyensDePaiement'])->name('moyens_paiement');
+            Route::post('/moyens-de-paiement', [TresorerieControleur::class, 'creerMoyenDePaiement'])->name('creer_moyen_paiement');
+            Route::put('/moyens-de-paiement/{code}', [TresorerieControleur::class, 'modifierMoyenDePaiement'])->name('modifier_moyen_paiement');
+            Route::delete('/moyens-de-paiement/{code}', [TresorerieControleur::class, 'supprimerMoyenDePaiement'])->name('supprimer_moyen_paiement');
+
+            /*
+             * Ce qui ne s'ouvre qu'a qui a demande la comptabilite.
+             *
+             * Les codes journaux portent un numero de compte. Encaissements et
+             * decaissements y ont rejoint le 02/10/2026, a la demande du
+             * proprietaire : ce sont des ecrans de reglement rattaches aux
+             * livres, et non la caisse du quotidien -- celle-ci passe par la
+             * vente et son mode de paiement.
+             *
+             * « Solde & journal » reste : lire ce qu'on a en caisse ne demande
+             * pas de tenir de comptabilite.
              */
             Route::middleware('comptabilite')->group(function () {
+                Route::get('/encaissements', [TresorerieControleur::class, 'encaissements'])->name('encaissements');
+                Route::get('/decaissements', [TresorerieControleur::class, 'decaissements'])->name('decaissements');
                 Route::get('/codes-journaux', [TresorerieControleur::class, 'codesJournaux'])->name('codes_journaux');
                 Route::post('/codes-journaux', [TresorerieControleur::class, 'creerCodeJournal'])->name('creer_code_journal');
                 // Une entreprise doit pouvoir renommer ses propres journaux : le

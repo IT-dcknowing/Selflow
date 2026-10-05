@@ -15,6 +15,10 @@ use App\Modules\Admin\Modeles\AchatDetail;
 use App\Modules\Admin\Modeles\Vente;
 use App\Modules\Admin\Modeles\VenteDetail;
 use App\Modules\Admin\Modeles\MouvementStock;
+// Employe a trois endroits du parcours B2B sans etre importe : PHP le
+// cherchait dans l'espace de noms du controleur et tombait en 500 (Internal
+// Server Error -- erreur interne du serveur) des la premiere negociation.
+use App\Modules\Admin\Modeles\PointDeVente;
 use App\Modules\Admin\Modeles\TresorerieJournal;
 use App\Modules\Admin\Modeles\CodeJournal;
 use App\Modules\Admin\Services\FneService;

@@ -261,6 +261,113 @@ class TresorerieControleur
         return redirect()->back()->with('succes', 'Code journal supprimé avec succès !');
     }
 
+    // ══════════════ Les moyens de paiement ══════════════
+
+    /**
+     * La même table que les codes journaux, vue sans sa colonne de compte.
+     *
+     * Le lot 39 a masqué les codes journaux aux entreprises qui ne tiennent pas
+     * leur comptabilité dans Selflow. **Cela leur a fermé le seul écran où
+     * déclarer leur banque ou leur mobile money** : elles pouvaient encaisser,
+     * plus en ajouter un moyen. Cet écran est la porte qui reste.
+     *
+     * Ce n'est pas une seconde table. Un moyen de paiement et un journal de
+     * trésorerie sont la même ligne vue de deux côtés : l'un montre Type,
+     * Intitulé et Code, l'autre y ajoute le compte. Deux tables à tenir
+     * d'accord divergent, et la comptabilité se réveillerait avec des
+     * encaissements rattachés à aucun journal.
+     *
+     * Seuls les moyens de règlement sont montrés — Banque et Caisse. Les
+     * journaux de vente, d'achat et d'opérations diverses ne sont pas des
+     * moyens de paiement : on ne règle pas une facture « au journal des
+     * ventes ».
+     */
+    public function moyensDePaiement(): View
+    {
+        $entreprise = Auth::user()->entreprise;
+
+        $moyens = CodeJournal::where('entreprise_id', $entreprise->id)
+            ->whereIn('type', self::TYPES_DE_PAIEMENT)
+            ->orderBy('type')
+            ->orderBy('intitule')
+            ->get();
+
+        return view('admin::tresorerie.moyens_paiement', compact('moyens', 'entreprise'));
+    }
+
+    /**
+     * Les types qu'un moyen de paiement peut porter.
+     *
+     * La caisse est posée d'office par le trousseau — une entreprise encaisse
+     * toujours en espèces —, et ce qui s'ajoute ici est le plus souvent une
+     * banque ou un compte de monnaie électronique, qui se range aussi en
+     * « Banque ».
+     */
+    private const TYPES_DE_PAIEMENT = ['Banque', 'Caisse'];
+
+    public function creerMoyenDePaiement(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'type'     => ['required', 'string', Rule::in(self::TYPES_DE_PAIEMENT)],
+            'code'     => ['required', 'string', 'max:50'],
+            'intitule' => ['required', 'string', 'max:255'],
+        ]);
+
+        /*
+         * Aucun compte n'est demandé, et c'est tout l'objet de l'écran. Il est
+         * posé par le serveur : 521000 pour une banque, 571000 pour une
+         * caisse. Le laisser vide ferait un journal de trésorerie sans
+         * contrepartie — chaque règlement passé par ce moyen resterait sans
+         * imputation, et le jour où l'entreprise ouvrirait sa comptabilité,
+         * elle trouverait ses encaissements en l'air.
+         */
+        CodeJournal::create([
+            'entreprise_id' => Auth::user()->entreprise_id,
+            'type'          => $request->input('type'),
+            'code'          => strtoupper($request->input('code')),
+            'intitule'      => $request->input('intitule'),
+            'compte'        => $request->input('type') === 'Banque' ? '521000' : '571000',
+        ]);
+
+        return redirect()->back()->with('succes', 'Moyen de paiement créé.');
+    }
+
+    /**
+     * Renommer un moyen de paiement.
+     *
+     * Le code ne se change pas : il est la clé sous laquelle les règlements
+     * déjà passés sont rangés. Le type non plus — il décide du compte.
+     */
+    public function modifierMoyenDePaiement(Request $request, CodeJournal $code): RedirectResponse
+    {
+        abort_unless($code->entreprise_id === Auth::user()->entreprise_id, 404);
+        abort_unless(in_array($code->type, self::TYPES_DE_PAIEMENT, true), 404);
+
+        $request->validate(['intitule' => ['required', 'string', 'max:255']]);
+
+        $code->update(['intitule' => $request->input('intitule')]);
+
+        return redirect()->back()->with('succes', 'Moyen de paiement « ' . $code->code . ' » mis à jour.');
+    }
+
+    public function supprimerMoyenDePaiement(CodeJournal $code): RedirectResponse
+    {
+        abort_unless($code->entreprise_id === Auth::user()->entreprise_id, 404);
+        abort_unless(in_array($code->type, self::TYPES_DE_PAIEMENT, true), 404);
+
+        // La caisse ne se supprime pas : une entreprise encaisse toujours en
+        // espèces, et son journal porte des règlements déjà passés.
+        if ($code->type === 'Caisse') {
+            return redirect()->back()->withErrors([
+                'moyen' => 'La caisse ne peut pas être supprimée : tout encaissement en espèces s\'y range.',
+            ]);
+        }
+
+        $code->delete();
+
+        return redirect()->back()->with('succes', 'Moyen de paiement supprimé.');
+    }
+
     public function creerBanqueAjax(Request $request): JsonResponse
     {
         $request->validate([

@@ -6957,6 +6957,94 @@ qu'on ne saurait plus nommer. Les routes sont rangées sous
 
 ---
 
+### Lot 40 — Les moyens de paiement, et quatre classes jamais importées — **TERMINÉ le 05/10/2026**
+
+Quatre remarques du propriétaire, et ce que la troisième a mis au jour.
+
+#### 40.1 — Les sections dépliées paraissaient d'une autre famille
+
+« Les sections doivent être pareilles que les autres, même taille et même
+style. » Les titres étaient **éclaircis à l'ouverture** : à l'œil, on lisait
+deux sortes de sections là où il n'y en a qu'une. Taille, graisse et couleur
+sont désormais identiques partout. **Seul le chevron dit l'état** — et il passe
+en ambre quand une section repliée porte l'écran courant.
+
+#### 40.2 — Le lot 39 avait fermé le seul écran où déclarer sa banque
+
+La question du propriétaire — « où se trouve la page de création du moyen de
+paiement ? » — n'avait pas de réponse : **il n'y en avait pas**.
+
+En masquant les Codes Journaux aux entreprises sans comptabilité, le lot 39
+leur avait retiré le seul endroit où déclarer une banque ou un compte de
+monnaie électronique. Elles pouvaient encaisser ; plus en ajouter un moyen.
+C'est une régression que le lot 39 a introduite, et le chantier 4 du plan la
+referme.
+
+| Décision | Raison |
+|---|---|
+| **Une seule table, deux lectures** | Un moyen de paiement et un journal de trésorerie sont la même ligne vue de deux côtés : l'un montre Type, Intitulé et Code, l'autre y ajoute le compte. Deux tables à tenir d'accord divergent, et la comptabilité se réveillerait avec des encaissements rattachés à aucun journal |
+| **Les deux entrées ne coexistent jamais au menu** | Comptabilité ouverte, ce sont les Codes Journaux ; fermée, les Moyens de paiement. Deux entrées pour une même liste invitent à les comparer, et elles ne peuvent que concorder |
+| **Aucun compte demandé, mais un compte posé** | 521000 pour une banque, 571000 pour une caisse. Le laisser vide ferait un journal de trésorerie **sans contrepartie** : le jour où l'entreprise ouvrirait sa comptabilité, elle trouverait ses encaissements en l'air |
+| **La caisse ne se supprime pas** | Tout encaissement en espèces s'y range, et les règlements déjà passés la portent |
+| **Seuls Banque et Caisse** | On ne règle pas une facture « au journal des ventes » |
+| **Le code ne se change plus après coup** | Il est la clé sous laquelle les règlements déjà passés sont rangés |
+
+#### 40.3 — Encaissements et décaissements rejoignent le masquage
+
+« Retire les encaissements et décaissements, ils doivent être masqués comme la
+comptabilité, mets-les ensemble. » Ce sont des écrans de **règlement rattachés
+aux livres**, et non la caisse du quotidien — celle-ci passe par la vente et son
+mode de paiement. Révision du chantier 2.3, qui les laissait ouverts.
+
+**« Solde & journal » reste ouvert à tous :** lire ce qu'on a en caisse ne
+demande pas de tenir de livres.
+
+#### 40.4 — Quatre classes employées sans jamais être importées
+
+Signalé console à l'appui :
+
+```
+POST /admin/stock/livraisons/{uuid}/valider
+Class "App\Modules\Admin\Controleurs\VenteDetail" not found   — 500
+```
+
+`VenteDetail::findOrFail()` était appelé dans `validerLivraison()` sans que la
+classe soit importée. PHP la cherchait dans l'espace de noms du contrôleur.
+
+**Ce défaut ne se voit pas à l'affichage.** La page s'ouvre, le formulaire se
+remplit, le stock s'affiche : c'est le bouton qui casse, et seulement lui.
+Aucune épreuve d'écran ne l'aurait pris.
+
+**Trois autres trouvés en cherchant :**
+
+| Où | Quoi | Ce qui tombait |
+|---|---|---|
+| `StockControleur` | `AchatDetail` | La validation d'une **réception** — même écran, autre moitié, exactement la leçon du lot 20 |
+| `B2bControleur` | `PointDeVente`, trois fois | Le parcours B2B dès la première négociation |
+| `TransfertStock` | `Utilisateur`, deux relations | **Plus sournois** : `::class` ne déclenche aucun chargement, il fabrique seulement une chaîne. Les relations pointaient en silence sur `App\Modules\Admin\Modeles\Utilisateur`, qui n'existe pas — jusqu'à ce qu'on lise le demandeur ou l'approbateur d'un transfert |
+
+`ClassesImporteesTest` parcourt désormais tout `app/`. **Au tokeniseur PHP, et
+non à l'expression régulière** : ce dépôt commente beaucoup, et ses commentaires
+citent des classes — « voir `Produit::CODES_TVA` » — qu'une expression
+régulière prend pour du code. La première version rendait vingt-huit faux
+positifs. L'épreuve tient aussi compte de l'espace de noms du fichier : un nom
+qui y vit n'a pas besoin d'import.
+
+#### 40.5 — Les trois écrans de stock, relus
+
+Vérifiés à la demande du propriétaire — Articles & stock, Mouvements,
+Inventaire physique. **Rien d'anormal au cloisonnement :** les trois bornent
+leurs requêtes à l'entreprise *avant* d'appliquer le filtre de site. Un
+identifiant de site d'une autre entreprise passé à la main ne rend rien et ne
+fuit rien. Les compteurs de réceptions, livraisons et transferts en attente sont
+bornés de la même façon. Les seuls défauts de ce périmètre sont les imports
+manquants du 40.4.
+
+- `tests/Feature/ClassesImporteesTest.php` — 1 épreuve qui relit tout `app/`
+- `tests/Feature/ComptabiliteFacultativeTest.php` — 4 épreuves ajoutées (21 au total)
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

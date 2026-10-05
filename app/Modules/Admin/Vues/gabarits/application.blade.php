@@ -121,12 +121,17 @@
             font-size: 10px; color: rgba(255, 255, 255, 0.4);
             transition: transform .18s; flex-shrink: 0;
         }
+        /* Le chevron dit seul si la section est ouverte.
+           Les titres étaient éclaircis à l'ouverture, et la section dépliée
+           paraissait d'une autre famille que celles d'à côté : à l'œil, on
+           lisait deux sortes de sections là où il n'y en a qu'une. Taille,
+           graisse et couleur sont désormais les mêmes partout. */
         .js-nav .nav-section[aria-expanded="true"] .nav-chevron { transform: rotate(90deg); }
-        .js-nav .nav-section[aria-expanded="true"] span { color: rgba(255, 255, 255, 0.7); }
 
         /* Replier la section où l'on se trouve ferait perdre de vue l'écran
-           courant : son titre passe alors en ambre, comme l'entrée active. */
-        .js-nav .nav-section.contient-actif[aria-expanded="false"] span { color: #FFC107; }
+           courant : seul son chevron passe alors en ambre — l'état se marque,
+           le titre ne change pas de style. */
+        .js-nav .nav-section.contient-actif[aria-expanded="false"] .nav-chevron { color: #FFC107; }
 
         .js-nav .nav-groupe { display: flex; flex-direction: column; gap: 2px; }
         .js-nav .nav-section[aria-expanded="false"] + .nav-groupe { display: none; }
@@ -867,6 +872,41 @@
                  caisse. Les appeler « Comptabilité » promettrait des livres
                  qu'on ne tient pas. --}}
             <div class="nav-section"><span>{{ $comptabiliteOuverte ? 'Comptabilité' : 'Trésorerie' }}</span></div>
+            @if(auth()->user()->aHabilitation('tresorerie_journal'))
+            <a href="{{ route('admin.tresorerie.journal') }}" class="nav-item {{ request()->routeIs('admin.tresorerie.journal') ? 'active' : '' }}">
+                <i class="fas fa-wallet"></i> Solde &amp; journal
+            </a>
+            @endif
+
+            {{-- Les moyens de paiement : la même table que les codes journaux,
+                 vue sans sa colonne de compte. C'est la porte qui reste quand
+                 la comptabilité est fermée — sans elle, le lot 39 avait fermé
+                 le seul écran où une entreprise pouvait déclarer sa banque ou
+                 son mobile money.
+
+                 Quand la comptabilité est ouverte, les codes journaux disent la
+                 même chose en plus complet : deux entrées pour une seule liste
+                 inviteraient à les comparer, et elles ne peuvent que
+                 concorder. --}}
+            @if(!$comptabiliteOuverte && auth()->user()->aHabilitation('tresorerie_codes_journaux'))
+            <a href="{{ route('admin.tresorerie.moyens_paiement') }}" class="nav-item {{ request()->routeIs('admin.tresorerie.moyens_paiement') ? 'active' : '' }}">
+                <i class="fas fa-credit-card"></i> Moyens de paiement
+            </a>
+            @endif
+
+            {{-- ── À partir d'ici, la comptabilité proprement dite ──────────
+                 « Solde & journal » reste ouvert à tous : lire ce qu'on a en
+                 caisse ne demande pas de tenir de livres.
+
+                 Encaissements et décaissements ont rejoint le masquage le
+                 02/10/2026, à la demande du propriétaire : ce sont des écrans
+                 de règlement rattachés aux livres, et non la caisse du
+                 quotidien — celle-ci passe par la vente et son mode de
+                 paiement.
+
+                 Le menu dit ce qu'on propose ; c'est le middleware
+                 `comptabilite` qui dit ce qu'on autorise. --}}
+            @if($comptabiliteOuverte)
             @if(auth()->user()->aHabilitation('tresorerie_encaissements'))
             <a href="{{ route('admin.tresorerie.encaissements') }}" class="nav-item {{ request()->routeIs('admin.tresorerie.encaissements') ? 'active' : '' }}">
                 <i class="fas fa-arrow-down" style="color:#10b981;"></i> Encaissements
@@ -877,21 +917,6 @@
                 <i class="fas fa-arrow-up" style="color:#ef4444;"></i> Décaissements
             </a>
             @endif
-            @if(auth()->user()->aHabilitation('tresorerie_journal'))
-            <a href="{{ route('admin.tresorerie.journal') }}" class="nav-item {{ request()->routeIs('admin.tresorerie.journal') ? 'active' : '' }}">
-                <i class="fas fa-wallet"></i> Solde &amp; journal
-            </a>
-            @endif
-            {{-- ── À partir d'ici, la comptabilité proprement dite ──────────
-                 Encaissements, décaissements et solde restent ouverts à tous :
-                 ce sont des écrans de caisse, et une entreprise encaisse sans
-                 tenir de livres. Ce qui suit porte des numéros de compte, et
-                 ne s'affiche qu'à qui a demandé la comptabilité — ou à qui le
-                 superadministrateur l'a accordée.
-
-                 Le menu dit ce qu'on propose ; c'est le middleware
-                 `comptabilite` qui dit ce qu'on autorise. --}}
-            @if($comptabiliteOuverte)
             @if(auth()->user()->aHabilitation('tresorerie_codes_journaux'))
             <a href="{{ route('admin.tresorerie.codes_journaux') }}" class="nav-item {{ request()->routeIs('admin.tresorerie.codes_journaux') ? 'active' : '' }}">
                 <i class="fas fa-book"></i> Codes Journaux

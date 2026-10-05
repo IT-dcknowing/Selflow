@@ -84,9 +84,24 @@ class ComptabiliteFacultativeTest extends TestCase
         $this->entreprise->comptabilite_activee = true;
         $this->entreprise->save();
         $this->entreprise->refresh();
+
+        /*
+         * L'épreuve garde un seul objet `Utilisateur` d'une requête à l'autre,
+         * et sa relation `entreprise` reste celle chargée au premier appel —
+         * donc comptabilité fermée. Une requête réelle rebâtit l'utilisateur à
+         * chaque fois ; ici, il faut le dire.
+         */
+        $this->admin->unsetRelation('entreprise');
     }
 
-    /** Les écrans qui ne s'ouvrent qu'à qui a demandé la comptabilité. */
+    /**
+     * Les écrans qui ne s'ouvrent qu'à qui a demandé la comptabilité.
+     *
+     * Encaissements et décaissements y sont entrés le 05/10/2026, à la demande
+     * du propriétaire : ce sont des écrans de règlement rattachés aux livres,
+     * et non la caisse du quotidien — celle-ci passe par la vente et son mode
+     * de paiement.
+     */
     private const ECRANS_FERMES = [
         'admin.comptabilite.globale',
         'admin.comptabilite.creances',
@@ -96,13 +111,20 @@ class ComptabiliteFacultativeTest extends TestCase
         'admin.comptabilite.lettrage',
         'admin.comptabilite.libelles',
         'admin.tresorerie.codes_journaux',
-    ];
-
-    /** Ceux qui restent : ce sont des écrans de caisse. */
-    private const ECRANS_DE_CAISSE = [
         'admin.tresorerie.encaissements',
         'admin.tresorerie.decaissements',
+    ];
+
+    /**
+     * Ceux qui restent.
+     *
+     * Lire ce qu'on a en caisse ne demande pas de tenir de livres ; et les
+     * moyens de paiement sont la porte par laquelle une entreprise déclare sa
+     * banque — sans eux, le masquage l'aurait privée du seul écran où le faire.
+     */
+    private const ECRANS_OUVERTS = [
         'admin.tresorerie.journal',
+        'admin.tresorerie.moyens_paiement',
     ];
 
     // ══════════════ Le défaut : fermée ══════════════
@@ -128,12 +150,86 @@ class ComptabiliteFacultativeTest extends TestCase
         }
     }
 
-    public function test_les_ecrans_de_caisse_restent_ouverts(): void
+    public function test_le_solde_et_les_moyens_de_paiement_restent_ouverts(): void
     {
-        // Une entreprise encaisse sans tenir de livres.
-        foreach (self::ECRANS_DE_CAISSE as $route) {
+        // Une entreprise encaisse sans tenir de livres, et doit pouvoir
+        // déclarer sa banque.
+        foreach (self::ECRANS_OUVERTS as $route) {
             $this->connecte()->get(route($route))->assertOk();
         }
+    }
+
+    public function test_les_moyens_de_paiement_remplacent_les_codes_journaux(): void
+    {
+        /*
+         * Le masquage des codes journaux avait fermé **le seul écran** où une
+         * entreprise pouvait déclarer sa banque ou son mobile money : elle
+         * pouvait encaisser, plus en ajouter un moyen. Les deux entrées ne
+         * coexistent jamais — c'est la même liste, vue avec ou sans sa colonne
+         * de compte.
+         */
+        $menu = $this->menu();
+        $this->assertStringContainsString('Moyens de paiement', $menu);
+        $this->assertStringNotContainsString('Codes Journaux', $menu);
+
+        $this->ouvrirLaComptabilite();
+
+        $menu = $this->menu();
+        $this->assertStringContainsString('Codes Journaux', $menu);
+        $this->assertStringNotContainsString('Moyens de paiement', $menu);
+    }
+
+    public function test_un_moyen_de_paiement_recoit_son_compte_sans_qu_on_le_demande(): void
+    {
+        $this->connecte()->post(route('admin.tresorerie.creer_moyen_paiement'), [
+            'type' => 'Banque', 'code' => 'nsia', 'intitule' => 'NSIA Banque',
+        ])->assertRedirect();
+
+        $journal = \App\Modules\Admin\Modeles\CodeJournal::where('entreprise_id', $this->entreprise->id)
+            ->where('code', 'NSIA')->first();
+
+        $this->assertNotNull($journal);
+
+        /*
+         * Aucun compte n'a été demandé, et c'est tout l'objet de l'écran. Le
+         * laisser vide ferait un journal de trésorerie sans contrepartie : le
+         * jour où l'entreprise ouvrirait sa comptabilité, elle trouverait ses
+         * encaissements en l'air.
+         */
+        $this->assertSame('521000', $journal->compte);
+        $this->assertSame('Banque', $journal->type);
+    }
+
+    public function test_la_caisse_ne_se_supprime_pas(): void
+    {
+        $caisse = \App\Modules\Admin\Modeles\CodeJournal::create([
+            'entreprise_id' => $this->entreprise->id,
+            'type' => 'Caisse', 'code' => 'CAI',
+            'intitule' => 'Caisse', 'compte' => '571000',
+        ]);
+
+        // Tout encaissement en espèces s'y range, et les règlements déjà
+        // passés la portent.
+        $this->connecte()
+            ->delete(route('admin.tresorerie.supprimer_moyen_paiement', $caisse))
+            ->assertSessionHasErrors('moyen');
+
+        $this->assertNotNull($caisse->fresh());
+    }
+
+    public function test_un_journal_de_vente_n_est_pas_un_moyen_de_paiement(): void
+    {
+        \App\Modules\Admin\Modeles\CodeJournal::create([
+            'entreprise_id' => $this->entreprise->id,
+            'type' => 'Vente', 'code' => 'VTE',
+            'intitule' => 'Journal des ventes', 'compte' => null,
+        ]);
+
+        // On ne règle pas une facture « au journal des ventes ».
+        $this->connecte()
+            ->get(route('admin.tresorerie.moyens_paiement'))
+            ->assertOk()
+            ->assertDontSee('Journal des ventes');
     }
 
     public function test_le_resultat_par_site_survit_au_masquage(): void

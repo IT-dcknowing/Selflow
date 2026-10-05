@@ -4,6 +4,19 @@ namespace App\Modules\Admin\Controleurs;
 
 use App\Modules\Admin\Modeles\Achat;
 use App\Modules\Admin\Modeles\Vente;
+/*
+ * `VenteDetail` etait employe dans `validerLivraison()` sans jamais etre
+ * importe : PHP le cherchait dans l'espace de noms du controleur, ne le
+ * trouvait pas, et toute validation d'expedition tombait en 500 (Internal
+ * Server Error -- erreur interne du serveur). L'ecran s'ouvrait, le
+ * formulaire se remplissait, et c'est le bouton qui cassait.
+ *
+ * `AchatDetail` portait exactement le meme defaut dans la validation d'une
+ * reception, et personne ne l'avait signale -- la meme moitie reparee qui
+ * cachait l'autre qu'au lot 20. Les deux se corrigent ensemble.
+ */
+use App\Modules\Admin\Modeles\VenteDetail;
+use App\Modules\Admin\Modeles\AchatDetail;
 use App\Modules\Admin\Modeles\TransfertStock;
 use App\Modules\Admin\Modeles\MouvementStock;
 use App\Modules\Admin\Modeles\Produit;
