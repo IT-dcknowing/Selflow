@@ -59,7 +59,9 @@ class StockControleur
         $query = Produit::where('produits.entreprise_id', $entreprise->id)
             ->stockables()
             ->visiblesEnStock()
-            ->with(['stocks']);
+            // La catégorie se lit sur chaque ligne et au filtre : sans elle,
+            // une requête par article.
+            ->with(['stocks', 'category']);
 
         $produits = $query
             ->leftJoin('categories', 'produits.categorie_id', '=', 'categories.id')
@@ -83,6 +85,11 @@ class StockControleur
         }
 
         $categories = $produits->pluck('categorie')->unique()->sort()->values();
+
+        // « Commandé », « à réceptionner » et « prévisionnel », lus par la vue
+        // sur chaque ligne : deux requêtes pour tout le tableau, au lieu de
+        // quatre par article. Même site que les accesseurs qu'ils remplacent.
+        Produit::prechargerEngagements($produits, Produit::getActivePdvId());
 
         // Compteurs interactifs Odoo filtrés par point de vente actif
         /*

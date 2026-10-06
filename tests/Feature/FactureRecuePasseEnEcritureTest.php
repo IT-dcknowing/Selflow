@@ -153,7 +153,7 @@ class FactureRecuePasseEnEcritureTest extends TestCase
     {
         Produit::create([
             'entreprise_id' => $this->entreprise->id, 'reference' => 'GAS-12',
-            'nom' => 'Gasoil', 'type' => 'stockable', 'prix_achat' => 700, 'prix_vente' => 800,
+            'nom' => 'Gasoil', 'type' => 'marchandise', 'prix_achat' => 700, 'prix_vente' => 800,
             'taux_tva' => 18, 'compte_achat' => '605300',
         ]);
 

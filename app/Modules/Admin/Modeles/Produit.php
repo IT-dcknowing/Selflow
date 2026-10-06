@@ -593,8 +593,7 @@ class Produit extends Model
      */
     public function stockActuel($pointDeVenteId): float
     {
-        $stock = $this->stocks->where('point_de_vente_id', $pointDeVenteId)->first();
-        return (float) ($stock->quantite_disponible ?? 0);
+        return (float) ($this->ficheSur($pointDeVenteId)?->quantite_disponible ?? 0);
     }
 
     /**
@@ -602,8 +601,7 @@ class Produit extends Model
      */
     public function stockMinimum($pointDeVenteId): float
     {
-        $stock = $this->stocks->where('point_de_vente_id', $pointDeVenteId)->first();
-        return (float) ($stock->stock_minimum ?? 5);
+        return (float) ($this->ficheSur($pointDeVenteId)?->stock_minimum ?? 5);
     }
 
     /**
@@ -611,9 +609,30 @@ class Produit extends Model
      */
     public function stockMaximum($pointDeVenteId): float
     {
-        $stock = $this->stocks->where('point_de_vente_id', $pointDeVenteId)->first();
-        return (float) ($stock->stock_maximum ?? 100);
+        return (float) ($this->ficheSur($pointDeVenteId)?->stock_maximum ?? 100);
     }
+
+    /**
+     * La fiche de stock d'un site, cherchée dans un index plutôt que filtrée.
+     *
+     * Une carte de caisse lit le stock six fois — classe de rupture, attribut,
+     * libellé — et chaque lecture refiltrait toute la collection des fiches :
+     * 1,7 seconde sur un catalogue de 10 000 articles (mesuré au lot 43).
+     * L'index est rebâti si la relation est rechargée.
+     */
+    private function ficheSur($pointDeVenteId): ?Stock
+    {
+        $stocks = $this->stocks;
+
+        if ($this->indexDesFiches === null || $this->indexDesFiches[0] !== spl_object_id($stocks)) {
+            $this->indexDesFiches = [spl_object_id($stocks), $stocks->keyBy('point_de_vente_id')->all()];
+        }
+
+        return $this->indexDesFiches[1][$pointDeVenteId] ?? null;
+    }
+
+    /** @var array{0: int, 1: array<int|string, Stock>}|null */
+    private ?array $indexDesFiches = null;
 
     /**
      * Accesseurs dynamiques de compatibilité basés sur le point de vente actif.
@@ -646,8 +665,30 @@ class Produit extends Model
         return null;
     }
 
+    /**
+     * Les valeurs qu'un écran pose pour l'affichage — jamais écrites en base.
+     *
+     * `setStockActuelAttribute()` et `setStockMinimumAttribute()` faisaient un
+     * `Stock::updateOrCreate()` sur le site actif. L'écran Articles & stock les
+     * appelait pour AFFICHER : en vue « Tous les sites », il écrivait la somme
+     * de tous les sites dans la fiche du site actif, à chaque affichage, sans
+     * mouvement au journal — le stock d'un magasin gonflait d'un simple coup
+     * d'œil. Et il le faisait article par article : 66 146 requêtes, 51
+     * secondes, mesurés le 06/10/2026 (lot 43). Le stock ne bouge que par
+     * `StockService`, la seule porte.
+     */
+    private ?float $stockAffiche = null;
+    private ?float $minimumAffiche = null;
+
+    /** @var array<string, float> engagements déjà lus, par sens et par site */
+    private array $engagements = [];
+
     public function getStockActuelAttribute(): float
     {
+        if ($this->stockAffiche !== null) {
+            return $this->stockAffiche;
+        }
+
         $pdvId = self::getActivePdvId();
         if (!$pdvId) {
             $stock = $this->stocks->first();
@@ -658,6 +699,10 @@ class Produit extends Model
 
     public function getStockMinimumAttribute(): float
     {
+        if ($this->minimumAffiche !== null) {
+            return $this->minimumAffiche;
+        }
+
         $pdvId = self::getActivePdvId();
         if (!$pdvId) {
             $stock = $this->stocks->first();
@@ -668,28 +713,12 @@ class Produit extends Model
 
     public function setStockActuelAttribute($value): void
     {
-        $pdvId = self::getActivePdvId();
-        if ($pdvId) {
-            Stock::updateOrCreate([
-                'produit_id'        => $this->id,
-                'point_de_vente_id' => $pdvId,
-            ], [
-                'quantite_disponible' => $value,
-            ]);
-        }
+        $this->stockAffiche = (float) $value;
     }
 
     public function setStockMinimumAttribute($value): void
     {
-        $pdvId = self::getActivePdvId();
-        if ($pdvId) {
-            Stock::updateOrCreate([
-                'produit_id'        => $this->id,
-                'point_de_vente_id' => $pdvId,
-            ], [
-                'stock_minimum' => $value,
-            ]);
-        }
+        $this->minimumAffiche = (float) $value;
     }
 
     /**
@@ -751,7 +780,9 @@ class Produit extends Model
      */
     public function quantiteCommandee(?int $pointDeVenteId = null): float
     {
-        return (float) $this->venteDetails()
+        $cle = 'commande:' . ($pointDeVenteId ?? 'tout');
+
+        return $this->engagements[$cle] ??= (float) $this->venteDetails()
             ->whereColumn('quantite', '>', 'quantite_livree')
             ->whereHas('vente', function ($q) use ($pointDeVenteId) {
                 $q->where('etape', 'Bon de commande')
@@ -766,13 +797,64 @@ class Produit extends Model
      */
     public function quantiteAReceptionner(?int $pointDeVenteId = null): float
     {
-        return (float) $this->achatDetails()
+        $cle = 'reception:' . ($pointDeVenteId ?? 'tout');
+
+        return $this->engagements[$cle] ??= (float) $this->achatDetails()
             ->whereColumn('quantite', '>', 'quantite_receptionnee')
             ->whereHas('achat', function ($q) use ($pointDeVenteId) {
                 $q->where('etape', 'Bon de commande')
                   ->when($pointDeVenteId, fn ($r) => $r->where('point_de_vente_id', $pointDeVenteId));
             })
             ->sum(DB::raw('quantite - quantite_receptionnee'));
+    }
+
+    /**
+     * Lire les engagements de tout un tableau en deux requêtes.
+     *
+     * Chaque ligne de l'écran Articles & stock lisait « commandé », « à
+     * réceptionner » et « prévisionnel » — ce dernier relisant les deux
+     * premiers : quatre sommes par article, 34 204 requêtes sur le jeu de
+     * démonstration. Deux requêtes groupées les remplacent.
+     *
+     * @param  iterable<self>  $produits
+     */
+    public static function prechargerEngagements(iterable $produits, ?int $pointDeVenteId): void
+    {
+        $produits = collect($produits);
+        $ids = $produits->pluck('id')->all();
+
+        if ($ids === []) {
+            return;
+        }
+
+        $commandes = VenteDetail::query()
+            ->whereIn('produit_id', $ids)
+            ->whereColumn('quantite', '>', 'quantite_livree')
+            ->whereHas('vente', function ($q) use ($pointDeVenteId) {
+                $q->where('etape', 'Bon de commande')
+                  ->when($pointDeVenteId, fn ($r) => $r->where('point_de_vente_id', $pointDeVenteId));
+            })
+            ->groupBy('produit_id')
+            ->selectRaw('produit_id, SUM(quantite - quantite_livree) as total')
+            ->pluck('total', 'produit_id');
+
+        $receptions = AchatDetail::query()
+            ->whereIn('produit_id', $ids)
+            ->whereColumn('quantite', '>', 'quantite_receptionnee')
+            ->whereHas('achat', function ($q) use ($pointDeVenteId) {
+                $q->where('etape', 'Bon de commande')
+                  ->when($pointDeVenteId, fn ($r) => $r->where('point_de_vente_id', $pointDeVenteId));
+            })
+            ->groupBy('produit_id')
+            ->selectRaw('produit_id, SUM(quantite - quantite_receptionnee) as total')
+            ->pluck('total', 'produit_id');
+
+        $site = $pointDeVenteId ?? 'tout';
+
+        foreach ($produits as $produit) {
+            $produit->engagements['commande:' . $site]  = (float) ($commandes[$produit->id] ?? 0);
+            $produit->engagements['reception:' . $site] = (float) ($receptions[$produit->id] ?? 0);
+        }
     }
 
     public function getQuantiteCommandeeAttribute(): float

@@ -88,23 +88,30 @@ class PointDeVente extends Model
      */
     public function initialiserLesFichesDeStock(): void
     {
-        $articles = Produit::where('entreprise_id', $this->entreprise_id)
+        // Deux requêtes par article — chercher la fiche, puis la créer — et le
+        // bouton « Créer » restait figé sans rien dire : 1 000 requêtes pour un
+        // catalogue de 500 articles, 20 000 pour 10 000 (chantier 9.3, lot 43).
+        // Une lecture des fiches déjà posées, puis des insertions par paquets.
+        $existantes = Stock::where('point_de_vente_id', $this->id)
+            ->pluck('produit_id')
+            ->flip();
+
+        $maintenant = now();
+
+        Produit::where('entreprise_id', $this->entreprise_id)
             ->selectionnables()
-            ->get();
-
-        foreach ($articles as $article) {
-            if (!$article->estStockable()) {
-                continue;
-            }
-
-            Stock::firstOrCreate([
-                'produit_id'        => $article->id,
-                'point_de_vente_id' => $this->id,
-            ], [
+            ->stockables()
+            ->pluck('id')
+            ->reject(fn ($id) => $existantes->has($id))
+            ->chunk(500)
+            ->each(fn ($paquet) => Stock::insert($paquet->map(fn ($id) => [
+                'produit_id'          => $id,
+                'point_de_vente_id'   => $this->id,
                 'quantite_disponible' => 0,
                 'stock_minimum'       => 5,
                 'stock_maximum'       => 100,
-            ]);
-        }
+                'created_at'          => $maintenant,
+                'updated_at'          => $maintenant,
+            ])->values()->all()));
     }
 }

@@ -21,6 +21,14 @@ class AppServiceProvider extends ServiceProvider
     {
         \Illuminate\Pagination\Paginator::useBootstrapFive();
 
+        // Une relation lue sur un modèle d'une collection se charge pour toute
+        // la collection, en une requête. Mesuré le 06/10/2026 (lot 43) : la
+        // caisse lisait la catégorie et le stock de chaque carte un par un —
+        // 20 020 requêtes et 14 secondes pour ouvrir « Nouvelle vente ». Les
+        // écrans en cartes et en tableaux en sont pleins, et un `with()` oublié
+        // sur le prochain suffirait à recommencer : la règle est posée une fois.
+        \Illuminate\Database\Eloquent\Model::automaticallyEagerLoadRelationships();
+
         $this->declarerLAffichageDesQuantites();
     }
 

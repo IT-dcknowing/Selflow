@@ -34,7 +34,7 @@ class PointDeVenteControleur
         $quotaMax = $entreprise->quota_points_de_vente;
 
         // Ranger ce que le scraper a déposé, avant de comparer.
-        Artisan::call('portail-fne:importer');
+        self::rangerLesReleves();
 
         // Créer automatiquement dans Selflow tout nouveau point de vente scrappé
         // qui n'y figure pas encore (sans jamais modifier ni renommer l'existant).
@@ -61,6 +61,8 @@ class PointDeVenteControleur
      */
     public function etatDuPortail(PointsDeVentePortailService $portail): JsonResponse
     {
+        // Sans délai ici : l'écran n'interroge que pendant un relevé, et c'est
+        // précisément le dépôt qu'il attend.
         Artisan::call('portail-fne:importer');
 
         $comparaison = $portail->comparer(Auth::user()->entreprise);
@@ -671,5 +673,25 @@ class PointDeVenteControleur
         session()->forget(['apercu_pdv_id', 'apercu_pdv_nom', 'point_de_vente_actif_id', 'point_de_vente_actif_nom']);
 
         return redirect()->route('admin.pdv.index')->with('succes', "Mode aperçu désactivé. Retour à l'administration principale.");
+    }
+
+    /**
+     * Ranger les relevés déposés — au plus une fois par minute à l'affichage.
+     *
+     * `portail-fne:importer` relit **tout** le dossier d'import, toutes
+     * entreprises confondues, et calcule l'empreinte de chaque fichier pour
+     * reconnaître ceux qui sont déjà lus. Le dossier ne fait que grossir — un
+     * relevé par jour et par entreprise, jamais déplacé — et l'écran des points
+     * de vente le lançait à chaque ouverture, puis à chaque interrogation
+     * pendant un relevé. Le coût d'une page croissait avec l'âge du dossier
+     * (lot 43). Une minute de délai à l'ouverture ne fait rien manquer :
+     * l'interrogation pendant un relevé (`etatDuPortail`) et le bouton
+     * « Reprendre du portail » rangent toujours sur-le-champ.
+     */
+    private static function rangerLesReleves(): void
+    {
+        if (\Illuminate\Support\Facades\Cache::add('portail-fne:importer:affichage', true, 60)) {
+            Artisan::call('portail-fne:importer');
+        }
     }
 }
