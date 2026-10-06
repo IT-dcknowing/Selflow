@@ -6,9 +6,11 @@ et ce fichier. Tout ce qui a été décidé, tout ce qui a été écarté et pou
 tout ce qui reste à faire doit donc figurer ici — et y être tenu à jour à chaque
 lot terminé.
 
-Dernière mise à jour : 30 août 2026 — lot 20 côté Selflow : le refus FNE
-s'affiche en pop-up, se corrige d'un bouton qui certifie dans la foulée, et la
-correction ne duplique plus un point de vente — elle bascule sur l'existant.
+Dernière mise à jour : 6 octobre 2026 — lots 41 à 52 : la lenteur mesurée et
+corrigée (dont l'écran de stock qui écrivait en base), les factures d'achat
+reçues de la DGI passées en écriture, le déversement Comptaflow regroupé par
+opération, les avoirs plafonnés, la comptabilité éteinte sans compte à l'écran,
+la configuration globale des comptes.
 
 ---
 
@@ -91,6 +93,7 @@ Elles ne se rediscutent pas sans raison neuve.
 | Impression du reçu | **Par le navigateur** (`window.print()`, format 80 mm) pendant les tests, boîte de dialogue comprise, pour voir le rendu. **À retirer sur ordre du propriétaire**, pas avant |
 | TERNE | **Pas de terminal fiscal.** Selflow passe par l'API de la DGI, qui renvoie les trois éléments du sticker. L'imprimante de caisse est un périphérique ordinaire |
 | Achats et DGI | **Le BAPA est le seul achat transmis à la plateforme**, et il ne collecte aucune TVA — ce que le payload d'achat traduit déjà, et qui reste **gelé**. Les autres achats ne sont enregistrés **que pour la comptabilité** : c'est la finalité visée, et elle confirme le sens du lot 11.3 — 24/08/2026, propriétaire du projet |
+| Factures d'achat reçues de la DGI | **Elles passent en écriture**, avec les comptes paramétrés — c'est la priorité, la plupart des factures fournisseur arrivent par la DGI. Une seule écriture par pièce : rattachée à un achat, c'est l'achat qui porte ; le BAPA ramené par le relevé est ignoré ; les achats saisis passent aussi, et l'écran prévient qu'une facture normalisée ne se saisit pas — 06/10/2026, propriétaire du projet |
 | Taxes supportées à l'achat | **La colonne est retirée**, pas ouverte. À l'achat, une taxe supportée est une charge dont le compte dépend de sa nature ; le deviner reviendrait à en choisir un au hasard — 24/08/2026, propriétaire du projet |
 | Libellés d'écriture | **Paramétrables par entreprise**, deux gabarits par type d'opération. Les défauts reproduisent l'ancien texte au caractère près, et **les écritures passées ne sont jamais réécrites** — 24/08/2026 |
 | Ventilation analytique | **Un seul axe : le point de vente**, celui que l'application renseigne réellement. Aucune clé de répartition : une charge de siège reste au site où elle a été saisie, et l'écran le dit — 24/08/2026 |
@@ -7042,6 +7045,247 @@ manquants du 40.4.
 
 - `tests/Feature/ClassesImporteesTest.php` — 1 épreuve qui relit tout `app/`
 - `tests/Feature/ComptabiliteFacultativeTest.php` — 4 épreuves ajoutées (21 au total)
+
+---
+
+### Lot 41 — Les polices et les icônes servies par l'application — **TERMINÉ le 06/10/2026**
+
+Point de départ : « l'application est très très lente, une simple page peut
+mettre une trentaine de secondes ». Premier constat, avant toute mesure côté
+serveur : **toutes les pages attendaient trois CDN** — Inter chez Google Fonts,
+Font Awesome chez cdnjs, Tabler (en `@latest`) et Chart.js chez jsdelivr —
+chargés en feuilles bloquantes. Tant qu'ils ne répondent pas, la page reste
+blanche ; une liaison lente suffit à faire attendre chaque écran.
+
+**Et la cause du chantier 9.1 était là :** la politique de sécurité (CSP)
+autorisait `fonts.gstatic.com` et `cdnjs` dans `font-src`, **pas jsdelivr**. La
+police Tabler des pages d'entrée était refusée par notre propre en-tête — d'où
+les carrés vides de l'inscription.
+
+| Décision | Raison |
+|---|---|
+| Tout dans `public/vendor` (Font Awesome 6.5.0, Inter 5.1.0 latin, Chart.js 4.4.0), CSP refermée sur `'self'` | Plus aucune page n'attend un tiers ; les versions sont figées |
+| **Tabler remplacé par Font Awesome** | 820 Ko de police pour 27 icônes, et ses classes ne s'affichaient pas dans les paramètres, où seule Font Awesome était chargée (`partiels/compte-fne`) |
+
+- `tests/Feature/RessourcesServiesParLApplicationTest.php` — 4 épreuves, **3 tombent** sans le correctif
+
+---
+
+### Lot 42 — La facture reçue de la DGI passe en écriture — **TERMINÉ le 06/10/2026**
+
+**La règle du 05/10 est renversée par le propriétaire le 06/10 :** « une facture
+achat reçue de la DGI doit passer en écritures comptables avec les numéros de
+compte paramétrés — ce sera la priorité, cela concerne les factures
+fournisseur ». Les achats saisis à la main sont surtout les charges qu'on ne
+normalise pas. Trois règles :
+
+1. les achats récupérés du portail passent en écriture, comme les ventes ;
+2. les BAPA passent en écriture — attention à ne pas les passer deux fois si le
+   relevé va les chercher ;
+3. les achats saisis passent en écriture — l'écran prévient qu'une facture
+   fournisseur normalisée ne se saisit pas.
+
+`EcritureFactureRecueService` :
+
+| Ligne | Compte |
+|---|---|
+| Charges | compte d'achat de l'article reconnu (référence ou désignation), sinon la configuration globale, sinon `601000` — la chaîne d'`ImputationService` |
+| TVA déductible | ventilée comme les achats saisis (4452 / 4453 / 4454 / 4451) |
+| Droit de timbre | `646200` Droits de timbre |
+| Autres taxes | `648000` Autres impôts et taxes — **et non 647, qui porte les amendes** (relevé dans le plan OHADA du dépôt) |
+| Fournisseur | `401000` au crédit du **net à payer**, avec son numéro de tiers ; la fiche est créée d'après le NCC, le nom et le RCCM certifiés si elle manque |
+
+La charge est le reste — net à payer moins TVA, timbre et taxes : l'opération
+tombe juste par construction. Un avoir reçu inverse les sens ; une proforma ne
+passe pas.
+
+**Une seule écriture par pièce.** `portail_fne_factures_recues.operation_id`
+dit qu'elle est passée : le relevé horaire ne la repasse pas. Rattachée à un
+achat — c'est alors l'achat qui porte —, écartée, ou reconnue comme **notre
+propre BAPA** (émetteur à notre NCC, ou référence égale au `numero_fne` d'un de
+nos achats), elle est **contre-passée** plutôt qu'effacée : elle a pu partir
+chez Comptaflow, et supprimer ici ne supprimerait pas là-bas.
+
+**Trouvé en chemin :** chaque relevé remettait « à rapprocher » une facture
+écartée — elle revenait dans la liste, et serait désormais repassée en écriture
+contre la décision de l'utilisateur. Le statut ne se pose plus qu'à l'arrivée.
+
+Commande de rattrapage, sans danger à relancer :
+`php artisan selflow:ecritures-factures-recues`.
+
+- `tests/Feature/FactureRecuePasseEnEcritureTest.php` — 12 épreuves
+
+---
+
+### Lot 43 — La lenteur mesurée, et l'écran de stock qui écrivait — **TERMINÉ le 06/10/2026**
+
+Mesuré sur une copie du projet, **MariaDB** et le jeu de démonstration
+(10 000 articles), chaque écran GET de l'administration, requêtes comptées :
+
+| Écran | Avant | Après |
+|---|---|---|
+| Articles & stock | **51 517 ms, 66 146 requêtes** | ~2 700 ms, 28 requêtes |
+| Nouvelle vente (caisse) | **13 949 ms, 20 020 requêtes** | ~3 600 ms, ~30 requêtes |
+| Création d'un point de vente | **11 449 ms, 17 103 requêtes** | 361 ms, 20 requêtes |
+
+Sur un hébergement où chaque requête SQL coûte 1 à 2 ms, 20 000 requêtes font
+la « trentaine de secondes » du propriétaire. Le reste des écrans est sous
+1,3 s.
+
+**L'écran de stock ÉCRIVAIT en base.** `setAttribute('stock_actuel', …)` —
+posé pour l'affichage — passait par un **mutateur** qui faisait
+`Stock::updateOrCreate` sur le site actif. En vue « Tous les sites », la somme
+des sites s'écrivait dans la fiche du site actif, **à chaque affichage, sans
+mouvement au journal**. Les mutateurs ne posent plus qu'une valeur d'affichage.
+Voir le lot 52 pour retrouver les fiches faussées.
+
+| Correctif | Effet |
+|---|---|
+| `Model::automaticallyEagerLoadRelationships()` | une relation lue sur un modèle d'une collection se charge pour toute la collection |
+| `Produit::prechargerEngagements()` | commandé / à réceptionner / prévisionnel : deux requêtes pour le tableau, au lieu de quatre par article |
+| fiches de stock indexées par site | la carte de caisse lisait six fois le stock en refiltrant la collection |
+| `PointDeVente::initialiserLesFichesDeStock()` par paquets | chantier 9.3 |
+| `portail-fne:importer` à l'ouverture des points de vente : au plus une fois par minute | il relisait et hachait **tout** le dossier d'import, toutes entreprises confondues, à chaque ouverture ; l'interrogation pendant un relevé reste immédiate (une épreuve l'exige) |
+
+- `tests/Feature/LenteurDesEcransTest.php` — 4 épreuves, **4 tombent** sans le correctif
+
+---
+
+### Lot 44 — Le déversement porte l'opération entière — **TERMINÉ le 06/10/2026**
+
+Le diagnostic de la passation du 05/10 était à moitié juste. **Chaque ligne
+Selflow porte déjà un seul mouvement** (l'un des deux comptes est nul). Le
+défaut était **chez Comptaflow** : `ExternalSyncController::deverserEcritures`
+rangeait `cle_selflow` — l'identité d'**une ligne** — dans `n_saisie`. Chaque
+ligne devenait sa propre pièce, aucune équilibrée.
+
+| Côté | Correctif |
+|---|---|
+| Selflow | chaque ligne porte `operation_selflow` = `SELFLOW-{entreprise}-OP{n° de saisie}` ; l'équilibre se recompte au départ (7.3) |
+| Comptaflow (guysergekouassi/COMPTAFLOW, branche `claude/exciting-keller-9d5tdz`) | colonne `operation_selflow` (migration additive) ; toutes les lignes d'une opération reçoivent **un** `n_saisie`, attribué par `NumerotationSaisie::global` — la convention du dossier |
+| Rejeu (7.4) | rejouer le déversement ne changerait rien (chaque ligne est reconnue à sa clé) : `selflow:regrouper-comptaflow` envoie la liste des clés par opération à `POST /api/external/ecritures/regrouper`, qui donne un numéro commun — seulement si l'opération est complète et équilibrée ; idempotent ; borné au dossier de la clé |
+
+Suite Comptaflow : **19 épreuves rouges avant ce lot**, identiques après. Une
+vingtième tombait avec l'index ajouté — l'épreuve de recopie au 28 février
+prenait sa ligne sans ordre — et a été rendue explicite.
+
+- Selflow : 3 épreuves dans `PasserelleComptaflowTest`, **3 tombent** sans le correctif
+- Comptaflow : 5 épreuves dans `LiaisonCleParEntrepriseTest`, **5 tombent** sans le correctif
+
+---
+
+### Lot 45 — Un avoir ne dépasse plus la facture — **TERMINÉ le 06/10/2026**
+
+Le plafond ne tenait qu'**en quantité** : le prix unitaire de la modale restait
+libre, et une ligne ajoutée n'avait aucun plafond. Le TTC de l'avoir est
+confronté au reste à avoirer, au serveur, dans la transaction
+(`App\Exceptions\AvoirExcessif` l'annule entière). L'avoir total est refusé sur
+une facture déjà entamée. `Vente::avoirables()` remplace les deux copies de la
+requête (liste et recherche) : une facture entièrement avoirée en sort, une
+facture entamée annonce « reste X F sur Y F ».
+
+**Trouvé :** SQLite compare un nombre à un paramètre lié comme **texte**
+(`7080 > '1'` est faux) ; la requête écrit `(? + 0)`.
+
+**8.4 reste à trancher** : l'avoir de BAPA est interdit parce que la DGI ne le
+normalise pas, et le rétablir toucherait `FneService` (gelé).
+
+- `tests/Feature/AvoirPlafonneTest.php` — 5 épreuves, **5 tombent** sans le correctif
+
+---
+
+### Lot 46 — Comptabilité éteinte, aucun compte à l'écran — **TERMINÉ le 06/10/2026**
+
+Section 3 du plan, et les tiers du chantier 5.2. `ImputationService::compteDeTiers()`
+pose 411000 / 401000 et ignore un compte posté quand la comptabilité est
+éteinte. Les comptes de vente/achat disparaissent du catalogue ; un article neuf
+prend le compte de sa famille, sinon le défaut ; un article existant garde les
+siens. Le parcours ne montre plus de numéro de compte ; un module déjà ouvert se
+montre « déjà ouvert ».
+
+**Incident de session, rattrapé avant commit :** une vérification au retrait
+sauvegardait par nom de base, et `clients/index`, `fournisseurs/index` et
+`produits/index` s'appellent tous `index.blade.php`. Restaurés depuis la
+révision et réappliqués ; contrôle des fins de ligne et du BOM sur tous les
+fichiers touchés.
+
+- `tests/Feature/ComptabiliteEteinteEcransTest.php` — 5 épreuves, **4 tombent** sans le correctif
+
+---
+
+### Lot 47 — Écrans d'entrée et compte FNE dans les paramètres — **TERMINÉ le 06/10/2026**
+
+9.2 un œil sur les deux mots de passe, liés. 10.1 la carte FNE en tête. 10.2
+seules les informations manquantes. 10.3 NCC et mot de passe de l'espace FNE
+seulement s'ils ne sont pas connus, enregistrés par `AccesFneService`. 10.5 le
+logo FNE posé par le système. 10.4 : relevé fait, **rien retiré** (voir le
+plan). Une épreuve existante fixait l'ancienne place de la carte ; elle garde
+la nouvelle.
+
+- `tests/Feature/ParametresCompteFneTest.php` — 3 épreuves, **3 tombent** ; `EcransDEntreeTest` — 2
+
+---
+
+### Lot 48 — Les modèles d'import ne promettent plus que ce qui se saisit — **TERMINÉ le 06/10/2026**
+
+Clients/fournisseurs : ni compte collectif ni numéro de tiers. Articles : plus
+aucun des quatre comptes. L'import suit les mêmes règles que l'écran. Trois
+épreuves du lot 6.6 fixaient l'ancienne règle ; elles gardent la nouvelle.
+
+- `tests/Feature/ModelesImportRefletentLesFormulairesTest.php`
+
+---
+
+### Lot 49 — La configuration globale des comptes — **TERMINÉ le 06/10/2026**
+
+L'ordre (5.2), écrit une fois dans `ImputationService` :
+
+| Rang | Source |
+|---|---|
+| 1 | l'exception de l'article — un compte propre qui diffère **du défaut et de sa famille** |
+| 2 | la configuration globale — type, puis catégorie, puis générale (`configurations_comptes`) |
+| 3 | le compte de l'article, sinon de sa famille |
+| 4 | 701000 / 601000 |
+
+**Sans configuration, le résultat est exactement celui d'avant.** La reprise de
+l'existant (6.5) découle de la règle, appliquée à chaque lecture — comparer à la
+famille en plus du défaut évite qu'un service sur 706000 passe pour une
+exception. Page « Configuration des comptes » (comptabilité ouverte), section
+des variations de stock corrigeable, fiche produit « hérite de… » avec la case
+qui ouvre deux champs ; décochée, l'article reprend l'hérité.
+
+- `tests/Feature/ConfigurationGlobaleDesComptesTest.php` — 8 épreuves
+
+---
+
+### Lot 50 — La visite désigne ce qu'on voit, et la caisse ne charge plus toutes ses photos — **TERMINÉ le 06/10/2026**
+
+9.4 : la cible était là, mais dans une section repliée (lot 37). La visite
+ouvre la section qui la porte. **Vérifié au navigateur** (Chromium) sur la copie
+de mesure.
+
+12.4 : au navigateur, la caisse finissait de charger en **19,6 s** — chaque
+carte demandait sa photo d'un coup ; sur le mutualisé, autant de démarrages de
+PHP. `content-visibility: auto` sur les cartes : **4,2 s, 15 photos**.
+
+---
+
+### Lot 51 — Les index des filtres courants — **TERMINÉ le 06/10/2026**
+
+`ecritures_comptables (entreprise_id, comptaflow_sync_status)`,
+`ventes (point_de_vente_id, etape)`. `achats.numero_fne` en manque aussi et
+reste sans : périmètre FNE gelé.
+
+---
+
+### Lot 52 — Retrouver les fiches de stock que l'ancien écran a faussées — **TERMINÉ le 06/10/2026**
+
+`php artisan selflow:verifier-stocks` confronte chaque fiche au `stock_apres` de
+son dernier mouvement, **en lecture seule** : la correction passe par
+l'inventaire physique. Sur la base de mesure, il a retrouvé les 46 fiches que
+l'ancien code y avait gonflées. **À lancer en production après déploiement.**
+
+- `tests/Feature/VerifierFichesDeStockTest.php`
 
 ---
 

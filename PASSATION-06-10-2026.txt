@@ -1,0 +1,117 @@
+================================================================================
+SELFLOW — PASSATION DU 6 OCTOBRE 2026
+Session ayant traité les lots 41 à 52 du plan de correction.
+À coller en premier message d'une nouvelle session Claude Code sur ce dépôt.
+================================================================================
+
+
+0. CE QU'IL FAUT FAIRE EN PREMIER
+---------------------------------
+1. Lire `CLAUDE.md` — la règle d'or FNE y fait foi.
+2. Lire `JOURNAL-DE-BORD.md` — les lots 41 à 52 sont à la fin de la section 5.
+3. Ouvrir `PLAN-CORRECTION-SELFLOW.xlsx`. Sa feuille « Index » dit où en est
+   chaque section : 18 sections, 81 chantiers, 67 terminés, 4 à faire,
+   2 à trancher, 8 de référence.
+
+Dépôt Selflow : branche `claude/exciting-keller-9d5tdz`, poussée sur `origin`
+(meledjeabrahamagnimel-lgtm/Selflow), dernière révision au moment d'écrire :
+voir `git log`. **Pas encore fusionnée dans `main`**, et `nouveau-repo`
+(IT-dcknowing/Selflow) n'était pas configuré dans l'environnement de cette
+session : la fusion et l'envoi sur les deux dépôts restent au propriétaire.
+
+Dépôt Comptaflow : un commit sur la branche `claude/exciting-keller-9d5tdz` de
+guysergekouassi/COMPTAFLOW (lot 44 — le numéro de saisie par opération). À
+déployer AVEC Selflow.
+
+Suite Selflow : **1 492 épreuves, 1 487 passantes, 5 sautées.**
+`verifier:variables` : propre.
+
+
+1. LA RÈGLE D'OR — INCHANGÉE
+----------------------------
+Rien dans le périmètre FNE gelé n'a été touché. Deux fois la question s'est
+posée, et deux fois la réponse a été de s'arrêter :
+· `achats.numero_fne` manque d'index (lot 51) — laissé sans ;
+· l'avoir de BAPA (chantier 8.4) — porté « À trancher ».
+
+
+2. CE QUI A ÉTÉ FAIT
+--------------------
+LOT 41  Polices et icônes servies par l'application ; CSP refermée. CAUSE DU
+        9.1 : la CSP refusait la police Tabler de jsdelivr.
+LOT 42  NOUVELLE RÈGLE DU PROPRIÉTAIRE : les factures d'achat reçues de la DGI
+        passent en écriture (EcritureFactureRecueService). Une seule écriture
+        par pièce : rattachée → l'achat porte et la facture se contre-passe ;
+        notre BAPA ramené par le relevé → ignoré ; écartée → contre-passée.
+        L'écran « Nouvel achat » prévient de ne pas saisir une facture
+        normalisée. Le relevé ne défait plus un écartement.
+LOT 43  LENTEUR MESURÉE (MariaDB, 10 000 articles) : stock 51,5 s / 66 146
+        requêtes, caisse 13,9 s / 20 020, création d'un site 11,4 s / 17 103.
+        Corrigé (≈2,7 s / 28 ; ≈3,6 s / 30 ; 0,36 s / 20).
+        TROUVÉ : l'écran de stock ÉCRIVAIT la somme des sites dans la fiche du
+        site actif à chaque affichage « Tous les sites ».
+LOT 44  Déversement : le défaut était chez Comptaflow (n_saisie = clé de
+        LIGNE). Regroupement par opération des deux côtés ; rejeu par
+        `selflow:regrouper-comptaflow` → `POST …/ecritures/regrouper`.
+LOT 45  Un avoir ne dépasse plus la facture (plafond en montant, au serveur) ;
+        liste filtrée et « reste X F sur Y F ».
+LOT 46  Comptabilité éteinte : aucun compte à l'écran ; le serveur décide.
+LOT 47  Œil sur les deux mots de passe ; carte FNE en tête des paramètres ;
+        seulement ce qui manque ; NCC/mot de passe FNE seulement s'ils
+        manquent ; logo FNE posé par le système.
+LOT 48  Modèles d'import sans comptes ni numéro de tiers.
+LOT 49  Configuration globale des comptes (page, ordre de priorité, fiche
+        produit « hérite de… »).
+LOT 50  Visite guidée : ouvre la section repliée ; caisse : 19,6 s → 4,2 s au
+        navigateur (photos chargées à la demande).
+LOT 51  Index des filtres courants.
+LOT 52  `selflow:verifier-stocks` : retrouve les fiches faussées par l'ancien
+        écran (lecture seule).
+
+
+3. AU DÉPLOIEMENT — DANS CET ORDRE
+----------------------------------
+1. Selflow ET Comptaflow ensemble, migrations comprises (trois migrations
+   Selflow, une Comptaflow, toutes additives).
+2. `php artisan selflow:ecritures-factures-recues` — passe en écriture les
+   factures déjà relevées.
+3. `php artisan selflow:regrouper-comptaflow` — regroupe chez Comptaflow les
+   opérations déjà déversées ligne par ligne.
+4. `php artisan selflow:verifier-stocks` — liste les fiches de stock que
+   l'ancien écran a gonflées. CORRIGER PAR UN INVENTAIRE PHYSIQUE.
+5. Vérifier en réel (chantier 7.5) : une vente, un achat, un avoir, un
+   règlement, puis la balance par pièce chez Comptaflow.
+Toujours valable : le lot 39 ferme la comptabilité pour toutes les
+entreprises existantes ; `EXTERNAL_SYNC_SECRET` est à changer.
+
+
+4. CE QUI RESTE
+---------------
+À TRANCHER PAR LE PROPRIÉTAIRE
+· 8.4 — l'avoir de BAPA : la DGI ne le normalise pas (périmètre gelé). (a) la
+  DGI le permet désormais → exception de CLAUDE.md, et je l'ouvre avec le
+  plafond ; (b) un avoir interne non certifié, pour la comptabilité seule.
+· 15.3 — la fiche de livraison : lesquels de destination, livreur, véhicule,
+  heures de départ/arrivée, réceptionnaire, observations sont obligatoires, et
+  le bon imprimé doit-il les porter ?
+· 10.4 (suite) — le relevé est fait (voir le plan) : retirer de l'écran, compte
+  FNE coché, les champs que le scraper ramène ?
+
+À FAIRE
+· 7.5, 17.5, 18.2 — au déploiement (ci-dessus).
+· 18.3 — 19 épreuves rouges de la suite Comptaflow, présentes avant ce lot :
+  au mainteneur de Comptaflow.
+
+
+5. À SAVOIR
+-----------
+· Mesurer : copier le dépôt, `.env` sur MariaDB, `php artisan migrate`,
+  `db:seed --class=ReferentielSeeder`, `selflow:seed-massif --force`. Les
+  seeders `DonneesInitialesSeeder` et `seed-massif` sont cassés (doublons,
+  SQL MySQL) ; il a fallu porter à 2 000 la limite de
+  `genererCodeOrdreUnique()` dans la copie de mesure — non versionné.
+· Le jeu de démonstration porte des photos `picsum.photos` (adresses
+  externes) que la CSP refuse — c'était déjà le cas avant ce lot.
+· Les vérifications au retrait se font en sauvegardant par CHEMIN COMPLET :
+  trois vues s'appellent `index.blade.php` (incident du lot 46, rattrapé).
+· L'impression navigateur (`window.print()`) reste conservée volontairement.
