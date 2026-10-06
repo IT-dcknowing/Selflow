@@ -311,6 +311,14 @@ class ImportFacturesRecuesService
 
                 if ($entreprise) {
                     $rapproche = \App\Modules\Admin\Services\RapprochementAutomatiqueService::pourEntreprise($entreprise->id);
+
+                    // Puis on passe en écriture ce qui reste sans achat en
+                    // face — décision du propriétaire du 06/10/2026 : la
+                    // facture fournisseur certifiée par la DGI est la pièce
+                    // comptable. Après le rapprochement, et non avant : une
+                    // facture qui trouve son achat n'a rien à porter, l'achat
+                    // l'a déjà fait.
+                    EcritureFactureRecueService::pourEntreprise($entreprise->id);
                 }
 
                 $message = sprintf(
@@ -441,6 +449,16 @@ class ImportFacturesRecuesService
             ]);
 
             $existait = $facture->exists;
+
+            // Le statut ne se pose qu'à l'arrivée. Le relevé redépose chaque
+            // heure les mêmes pièces : remettre « à rapprocher » une facture
+            // écartée la faisait revenir dans la liste — et, depuis qu'une
+            // facture reçue passe en écriture, la faisait passer au journal
+            // contre la décision de l'utilisateur.
+            if ($existait) {
+                unset($valeurs['statut_rapprochement']);
+            }
+
             $facture->fill($valeurs);
 
             // Jamais par-dessus une affectation déjà faite : un utilisateur qui

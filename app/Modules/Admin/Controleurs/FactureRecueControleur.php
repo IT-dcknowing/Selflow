@@ -5,6 +5,7 @@ namespace App\Modules\Admin\Controleurs;
 use App\Modules\Admin\Modeles\Achat;
 use App\Modules\Admin\Modeles\PointDeVente;
 use App\Modules\Admin\Modeles\PortailFneFactureRecue;
+use App\Modules\Admin\Services\EcritureFactureRecueService;
 use App\Modules\Admin\Services\QrCodeFneService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
@@ -25,9 +26,14 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
  * ## Ce qu'il ne fait pas, et c'est délibéré
  *
  * **Il ne crée aucun achat.** `rattacher()` pose un lien vers un achat qui
- * existe déjà ; il ne fabrique ni ligne d'achat, ni écriture comptable, ni
- * fournisseur. La règle d'or du projet vaut ici : le relevé apporte un constat,
- * la décision reste à l'utilisateur.
+ * existe déjà ; il ne fabrique ni ligne d'achat ni mouvement de stock.
+ *
+ * **L'écriture, elle, suit la facture** depuis le 06/10/2026 — décision du
+ * propriétaire : une facture fournisseur certifiée par la DGI passe au journal
+ * des achats même sans achat en face (`EcritureFactureRecueService`). Chaque
+ * geste ci-dessous qui change ce qui doit être porté — rattacher, détacher,
+ * écarter, réintégrer — réaligne l'écriture : rattachée, c'est l'achat qui la
+ * porte ; écartée, plus personne.
  *
  * **Il ne touche à rien de gelé.** `achats.numero_fne`, `achats.fne_*` veulent
  * dire « Selflow a émis cette pièce et la DGI l'a certifiée ». Une facture reçue
@@ -86,6 +92,8 @@ class FactureRecueControleur
                 : null,
         ]);
 
+        EcritureFactureRecueService::synchroniser($facture->refresh());
+
         return back()->with('succes', "Facture {$facture->reference} rattachée à l'achat {$achat->numero_facture}.");
     }
 
@@ -101,6 +109,8 @@ class FactureRecueControleur
                 ? PortailFneFactureRecue::A_RAPPROCHER
                 : PortailFneFactureRecue::ORPHELINE,
         ]);
+
+        EcritureFactureRecueService::synchroniser($facture->refresh());
 
         return back()->with('succes', "Facture {$facture->reference} détachée.");
     }
@@ -241,6 +251,8 @@ class FactureRecueControleur
             'note_rapprochement'   => trim((string) request('motif')) ?: null,
         ]);
 
+        EcritureFactureRecueService::synchroniser($facture->refresh());
+
         return back()->with('succes', "Facture {$facture->reference} écartée.");
     }
 
@@ -271,6 +283,8 @@ class FactureRecueControleur
                 : PortailFneFactureRecue::ORPHELINE,
             'note_rapprochement'   => null,
         ]);
+
+        EcritureFactureRecueService::synchroniser($facture->refresh());
 
         return back()->with('succes', "Facture {$facture->reference} remise dans la liste.");
     }

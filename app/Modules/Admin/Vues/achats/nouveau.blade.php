@@ -41,6 +41,22 @@
     </a>
 </div>
 
+{{-- Décision du propriétaire, 06/10/2026 : les factures fournisseur
+     normalisées arrivent de la DGI et passent seules en écriture. Ce qui se
+     saisit ici passe AUSSI : saisir une facture que la DGI rapportera ferait
+     porter deux fois la même charge. Le rapprochement automatique rattrape
+     le doublon quand il le reconnaît — mêmes fournisseur, date et montant —,
+     mais une saisie qui diffère d'un franc lui échappe. Mieux vaut le dire. --}}
+<div id="avisSaisieAchat" style="display:flex; gap:12px; align-items:flex-start; background:#FFF8E1; border:1px solid #FFE082; color:#5D4037; border-radius:10px; padding:12px 16px; margin-bottom:16px; font-size:13px; line-height:1.5;">
+    <i class="fas fa-circle-info" style="margin-top:3px; color:#F59E0B;"></i>
+    <div>
+        <strong>Tout achat enregistré ici passe en écriture comptable.</strong>
+        Les factures normalisées de vos fournisseurs arrivent d'elles-mêmes depuis la DGI
+        et sont déjà passées en écriture : <strong>ne les saisissez pas ici</strong>, elles compteraient deux fois.
+        Réservez cet écran aux charges qu'aucun fournisseur ne normalise, et aux bordereaux d'achat (BAPA).
+    </div>
+</div>
+
 <form method="POST" action="{{ route('admin.achats.enregistrer') }}" id="formAchat">
 @csrf
 <div class="achat-grid">

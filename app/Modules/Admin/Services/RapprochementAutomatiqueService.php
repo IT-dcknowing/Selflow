@@ -117,6 +117,11 @@ class RapprochementAutomatiqueService
             ]);
         });
 
+        // Si la facture avait été passée seule, faute d'achat en face, l'achat
+        // qui arrive la porte désormais : elle se contre-passe, sans quoi la
+        // charge et la dette compteraient deux fois.
+        EcritureFactureRecueService::synchroniser($facture->refresh());
+
         // L'écart n'empêche pas le rattachement — c'est la même pièce — mais il
         // ne doit pas se taire : un montant qui diffère est soit une remise
         // oubliée à la saisie, soit une facture qui n'est pas celle qu'on croit.

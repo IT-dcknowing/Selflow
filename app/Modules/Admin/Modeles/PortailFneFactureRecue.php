@@ -9,10 +9,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * Une facture que le portail FNE dit avoir reçue pour le compte de l'entreprise.
  *
- * C'est un **constat**, pas un achat. Rien ici ne mouvemente un stock, ne
- * produit d'écriture ni ne déduit de TVA. Le rapprochement avec un achat de
- * Selflow se regarde (`rapprochementPropose()`) avant de s'appliquer, et il
- * s'applique d'un geste d'utilisateur.
+ * Ce n'est pas un achat : rien ici ne mouvemente un stock. Mais c'est une
+ * **pièce comptable** depuis le 06/10/2026 — décision du propriétaire : une
+ * facture fournisseur certifiée par la DGI passe au journal des achats, avec
+ * sa TVA déductible, même quand aucun achat ne lui fait face. Voir
+ * `EcritureFactureRecueService` ; `operation_id` désigne l'opération qui la
+ * porte. Rattachée à un achat, c'est l'achat qui la porte, et elle se tait.
  */
 class PortailFneFactureRecue extends Model
 {

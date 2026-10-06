@@ -119,6 +119,11 @@ return [
         // Taxes parafiscales collectées pour le compte de l'État (GRA, AIRSI,
         // DTD…) : une dette envers l'État, jamais du chiffre d'affaires.
         'taxes_collectees'      => '447000', // État, autres impôts et taxes
+        // À l'achat, le timbre et les taxes portés par une facture reçue sont
+        // des CHARGES de l'entreprise, non des dettes : elle les a payés au
+        // fournisseur. Utilisés par EcritureFactureRecueService (lot 42).
+        'timbre_achat'          => '646200', // Droits de timbre
+        'taxes_achat'           => '648000', // Autres impôts et taxes — et non 647, qui porte les amendes
         'caisse'                => '571000', // Caisse
         'banque_defaut'         => '521000', // Banque (si aucun journal banque dédié trouvé)
     ],
