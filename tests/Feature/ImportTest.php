@@ -359,8 +359,10 @@ class ImportTest extends TestCase
 
         $produit = Produit::where('reference', 'MED-001')->firstOrFail();
 
-        $this->assertSame('311000', $produit->compte_stock);
-        $this->assertSame('603100', $produit->compte_variation);
+        // Les comptes ne viennent plus du fichier (chantier 11.3) : sans
+        // famille, pas de compte de stock — il n'en existe pas de générique.
+        $this->assertNull($produit->compte_stock);
+        $this->assertNull($produit->compte_variation);
         $this->assertSame(5.0, (float) $produit->remise_taux);
         $this->assertSame('2027-12-31', $produit->date_peremption?->toDateString());
         $this->assertTrue((bool) $produit->suivi_par_lot);
@@ -572,9 +574,14 @@ class ImportTest extends TestCase
         // plus : tout se ressaisissait fiche par fiche apres l'import.
         $csv = $this->get(route('admin.import.exemple', ['type' => 'produits']))->getContent();
 
-        foreach (['stock_initial', 'compte_stock', 'compte_variation', 'suivi_par_lot',
+        foreach (['stock_initial', 'suivi_par_lot',
                   'prix_consignation', 'date_peremption', 'remise_taux'] as $colonne) {
             $this->assertStringContainsString($colonne, $csv, "Colonne manquante : {$colonne}");
+        }
+
+        // Et plus aucun compte : ils viennent de la famille (chantier 11.3).
+        foreach (['compte_vente', 'compte_achat', 'compte_stock', 'compte_variation'] as $colonne) {
+            $this->assertStringNotContainsString($colonne, $csv, "Colonne retirée encore présente : {$colonne}");
         }
     }
 
