@@ -6,10 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Réinitialiser votre mot de passe — Selflow ERP">
     <title>Mot de passe oublié — Selflow</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+    <link rel="stylesheet" href="{{ asset('vendor/inter/inter.css') }}">
+    <link rel="stylesheet" href="{{ asset('vendor/fontawesome/css/all.min.css') }}">
     <style>
         *,
         *::before,
@@ -268,7 +266,7 @@
             <div class="gauche-interieur">
                 <div class="marque">
                     <div class="marque-icone">
-                        <i class="ti ti-cloud" aria-hidden="true"></i>
+                        <i class="fa-solid fa-cloud" aria-hidden="true"></i>
                     </div>
                     <span class="marque-nom">Selflow</span>
                 </div>
@@ -293,14 +291,14 @@
                 {{-- Notifications succès/erreur --}}
                 @if (session('succes'))
                     <div class="alerte-succes" role="alert">
-                        <i class="ti ti-circle-check" style="font-size:16px;"></i>
+                        <i class="fa-solid fa-circle-check" style="font-size:16px;"></i>
                         {{ session('succes') }}
                     </div>
                 @endif
 
                 @if ($errors->any())
                     <div class="alerte-erreur" role="alert">
-                        <i class="ti ti-alert-circle" style="font-size:16px;"></i>
+                        <i class="fa-solid fa-circle-exclamation" style="font-size:16px;"></i>
                         {{ $errors->first() }}
                     </div>
                 @endif
@@ -308,7 +306,7 @@
                 {{-- Mode de démo/local : affiche l'URL générée --}}
                 @if (session('lien_developpement'))
                     <div class="demo-box">
-                        <strong><i class="ti ti-brand-laravel"></i> Mode Développement :</strong><br>
+                        <strong><i class="fa-brands fa-laravel"></i> Mode Développement :</strong><br>
                         Le lien ci-dessous a été généré pour ce test local. Vous pouvez cliquer directement dessus :<br><br>
                         <a href="{{ session('lien_developpement') }}" style="color:#B45309; font-weight:700;">Réinitialiser mon mot de passe →</a>
                     </div>
@@ -325,12 +323,12 @@
                     </div>
 
                     <button type="submit" class="btn-soumettre">
-                        <i class="ti ti-mail-forward"></i> Envoyer le lien
+                        <i class="fa-solid fa-paper-plane"></i> Envoyer le lien
                     </button>
                 </form>
 
                 <a href="{{ route('connexion') }}" class="retour-lien">
-                    <i class="ti ti-arrow-left"></i> Retour à la connexion
+                    <i class="fa-solid fa-arrow-left"></i> Retour à la connexion
                 </a>
 
             </div>

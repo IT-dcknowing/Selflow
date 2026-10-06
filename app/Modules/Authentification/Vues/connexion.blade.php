@@ -6,10 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Connexion à Selflow — Plateforme intelligente de gestion des ventes et stocks">
     <title>Connexion — Selflow</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+    <link rel="stylesheet" href="{{ asset('vendor/inter/inter.css') }}">
+    <link rel="stylesheet" href="{{ asset('vendor/fontawesome/css/all.min.css') }}">
     <style>
         *,
         *::before,
@@ -298,13 +296,13 @@
             <div class="gauche-interieur">
                 <div class="marque">
                     <div class="marque-icone">
-                        <i class="ti ti-cloud" aria-hidden="true"></i>
+                        <i class="fa-solid fa-cloud" aria-hidden="true"></i>
                     </div>
                     <span class="marque-nom">Selflow</span>
                 </div>
 
                 <div class="badge-promo">
-                    <i class="ti ti-star-filled" aria-hidden="true"></i>
+                    <i class="fa-solid fa-star" aria-hidden="true"></i>
                     La solution pour mieux gérer
                 </div>
 
@@ -329,7 +327,7 @@
                 {{-- Message d'erreur global --}}
                 @if ($errors->has('connexion_erreur') || $errors->any())
                     <div class="alerte-erreur" role="alert" style="margin-top:10px;">
-                        <i class="ti ti-alert-circle" style="font-size:16px;"></i>
+                        <i class="fa-solid fa-circle-exclamation" style="font-size:16px;"></i>
                         {{ $errors->first('connexion_erreur') ?: $errors->first() }}
                     </div>
                 @endif

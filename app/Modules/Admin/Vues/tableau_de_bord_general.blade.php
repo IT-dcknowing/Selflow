@@ -446,7 +446,7 @@
 </style>
 
 {{-- ── CHART.JS ─────────────────────────────────────────────────────── --}}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{{ asset('vendor/chartjs/chart.umd.min.js') }}"></script>
 <script>
 // ── Évolution 7 jours ──
 const jours7 = @json($jours7);

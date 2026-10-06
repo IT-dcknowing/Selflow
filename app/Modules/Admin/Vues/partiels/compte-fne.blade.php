@@ -64,7 +64,7 @@
     {{-- ── Elle a un compte : son accès suffit ── --}}
     <div class="fne-volet" data-fne-volet="oui" style="display:{{ $aDeja === '1' ? 'block' : 'none' }};">
         <div class="fne-note">
-            <i class="ti ti-shield-lock"></i>
+            <i class="fa-solid fa-shield-halved"></i>
             Ces informations servent uniquement à relever votre paramétrage.
             Le mot de passe est <strong>chiffré</strong>, n'est affiché à
             personne, et sera effacé une fois la configuration faite.
@@ -92,7 +92,7 @@
     {{-- ── Elle n'en a pas : ce que la DGI exige pour en ouvrir un ── --}}
     <div class="fne-volet" data-fne-volet="non" style="display:{{ $aDeja === '0' ? 'block' : 'none' }};">
         <div class="fne-note">
-            <i class="ti ti-info-circle"></i>
+            <i class="fa-solid fa-circle-info"></i>
             Voici ce que la DGI demande pour ouvrir un compte. Ce qui vous
             manque aujourd'hui se complétera depuis vos paramètres.
         </div>

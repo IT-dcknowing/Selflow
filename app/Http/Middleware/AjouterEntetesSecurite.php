@@ -30,15 +30,22 @@ class AjouterEntetesSecurite
         // Désactive la sniffer de navigateur obsolète (IE)
         $response->headers->set('X-XSS-Protection', '1; mode=block');
 
-        // Content-Security-Policy (politique de base — autoriser seulement les ressources du domaine)
-        // En-tête permissif pour permettre les CDN utilisés (fonts Google, FontAwesome)
-        // À durcir en production selon les besoins spécifiques
+        // Content-Security-Policy : tout vient du domaine.
+        //
+        // Les polices et les icônes venaient de trois CDN — Google Fonts,
+        // cdnjs, jsdelivr — chargés en feuilles bloquantes : la page restait
+        // blanche tant qu'ils n'avaient pas répondu, et une liaison lente
+        // suffisait à faire attendre chaque écran des dizaines de secondes.
+        // Pire, `font-src` n'autorisait pas jsdelivr : la police d'icônes des
+        // pages d'entrée était refusée par ce même en-tête, d'où les carrés
+        // vides de l'inscription (chantier 9.1). Tout est désormais servi
+        // depuis `public/vendor` — lot 41.
         $response->headers->set(
             'Content-Security-Policy',
             "default-src 'self'; " .
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; " .
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; " .
-            "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; " .
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " .
+            "style-src 'self' 'unsafe-inline'; " .
+            "font-src 'self' data:; " .
             "img-src 'self' data: blob:; " .
             "connect-src 'self';"
         );

@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Contact & Informations — DC-KNOWING</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+    <link rel="stylesheet" href="{{ asset('vendor/inter/inter.css') }}">
+    <link rel="stylesheet" href="{{ asset('vendor/fontawesome/css/all.min.css') }}">
     <style>
         :root {
             --navy: #002B5C;
@@ -237,7 +237,7 @@
         {{-- Partie gauche : Présentation & Documentation --}}
         <div>
             <div class="card">
-                <h2 class="card-title"><i class="ti ti-info-circle"></i> À propos de Selflow</h2>
+                <h2 class="card-title"><i class="fa-solid fa-circle-info"></i> À propos de Selflow</h2>
                 <p style="font-size:14px; color:var(--text-2); margin-bottom:15px;">
                     Selflow est un progiciel de gestion intégré (ERP) moderne développé par <strong>DC-KNOWING</strong>,
                     spécialement conçu pour les entreprises de la zone OHADA. Il propose une facturation normalisée
@@ -249,7 +249,7 @@
                         logicielle</h3>
 
                     <div class="app-item">
-                        <div class="app-logo"><i class="ti ti-calculator"></i></div>
+                        <div class="app-logo"><i class="fa-solid fa-calculator"></i></div>
                         <div class="app-info">
                             <h4>COMPTAFLOW (COMPTABOW)</h4>
                             <p>Application comptable certifiée SYSCOHADA révisé avec déversement en ligne.</p>
@@ -257,7 +257,7 @@
                     </div>
 
                     <div class="app-item">
-                        <div class="app-logo"><i class="ti ti-users"></i></div>
+                        <div class="app-logo"><i class="fa-solid fa-users"></i></div>
                         <div class="app-info">
                             <h4>RH-FLOW</h4>
                             <p>Gestion des ressources humaines, paie et administration du personnel.</p>
@@ -267,7 +267,7 @@
             </div>
 
             <div class="card" id="conditions">
-                <h2 class="card-title"><i class="ti ti-file-text"></i> Conditions Générales d'Utilisation</h2>
+                <h2 class="card-title"><i class="fa-solid fa-file-lines"></i> Conditions Générales d'Utilisation</h2>
                 <div class="doc-section">
                     <p>
                         L'utilisation des services applicatifs DC-KNOWING implique l'acceptation pleine et entière des
@@ -288,7 +288,7 @@
             </div>
 
             <div class="card" id="politique">
-                <h2 class="card-title"><i class="ti ti-shield-lock"></i> Politique de confidentialité</h2>
+                <h2 class="card-title"><i class="fa-solid fa-shield-halved"></i> Politique de confidentialité</h2>
                 <div class="doc-section">
                     <p>
                         DC-KNOWING accorde une importance primordiale à la sécurité et à la confidentialité de vos
@@ -311,14 +311,14 @@
         {{-- Partie droite : Formulaire de Contact --}}
         <div>
             <div class="card" style="position: sticky; top: 20px;">
-                <h2 class="card-title"><i class="ti ti-headset"></i> Service Client & Ventes</h2>
+                <h2 class="card-title"><i class="fa-solid fa-headset"></i> Service Client & Ventes</h2>
                 <p style="font-size:13px; color:var(--text-2); margin-bottom:20px;">
                     Pour toute demande de souscription, création de compte d'entreprise, assistance ou intégration avec
                     notre suite comptable, contactez notre équipe :
                 </p>
 
                 <div class="contact-item">
-                    <div class="contact-icon"><i class="ti ti-mail"></i></div>
+                    <div class="contact-icon"><i class="fa-solid fa-envelope"></i></div>
                     <div class="contact-details">
                         <h4>Email professionnel</h4>
                         <p><a href="mailto:[it.dcknowing@gmail.com]"
@@ -327,7 +327,7 @@
                 </div>
 
                 <div class="contact-item">
-                    <div class="contact-icon"><i class="ti ti-phone"></i></div>
+                    <div class="contact-icon"><i class="fa-solid fa-phone"></i></div>
                     <div class="contact-details">
                         <h4>Téléphone Fixe / Ventes</h4>
                         <p>+225 27 22 42 14 43 </p>
@@ -335,7 +335,7 @@
                 </div>
 
                 <div class="contact-item">
-                    <div class="contact-icon"><i class="ti ti-brand-whatsapp"></i></div>
+                    <div class="contact-icon"><i class="fa-brands fa-whatsapp"></i></div>
                     <div class="contact-details">
                         <h4>WhatsApp Support</h4>
                         <p>+225 07 67 13 19 93</p>
@@ -345,16 +345,16 @@
                 <div style="margin-top:30px;">
                     <a href="https://wa.me/2250767131993?text=Bonjour%20DC-KNOWING,%20je%20souhaite%20des%20informations%20sur%20Selflow."
                         target="_blank" class="btn btn-whatsapp">
-                        <i class="ti ti-brand-whatsapp"></i> Envoyer un message WhatsApp
+                        <i class="fa-brands fa-whatsapp"></i> Envoyer un message WhatsApp
                     </a>
 
                     <a href="mailto:[it.dcknowing@gmail.com]?subject=Demande%20d%27informations%20Selflow"
                         class="btn btn-mail">
-                        <i class="ti ti-mail"></i> Nous écrire par Email
+                        <i class="fa-solid fa-envelope"></i> Nous écrire par Email
                     </a>
 
                     <a href="{{ route('connexion') }}" class="btn btn-outline">
-                        <i class="ti ti-arrow-left"></i> Retourner à la connexion
+                        <i class="fa-solid fa-arrow-left"></i> Retourner à la connexion
                     </a>
                 </div>
             </div>
