@@ -79,10 +79,17 @@ class DeverserOperationComptaflow implements ShouldQueue
         // Une opération déséquilibrée ne se déverse pas. `cloturerEquilibre()`
         // l'a déjà consignée en erreur ; l'envoyer chez Comptaflow ne ferait
         // qu'y porter le déséquilibre.
-        if (!$operation->est_equilibree) {
+        //
+        // Et l'équilibre se recompte ici, sur les lignes telles qu'elles sont au
+        // moment de partir (chantier 7.3) : `est_equilibree` est posé à la
+        // clôture, et une ligne retouchée depuis le laisserait mentir. Chez
+        // Comptaflow, on n'a pas la pièce d'origine pour chercher l'écart.
+        $solde = round((float) $operation->ecritures->sum('debit') - (float) $operation->ecritures->sum('credit'), 2);
+
+        if (!$operation->est_equilibree || $solde != 0.0) {
             Log::warning('Opération déséquilibrée non déversée', [
                 'operation_id' => $operation->id,
-                'solde'        => $operation->solde_equilibre,
+                'solde'        => $solde,
             ]);
 
             return;
@@ -100,7 +107,7 @@ class DeverserOperationComptaflow implements ShouldQueue
             ->where('est_active', true)
             ->first();
 
-        $charge = $lignes->map(fn (EcritureComptable $e) => self::ligne($e, $entreprise))->all();
+        $charge = $lignes->map(fn (EcritureComptable $e) => self::ligne($e, $entreprise, $operation))->all();
 
         try {
             $reponse = Http::timeout(15)
@@ -171,7 +178,7 @@ class DeverserOperationComptaflow implements ShouldQueue
      *
      * @return array<string, mixed>
      */
-    public static function ligne(EcritureComptable $ecriture, Entreprise $entreprise): array
+    public static function ligne(EcritureComptable $ecriture, Entreprise $entreprise, ?Operation $operation = null): array
     {
         $date = $ecriture->date_ecriture instanceof \Carbon\Carbon
             ? $ecriture->date_ecriture->toDateString()
@@ -192,7 +199,19 @@ class DeverserOperationComptaflow implements ShouldQueue
             'compte_tiers'       => $ecriture->compte_tiers,
             // Clé d'idempotence : rejouer ne duplique rien.
             'cle_selflow'        => 'SELFLOW-' . $entreprise->id . '-' . $ecriture->id,
+            // L'opération d'origine, sur chaque ligne (chantier 7.1). C'est
+            // elle qui fait le numéro de saisie chez Comptaflow : toutes les
+            // lignes d'une vente — client, produits, TVA, timbre — sous un
+            // seul numéro. Avant, `cle_selflow` en tenait lieu, et chaque
+            // ligne arrivait seule dans sa pièce, déséquilibrée.
+            'operation_selflow'  => self::cleOperation($entreprise, $operation ?? $ecriture->operation),
             'point_de_vente'     => $ecriture->pointDeVente?->nom,
         ];
+    }
+
+    /** L'identité d'une opération chez Comptaflow : `SELFLOW-{entreprise}-OP{n° de saisie}`. */
+    public static function cleOperation(Entreprise $entreprise, ?Operation $operation): ?string
+    {
+        return $operation ? 'SELFLOW-' . $entreprise->id . '-OP' . $operation->numero_saisie : null;
     }
 }

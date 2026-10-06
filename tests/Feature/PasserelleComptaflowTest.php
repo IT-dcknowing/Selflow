@@ -403,4 +403,53 @@ class PasserelleComptaflowTest extends TestCase
 
         Queue::assertNotPushed(DeverserOperationComptaflow::class);
     }
+
+    // ══════════════ Section 7 du plan — l'opération entière ══════════════
+
+    public function test_toutes_les_lignes_d_une_operation_portent_la_meme_operation(): void
+    {
+        // Comptaflow rangeait `cle_selflow` — l'identité d'une LIGNE — dans
+        // son numéro de saisie : chaque ligne devenait sa propre pièce,
+        // déséquilibrée. L'opération voyage désormais sur chaque ligne.
+        $ecriture = $this->ecrire();
+        $operation = $this->operation($ecriture);
+
+        $lignes = $this->corps()['ecritures'];
+
+        $attendu = "SELFLOW-{$this->entreprise->id}-OP{$operation->numero_saisie}";
+        $this->assertSame([$attendu, $attendu], array_column($lignes, 'operation_selflow'));
+    }
+
+    public function test_une_ligne_retouchee_apres_cloture_ne_part_pas(): void
+    {
+        // `est_equilibree` est posé à la clôture ; l'équilibre se recompte au
+        // départ. Une ligne retouchée depuis laisserait le drapeau mentir.
+        $ecriture = $this->ecrire();
+        Http::fake(['*' => Http::response(['success' => true], 200)]);
+
+        EcritureComptable::whereKey($ecriture->id)->update(['debit' => 99000, 'comptaflow_sync_status' => 'pending']);
+
+        (new DeverserOperationComptaflow($ecriture->operation_id))->handle();
+
+        Http::assertNothingSent();
+    }
+
+    public function test_le_rejeu_regroupe_sans_rien_renvoyer(): void
+    {
+        $ecriture = $this->ecrire();
+        EcritureComptable::where('operation_id', $ecriture->operation_id)->update(['comptaflow_sync_status' => 'synced']);
+
+        Http::fake(['*' => Http::response(['success' => true, 'regroupees' => 1, 'deja' => 0, 'refus' => []], 200)]);
+
+        $this->artisan('selflow:regrouper-comptaflow')->assertSuccessful();
+
+        Http::assertSent(function ($requete) use ($ecriture) {
+            $op = $requete->data()['operations'][0] ?? null;
+
+            return str_ends_with($requete->url(), '/api/external/ecritures/regrouper')
+                && !isset($requete->data()['ecritures'])
+                && $op['operation'] === "SELFLOW-{$this->entreprise->id}-OP{$this->operation($ecriture)->numero_saisie}"
+                && count($op['cles']) === 2;
+        });
+    }
 }
