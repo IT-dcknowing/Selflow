@@ -657,7 +657,7 @@ function telechargerDirectement(url) {
                              Le champ de recherche voisin, lui, était déjà
                              corrigé — c'est ce qui a laissé le défaut ici. --}}
                         @foreach($facturesDispo as $f)
-                            <option value="{{ $f->uuid }}">{{ $f->numero_facture }} - {{ $f->client?->nom ?? 'Client de passage' }} ({{ number_format($f->montant_ttc, 0, ',', ' ') }} F)</option>
+                            <option value="{{ $f->uuid }}">{{ $f->libellePourAvoir() }}</option>
                         @endforeach
                     </select>
                 </div>

@@ -592,17 +592,7 @@ class VenteControleur
         if ($type === 'avoir') {
             $facturesDispoQuery = Vente::with('client')
                 ->whereHas('pointDeVente', fn($queryPdv) => $queryPdv->where('entreprise_id', $entreprise->id))
-                ->where('etape', 'Facture')
-                ->where(function ($queryNum) {
-                    // Accepte l'ancien préfixe (VT-) ET le nouveau (VTE-,
-                    // depuis le changement de convention de numérotation).
-                    $queryNum->where('numero_facture', 'LIKE', 'VT-%')
-                        ->orWhere('numero_facture', 'LIKE', 'VTE-%');
-                })
-                ->where(function ($queryType) {
-                    $queryType->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir');
-                })
-                ->where('archived', false);
+                ->avoirables();
             if ($pointDeVenteId) {
                 $facturesDispoQuery->where('point_de_vente_id', $pointDeVenteId);
             }
@@ -1296,6 +1286,21 @@ class VenteControleur
             'raison' => ['required', 'string', 'max:255'],
         ]);
 
+        // L'avoir total reprend la facture entière. Si un avoir partiel l'a
+        // déjà entamée, l'établir rendrait au client plus qu'il n'a payé
+        // (chantier 8.1) : c'est le reste qui doit être crédité, par l'avoir
+        // ligne à ligne.
+        if ($vente->resteAAvoirer() + Vente::TOLERANCE_AVOIR < (float) $vente->montant_ttc) {
+            return back()->withErrors([
+                'items' => sprintf(
+                    "Cette facture a déjà été avoirée en partie : il reste %s F sur %s F. "
+                    . "Établissez un avoir sur le reste, ligne par ligne.",
+                    number_format($vente->resteAAvoirer(), 0, ',', ' '),
+                    number_format((float) $vente->montant_ttc, 0, ',', ' ')
+                ),
+            ]);
+        }
+
         $avoirId = null;
 
         DB::transaction(function () use ($vente, $request, &$avoirId) {
@@ -1809,15 +1814,7 @@ class VenteControleur
 
         $query = Vente::with('client')
             ->whereHas('pointDeVente', fn($queryPdv) => $queryPdv->where('entreprise_id', $entreprise->id))
-            ->where('etape', 'Facture')
-            ->where(function ($queryNum) {
-                $queryNum->where('numero_facture', 'LIKE', 'VT-%')
-                    ->orWhere('numero_facture', 'LIKE', 'VTE-%');
-            })
-            ->where(function ($queryType) {
-                $queryType->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir');
-            })
-            ->where('archived', false);
+            ->avoirables();
 
         if ($q) {
             $query->where(function ($querySearch) use ($q) {
@@ -1828,7 +1825,6 @@ class VenteControleur
         }
 
         $factures = $query->latest()->limit(10)->get()->map(function ($f) {
-            $clientNom = $f->client ? $f->client->nom : 'Client de passage';
             return [
                 // L'identifiant public, celui que les adresses portent depuis
                 // que les URL ne montrent plus les identifiants de base. Le
@@ -1837,7 +1833,8 @@ class VenteControleur
                 // un 404 (Not Found — introuvable), et le script, qui lisait la
                 // réponse en JSON, recevait la page d'erreur en HTML.
                 'id' => $f->uuid,
-                'text' => "{$f->numero_facture} - {$clientNom} (" . number_format($f->montant_ttc, 0, ',', ' ') . " XOF)"
+                'text' => $f->libellePourAvoir(),
+                'reste' => round(max(0, (float) $f->montant_ttc - (float) ($f->deja_avoire ?? 0)), 2),
             ];
         });
 
@@ -1861,6 +1858,7 @@ class VenteControleur
             'numero_facture' => $vente->numero_facture,
             'client_nom' => $vente->client ? $vente->client->nom : 'Client de passage',
             'montant_ttc' => $vente->montant_ttc,
+            'reste_a_avoirer' => $vente->resteAAvoirer(),
             'autres_mentions' => $vente->autres_mentions,
             'pied_de_page' => $vente->pied_de_page,
             'details' => $vente->details->map(function ($d) use ($dejaCredite) {
@@ -2053,6 +2051,7 @@ class VenteControleur
 
         $avoirId = null;
 
+        try {
         DB::transaction(function () use ($parent, $request, &$avoirId) {
             $numAvoir = \App\Modules\Admin\Services\NumerotationService::genererNumeroVente(
                 $parent->pointDeVente->entreprise_id,
@@ -2195,6 +2194,17 @@ class VenteControleur
                 }
             }
 
+            // Le plafond en montant, au serveur (chantier 8.1). Les quantités
+            // sont plafonnées plus haut ; le prix unitaire, lui, vient de la
+            // modale, et une ligne ajoutée n'a pas d'origine à plafonner.
+            // Le reste se lit avant cet avoir, posé à zéro tant qu'il n'est
+            // pas chiffré.
+            $reste = $parent->resteAAvoirer();
+
+            if ($totalTtc > $reste + Vente::TOLERANCE_AVOIR) {
+                throw new \App\Exceptions\AvoirExcessif($totalTtc, $reste, (float) $parent->montant_ttc);
+            }
+
             $avoir->update([
                 'montant_ht' => $totalHt,
                 'montant_tva' => $totalTva,
@@ -2224,6 +2234,9 @@ class VenteControleur
 
             $avoirId = $avoir->id;
         });
+        } catch (\App\Exceptions\AvoirExcessif $refus) {
+            return back()->withErrors(['items' => $refus->getMessage()])->withInput();
+        }
 
         $this->journaliser('creation_avoir_vente', 'Vente', $avoirId);
 

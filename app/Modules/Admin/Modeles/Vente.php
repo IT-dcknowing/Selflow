@@ -416,4 +416,66 @@ class Vente extends Model
     {
         return $this->hasMany(Vente::class, 'parent_id');
     }
+
+    /**
+     * Ce qui reste à rendre au client sur cette facture, en TTC.
+     *
+     * Un avoir ne peut pas dépasser la pièce d'origine : ce serait rendre plus
+     * que ce qui a été facturé, et la TVA collectée deviendrait négative sur la
+     * pièce (chantier 8.1, validé par le propriétaire le 02/10/2026). Le
+     * plafond par quantité ne suffisait pas : le prix unitaire reste modifiable
+     * dans la modale, et une ligne ajoutée à l'avoir n'avait aucun plafond.
+     */
+    public function resteAAvoirer(): float
+    {
+        $dejaAvoire = (float) self::where('parent_id', $this->id)
+            ->where('type_facture', 'avoir')
+            ->sum('montant_ttc');
+
+        return round(max(0, (float) $this->montant_ttc - $dejaAvoire), 2);
+    }
+
+    /** Tolérance d'arrondi sur le plafond : un franc, pas davantage. */
+    public const TOLERANCE_AVOIR = 1.0;
+
+    /**
+     * Les factures sur lesquelles un avoir peut encore porter.
+     *
+     * Écrite une fois : la liste déroulante et le champ de recherche de la
+     * modale d'avoir portaient chacun leur copie de cette requête. Une facture
+     * entièrement avoirée en sort (chantier 8.2) ; `deja_avoire` dit ce qui a
+     * déjà été rendu, pour que l'écran annonce le reste (chantier 8.3).
+     */
+    public function scopeAvoirables($requete)
+    {
+        return $requete
+            ->where('etape', 'Facture')
+            ->where(function ($q) {
+                // L'ancien préfixe (VT-) et le nouveau (VTE-).
+                $q->where('numero_facture', 'LIKE', 'VT-%')
+                  ->orWhere('numero_facture', 'LIKE', 'VTE-%');
+            })
+            ->where(function ($q) {
+                $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir');
+            })
+            ->where('archived', false)
+            ->withSum(['avoirs as deja_avoire' => fn ($a) => $a->where('type_facture', 'avoir')], 'montant_ttc')
+            ->whereRaw(
+                'montant_ttc - COALESCE((SELECT SUM(a.montant_ttc) FROM ventes a WHERE a.parent_id = ventes.id AND a.type_facture = ?), 0) > (? + 0)',
+                ['avoir', self::TOLERANCE_AVOIR]
+            );
+    }
+
+    /** Le libellé d'une facture dans la modale d'avoir, reste compris. */
+    public function libellePourAvoir(): string
+    {
+        $client = $this->client?->nom ?? 'Client de passage';
+        $deja = (float) ($this->deja_avoire ?? 0);
+        $montant = $deja > 0
+            ? 'reste ' . number_format(max(0, (float) $this->montant_ttc - $deja), 0, ',', ' ')
+                . ' F sur ' . number_format((float) $this->montant_ttc, 0, ',', ' ') . ' F'
+            : number_format((float) $this->montant_ttc, 0, ',', ' ') . ' F';
+
+        return "{$this->numero_facture} - {$client} ({$montant})";
+    }
 }
