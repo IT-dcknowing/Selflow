@@ -24,6 +24,11 @@
     /* La photo elle-meme. Elle n'est posee que sur les articles qui en ont une
        vraiment : l'image d'attente couvrirait toutes les autres cartes d'un
        meme gris, ce qui n'apprendrait rien et brouillerait le texte. */
+    /* Une carte hors de l'écran n'est ni peinte ni habillée de sa photo :
+       la caisse demandait toutes les photos du catalogue d'un coup, et sur
+       l'hébergement mutualisé chacune passe par PHP — 19,6 s pour ouvrir
+       l'écran au navigateur, mesuré le 06/10/2026 (lot 50). */
+    .produit-card { content-visibility: auto; contain-intrinsic-size: auto 138px; }
     .produit-card.avec-photo::before {
         content: ''; position: absolute; inset: 0; z-index: 0;
         background-image: var(--fond-produit);

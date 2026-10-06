@@ -148,7 +148,13 @@
     let rang = 0;
 
     /** Étapes dont la cible existe réellement : un module fermé n'a pas de menu. */
-    const visibles = etapes.filter(e => !e.cible || document.querySelector(e.cible));
+    // Une cible présente mais masquée autrement que par le repli du menu —
+    // un élément sans boîte — n'a rien à montrer : l'étape se saute.
+    const visibles = etapes.filter(e => {
+        if (!e.cible) return true;
+        const el = document.querySelector(e.cible);
+        return el && (el.closest('.nav-groupe') || el.getClientRects().length > 0);
+    });
     if (!visibles.length) return;
 
     function placer() {
@@ -169,6 +175,17 @@
             bulle.style.left = '50%';
             bulle.style.transform = 'translate(-50%, -50%)';
             return;
+        }
+
+        // Depuis que la barre latérale se replie (lot 37), une cible peut être
+        // là sans se voir : la visite désignait le catalogue dans une section
+        // fermée, et le halo entourait un rectangle vide (chantier 9.4). La
+        // section qui la porte s'ouvre d'abord — sans toucher à la mémoire du
+        // menu : c'est la visite qui l'ouvre, pas l'utilisateur.
+        const groupe = cible.closest('.nav-groupe');
+        const entete = groupe ? groupe.previousElementSibling : null;
+        if (entete && entete.getAttribute('aria-expanded') === 'false') {
+            entete.setAttribute('aria-expanded', 'true');
         }
 
         cible.scrollIntoView({ block: 'center', behavior: 'smooth' });

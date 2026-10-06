@@ -89,7 +89,7 @@
                      un cadre net, avec l'icône de son appareil photo qui dit ce
                      qui manque. --}}
                 @if($photoReelle)
-                    <img src="{{ $photoReelle }}" alt="{{ $p->nom }}"
+                    <img src="{{ $photoReelle }}" alt="{{ $p->nom }}" loading="lazy" decoding="async"
                          style="width:100%; height:100%; object-fit:cover;"
                          onerror="this.closest('div').classList.add('sans-photo'); this.remove();">
                 @else
