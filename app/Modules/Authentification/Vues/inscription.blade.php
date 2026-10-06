@@ -293,9 +293,19 @@
                 </div>
                 <div class="champ">
                     <label for="password_confirmation">Confirmer le mot de passe <span class="req">*</span></label>
-                    <input type="password" id="password_confirmation" name="password_confirmation"
-                        placeholder="Répétez le mot de passe"
-                        autocomplete="new-password" required>
+                    {{-- Un œil ici aussi, et lié au premier : on compare deux
+                         saisies, on ne peut pas les comparer si une seule est
+                         lisible (chantier 9.2). --}}
+                    <div style="position:relative;">
+                        <input type="password" id="password_confirmation" name="password_confirmation"
+                            placeholder="Répétez le mot de passe"
+                            autocomplete="new-password" required
+                            style="padding-right:44px;">
+                        <button type="button" id="toggle-password-confirmation" aria-label="Afficher les mots de passe"
+                            style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#6B7280;padding:4px;">
+                            <i class="fa-solid fa-eye" id="icone-oeil-confirmation" style="font-size:18px;"></i>
+                        </button>
+                    </div>
                 </div>
 
                 {{-- Conditions --}}
@@ -510,12 +520,18 @@
 // demandé.
 
 // ── Afficher/masquer mot de passe ──
-document.getElementById('toggle-password').addEventListener('click', function() {
-    const inp  = document.getElementById('password');
-    const icon = document.getElementById('icone-oeil');
-    if (inp.type === 'password') { inp.type = 'text'; icon.className = 'fa-solid fa-eye-slash'; }
-    else { inp.type = 'password'; icon.className = 'fa-solid fa-eye'; }
-});
+// Les deux yeux basculent ensemble les deux champs.
+function basculerLesMotsDePasse() {
+    const montrer = document.getElementById('password').type === 'password';
+    ['password', 'password_confirmation'].forEach(function (id) {
+        document.getElementById(id).type = montrer ? 'text' : 'password';
+    });
+    ['icone-oeil', 'icone-oeil-confirmation'].forEach(function (id) {
+        document.getElementById(id).className = montrer ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+    });
+}
+document.getElementById('toggle-password').addEventListener('click', basculerLesMotsDePasse);
+document.getElementById('toggle-password-confirmation').addEventListener('click', basculerLesMotsDePasse);
 
 // ── Force du mot de passe ──
 function evaluerForce(val) {

@@ -68,6 +68,9 @@ class EntrepriseControleur
 
         // Normaliser le NCC : suppression des espaces et mise en majuscule
         $request->merge(['ncc' => $request->has('ncc') ? strtoupper(preg_replace('/\s+/', '', $request->input('ncc'))) : null]);
+        if ($request->filled('fne_ncc')) {
+            $request->merge(['fne_ncc' => strtoupper(preg_replace('/\s+/', '', $request->input('fne_ncc')))]);
+        }
 
         // Mentions transmises à la FNE : un copier-coller depuis un document
         // apporte des retours à la ligne et des espaces multiples qui font
@@ -91,7 +94,12 @@ class EntrepriseControleur
             'email'                  => ['nullable', 'email', 'max:150'],
             'ref_bancaire'           => ['nullable', 'string', 'max:1000'],
             'logo'                   => ['nullable', 'image', 'mimes:png,jpg,jpeg,svg,webp', 'max:2048'],
-            'logo_fne'               => ['nullable', 'image', 'mimes:png,jpg,jpeg,svg,webp', 'max:2048'],
+            // `logo_fne` ne se dépose plus : le visuel de certification est
+            // posé par le système (chantier 10.5). Un fichier posté est ignoré.
+            // L'accès à l'espace FNE, demandé ici seulement s'il n'est pas
+            // déjà connu (chantier 10.3).
+            'fne_ncc'                => ['nullable', 'string', 'size:8', 'regex:/^[A-Z0-9]{7}[A-Z]$/'],
+            'fne_mot_de_passe'       => ['nullable', 'string', 'max:255'],
             // `comptaflow_sync_key` était ici, en champ libre. Coller la clé
             // d'une autre entreprise ouvrait la liaison vers ses livres : le
             // secret partagé est détenu par le serveur, il ne dit pas qui
@@ -235,13 +243,11 @@ class EntrepriseControleur
             $data['logo_path'] = $request->file('logo')->store('logos/entreprises', 'public');
         }
 
-        // Traitement du logo FNE / secondaire
-        if ($request->hasFile('logo_fne')) {
-            if ($entreprise->logo_fne_path && Storage::disk('public')->exists($entreprise->logo_fne_path)) {
-                Storage::disk('public')->delete($entreprise->logo_fne_path);
-            }
-            $data['logo_fne_path'] = $request->file('logo_fne')->store('logos/entreprises', 'public');
-        }
+        // Le NCC et le mot de passe de l'espace FNE, quand l'écran les a
+        // demandés. Même porte qu'à l'inscription : chiffré, jamais rendu.
+        \App\Modules\Admin\Services\AccesFneService::enregistrer(
+            $entreprise, $request->input('fne_ncc'), $request->input('fne_mot_de_passe')
+        );
 
         $ancien = $entreprise->only(array_keys($data));
         $entreprise->update($data);

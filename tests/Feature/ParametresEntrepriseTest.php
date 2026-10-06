@@ -263,11 +263,23 @@ class ParametresEntrepriseTest extends TestCase
         // Blade : une carte laissée en double, ou perdue en route, ne se verrait
         // qu'à l'écran.
         foreach (['identite' => $gauche, 'fiscal' => $gauche, 'dgi' => $gauche,
-                  'tiers' => $gauche, 'compte-fne' => $droite, 'options' => $droite,
+                  'tiers' => $gauche, 'options' => $droite,
                   'impression' => $droite] as $ancre => $attendue) {
             $this->assertSame(1, substr_count($attendue, 'id="' . $ancre . '"'),
                 "La carte « {$ancre} » n'est pas dans la colonne attendue, ou s'y trouve en double.");
         }
+    }
+
+    public function test_le_compte_fne_vient_en_premier_juste_apres_votre_configuration(): void
+    {
+        // Chantier 10.1, demandé par le propriétaire : c'est la question qui
+        // commande tout le reste. La carte quitte la colonne de droite et passe
+        // au-dessus de la grille, une seule fois.
+        $page = $this->get(route('admin.entreprise.parametres'))->assertOk()->getContent();
+
+        $this->assertSame(1, substr_count($page, 'id="compte-fne"'));
+        $this->assertLessThan(strpos($page, 'class="grille-parametres"'), strpos($page, 'id="compte-fne"'));
+        $this->assertGreaterThan(strpos($page, 'Votre configuration'), strpos($page, 'id="compte-fne"'));
     }
 
     public function test_les_raccourcis_menent_a_toutes_les_cartes(): void
