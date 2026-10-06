@@ -57,15 +57,114 @@ class ImputationService
     }
 
     /** Compte de produit — classe 7. */
-    public static function compteVente(?Produit $produit): string
+    public static function compteVente(?Produit $produit, ?int $entrepriseId = null): string
     {
-        return self::resoudre($produit, 'compte_vente', 'vente_defaut');
+        return self::resoudreAvecConfiguration($produit, 'compte_vente', 'vente_defaut', $entrepriseId);
     }
 
     /** Compte de charge — classe 6. */
-    public static function compteAchat(?Produit $produit): string
+    public static function compteAchat(?Produit $produit, ?int $entrepriseId = null): string
     {
-        return self::resoudre($produit, 'compte_achat', 'achat_defaut');
+        return self::resoudreAvecConfiguration($produit, 'compte_achat', 'achat_defaut', $entrepriseId);
+    }
+
+    /**
+     * L'ordre de priorité des comptes de vente et d'achat (chantier 5.2),
+     * écrit une fois :
+     *
+     * | Rang | Source |
+     * |---|---|
+     * | 1 | **l'exception de l'article** — un compte propre qui diffère du défaut et de sa famille |
+     * | 2 | **la configuration globale** — par type, puis par catégorie, puis générale (section 6) |
+     * | 3 | le compte de l'article, sinon celui de sa famille |
+     * | 4 | le défaut 701000 / 601000 |
+     *
+     * Le rang 1 se reconnaît à la valeur, et non à une case : un compte qui
+     * vaut le défaut ou celui de la famille est un héritage, quelle que soit
+     * la façon dont il est arrivé sur la fiche. C'est la règle de reprise de
+     * l'existant (chantier 6.5) — ce qui diffère est réputé voulu — appliquée
+     * à chaque lecture plutôt qu'une fois par une migration.
+     *
+     * Sans aucune configuration globale, le résultat est exactement celui
+     * d'avant : les rangs 1, 3 et 4 sont l'ancienne chaîne.
+     */
+    private static function resoudreAvecConfiguration(?Produit $produit, string $champ, string $cleDefaut, ?int $entrepriseId): string
+    {
+        $defaut  = (string) config("selflow.plan_comptable_defaut.{$cleDefaut}");
+        $propre  = trim((string) ($produit?->$champ ?? ''));
+        $famille = trim((string) ($produit?->categorieRelation?->$champ ?? ''));
+
+        if ($propre !== '' && $propre !== $defaut && $propre !== $famille) {
+            return $propre;
+        }
+
+        $global = self::configurationGlobale($produit, $champ, $entrepriseId ?? $produit?->entreprise_id);
+
+        if ($global !== null) {
+            return $global;
+        }
+
+        return self::resoudre($produit, $champ, $cleDefaut);
+    }
+
+    /**
+     * Le compte que la configuration globale donne à cet article — le plus
+     * précis l'emporte : type, puis catégorie, puis général (chantier 6.2).
+     */
+    public static function configurationGlobale(?Produit $produit, string $champ, ?int $entrepriseId): ?string
+    {
+        if (!$entrepriseId) {
+            return null;
+        }
+
+        $config = \App\Modules\Admin\Modeles\ConfigurationCompte::pour($entrepriseId);
+
+        if ($config === []) {
+            return null;
+        }
+
+        $cles = [];
+        if ($produit?->type) {
+            $cles[] = \App\Modules\Admin\Modeles\ConfigurationCompte::TYPE . ':' . $produit->type;
+        }
+        if ($produit?->categorie_id) {
+            $cles[] = \App\Modules\Admin\Modeles\ConfigurationCompte::CATEGORIE . ':' . $produit->categorie_id;
+        }
+        $cles[] = \App\Modules\Admin\Modeles\ConfigurationCompte::GENERAL . ':';
+
+        foreach ($cles as $cle) {
+            $compte = trim((string) ($config[$cle][$champ] ?? ''));
+
+            if ($compte !== '') {
+                return $compte;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Ce que l'article hérite, hors exception — affiché sur sa fiche (6.4) et
+     * reposé sur la fiche quand on décoche l'exception : décochée, elle ne
+     * garde pas en silence l'ancienne valeur.
+     */
+    public static function compteHerite(Produit $produit, string $champ): string
+    {
+        $cleDefaut = $champ === 'compte_vente' ? 'vente_defaut' : 'achat_defaut';
+
+        return self::configurationGlobale($produit, $champ, $produit->entreprise_id)
+            ?? (trim((string) ($produit->categorieRelation?->$champ ?? '')) ?: (string) config("selflow.plan_comptable_defaut.{$cleDefaut}"));
+    }
+
+    /** L'article porte-t-il une exception à ce qui s'hérite ? */
+    public static function estUneException(Produit $produit, string $champ): bool
+    {
+        $cleDefaut = $champ === 'compte_vente' ? 'vente_defaut' : 'achat_defaut';
+        $propre  = trim((string) ($produit->$champ ?? ''));
+
+        return $propre !== ''
+            && $propre !== (string) config("selflow.plan_comptable_defaut.{$cleDefaut}")
+            && $propre !== trim((string) ($produit->categorieRelation?->$champ ?? ''));
     }
 
     /**

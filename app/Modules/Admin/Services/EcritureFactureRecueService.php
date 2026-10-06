@@ -334,7 +334,7 @@ class EcritureFactureRecueService
      */
     private static function repartitionDesCharges(PortailFneFactureRecue $facture, float $charge, float $tva): array
     {
-        $defaut = ImputationService::compteAchat(null);
+        $defaut = ImputationService::compteAchat(null, $facture->entreprise_id);
         $poids  = [];
 
         foreach ($facture->lignes as $ligne) {
@@ -344,7 +344,7 @@ class EcritureFactureRecueService
                 continue;
             }
 
-            $compte = ImputationService::compteAchat(self::article($facture->entreprise_id, $ligne->reference_article, $ligne->designation));
+            $compte = ImputationService::compteAchat(self::article($facture->entreprise_id, $ligne->reference_article, $ligne->designation), $facture->entreprise_id);
             $poids[$compte] = ($poids[$compte] ?? 0) + $valeur;
         }
 

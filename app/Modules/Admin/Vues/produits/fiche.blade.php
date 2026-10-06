@@ -368,14 +368,7 @@
                     </small>
                 </div>
                 @if($comptaOuverte)
-                <div class="form-group">
-                    <label class="form-label">Compte vente</label>
-                    <input type="text" name="compte_vente" class="form-control" value="{{ $produit->compte_vente }}" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Compte achat</label>
-                    <input type="text" name="compte_achat" class="form-control" value="{{ $produit->compte_achat }}" required>
-                </div>
+                @include('admin::produits.partiel_comptes', ['produit' => $produit, 'cle' => 'fiche'])
                 @endif
                 {{-- La quantite ne se corrige plus ici : elle est la consequence
                      des mouvements, pas un champ qu'on retape. Une correction se

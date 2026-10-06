@@ -239,6 +239,10 @@ Route::prefix('admin')
                 Route::get('/creances', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'creances'])->name('creances');
                 Route::get('/tiers/{type}/{id}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'releveTiers'])->name('releve_tiers');
                 Route::post('/reglement', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'enregistrerReglement'])->name('enregistrer_reglement');
+                // La configuration globale des comptes (section 6 du plan) :
+                // saisir les comptes une fois, et non sur chaque fiche.
+                Route::get('/configuration-des-comptes', [\App\Modules\Admin\Controleurs\ConfigurationComptesControleur::class, 'index'])->name('configuration');
+                Route::put('/configuration-des-comptes', [\App\Modules\Admin\Controleurs\ConfigurationComptesControleur::class, 'enregistrer'])->name('configuration.enregistrer');
                 Route::get('/plan-comptable', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'planComptable'])->name('plan_comptable');
                 Route::post('/plan-comptable', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'creerCompteComptable'])->name('creer_compte_comptable');
                 Route::post('/plan-comptable/poser-le-defaut', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'poserLePlanParDefaut'])->name('poser_plan_defaut');

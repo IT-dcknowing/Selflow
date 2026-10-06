@@ -315,6 +315,8 @@ class Habilitations
         'admin.comptabilite.reglement'              => 'comptabilite_creances',
         'admin.comptabilite.enregistrer_reglement'  => 'comptabilite_creances',
         'admin.comptabilite.plan_comptable'         => 'comptabilite_plan_comptable',
+        'admin.comptabilite.configuration'              => 'comptabilite_plan_comptable',
+        'admin.comptabilite.configuration.enregistrer'  => 'comptabilite_plan_comptable',
         'admin.comptabilite.creer_compte_comptable' => 'comptabilite_plan_comptable',
         'admin.comptabilite.poser_plan_defaut'      => 'comptabilite_plan_comptable',
         // La balance et le grand livre montrent le résultat de l'entreprise

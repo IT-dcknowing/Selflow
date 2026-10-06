@@ -68,8 +68,10 @@ class ProduitControleur
             'taux_tva'      => ['required', 'numeric', 'min:0'],
             // Comptabilité éteinte, ces deux champs ne sont plus à l'écran
             // (chantier 3.3) : le serveur décide, voir `comptesDeLArticle()`.
-            'compte_vente'  => [$entreprise->comptabiliteOuverte() ? 'required' : 'nullable', 'string', 'max:20'],
-            'compte_achat'  => [$entreprise->comptabiliteOuverte() ? 'required' : 'nullable', 'string', 'max:20'],
+            // Exigés seulement quand la case « personnaliser » est cochée
+            // (chantier 6.4) : sinon l'article hérite.
+            'compte_vente'  => [$entreprise->comptabiliteOuverte() && $request->boolean('comptes_personnalises') ? 'required' : 'nullable', 'string', 'max:20'],
+            'compte_achat'  => [$entreprise->comptabiliteOuverte() && $request->boolean('comptes_personnalises') ? 'required' : 'nullable', 'string', 'max:20'],
             'stock_actuel'  => [in_array($request->input('type'), ['service', 'consommable_non_stockable']) ? 'nullable' : 'required', 'integer', 'min:0'],
             'stock_minimum' => [in_array($request->input('type'), ['service', 'consommable_non_stockable']) ? 'nullable' : 'required', 'integer', 'min:0'],
             'unite'         => ['nullable', 'string', 'max:20'],
@@ -372,8 +374,10 @@ class ProduitControleur
             'taux_tva'      => ['required', 'numeric', 'min:0'],
             // Comptabilité éteinte, ces deux champs ne sont plus à l'écran
             // (chantier 3.3) : le serveur décide, voir `comptesDeLArticle()`.
-            'compte_vente'  => [$entreprise->comptabiliteOuverte() ? 'required' : 'nullable', 'string', 'max:20'],
-            'compte_achat'  => [$entreprise->comptabiliteOuverte() ? 'required' : 'nullable', 'string', 'max:20'],
+            // Exigés seulement quand la case « personnaliser » est cochée
+            // (chantier 6.4) : sinon l'article hérite.
+            'compte_vente'  => [$entreprise->comptabiliteOuverte() && $request->boolean('comptes_personnalises') ? 'required' : 'nullable', 'string', 'max:20'],
+            'compte_achat'  => [$entreprise->comptabiliteOuverte() && $request->boolean('comptes_personnalises') ? 'required' : 'nullable', 'string', 'max:20'],
             // La quantite n'est plus modifiable depuis le catalogue : le champ
             // est en lecture seule et rien ne l'envoie. La regle reste
             // permissive pour ne pas refuser une requete qui le porterait
@@ -517,7 +521,11 @@ class ProduitControleur
 
         $produit->load(['category', 'sousCategorieRelation', 'stocks.pointDeVente', 'detailsLibres']);
 
-        return view('admin::produits.fiche', compact('produit'));
+        // Les comptes proposés à l'exception (chantier 6.4), comme sur la
+        // liste des articles.
+        $comptes = \App\Modules\Admin\Modeles\PlanComptable::obtenirComptesPrioritaires($produit->entreprise_id);
+
+        return view('admin::produits.fiche', compact('produit', 'comptes'));
     }
 
     /**
@@ -609,7 +617,25 @@ class ProduitControleur
     private static function comptesDeLArticle(Request $request, $entreprise, ?Produit $existant, $categorieId): array
     {
         if ($entreprise->comptabiliteOuverte()) {
-            return ['compte_vente' => $request->compte_vente, 'compte_achat' => $request->compte_achat];
+            // La case cochée : l'exception, portée par l'article, prime sur la
+            // configuration globale (chantier 6.4).
+            if ($request->boolean('comptes_personnalises')) {
+                return ['compte_vente' => $request->compte_vente, 'compte_achat' => $request->compte_achat];
+            }
+
+            // Décochée : l'article revient à l'héritage — et ne garde pas en
+            // silence l'ancienne valeur, qui passerait sinon pour une
+            // exception à la prochaine lecture.
+            $modele = new Produit([
+                'entreprise_id' => $entreprise->id,
+                'type'          => $request->input('type', $existant?->type),
+                'categorie_id'  => $categorieId,
+            ]);
+
+            return [
+                'compte_vente' => \App\Modules\Admin\Services\ImputationService::compteHerite($modele, 'compte_vente'),
+                'compte_achat' => \App\Modules\Admin\Services\ImputationService::compteHerite($modele, 'compte_achat'),
+            ];
         }
 
         if ($existant) {
