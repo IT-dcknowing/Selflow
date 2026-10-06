@@ -92,6 +92,7 @@
 @endsection
 
 @section('contenu')
+@php $comptaOuverte = auth()->user()->estSuperAdmin() || (bool) auth()->user()->entreprise?->comptabiliteOuverte(); @endphp
 
 {{-- ── Le fil du parcours ── --}}
 @php
@@ -251,7 +252,22 @@
                 'principal'       => "Le socle de l'application — il reste toujours ouvert.",
                 'points_de_vente' => 'Vos sites, votre personnel et leurs droits — il reste toujours ouvert.',
             ];
+
+            // Un module déjà ouvert n'est pas un choix à refaire (chantier
+            // 3.5) : l'étape le présentait coché, « à activer », alors qu'il
+            // l'était déjà. Il se montre désormais comme acquis.
+            $dejaOuverts = (array) (auth()->user()->entreprise?->modules_actifs ?? []);
+            $tousOuverts = $modulesProposes !== []
+                && array_diff($modulesProposes, $dejaOuverts) === [];
         @endphp
+
+        @if($tousOuverts)
+            <p class="note-verrou">
+                <i class="fas fa-circle-check"></i>
+                Tous les modules que votre métier demande sont <strong>déjà ouverts</strong> :
+                il n'y a rien à choisir ici. Passez à l'étape suivante.
+            </p>
+        @endif
 
         @if(!empty($modulesVerrouilles))
             <p class="note-verrou">
@@ -267,9 +283,10 @@
             @php
                 $estStructurel = in_array($module, $structurels, true);
                 $verrou        = $modulesVerrouilles[$module] ?? null;
-                $fige          = $estStructurel || $verrou !== null;
+                $dejaOuvert    = in_array($module, $dejaOuverts, true);
+                $fige          = $estStructurel || $verrou !== null || $dejaOuvert;
             @endphp
-            <label class="ligne {{ $verrou ? 'acquise' : '' }}">
+            <label class="ligne {{ $verrou || $dejaOuvert ? 'acquise' : '' }}">
                 <input type="checkbox" name="modules[]" value="{{ $module }}"
                        {{ $fige || in_array($module, $choix['modules'] ?? $modulesProposes, true) ? 'checked' : '' }}
                        {{ $fige ? 'disabled' : '' }}>
@@ -286,6 +303,8 @@
                 </div>
                 @if($verrou)
                     <div class="droite"><span class="badge-acquis">en service</span></div>
+                @elseif($dejaOuvert && !$estStructurel)
+                    <div class="droite"><span class="badge-acquis">déjà ouvert</span></div>
                 @endif
             </label>
             {{-- Une case désactivée n'est pas transmise : sans ce relais, valider
@@ -301,7 +320,7 @@
         <div class="sous-tete">
             <h2>Vos rayons</h2>
             <p>Tout est coché : décochez ce que vous ne vendez pas. Chaque rayon apporte ses
-               articles et ses comptes comptables. Rien n'est définitif — vous pourrez en
+               articles{{ $comptaOuverte ? ' et ses comptes comptables' : '' }}. Rien n'est définitif — vous pourrez en
                ajouter et en archiver ensuite.</p>
         </div>
 
@@ -313,8 +332,15 @@
                     <div class="nom">{{ $famille->nom }}</div>
                     <div class="sous">
                         {{ $famille->profil->nom }} ·
+                        {{-- Le numéro de compte ne se montre qu'à qui tient ses
+                             livres (chantier 3.4). Le préparamétrage, lui, se
+                             pose en base dans tous les cas. --}}
+                        @if($comptaOuverte)
                         <span class="cpt">{{ $famille->compte_vente ?? $famille->compte_achat ?? '—' }}</span>
                         {{ $famille->intituleCompte('compte_vente') ?? $famille->typeArticle->libelle }}
+                        @else
+                        {{ $famille->typeArticle->libelle }}
+                        @endif
                     </div>
                 </div>
                 <div class="droite">{{ $famille->articles_count }} articles</div>

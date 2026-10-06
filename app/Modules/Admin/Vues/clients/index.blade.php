@@ -3,6 +3,9 @@
 @section('topbar_titre', 'Catalogue — Clients')
 
 @section('contenu')
+{{-- Comptabilité éteinte : aucun compte à l'écran. Le serveur pose
+     411000 / 401000 (chantier 3.1, lot 46). --}}
+@php $comptaOuverte = auth()->user()->estSuperAdmin() || (bool) auth()->user()->entreprise?->comptabiliteOuverte(); @endphp
 <div class="page-header">
     <div>
         <h1><i class="fas fa-users"></i> Liste des clients</h1>
@@ -69,7 +72,7 @@
                         <th>N° tiers</th>
                         <th>NCC</th>
                         <th>RCCM</th>
-                        <th>Compte général</th>
+                        @if($comptaOuverte)<th>Compte général</th>@endif
                         <th>Régime</th>
                         <th>Téléphone</th>
                         <th>E-mail</th>
@@ -104,6 +107,7 @@
                         </td>
                         <td>{{ $c->ncc ?? '—' }}</td>
                         <td>{{ $c->rccm ?? '—' }}</td>
+                        @if($comptaOuverte)
                         <td style="font-family: monospace; font-weight: 700;">
                             {{ $c->compte_comptable ?? '411000' }}
                             @php
@@ -115,6 +119,7 @@
                                 </div>
                             @endif
                         </td>
+                        @endif
                         <td>{{ $c->regime_imposition ?? '—' }}</td>
                         <td>{{ $c->telephone ?? '—' }}</td>
                         <td>{{ $c->email ?? '—' }}</td>
@@ -213,7 +218,7 @@
                             <th>N° tiers</th>
                             <th>NCC</th>
                             <th>RCCM</th>
-                            <th>Compte général</th>
+                            @if($comptaOuverte)<th>Compte général</th>@endif
                             <th>Régime</th>
                             <th>Téléphone</th>
                             <th>E-mail</th>
@@ -237,6 +242,7 @@
                             </td>
                             <td>{{ $c->ncc ?? '—' }}</td>
                             <td>{{ $c->rccm ?? '—' }}</td>
+                            @if($comptaOuverte)
                             <td style="font-family: monospace; font-weight: 700;">
                              {{ $c->compte_comptable ?? '411000' }}
                              @php
@@ -248,6 +254,7 @@
                                  </div>
                              @endif
                          </td>
+                            @endif
                             <td>{{ $c->regime_imposition ?? '—' }}</td>
                             <td>{{ $c->telephone ?? '—' }}</td>
                             <td>{{ $c->email ?? '—' }}</td>
@@ -357,6 +364,7 @@
                             </select>
                         </div>
                         </div>
+                        @if($comptaOuverte)
                         <div class="form-group" style="margin-bottom:0;">
                             <label class="form-label">Compte comptable général collective</label>
                             <select name="compte_comptable" class="form-control" required>
@@ -367,6 +375,7 @@
                                 @endforeach
                             </select>
                         </div>
+                        @endif
                         {{-- Le numéro de tiers ne se saisit pas : le système le
                              fabrique, selon la convention choisie dans les
                              paramètres. Comptaflow retrouve un tiers par
@@ -456,6 +465,7 @@
                             </select>
                         </div>
                         </div>
+                        @if($comptaOuverte)
                         <div class="form-group" style="margin-bottom:0;">
                             <label class="form-label">Compte comptable général collective</label>
                             <select name="compte_comptable" id="edit_compte_comptable" class="form-control" required>
@@ -466,6 +476,7 @@
                                 @endforeach
                             </select>
                         </div>
+                        @endif
                         {{-- En lecture seule : changer le numéro d'un tiers déjà
                              déversé le rendrait introuvable chez Comptaflow, et
                              ses écritures futures retomberaient sur le collectif

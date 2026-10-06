@@ -66,8 +66,10 @@ class ProduitControleur
             'prix_achat'    => [$request->input('type') === 'service' ? 'nullable' : 'required', 'numeric', 'min:0'],
             'prix_vente'    => ['required', 'numeric', 'min:0'],
             'taux_tva'      => ['required', 'numeric', 'min:0'],
-            'compte_vente'  => ['required', 'string', 'max:20'],
-            'compte_achat'  => ['required', 'string', 'max:20'],
+            // Comptabilité éteinte, ces deux champs ne sont plus à l'écran
+            // (chantier 3.3) : le serveur décide, voir `comptesDeLArticle()`.
+            'compte_vente'  => [$entreprise->comptabiliteOuverte() ? 'required' : 'nullable', 'string', 'max:20'],
+            'compte_achat'  => [$entreprise->comptabiliteOuverte() ? 'required' : 'nullable', 'string', 'max:20'],
             'stock_actuel'  => [in_array($request->input('type'), ['service', 'consommable_non_stockable']) ? 'nullable' : 'required', 'integer', 'min:0'],
             'stock_minimum' => [in_array($request->input('type'), ['service', 'consommable_non_stockable']) ? 'nullable' : 'required', 'integer', 'min:0'],
             'unite'         => ['nullable', 'string', 'max:20'],
@@ -147,8 +149,7 @@ class ProduitControleur
             'prix_achat'        => $request->input('type') === 'service' ? 0 : $request->prix_achat,
             'prix_vente'        => $request->prix_vente,
             'taux_tva'          => $request->taux_tva,
-            'compte_vente'      => $request->compte_vente,
-            'compte_achat'      => $request->compte_achat,
+            ...self::comptesDeLArticle($request, $entreprise, null, $categorieId ?: null),
             'unite'             => $request->unite,
             'remise_taux'       => floatval($request->input('remise_taux', 0)),
             'code_tva_manuel'   => $request->boolean('code_tva_manuel'),
@@ -369,8 +370,10 @@ class ProduitControleur
             'prix_achat'    => [$isService ? 'nullable' : 'required', 'numeric', 'min:0'],
             'prix_vente'    => ['required', 'numeric', 'min:0'],
             'taux_tva'      => ['required', 'numeric', 'min:0'],
-            'compte_vente'  => ['required', 'string', 'max:20'],
-            'compte_achat'  => ['required', 'string', 'max:20'],
+            // Comptabilité éteinte, ces deux champs ne sont plus à l'écran
+            // (chantier 3.3) : le serveur décide, voir `comptesDeLArticle()`.
+            'compte_vente'  => [$entreprise->comptabiliteOuverte() ? 'required' : 'nullable', 'string', 'max:20'],
+            'compte_achat'  => [$entreprise->comptabiliteOuverte() ? 'required' : 'nullable', 'string', 'max:20'],
             // La quantite n'est plus modifiable depuis le catalogue : le champ
             // est en lecture seule et rien ne l'envoie. La regle reste
             // permissive pour ne pas refuser une requete qui le porterait
@@ -451,8 +454,7 @@ class ProduitControleur
             'prix_achat'        => $isService ? 0 : $request->prix_achat,
             'prix_vente'        => $request->prix_vente,
             'taux_tva'          => $request->taux_tva,
-            'compte_vente'      => $request->compte_vente,
-            'compte_achat'      => $request->compte_achat,
+            ...self::comptesDeLArticle($request, $entreprise, $produit, $categorieId ?: null),
             'unite'             => $request->unite,
             'remise_taux'       => floatval($request->input('remise_taux', 0)),
             'code_tva_manuel'   => $request->boolean('code_tva_manuel'),
@@ -586,5 +588,42 @@ class ProduitControleur
         $categorieId  = $request->input('categorie_id');
         $reference    = \App\Modules\Admin\Modeles\Produit::genererReference($entrepriseId, $categorieId);
         return response()->json(['reference' => $reference]);
+    }
+
+    /**
+     * Les comptes de vente et d'achat d'un article, selon que la comptabilité
+     * est ouverte ou non.
+     *
+     * Ouverte : ce que l'utilisateur a choisi. Éteinte, l'écran ne montre plus
+     * aucun compte (chantier 3.3) et ce qui serait posté est ignoré : un
+     * article neuf prend le compte de sa famille, sinon 701000 / 601000 ; un
+     * article existant garde les siens — les écraser réécrirait en silence des
+     * imputations choisies quand la comptabilité était ouverte.
+     *
+     * Pas de colonne vide : elle n'en accepte pas, et son défaut historique
+     * (`701100`) est précisément la ventilation géographique que la section
+     * 5 bis du journal a jugée fausse.
+     *
+     * @return array{compte_vente: string, compte_achat: string}
+     */
+    private static function comptesDeLArticle(Request $request, $entreprise, ?Produit $existant, $categorieId): array
+    {
+        if ($entreprise->comptabiliteOuverte()) {
+            return ['compte_vente' => $request->compte_vente, 'compte_achat' => $request->compte_achat];
+        }
+
+        if ($existant) {
+            return [
+                'compte_vente' => $existant->compte_vente ?: config('selflow.plan_comptable_defaut.vente_defaut'),
+                'compte_achat' => $existant->compte_achat ?: config('selflow.plan_comptable_defaut.achat_defaut'),
+            ];
+        }
+
+        $famille = $categorieId ? \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)->find($categorieId) : null;
+
+        return [
+            'compte_vente' => trim((string) $famille?->compte_vente) ?: config('selflow.plan_comptable_defaut.vente_defaut'),
+            'compte_achat' => trim((string) $famille?->compte_achat) ?: config('selflow.plan_comptable_defaut.achat_defaut'),
+        ];
     }
 }

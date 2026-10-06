@@ -33,6 +33,29 @@ use App\Modules\Admin\Modeles\Produit;
  */
 class ImputationService
 {
+    /**
+     * Le compte collectif d'un tiers — 411000 pour un client, 401000 pour un
+     * fournisseur (chantier 5.2, précisé par le propriétaire le 05/10/2026).
+     *
+     * Comptabilité éteinte, l'écran ne propose plus de compte : le serveur
+     * pose celui de la nature du tiers, et **ignore** ce qu'une requête
+     * forgée enverrait — ce qui n'est plus demandé ne doit plus être accepté
+     * (chantier 3.1). Comptabilité ouverte, le compte choisi l'emporte.
+     *
+     * @param  'client'|'fournisseur'  $nature
+     */
+    public static function compteDeTiers(?\App\Modules\Admin\Modeles\Entreprise $entreprise, string $nature, ?string $saisi = null): string
+    {
+        $defaut = config('selflow.plan_comptable_defaut.' . ($nature === 'client' ? 'client_collectif' : 'fournisseur_collectif'));
+        $saisi = trim((string) $saisi);
+
+        if ($saisi !== '' && $entreprise?->comptabiliteOuverte()) {
+            return $saisi;
+        }
+
+        return $defaut;
+    }
+
     /** Compte de produit — classe 7. */
     public static function compteVente(?Produit $produit): string
     {

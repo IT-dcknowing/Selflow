@@ -3,6 +3,7 @@
 @section('topbar_titre', 'Catalogue — Produits')
 
 @section('contenu')
+@php $comptaOuverte = auth()->user()->estSuperAdmin() || (bool) auth()->user()->entreprise?->comptabiliteOuverte(); @endphp
 <div class="page-header">
     <div>
         <h1><i class="fas fa-barcode"></i> Catalogue produits</h1>
@@ -317,6 +318,9 @@
                                     'produit' => $p,
                                     'regime'  => Auth::user()->entreprise->regime_imposition ?? null,
                                 ])
+                                {{-- Comptabilité éteinte : aucun compte à l'écran, le serveur décide
+                                     (chantier 3.3, lot 46). --}}
+                                @if($comptaOuverte)
                                 <div class="form-group">
                                     <label class="form-label">Nature de la vente (Compte de vente) <span style="color:var(--danger)">*</span></label>
                                     <select name="compte_vente" id="compte_vente_select_{{ $p->id }}" class="form-control" required>
@@ -365,6 +369,7 @@
                                         @endforeach
                                     </select>
                                 </div>
+                                @endif
                                 @endif
                                 <div class="form-group" id="group-prix-achat-container-{{ $p->id }}">
                                     <label class="form-label">Prix achat</label>
@@ -487,6 +492,9 @@
                     'produit' => null,
                     'regime'  => Auth::user()->entreprise->regime_imposition ?? null,
                 ])
+                {{-- Comptabilité éteinte : aucun compte à l'écran, le serveur décide
+                     (chantier 3.3, lot 46). --}}
+                @if($comptaOuverte)
                 <div class="form-group">
                     <label class="form-label">Nature de la vente (Compte de vente) <span style="color:var(--danger)">*</span></label>
                     <select name="compte_vente" id="compte_vente_select_nouveau" class="form-control" required>
@@ -535,6 +543,7 @@
                         @endforeach
                     </select>
                 </div>
+                @endif
                 @endif
                 <div class="form-group" id="group-prix-achat-container-nouveau">
                     <label class="form-label">Prix d'achat (FCFA) <span style="color:var(--danger)">*</span></label>

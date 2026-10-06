@@ -65,18 +65,24 @@ class FournisseurControleur
             'ncc'               => ['required_if:type_facturation,B2B', 'nullable', 'string', 'size:8', 'regex:/^[A-Z0-9]{7}[A-Z]$/'],
             'rccm'              => ['nullable', 'string', 'max:100'],
             'regime_imposition' => ['nullable', 'string', 'max:100'],
-            'compte_comptable'  => [
+            // Comptabilité éteinte, le champ n'est plus à l'écran : il n'est
+            // plus exigé, et ce qui serait posté est ignoré (chantier 3.1).
+            'compte_comptable'  => $entreprise->comptabiliteOuverte() ? [
                 'required',
                 'string',
                 \Illuminate\Validation\Rule::exists('plan_comptable', 'numero')->where(function ($q) use ($entreprise) {
                     $q->whereNull('entreprise_id')->orWhere('entreprise_id', $entreprise->id);
                 })
-            ],
+            ] : ['nullable'],
         ], [
             'ncc.required_if' => 'Le NCC est obligatoire pour un fournisseur de type B2B (Entreprise à Entreprise).',
             'ncc.size' => 'Le NCC doit contenir exactement 8 caractères.',
             'ncc.regex' => 'Le NCC doit comporter 8 caractères et se terminer par une lettre majuscule.',
         ]);
+
+        $request->merge(['compte_comptable' => \App\Modules\Admin\Services\ImputationService::compteDeTiers(
+            $entreprise, 'fournisseur', $request->input('compte_comptable')
+        )]);
 
         // Le numéro ne se saisit plus à la main : le système le fabrique,
         // selon la convention des paramètres, exactement comme Comptaflow.
@@ -139,13 +145,13 @@ class FournisseurControleur
                 'ncc'               => ['required_if:type_facturation,B2B', 'nullable', 'string', 'size:8', 'regex:/^[A-Z0-9]{7}[A-Z]$/'],
                 'rccm'              => ['nullable', 'string', 'max:100'],
                 'regime_imposition' => ['nullable', 'string', 'max:100'],
-                'compte_comptable'  => [
+                'compte_comptable'  => $entreprise->comptabiliteOuverte() ? [
                     'required',
                     'string',
                     \Illuminate\Validation\Rule::exists('plan_comptable', 'numero')->where(function ($q) use ($entreprise) {
                         $q->whereNull('entreprise_id')->orWhere('entreprise_id', $entreprise->id);
                     })
-                ],
+                ] : ['nullable'],
             ], [
                 'ncc.required_if' => 'Le NCC est obligatoire pour un fournisseur de type B2B.',
                 'ncc.size' => 'Le NCC doit contenir exactement 8 caractères.',
@@ -153,7 +159,7 @@ class FournisseurControleur
             ]);
 
             $fournisseur->update(array_merge(
-                $request->only(['nom', 'type_facturation', 'telephone', 'email', 'adresse', 'secteur', 'rccm', 'regime_imposition', 'compte_comptable']),
+                $request->only(array_merge(['nom', 'type_facturation', 'telephone', 'email', 'adresse', 'secteur', 'rccm', 'regime_imposition'], $entreprise->comptabiliteOuverte() ? ['compte_comptable'] : [])),
                 ['ncc' => ($request->input('type_facturation') === 'B2B') ? $request->input('ncc') : null]
             ));
         }

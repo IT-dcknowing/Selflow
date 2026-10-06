@@ -3,6 +3,7 @@
 @section('topbar_titre', 'Fiche produit')
 
 @section('contenu')
+@php $comptaOuverte = auth()->user()->estSuperAdmin() || (bool) auth()->user()->entreprise?->comptabiliteOuverte(); @endphp
 
 {{-- Barre de navigation --}}
 <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
@@ -162,9 +163,12 @@
                     ['label'=>'Date d\'arrivée', 'valeur'=>$produit->date_arrivee?->format('d/m/Y') ?? '—'],
                     ['label'=>'Date péremption', 'valeur'=>$produit->date_peremption?->format('d/m/Y') ?? '—',
                      'alert'=>$produit->estPerime() ? 'danger' : ($produit->bientotPerime() ? 'warning' : null)],
-                    ['label'=>'Compte vente',  'valeur'=>$produit->compte_vente ?? '—'],
-                    ['label'=>'Compte achat',  'valeur'=>$produit->compte_achat ?? '—'],
                 ];
+                // Comptabilité éteinte : aucun compte à l'écran (chantier 3.3).
+                if ($comptaOuverte) {
+                    $champs[] = ['label'=>'Compte vente',  'valeur'=>$produit->compte_vente ?? '—'];
+                    $champs[] = ['label'=>'Compte achat',  'valeur'=>$produit->compte_achat ?? '—'];
+                }
             @endphp
             @foreach($champs as $c)
                 <div>
@@ -363,6 +367,7 @@
                         Trente jours conviennent à l'alimentaire ; un médicament se retire des rayons bien plus tôt.
                     </small>
                 </div>
+                @if($comptaOuverte)
                 <div class="form-group">
                     <label class="form-label">Compte vente</label>
                     <input type="text" name="compte_vente" class="form-control" value="{{ $produit->compte_vente }}" required>
@@ -371,6 +376,7 @@
                     <label class="form-label">Compte achat</label>
                     <input type="text" name="compte_achat" class="form-control" value="{{ $produit->compte_achat }}" required>
                 </div>
+                @endif
                 {{-- La quantite ne se corrige plus ici : elle est la consequence
                      des mouvements, pas un champ qu'on retape. Une correction se
                      fait par l'inventaire, qui ecrit l'ecart, le date et le
