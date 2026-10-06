@@ -204,15 +204,18 @@
                     @foreach($produits as $produit)
                     @php $suitLeStock = $produit->estStockable(); @endphp
                     @php $photo = $produit->photoReelle(); @endphp
+                    {{-- Lu une fois : la carte s'en sert six fois, et chaque lecture
+                         repasse par le site actif (lot 43). --}}
+                    @php $stockCarte = $produit->stock_actuel; @endphp
                     {{-- Une vraie photo tient tout le fond. A defaut, la carte
                          reste nette : aucun fond n'est pose. --}}
-                    <div class="produit-card {{ $suitLeStock && $produit->stock_actuel <= 0 ? 'out-of-stock' : '' }} {{ $photo ? 'avec-photo' : '' }}"
+                    <div class="produit-card {{ $suitLeStock && $stockCarte <= 0 ? 'out-of-stock' : '' }} {{ $photo ? 'avec-photo' : '' }}"
                          style="{{ $photo ? '--fond-produit: url(\'' . $photo . '\');' : '' }}"
                          data-id="{{ $produit->id }}"
                          data-nom="{{ $produit->nom }}"
                          data-prix="{{ $produit->prix_vente }}"
                          data-stockable="{{ $suitLeStock ? '1' : '0' }}"
-                         data-stock="{{ $produit->stock_actuel }}"
+                         data-stock="{{ $stockCarte }}"
                          data-stock-min="{{ $produit->stock_minimum }}"
                          data-cat="{{ $produit->categorie }}"
                          data-unite="{{ $produit->unite ?? 'Unité' }}"
@@ -225,13 +228,13 @@
                         <div class="produit-prix">{{ number_format($produit->prix_vente, 0, ',', ' ') }} F</div>
                         {{-- Un service n'a pas de stock : il ne peut pas etre en
                              rupture. On dit ce qu'il est, pas ce qui lui manque. --}}
-                        <div class="produit-stock" style="{{ $suitLeStock && $produit->stock_actuel <= 0 ? 'color:var(--danger);font-weight:700;' : '' }}">
+                        <div class="produit-stock" style="{{ $suitLeStock && $stockCarte <= 0 ? 'color:var(--danger);font-weight:700;' : '' }}">
                             @if(!$suitLeStock)
                                 {{ $produit->type === 'service' ? 'Service' : 'Sans gestion de stock' }}
-                            @elseif($produit->stock_actuel <= 0)
+                            @elseif($stockCarte <= 0)
                                 Rupture de stock
                             @else
-                                Stock : {{ $produit->stock_actuel }} {{ $produit->unite ?? 'unités' }}
+                                Stock : {{ $stockCarte }} {{ $produit->unite ?? 'unités' }}
                             @endif
                         </div>
                     </div>
