@@ -7390,6 +7390,25 @@ l'information. Elle reste disponible sur l'autre branche.
 - `tests/Feature/CorrectifsReportesTest.php` — 6 épreuves, **toutes tombent** sans le correctif
 - `AmortissementTest` ouvre désormais la comptabilité de son entreprise
 
+### Lot 56 — La suite Comptaflow au vert (chantier 18.3) — **TERMINÉ le 07/10/2026**
+
+Les 19 épreuves rouges de Comptaflow, relevées le 06/10 et laissées au
+mainteneur, avaient toutes la même cause : réponse 500 sur
+`ViteManifestNotFoundException`. Les pages chargent leurs feuilles par
+`@vite`, et `public/build/manifest.json` n'existe qu'après `npm run build`,
+que l'environnement d'épreuve ne lance pas. Aucune n'échouait sur ce qu'elle
+vérifiait.
+
+Correctif, côté Comptaflow seulement : `$this->withoutVite()` dans le
+`setUp()` de `tests/TestCase.php`, la façon prévue par Laravel. Suite :
+**301 passantes sur 301** (au lieu de 282). Vérification au retrait : sans la
+ligne, les 19 retombent. Branche `epreuves-sans-compilation-vite`, fusionnée
+dans `main` sur guysergekouassi/COMPTAFLOW et IT-dcknowing/COMPTAFLOW
+(f776d31). Rien ne change en production.
+
+Plan : 18.3 terminé — 87 chantiers, 76 terminés. Restent 7.5, 17.5 et 18.2,
+qui se font au déploiement, et la suite du 10.4, qui attend le propriétaire.
+
 ---
 
 ## 5 bis. La numérotation des comptes — tranché

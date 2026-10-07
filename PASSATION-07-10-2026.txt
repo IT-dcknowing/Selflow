@@ -80,5 +80,6 @@ entreprises existantes ; `EXTERNAL_SYNC_SECRET` est à changer.
 4. CE QUI RESTE AU PLAN
 -----------------------
 7.5, 17.5, 18.2 — au déploiement (ci-dessus).
-18.3 — 19 épreuves rouges de la suite Comptaflow, antérieures : au
-mainteneur de Comptaflow (pages qui exigent le manifeste Vite).
+18.3 — FAIT (lot 56) : les 19 épreuves rouges de Comptaflow tombaient
+toutes sur le manifeste Vite absent ; withoutVite() dans son TestCase,
+301/301 vertes, fusionné dans main sur les deux dépôts Comptaflow.
