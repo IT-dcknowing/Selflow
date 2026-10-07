@@ -7046,7 +7046,6 @@ manquants du 40.4.
 - `tests/Feature/ClassesImporteesTest.php` — 1 épreuve qui relit tout `app/`
 - `tests/Feature/ComptabiliteFacultativeTest.php` — 4 épreuves ajoutées (21 au total)
 
----
 
 ### Lot 41 — Les polices et les icônes servies par l'application — **TERMINÉ le 06/10/2026**
 
@@ -7389,6 +7388,117 @@ l'information. Elle reste disponible sur l'autre branche.
 
 - `tests/Feature/CorrectifsReportesTest.php` — 6 épreuves, **toutes tombent** sans le correctif
 - `AmortissementTest` ouvre désormais la comptabilité de son entreprise
+
+### Lot 57 — La caisse en un geste — **TERMINÉ le 06/10/2026 (5 chantiers sur 11)**
+
+*Numéroté 42 dans sa session, section 17 du plan ; renuméroté 57 et section 20 le 07/10/2026 à l'intégration de `main`, qui portait déjà les lots 41 à 55 et les sections 17 à 19.*
+
+Section 20 du plan de correction, ouverte le 06/10/2026 à la question « comment
+rendre l'expérience fluide, il y a trop de parcours et de clics ». Le diagnostic
+a compté les gestes du parcours le plus répété — la vente au comptant — avant de
+toucher quoi que ce soit.
+
+**Avant :** deux articles, un client connu, payé au montant exact — une dizaine
+de clics, dont **cinq après que la vente était faite**. **Après :** les articles,
+le client cherché au clavier, Valider, puis Entrée pour le reçu et Entrée pour la
+vente suivante.
+
+#### 57.1 — Après une facture, la caisse et non la liste
+
+`VenteControleur::enregistrer()` renvoyait à la liste des factures : retrouver sa
+ligne parmi douze colonnes, ouvrir le reçu, revenir, rouvrir la caisse. Une
+facture mène désormais à **`ventes.enregistree`** (`ventes/enregistree.blade.php`),
+dans les deux espaces :
+
+| Ce qu'il montre | D'où ça vient |
+|---|---|
+| Net, reçu, **à rendre** — ou reste dû | `Vente::netAPayer()` et `monnaieRendue()` : rien n'est recalculé |
+| L'état DGI, qui change sans recharger | `ventes.etat_dgi`, interrogé toutes les 4 s, trois minutes au plus — la file est servie chaque minute (lot 30.2) |
+| « Imprimer le reçu normalisé » dès qu'il existe | le reçu existant, qui s'imprime à l'ouverture |
+| « Normaliser maintenant » si rien ne partira seul | `ventes.normaliser`, qui revient par `back()` sur cet écran |
+| « Nouvelle vente », touche Entrée | le focus suit : reçu d'abord, vente suivante ensuite |
+
+| Décision | Raison |
+|---|---|
+| **Écran neuf, hors de `Vues/factures/`** | le reçu est dans le périmètre gelé : on y renvoie, on ne l'enveloppe pas. `FnePayloadTest` n'a pas bougé |
+| **« Normaliser maintenant » seulement quand rien n'est en file** | proposé pendant « en cours », il ferait partir la pièce deux fois si le planificateur passait au même instant |
+| **Le reçu non certifié reste proposé, au second plan** | la colonne « Originale » le permettait déjà ; le retirer laissait sans rien à remettre une entreprise dont la FNE n'est pas configurée |
+| **Cinq états, et non quatre** | la liste dit « Rejetée » d'une plateforme injoignable. À la caisse, ce mot fait chercher une faute qui n'existe pas : `injoignable` se sépare de `rejetee` |
+| **Reçu et normalisation conditionnés à `factures_vente`** | les routes l'exigent. Les montrer à qui ne l'a pas, c'était tendre une page 403 (Forbidden — accès interdit) |
+| **Devis, bons de commande et avoirs inchangés** | rien à rendre, rien à imprimer au comptoir : ils reviennent à la liste ; l'adresse de l'écran les renvoie à leur pièce |
+
+**Trouvé en chemin — le panier survivait à la vente.** Seule la page de la
+facture (`factures/vente.blade.php:1803`) vidait `selflow_vente_panier`. Depuis
+que la validation renvoie ailleurs, plus rien ne le vidait : la vente suivante
+repartait avec les articles de la précédente. L'écran de fin de vente le vide.
+
+#### 57.2 — Le montant reçu : vide, il vaut le montant exact
+
+Le serveur prenait **déjà** le net à payer, timbre compris, quand `montant_paye`
+est vide (`$montantTendu = … : $netAPayer`). C'est l'écran qui l'exigeait, par une
+alerte, et par un `required` posé dès qu'on touchait un mode de paiement. Le
+champ affiche le net en attente de saisie et dit « laissez vide si le client paie
+le montant exact ».
+
+**Pas de pré-remplissage.** Recopier le net côté navigateur, c'était risquer un
+arrondi : 11 800 F affichés pour 11 800,40 F dus, et la vente passait en
+« Avance ». Le net fait foi là où il est calculé.
+
+Seul un **zéro tapé** est encore arrêté : il ferait une vente à crédit qu'on n'a
+pas choisie. **À crédit, le champ se ferme** — `enregistrer()` n'encaisse rien en
+mode Crédit, quoi qu'on saisisse, et un libellé « acompte » aurait promis un
+encaissement qui n'a pas lieu.
+
+#### 57.3 — Le client se cherche, et se crée sans quitter la caisse
+
+La liste déroulante devient une recherche par nom **ou téléphone**, au clavier
+(flèches, Entrée, Échap). Un nom tapé sans être choisi se vide en quittant le
+champ : la vente partirait au client de passage alors que l'écran afficherait un
+nom.
+
+`ventes.client_rapide` (`ClientControleur::creerDepuisLaCaisse`) ne demande que
+ce qui part sur la facture — nom, type, NCC si B2B, téléphone. Le compte vient
+de `ImputationService::compteDeTiers()` (lot 46), le numéro de tiers du modèle
+lui-même (lot 55) : la fiche naît comme par toutes les autres portes. Écrit
+d'abord avec un 411000 en dur, réaligné à l'intégration de `main`.
+Habilitation : `nouvelle_vente`, comme `admin.banques.creer`.
+
+**Le refus se rend en JSON à la main.** L'application ne rend ses exceptions en
+JSON que sous `api/*` (`bootstrap/app.php`) : par `$request->validate()`, un NCC
+manquant devenait une redirection, et la fenêtre affichait « le serveur n'a pas
+répondu ». Trouvé par l'épreuve, pas au clic.
+
+#### 57.4 — La recherche d'article lit la référence, et Entrée ajoute
+
+Elle ne lisait que le nom — et **Entrée soumettait le formulaire de la vente** dès
+que le panier n'était plus vide. Entrée ajoute l'article quand il est sans
+ambiguïté (référence ou nom exacts, ou une seule carte restante), puis le champ
+se vide pour le suivant. Le curseur y attend à l'ouverture, sauf sur écran
+tactile (`pointer: fine`), où le clavier virtuel couvrirait la caisse.
+
+#### Constaté, non corrigé
+
+| Constat | Où |
+|---|---|
+| **L'envoi B2B automatique d'un bon de commande ne part jamais.** `isset($etape) && … && isset($vente)` est lu après la transaction, où ni `$etape` ni `$vente` n'existent : la fermeture ne les rend pas. Constaté à la lecture | `VenteControleur::enregistrer()`, bloc « Envoi B2B automatique » |
+| **Les clients Comptaflow masquent tous les autres à la caisse.** Dès qu'il en existe un, `obtenirClientsPrioritaires()` ne rend qu'eux : un client créé dans Selflow n'apparaît plus à la vente suivante. **À trancher avec le propriétaire** | plan 20.11 |
+| **La fenêtre « Nouvelle banque » exige encore un compte comptable**, que les lots 39 et 40 font poser par le serveur. Ses refus reviennent aussi en redirection | plan 20.10 |
+
+#### Ce qui reste de la section 20
+
+20.6 la saisie d'un achat (fournisseur et lignes avec recherche), 20.7 la fiche
+article en mode rapide (les comptes en sont sortis au lot 46 ; restent neuf
+champs), 20.8 « + Nouveau » et Ctrl+K dans
+la barre du haut, 20.9 un lien par élément manquant dans le pop-up d'inscription,
+20.10 la fenêtre « Nouvelle banque ».
+
+- `tests/Feature/CaisseEnUnGesteTest.php` — **20 épreuves**. Vérification au
+  retrait faite : chaque correctif retiré fait tomber la sienne. Une seule passe
+  des deux côtés, et c'est voulu — `test_un_montant_vide_vaut_le_montant_exact`
+  garde le comportement du serveur sur lequel l'écran s'appuie désormais
+- Suite entière, après intégration de `main` (lots 41 à 55) : **1 534 épreuves,
+  1 531 passantes, 3 sautées**. `php artisan verifier:variables` : aucune
+  variable lue sans avoir été écrite
 
 ---
 

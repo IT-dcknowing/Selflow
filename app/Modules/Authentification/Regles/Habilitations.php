@@ -189,6 +189,15 @@ class Habilitations
         // ── Ventes ──
         'admin.ventes.nouvelle'                      => 'nouvelle_vente',
         'admin.ventes.enregistrer'                   => 'nouvelle_vente',
+        // L'écran qui suit la facture, et l'état DGI qu'il interroge : ils
+        // appartiennent à qui vient de vendre. Ils ne montrent que la pièce
+        // qu'il a lui-même établie.
+        'admin.ventes.enregistree'                   => 'nouvelle_vente',
+        'admin.ventes.etat_dgi'                      => 'nouvelle_vente',
+        // Comme `admin.banques.creer` : ce qui se crée sans quitter la caisse
+        // relève de la caisse. Exiger `tiers_clients` renverrait le caissier
+        // au détour que cette route supprime.
+        'admin.ventes.client_rapide'                 => 'nouvelle_vente',
         'admin.ventes.factures'                      => 'factures_vente',
         'admin.ventes.imprimer'                      => 'factures_vente',
         'admin.ventes.ticket'                        => 'factures_vente',

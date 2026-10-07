@@ -5,9 +5,11 @@ namespace App\Modules\Admin\Controleurs;
 use App\Modules\Admin\Modeles\Client;
 use App\Modules\Admin\Modeles\Entreprise;
 use App\Modules\Admin\Services\NumerotationTiersService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 
 class ClientControleur
@@ -105,6 +107,61 @@ class ClientControleur
         ));
 
         return back()->with('succes', 'Client ajouté avec succès.');
+    }
+
+    /**
+     * Un client créé depuis la caisse, sans la quitter.
+     *
+     * Vendre à un nouveau client obligeait à passer par Tiers → Clients, à
+     * remplir la fiche, puis à revenir à la caisse. On ne demande ici que ce
+     * qui part sur la facture : le nom, le type, le NCC d'une entreprise. Le
+     * compte général n'est pas demandé : `ImputationService::compteDeTiers()`
+     * pose le collectif, comme sur la fiche quand la comptabilité est éteinte
+     * (chantier 3.1). Le numéro de tiers, le modèle le fabrique à la création,
+     * par quelque porte que la fiche arrive (lot 55).
+     */
+    public function creerDepuisLaCaisse(Request $request): JsonResponse
+    {
+        $entreprise = Auth::user()->entreprise;
+        $request->merge(['ncc' => $request->filled('ncc') ? strtoupper(preg_replace('/\s+/', '', $request->input('ncc'))) : null]);
+
+        // Le refus se rend ici, en JSON, et non par `$request->validate()` :
+        // l'application ne rend ses exceptions en JSON que sous `api/*`
+        // (`bootstrap/app.php`). Sur cette route web, un NCC manquant devenait
+        // une redirection, la fenêtre recevait une page HTML, et le caissier
+        // lisait « le serveur n'a pas répondu » au lieu de la vraie raison.
+        $validation = Validator::make($request->all(), [
+            'nom'              => ['required', 'string', 'max:150'],
+            'type_facturation' => ['required', 'in:B2B,B2C,B2G,B2F'],
+            'telephone'        => ['nullable', 'string', 'max:30'],
+            'ncc'              => ['required_if:type_facturation,B2B', 'nullable', 'string', 'size:8', 'regex:/^[A-Z0-9]{7}[A-Z]$/'],
+        ], [
+            'nom.required'     => 'Le nom du client est obligatoire.',
+            'ncc.required_if'  => 'Le NCC est obligatoire pour un client de type B2B (Entreprise à Entreprise).',
+            'ncc.size'         => 'Le NCC doit contenir exactement 8 caractères.',
+            'ncc.regex'        => 'Le NCC doit comporter 8 caractères et se terminer par une lettre majuscule.',
+        ]);
+
+        if ($validation->fails()) {
+            return response()->json(['errors' => $validation->errors()], 422);
+        }
+
+        $client = Client::create([
+            'entreprise_id'    => $entreprise->id,
+            'nom'              => $request->input('nom'),
+            'type_facturation' => $request->input('type_facturation'),
+            'telephone'        => $request->input('telephone'),
+            'ncc'              => $request->input('type_facturation') === 'B2B' ? $request->input('ncc') : null,
+            'compte_comptable' => \App\Modules\Admin\Services\ImputationService::compteDeTiers($entreprise, 'client'),
+        ]);
+
+        return response()->json([
+            'client' => [
+                'id'               => $client->id,
+                'nom'              => $client->nom,
+                'type_facturation' => $client->type_facturation,
+            ],
+        ], 201);
     }
 
     public function modifier(Request $request, Client $client): RedirectResponse

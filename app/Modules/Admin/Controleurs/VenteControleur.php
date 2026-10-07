@@ -480,10 +480,102 @@ class VenteControleur
         // Journaliser la création de la vente
         $this->journaliser('creation_vente', 'Vente', $venteId ?? null);
 
-        $routeRetour = request()->routeIs('caissier.*') ? 'caissier.ventes.factures' : 'admin.ventes.factures';
+        $espace = request()->routeIs('caissier.*') ? 'caissier' : 'admin';
         $etape = $request->input('etape', 'Facture');
-        return redirect()->route($routeRetour, ['etape' => $etape])
+
+        // Une facture se remet au client, à la caisse, tout de suite. La
+        // renvoyer sur la liste des factures obligeait à y retrouver sa ligne
+        // parmi douze colonnes, ouvrir le reçu, revenir, rouvrir la caisse —
+        // cinq gestes après une vente déjà faite. Et le panier n'était plus
+        // vidé : seule la page de la facture le faisait, et on ne l'ouvrait
+        // plus, si bien que la vente suivante repartait avec le panier de la
+        // précédente.
+        if ($etape === 'Facture' && $venteId) {
+            return redirect()->route($espace . '.ventes.enregistree', Vente::findOrFail($venteId));
+        }
+
+        return redirect()->route($espace . '.ventes.factures', ['etape' => $etape])
             ->with('succes', $etape . ' enregistré(e) avec succès.');
+    }
+
+    /**
+     * L'écran qui suit une facture : ce qu'on rend, ce qu'on imprime, et la
+     * vente suivante.
+     *
+     * Il ne touche à aucun document certifié : il y renvoie. Le reçu reste
+     * celui de `factures/ticket.blade.php`, que la règle d'or interdit de
+     * retoucher.
+     */
+    public function enregistree(Vente $vente): View|RedirectResponse
+    {
+        abort_unless(
+            $vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id,
+            404
+        );
+
+        $espace = request()->routeIs('caissier.*') ? 'caissier' : 'admin';
+
+        // Un devis ou un avoir ne se remet pas au comptoir : il n'y a ni
+        // monnaie à rendre ni reçu à imprimer. Une adresse gardée en favori
+        // mène alors à la pièce, plutôt qu'à une page qui ne la concerne pas.
+        if ($vente->etape !== 'Facture' || $vente->type_facture === 'avoir') {
+            return redirect()->route($espace . '.ventes.imprimer', $vente);
+        }
+
+        $vente->load(['client', 'pointDeVente.entreprise', 'rejets']);
+
+        return view('admin::ventes.enregistree', [
+            'vente'          => $vente,
+            'espace'         => $espace,
+            'etatDgi'        => self::etatDgi($vente),
+            // Le reçu et la normalisation demandent `factures_vente`. Les
+            // proposer à qui ne l'a pas, c'était lui tendre une page 403
+            // (Forbidden — accès interdit).
+            'voitLesPieces'  => Auth::user()->aHabilitation('factures_vente'),
+        ]);
+    }
+
+    /**
+     * Où en est la certification d'une pièce, pour l'écran qui l'attend.
+     */
+    public function etatDgiJson(Vente $vente): \Illuminate\Http\JsonResponse
+    {
+        abort_unless(
+            $vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id,
+            404
+        );
+
+        $vente->load(['pointDeVente.entreprise', 'rejets']);
+
+        return response()->json(['etat' => self::etatDgi($vente)]);
+    }
+
+    /**
+     * Les cinq états qu'une facture peut avoir vis-à-vis de la DGI.
+     *
+     * Les quatre premiers sont ceux de la liste des factures. Le cinquième les
+     * sépare d'un cas qu'elle confond : une plateforme injoignable n'a rien
+     * refusé, et le dire « rejetée » à un caissier lui ferait chercher une
+     * faute qui n'existe pas.
+     */
+    private static function etatDgi(Vente $vente): string
+    {
+        if ($vente->normalise) {
+            return 'certifiee';
+        }
+
+        if ($vente->aRejetEnCours()) {
+            $rejet = $vente->rejets
+                ->whereIn('statut', [FneRejet::STATUT_OUVERT, FneRejet::STATUT_DIAGNOSTIQUE])
+                ->sortByDesc('id')
+                ->first();
+
+            return $rejet && $rejet->estReseau() ? 'injoignable' : 'rejetee';
+        }
+
+        return $vente->pointDeVente->entreprise->normaliseAutomatiquement($vente)
+            ? 'en_cours'
+            : 'en_attente';
     }
 
     public function factures(): View

@@ -163,6 +163,25 @@
         from { transform: translateX(-100%); opacity: 0; }
         to { transform: translateX(0); opacity: 1; }
     }
+
+    /* Le client : une recherche, ses suggestions, et le bouton qui le crée. */
+    .client-choix { position: relative; display: flex; gap: 6px; }
+    .client-choix .form-control { flex: 1; margin: 0; }
+    .client-choix .btn { padding: 0 12px; flex-shrink: 0; }
+    .client-suggestions {
+        display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30;
+        list-style: none; margin: 0; padding: 4px; max-height: 260px; overflow-y: auto;
+        background: #fff; border: 1px solid var(--border); border-radius: 8px;
+        box-shadow: 0 10px 25px -8px rgba(15, 23, 42, .25);
+    }
+    .client-suggestions.ouverte { display: block; }
+    .client-suggestions li {
+        padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 13px;
+        display: flex; justify-content: space-between; gap: 8px;
+    }
+    .client-suggestions li small { color: var(--text-3); }
+    .client-suggestions li.active, .client-suggestions li:hover { background: var(--bg3); }
+    .client-suggestions li.creer { color: var(--primary); font-weight: 600; border-top: 1px solid var(--border); margin-top: 2px; }
 </style>
 @endsection
 
@@ -202,7 +221,7 @@
                 </div>
 
                 {{-- Recherche --}}
-                <input type="text" id="rechercheInput" class="form-control search-produit" placeholder="🔍 Rechercher un produit…">
+                <input type="text" id="rechercheInput" class="form-control search-produit" placeholder="🔍 Nom ou référence — Entrée pour ajouter" autocomplete="off">
 
                 {{-- Grille produits --}}
                 <div class="produit-grid" id="grilleProduits">
@@ -218,6 +237,7 @@
                          style="{{ $photo ? '--fond-produit: url(\'' . $photo . '\');' : '' }}"
                          data-id="{{ $produit->id }}"
                          data-nom="{{ $produit->nom }}"
+                         data-ref="{{ $produit->reference }}"
                          data-prix="{{ $produit->prix_vente }}"
                          data-stockable="{{ $suitLeStock ? '1' : '0' }}"
                          data-stock="{{ $stockCarte }}"
@@ -318,14 +338,27 @@
                          certifiée — voir `factures/ticket.blade.php`. --}}
                     @php $entrepriseCourante = Auth::user()->entreprise; @endphp
 
+                    {{-- Le client se cherche par son nom ou son téléphone, et se
+                         crée sans quitter la caisse. La liste déroulante d'avant
+                         ne se cherchait pas : au-delà de quelques dizaines de
+                         clients, on la faisait défiler, et un client nouveau
+                         obligeait à passer par Tiers → Clients puis à revenir. --}}
                     <div class="form-group">
-                        <label class="form-label">Client (optionnel)</label>
-                        <select name="client_id" class="form-control">
-                            <option value="">— Client de passage —</option>
-                            @foreach($clients as $client)
-                            <option value="{{ $client->id }}">{{ $client->nom }}</option>
-                            @endforeach
-                        </select>
+                        <label class="form-label" for="clientRecherche">Client (optionnel)</label>
+                        <div class="client-choix">
+                            <input type="hidden" name="client_id" id="clientIdInput" value="{{ old('client_id') }}">
+                            <input type="text" id="clientRecherche" class="form-control"
+                                   placeholder="Client de passage — nom ou téléphone"
+                                   autocomplete="off" role="combobox" aria-autocomplete="list"
+                                   aria-expanded="false" aria-controls="clientSuggestions">
+                            {{-- `mousedown` retenu : sans quoi le champ perd le
+                                 focus, se vide, et le nom tapé n'arrive pas dans
+                                 la fiche à créer. --}}
+                            <button type="button" class="btn btn-outline" onmousedown="event.preventDefault()" onclick="ouvrirNouveauClient()" title="Nouveau client" aria-label="Nouveau client">
+                                <i class="fas fa-user-plus"></i>
+                            </button>
+                            <ul id="clientSuggestions" class="client-suggestions" role="listbox"></ul>
+                        </div>
                     </div>
 
                     {{-- Lot G : Sélecteur du type de document --}}
@@ -491,11 +524,19 @@
                             <input type="number" id="montantPayeDeviseInput" class="form-control" placeholder="Saisir le montant dans la devise étrangère" step="0.01" min="0" oninput="calculerMontantEnFcfa()">
                         </div>
 
-                        {{-- Montant reçu --}}
+                        {{-- Montant reçu. Vide, il vaut le montant exact : le
+                             serveur prend alors le net à payer, timbre compris.
+                             Le caissier ne tape que si le client donne plus — pour
+                             la monnaie — ou moins — pour une avance. Il devait
+                             auparavant recopier le total à chaque vente, faute de
+                             quoi une alerte bloquait la validation. --}}
                         <div class="form-group">
-                            <label class="form-label" id="labelMontantPaye">Montant à encaisser / reçu (FCFA) <span style="color:var(--danger)">*</span></label>
-                            <input type="number" name="montant_paye" id="montantPayeInput" class="form-control" placeholder="Saisir le montant reçu / payé"
+                            <label class="form-label" id="labelMontantPaye">Montant reçu (FCFA)</label>
+                            <input type="number" name="montant_paye" id="montantPayeInput" class="form-control" placeholder="Montant exact"
                                    oninput="calculerMontantEnDevise(); calculerRenduMonnaie();">
+                            <small id="aideMontantPaye" style="color:var(--text-3); font-size:11px;">
+                                Laissez vide si le client paie le montant exact.
+                            </small>
                         </div>
 
                         {{-- La monnaie rendue. Jamais saisie : elle se déduit de
@@ -634,6 +675,47 @@
     </div>
 </div>
 
+<!-- Modal Nouveau client : sans quitter la caisse -->
+<div class="modal-overlay" id="modalNouveauClient">
+    <div class="modal" style="max-width: 460px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-user-plus"></i> Nouveau client</h3>
+            <button type="button" class="modal-close" onclick="fermerNouveauClient()">&times;</button>
+        </div>
+        {{-- Seul ce qui part sur la facture est demandé. L'adresse, le
+             courriel, le RCCM se complètent plus tard depuis la fiche du
+             client, dans Tiers. --}}
+        <form id="formNouveauClient" onsubmit="soumettreNouveauClient(event)">
+            <div class="form-group">
+                <label class="form-label" for="nouveauClientNom">Nom &amp; prénom, ou raison sociale <span style="color:var(--danger)">*</span></label>
+                <input type="text" id="nouveauClientNom" class="form-control" maxlength="150" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="nouveauClientType">Type</label>
+                <select id="nouveauClientType" class="form-control" onchange="basculerNccNouveauClient()">
+                    <option value="B2C">Particulier (B2C)</option>
+                    <option value="B2B">Entreprise (B2B) — NCC requis</option>
+                    <option value="B2G">État ou collectivité (B2G)</option>
+                    <option value="B2F">International (B2F)</option>
+                </select>
+            </div>
+            <div class="form-group" id="blocNouveauClientNcc" style="display:none;">
+                <label class="form-label" for="nouveauClientNcc">NCC <span style="color:var(--danger)">*</span></label>
+                <input type="text" id="nouveauClientNcc" class="form-control" maxlength="12" placeholder="Ex : 1234567A" style="text-transform: uppercase;">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="nouveauClientTelephone">Téléphone</label>
+                <input type="text" id="nouveauClientTelephone" class="form-control" maxlength="30" placeholder="Ex : +225 07 00 00 00">
+            </div>
+            <div id="erreursNouveauClient" style="display:none; margin-bottom:12px; padding:10px 12px; background:#fef2f2; border:1px solid #fca5a5; border-radius:8px; color:#991b1b; font-size:12.5px;"></div>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button type="button" class="btn btn-outline" onclick="fermerNouveauClient()">Annuler</button>
+                <button type="submit" class="btn btn-primary" id="btnCreerClient">Créer et choisir</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Modal Rupture de Stock -->
 <div class="modal-overlay" id="modalRuptureStock">
     <div class="modal" style="max-width: 480px; text-align: center;">
@@ -723,7 +805,11 @@ function selectionnerEtapeVente(btn) {
         blocPaiement.style.display = 'block';
         infoEtape.textContent = 'Facture et reçu établis ensemble, avec règlement';
         labelBtn.textContent = 'Valider et facturer';
-        montantPayeInput.removeAttribute('disabled');
+        // À crédit, le champ reste fermé : revenir d'un devis ne doit pas le
+        // rouvrir.
+        if (document.getElementById('modePaiementInput').value !== 'Crédit') {
+            montantPayeInput.removeAttribute('disabled');
+        }
     } else if (etape === 'Devis') {
         blocPaiement.style.display = 'none';
         infoEtape.textContent = 'Aucun paiement requis pour un devis';
@@ -773,16 +859,23 @@ function selectionnerModePaiement(btn) {
         mobileMoneyContainer.style.display = 'block';
     }
 
+    // Le champ n'est jamais obligatoire : vide, il vaut le montant exact, et
+    // `calculerTotaux()` remet l'aide qui le dit. Un `required` ici bloquait la
+    // validation dès qu'on avait touché à un mode de paiement.
+    montantInput.required = false;
+    const aideMontant = document.getElementById('aideMontantPaye');
+    // À crédit, le serveur n'encaisse rien, quoi qu'on saisisse : le champ se
+    // ferme plutôt que de laisser croire qu'un acompte serait enregistré.
     if (mode === 'Crédit') {
-        montantInput.required     = false;
-        montantInput.placeholder  = "Laisser vide (Crédit)";
+        montantInput.placeholder  = "Rien n'est encaissé";
         montantInput.value        = "";
-        labelMontant.innerHTML    = 'Montant à encaisser / reçu';
+        montantInput.disabled     = true;
+        if (aideMontant) aideMontant.textContent = "Vente à crédit : le net à payer reste dû par le client.";
     } else {
-        montantInput.required    = true;
-        montantInput.placeholder = "Saisir le montant reçu / payé";
-        labelMontant.innerHTML   = 'Montant à encaisser / reçu <span style="color:var(--danger)">*</span>';
+        montantInput.disabled     = false;
+        if (aideMontant) aideMontant.textContent = "Laissez vide si le client paie le montant exact.";
     }
+    labelMontant.innerHTML = 'Montant reçu (FCFA)';
 
     // Le droit de timbre ne frappe que les reglements en especes : changer de
     // mode de paiement le fait apparaitre ou disparaitre du net a payer.
@@ -1597,9 +1690,13 @@ function calculerTotaux() {
         calculerRenduMonnaie();
     }
 
+    // Le net s'affiche dans le champ vide : c'est ce que vaut le montant reçu
+    // tant qu'on n'y tape rien.
     const inputMontant = document.getElementById('montantPayeInput');
-    if (inputMontant) {
-        inputMontant.placeholder = `${Math.round(netAPayer)}`;
+    if (inputMontant && !inputMontant.disabled) {
+        inputMontant.placeholder = netAPayer > 0
+            ? `${formatFcfa(netAPayer)} — montant exact`
+            : 'Montant exact';
     }
 }
 
@@ -1664,25 +1761,232 @@ document.querySelectorAll('.cat-btn').forEach(btn => {
     });
 });
 
-// Recherche en temps réel
+// Recherche en temps réel, sur le nom et sur la référence
+function carteCorrespond(card, q) {
+    return card.dataset.nom.toLowerCase().includes(q)
+        || (card.dataset.ref || '').toLowerCase().includes(q);
+}
+
 document.getElementById('rechercheInput').addEventListener('input', function() {
     const q = this.value.toLowerCase().trim();
     document.querySelectorAll('.produit-card').forEach(card => {
-        card.style.display = card.dataset.nom.toLowerCase().includes(q) ? '' : 'none';
+        card.style.display = carteCorrespond(card, q) ? '' : 'none';
     });
 });
 
-// Validation du montant payé avant soumission pour ne pas vider le panier
+// Entrée ajoute l'article trouvé, et le champ se vide pour le suivant. Sans
+// cela il fallait quitter le clavier pour cliquer la carte — et Entrée, dans
+// ce champ, soumettait le formulaire de la vente dès que le panier n'était
+// plus vide. On n'ajoute que ce qui est sans ambiguïté : une référence ou un
+// nom exacts, ou une seule carte restante.
+document.getElementById('rechercheInput').addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+
+    const q = this.value.toLowerCase().trim();
+    if (q === '') return;
+
+    const cartes = Array.from(document.querySelectorAll('.produit-card'));
+    const exacte = cartes.find(c => (c.dataset.ref || '').toLowerCase() === q)
+        || cartes.find(c => c.dataset.nom.toLowerCase() === q);
+    const restantes = cartes.filter(c => carteCorrespond(c, q));
+    const carte = exacte || (restantes.length === 1 ? restantes[0] : null);
+
+    if (!carte) return;
+
+    ajouterAuPanier(carte);
+    this.value = '';
+    cartes.forEach(c => { c.style.display = ''; });
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b.dataset.cat === 'all'));
+});
+
+// Le curseur attend dans la recherche : on tape, Entrée, l'article suivant.
+// Seulement avec une souris — sur une tablette, le clavier virtuel couvrirait
+// l'écran dès l'ouverture.
+if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) {
+    document.getElementById('rechercheInput').focus();
+}
+
+// ── Le client : chercher, choisir, ou créer sans quitter la caisse ──
+@php
+    $clientsCaisse = $clients->map(fn ($c) => ['id' => $c->id, 'nom' => $c->nom, 'tel' => $c->telephone])->values();
+    $routeClientRapide = route((request()->routeIs('caissier.*') ? 'caissier' : 'admin') . '.ventes.client_rapide');
+@endphp
+const CLIENTS = @json($clientsCaisse);
+const champClient = document.getElementById('clientRecherche');
+const idClient = document.getElementById('clientIdInput');
+const listeClients = document.getElementById('clientSuggestions');
+let suggestionActive = -1;
+
+function sansAccents(s) {
+    return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
+function fermerSuggestions() {
+    listeClients.classList.remove('ouverte');
+    champClient.setAttribute('aria-expanded', 'false');
+    suggestionActive = -1;
+}
+
+function choisirClient(client) {
+    idClient.value = client ? client.id : '';
+    champClient.value = client ? client.nom : '';
+    fermerSuggestions();
+}
+
+function afficherSuggestions() {
+    const saisie = champClient.value.trim();
+    const q = sansAccents(saisie);
+    listeClients.innerHTML = '';
+    if (q === '') { fermerSuggestions(); return; }
+
+    CLIENTS.filter(c => sansAccents(c.nom).includes(q) || sansAccents(c.tel).includes(q))
+        .slice(0, 8)
+        .forEach(c => {
+            const li = document.createElement('li');
+            li.setAttribute('role', 'option');
+            li.appendChild(document.createTextNode(c.nom));
+            if (c.tel) {
+                const tel = document.createElement('small');
+                tel.textContent = c.tel;
+                li.appendChild(tel);
+            }
+            li.addEventListener('mousedown', e => { e.preventDefault(); choisirClient(c); });
+            listeClients.appendChild(li);
+        });
+
+    // Toujours en dernier : le client qu'on cherche n'existe peut-être pas.
+    const creer = document.createElement('li');
+    creer.className = 'creer';
+    creer.setAttribute('role', 'option');
+    creer.textContent = '+ Créer le client « ' + saisie + ' »';
+    creer.addEventListener('mousedown', e => { e.preventDefault(); ouvrirNouveauClient(saisie); });
+    listeClients.appendChild(creer);
+
+    listeClients.classList.add('ouverte');
+    champClient.setAttribute('aria-expanded', 'true');
+    suggestionActive = -1;
+}
+
+champClient.addEventListener('input', () => { idClient.value = ''; afficherSuggestions(); });
+
+champClient.addEventListener('keydown', e => {
+    const items = Array.from(listeClients.querySelectorAll('li'));
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (!listeClients.classList.contains('ouverte')) { afficherSuggestions(); return; }
+        e.preventDefault();
+        if (!items.length) return;
+        suggestionActive = (suggestionActive + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+        items.forEach((li, i) => li.classList.toggle('active', i === suggestionActive));
+    } else if (e.key === 'Enter') {
+        // Entrée choisit un client ; elle ne valide jamais la vente depuis ce
+        // champ. Un seul client trouvé se choisit sans flèche.
+        e.preventDefault();
+        if (!listeClients.classList.contains('ouverte')) return;
+        const cible = items[suggestionActive] || (items.length <= 2 ? items[0] : null);
+        if (cible) cible.dispatchEvent(new MouseEvent('mousedown', { cancelable: true }));
+    } else if (e.key === 'Escape') {
+        fermerSuggestions();
+    }
+});
+
+// Un nom tapé sans être choisi ne désigne personne : la vente partirait au
+// client de passage alors que l'écran afficherait un nom. Le champ se vide
+// donc, et dit ce qui partira vraiment.
+champClient.addEventListener('blur', () => {
+    setTimeout(() => {
+        fermerSuggestions();
+        const enCreation = document.getElementById('modalNouveauClient').classList.contains('open');
+        if (!idClient.value && !enCreation) champClient.value = '';
+    }, 150);
+});
+
+// Retour d'une validation refusée : le client choisi revient avec son nom.
+if (idClient.value) {
+    const retenu = CLIENTS.find(c => String(c.id) === String(idClient.value));
+    if (retenu) champClient.value = retenu.nom; else idClient.value = '';
+}
+
+function ouvrirNouveauClient(nom) {
+    fermerSuggestions();
+    document.getElementById('formNouveauClient').reset();
+    document.getElementById('erreursNouveauClient').style.display = 'none';
+    document.getElementById('nouveauClientNom').value =
+        nom !== undefined ? nom : (idClient.value ? '' : champClient.value.trim());
+    basculerNccNouveauClient();
+    document.getElementById('modalNouveauClient').classList.add('open');
+    setTimeout(() => document.getElementById('nouveauClientNom').focus(), 0);
+}
+
+function fermerNouveauClient() {
+    document.getElementById('modalNouveauClient').classList.remove('open');
+    if (!idClient.value) champClient.value = '';
+}
+
+function basculerNccNouveauClient() {
+    const entreprise = document.getElementById('nouveauClientType').value === 'B2B';
+    document.getElementById('blocNouveauClientNcc').style.display = entreprise ? 'block' : 'none';
+    document.getElementById('nouveauClientNcc').required = entreprise;
+}
+
+function soumettreNouveauClient(e) {
+    e.preventDefault();
+    const bouton = document.getElementById('btnCreerClient');
+    const erreurs = document.getElementById('erreursNouveauClient');
+    const telephone = document.getElementById('nouveauClientTelephone').value.trim();
+    bouton.disabled = true;
+    erreurs.style.display = 'none';
+
+    fetch(@json($routeClientRapide), {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({
+            nom: document.getElementById('nouveauClientNom').value.trim(),
+            type_facturation: document.getElementById('nouveauClientType').value,
+            ncc: document.getElementById('nouveauClientNcc').value.trim(),
+            telephone: telephone
+        })
+    })
+    .then(r => r.json().then(data => ({ ok: r.ok, data })))
+    .then(({ ok, data }) => {
+        if (!ok) {
+            const messages = data.errors ? Object.values(data.errors).flat() : [data.message || "Le client n'a pas pu être créé."];
+            erreurs.textContent = messages.join(' ');
+            erreurs.style.display = 'block';
+            return;
+        }
+        CLIENTS.push({ id: data.client.id, nom: data.client.nom, tel: telephone });
+        choisirClient(data.client);
+        fermerNouveauClient();
+    })
+    .catch(() => {
+        erreurs.textContent = "Le serveur n'a pas répondu, ou la session a expiré. Réessayez.";
+        erreurs.style.display = 'block';
+    })
+    .finally(() => { bouton.disabled = false; });
+}
+
+// Validation du montant payé avant soumission pour ne pas vider le panier.
+// Vide, il vaut le montant exact. Zéro, en revanche, ferait passer la vente à
+// crédit sans qu'on l'ait choisi : c'est le seul cas qu'on arrête.
 document.getElementById('formVente').addEventListener('submit', function(e) {
     const etape = document.getElementById('etapeInput').value;
     if (etape === 'Facture') {
         const mode = document.getElementById('modePaiementInput').value;
         if (mode !== 'Crédit') {
             const montantInput = document.getElementById('montantPayeInput');
+            if (montantInput.value.trim() === '') {
+                return true;
+            }
             const montant = parseFloat(montantInput.value);
             if (isNaN(montant) || montant <= 0) {
                 e.preventDefault();
-                alert("Le montant payé est obligatoire et doit être strictement supérieur à 0 pour ce mode de paiement (Caisse / Banque).");
+                alert("Un montant reçu de zéro ferait de cette vente une vente à crédit. Choisissez le mode « Crédit », ou laissez le champ vide si le client paie le montant exact.");
                 montantInput.focus();
                 return false;
             }

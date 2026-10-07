@@ -34,6 +34,10 @@ Route::prefix('admin')
         Route::prefix('ventes')->name('ventes.')->middleware(['modules:ventes', 'inscription.complete'])->group(function () {
             Route::get('/nouvelle', [VenteControleur::class, 'nouvelle'])->name('nouvelle');
             Route::post('/enregistrer', [VenteControleur::class, 'enregistrer'])->name('enregistrer');
+            // Ce qui suit une facture à la caisse, et le client créé sans la quitter
+            Route::get('/{vente}/enregistree', [VenteControleur::class, 'enregistree'])->name('enregistree');
+            Route::get('/{vente}/etat-dgi', [VenteControleur::class, 'etatDgiJson'])->name('etat_dgi');
+            Route::post('/client-rapide', [ClientControleur::class, 'creerDepuisLaCaisse'])->name('client_rapide');
             Route::get('/factures', [VenteControleur::class, 'factures'])->name('factures');
             Route::get('/factures/rechercher', [VenteControleur::class, 'rechercherFacturesPourAvoir'])->name('factures.rechercher');
             Route::get('/facture-details/{vente}', [VenteControleur::class, 'detailsFacturePourAvoir'])->name('factures.details');
@@ -648,6 +652,9 @@ Route::prefix('caissier')
         Route::prefix('ventes')->name('ventes.')->group(function () {
             Route::get('/nouvelle', [VenteControleur::class, 'nouvelle'])->name('nouvelle');
             Route::post('/enregistrer', [VenteControleur::class, 'enregistrer'])->name('enregistrer');
+            Route::get('/{vente}/enregistree', [VenteControleur::class, 'enregistree'])->name('enregistree');
+            Route::get('/{vente}/etat-dgi', [VenteControleur::class, 'etatDgiJson'])->name('etat_dgi');
+            Route::post('/client-rapide', [ClientControleur::class, 'creerDepuisLaCaisse'])->name('client_rapide');
             Route::get('/factures', [VenteControleur::class, 'factures'])->name('factures');
 
             Route::get('/facture/{vente}', [VenteControleur::class, 'imprimer'])->name('imprimer');
