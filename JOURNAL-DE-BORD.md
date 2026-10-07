@@ -7339,46 +7339,19 @@ une facture.
 
 ---
 
-### Lot 54 — L'avoir interne d'un BAPA — **TERMINÉ le 07/10/2026**
+### Lot 54 — L'avoir de BAPA : aucun — **TRANCHÉ ET RETIRÉ le 07/10/2026**
 
-Chantier 8.4. **Confirmé par le propriétaire le 07/10/2026 : la DGI ne
-normalise toujours pas l'avoir d'un BAPA.** Des deux options présentées, la
-seule qui reste est la (b) : un avoir **interne, non certifié**, qui ne vaut
-que pour la comptabilité et le stock. *Le message du propriétaire s'arrêtait
-sur « donc vas » : c'est l'option retenue faute de l'autre ; à confirmer.*
+Chantier 8.4. Un avoir **interne, non certifié** avait été établi (révision
+`0b4b976`) sur une réponse tronquée. **Le propriétaire l'a refusé le même
+jour : « pas d'avoir interne, pas d'avoir tout court ».** Le lot est annulé
+entièrement — tables, écrans, routes, écriture, épreuve —, avant tout
+déploiement : la migration n'a jamais tourné en production.
 
-#### 54.1 — Deux tables à part, et non une ligne `achats`
-
-C'est la décision qui compte. Un avoir rangé dans `achats` sur un vendeur
-sans NCC serait reconnu comme BAPA par `Achat::estBapa()` — et **quatre
-chemins** envoient les BAPA à la DGI : la normalisation manuelle, le tableau
-FNE, la normalisation par lot (`BatchNormalisationJob`), les corrections
-(`CorrectionFneService`). Les tenir tous fermés aurait demandé de toucher au
-périmètre gelé, ou de semer quatre exceptions dont une finirait oubliée.
-`avoirs_bapa` et `avoir_bapa_lignes` ne sont lues par rien de ce qui parle à
-la plateforme.
-
-#### 54.2 — Le plafond, comme celui des ventes (8.1)
-
-En quantité, ligne à ligne, **et** en montant ; contrôlé au serveur, sous
-verrou du bordereau. Le prix est celui du BAPA net de sa remise : il ne se
-saisit pas, sans quoi on rendrait au prix qu'on veut. Seul un BAPA finalisé
-s'avoire ; un achat ordinaire est renvoyé vers son fournisseur.
-
-#### 54.3 — Ce qu'il produit
-
-- **L'écriture** (`ComptabiliteService::genererEcritureAvoirBapa`) : le
-  fournisseur débité, la charge recréditée sur le compte d'achat de chaque
-  article par l'ordre de priorité unique — sans TVA, un bordereau n'en
-  collecte aucune.
-- **Le stock** : la marchandise qui repart sort, motif « retour
-  fournisseur », si l'on coche qu'elle repart.
-- **Le document** se dit lui-même « AVOIR INTERNE — NON CERTIFIÉ PAR LA
-  DGI », et ne porte ni numéro fiscal ni code QR. Le bouton est dans la barre
-  de commandes du bordereau : le document certifié n'est pas touché.
-
-- `tests/Feature/AvoirBapaInterneTest.php` — 5 épreuves, **toutes tombent** sans le correctif ;
-  l'une vérifie que rien n'entre dans `achats` et qu'aucune normalisation n'est mise en file
+**La règle est donc :** aucun avoir sur un achat, BAPA compris. La DGI ne
+normalise pas l'avoir d'un BAPA, et un achat ordinaire est une pièce du
+fournisseur, à lui d'émettre son avoir. C'est l'état fixé au lot 23 (avoir de
+BAPA fermé) et le 25/09 (avoir fournisseur retiré) : aucun écran d'achat n'en
+propose, et `AvoirDeBapaTest` le garde.
 
 ---
 

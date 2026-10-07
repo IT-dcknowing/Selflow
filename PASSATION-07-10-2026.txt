@@ -42,13 +42,10 @@ LOT 53  Le transport d'une livraison (15.3 — TRANCHÉ : tout obligatoire, et
         TROUVÉ : la file « Livraisons » du stock n'établissait AUCUN bon ; et
         les quantités du bon étaient des entiers (12,5 → 12) — passées en
         decimal(15,3) par une nouvelle migration.
-LOT 54  L'avoir interne d'un BAPA (8.4 — la DGI ne le normalise toujours
-        pas). Option (b) : non certifié, comptabilité et stock seulement.
-        Tables à part (`avoirs_bapa`) : une ligne `achats` sur un vendeur sans
-        NCC serait prise pour un BAPA par quatre chemins qui parlent à la DGI.
-        Plafond en quantité et en montant sous verrou.
-        ⚠ Le message du propriétaire s'arrêtait sur « donc vas » : (b) est
-        retenue faute de (a) ; À CONFIRMER.
+LOT 54  L'avoir de BAPA — RETIRÉ. Un avoir interne non certifié avait été
+        établi ; le propriétaire l'a refusé le 07/10 : « pas d'avoir interne,
+        pas d'avoir tout court ». Annulé entièrement avant tout déploiement.
+        RÈGLE : aucun avoir sur un achat, BAPA compris.
 LOT 55  Reports de la session parallèle : plafond des avoirs hors filtre de
         période ; numéro de tiers posé par toutes les portes ;
         immobilisations derrière le garde-fou ; ligne à deux comptes non
@@ -57,7 +54,6 @@ LOT 55  Reports de la session parallèle : plafond des avoirs hors filtre de
 
 2. CE QUI ATTEND LE PROPRIÉTAIRE
 --------------------------------
-· 8.4 — confirmer l'option (b), l'avoir interne non certifié.
 · 10.4 (suite) — masquer, compte FNE coché, les champs que le portail
   détient ? Proposition prête sur la branche parallèle : masquer seulement ce
   que le portail porte À L'IDENTIQUE, et un bouton « Reprendre les valeurs du
@@ -68,7 +64,7 @@ LOT 55  Reports de la session parallèle : plafond des avoirs hors filtre de
 3. AU DÉPLOIEMENT — DANS CET ORDRE
 ----------------------------------
 1. Selflow ET Comptaflow ensemble, migrations comprises (Selflow : les trois
-   du 06/10 et les deux du 07/10, toutes additives ; Comptaflow : une).
+   du 06/10 et celle du 07/10, toutes additives ; Comptaflow : une).
 2. `php artisan selflow:ecritures-factures-recues`
 3. `php artisan selflow:regrouper-comptaflow`
 4. `php artisan selflow:verifier-stocks` — corriger par inventaire physique.

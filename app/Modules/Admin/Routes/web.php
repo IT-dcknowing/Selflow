@@ -87,11 +87,6 @@ Route::prefix('admin')
             Route::get('/facture/{achat}', [AchatControleur::class, 'imprimer'])->name('imprimer');
             Route::get('/facture/{achat}/pdf', [AchatControleur::class, 'pdf'])->name('pdf');
             Route::get('/facture/{achat}/bapa', [AchatControleur::class, 'imprimerBapa'])->name('bapa');
-            // L'avoir interne d'un BAPA (chantier 8.4) : non certifié, la DGI
-            // ne le normalisant pas. Seul le bordereau s'avoire.
-            Route::get('/{achat}/avoir-interne', [\App\Modules\Admin\Controleurs\AvoirBapaControleur::class, 'formulaire'])->name('avoir_bapa');
-            Route::post('/{achat}/avoir-interne', [\App\Modules\Admin\Controleurs\AvoirBapaControleur::class, 'enregistrer'])->name('avoir_bapa.enregistrer');
-            Route::get('/avoir-interne/{avoirBapa}', [\App\Modules\Admin\Controleurs\AvoirBapaControleur::class, 'voir'])->name('avoir_bapa.voir');
             Route::post('/{achat}/confirmer', [AchatControleur::class, 'confirmerCommande'])->name('confirmer');
             Route::post('/{achat}/facturer', [AchatControleur::class, 'facturer'])->name('facturer');
             Route::post('/{achat}/normaliser', [AchatControleur::class, 'normaliser'])->name('normaliser');

@@ -124,13 +124,6 @@
             <button onclick="window.print()" class="print-btn main">
                 <i class="fas fa-print"></i> Imprimer le BAPA
             </button>
-            {{-- L'avoir interne (chantier 8.4) : barre de commandes seulement,
-                 rien ne change sur le document certifié. --}}
-            @if(\App\Modules\Admin\Services\AvoirBapaService::estAvoirable($achat) && auth()->user()->aHabilitation('factures_achat'))
-            <a href="{{ route('admin.achats.avoir_bapa', $achat) }}" class="print-btn">
-                <i class="fas fa-rotate-left"></i> Avoir interne
-            </a>
-            @endif
         </div>
         <div style="font-size:12px; color:var(--text-3);">
             <i class="fas fa-info-circle"></i> Généré car le fournisseur ne possède pas de compte contribuable (sans NCC).
