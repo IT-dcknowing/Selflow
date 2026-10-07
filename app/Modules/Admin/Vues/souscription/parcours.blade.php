@@ -141,7 +141,7 @@
                 <i class="fas fa-circle-plus"></i>
                 Vous travaillez déjà en <strong>{{ implode(', ', $domainesDejaLa) }}</strong>.
                 En choisir un autre <strong>n'enlève rien</strong> : le parcours ajoute les métiers,
-                les rayons et les comptes du nouveau domaine à ceux que vous avez déjà.
+                les rayons et les articles du nouveau domaine à ceux que vous avez déjà.
             </p>
         @endif
 
@@ -181,14 +181,14 @@
         <div class="sous-tete">
             <h2>Quel est votre métier ?</h2>
             <p>Plusieurs réponses sont possibles : une quincaillerie qui livre des chantiers
-               coche les deux. Chaque métier apporte ses rayons, ses articles et ses comptes.</p>
+               coche les deux. Chaque métier apporte ses rayons et ses articles.</p>
         </div>
 
         @if(!empty($profilsAcquis))
             <p class="note-verrou">
                 <i class="fas fa-circle-check"></i>
-                Les métiers marqués <strong>déjà en place</strong> vous appartiennent : leurs rayons,
-                leurs articles et leurs comptes sont chez vous. Ils ne se retirent pas d'ici — vous
+                Les métiers marqués <strong>déjà en place</strong> vous appartiennent : leurs rayons
+                et leurs articles sont chez vous. Ils ne se retirent pas d'ici — vous
                 pouvez en ajouter d'autres, ici ou dans un autre domaine.
             </p>
         @endif
@@ -253,6 +253,17 @@
             ];
         @endphp
 
+        @php
+            $resteAChoisir = array_diff($modulesProposes, $modulesDejaOuverts ?? [], $structurels);
+        @endphp
+        @if(empty($resteAChoisir))
+            <p class="note-verrou">
+                <i class="fas fa-circle-check"></i>
+                Tout ce que votre métier demande est <strong>déjà ouvert</strong> : il n'y a rien
+                à choisir ici. Continuez vers l'étape suivante.
+            </p>
+        @endif
+
         @if(!empty($modulesVerrouilles))
             <p class="note-verrou">
                 <i class="fas fa-lock"></i>
@@ -267,9 +278,14 @@
             @php
                 $estStructurel = in_array($module, $structurels, true);
                 $verrou        = $modulesVerrouilles[$module] ?? null;
-                $fige          = $estStructurel || $verrou !== null;
+                // Déjà ouvert : l'inscription en ouvre dix d'office, et l'étape
+                // les présentait comme un choix à faire, cochés, en annonçant
+                // leur activation. Ils sont acquis — c'est dans les paramètres
+                // qu'on les referme, pas ici.
+                $dejaOuvert    = !$estStructurel && $verrou === null && in_array($module, $modulesDejaOuverts ?? [], true);
+                $fige          = $estStructurel || $verrou !== null || $dejaOuvert;
             @endphp
-            <label class="ligne {{ $verrou ? 'acquise' : '' }}">
+            <label class="ligne {{ $verrou || $dejaOuvert ? 'acquise' : '' }}">
                 <input type="checkbox" name="modules[]" value="{{ $module }}"
                        {{ $fige || in_array($module, $choix['modules'] ?? $modulesProposes, true) ? 'checked' : '' }}
                        {{ $fige ? 'disabled' : '' }}>
@@ -282,10 +298,14 @@
                         <div class="sous">{{ $verrou }}</div>
                     @elseif(isset($raisons[$module]))
                         <div class="sous">{{ $raisons[$module] }}</div>
+                    @elseif($dejaOuvert)
+                        <div class="sous">Déjà ouvert — il se referme depuis vos paramètres.</div>
                     @endif
                 </div>
                 @if($verrou)
                     <div class="droite"><span class="badge-acquis">en service</span></div>
+                @elseif($dejaOuvert)
+                    <div class="droite"><span class="badge-acquis">déjà ouvert</span></div>
                 @endif
             </label>
             {{-- Une case désactivée n'est pas transmise : sans ce relais, valider
@@ -301,7 +321,7 @@
         <div class="sous-tete">
             <h2>Vos rayons</h2>
             <p>Tout est coché : décochez ce que vous ne vendez pas. Chaque rayon apporte ses
-               articles et ses comptes comptables. Rien n'est définitif — vous pourrez en
+               articles. Rien n'est définitif — vous pourrez en
                ajouter et en archiver ensuite.</p>
         </div>
 
@@ -313,8 +333,16 @@
                     <div class="nom">{{ $famille->nom }}</div>
                     <div class="sous">
                         {{ $famille->profil->nom }} ·
+                        {{-- Le numéro de compte n'a de sens que pour qui tient
+                             ses livres. Le préparamétrage, lui, se pose en base
+                             quoi qu'il arrive : il servira le jour où la
+                             comptabilité s'ouvre. --}}
+                        @if($entreprise->comptabiliteOuverte())
                         <span class="cpt">{{ $famille->compte_vente ?? $famille->compte_achat ?? '—' }}</span>
                         {{ $famille->intituleCompte('compte_vente') ?? $famille->typeArticle->libelle }}
+                        @else
+                        {{ $famille->typeArticle->libelle }}
+                        @endif
                     </div>
                 </div>
                 <div class="droite">{{ $famille->articles_count }} articles</div>

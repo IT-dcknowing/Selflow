@@ -141,7 +141,14 @@ class ConfigurationVerrouilleeTest extends TestCase
 
     // ── Les modules qui portent des données ──────────────────────────
 
-    public function test_un_module_sans_donnees_se_referme(): void
+    /**
+     * Révisé au lot 41 (chantier 3.5 du plan). L'épreuve fixait qu'un module
+     * sans données se refermait en le décochant à l'étape 3 — l'étape
+     * présentait alors les modules déjà ouverts comme un choix à refaire, et
+     * annonçait leur activation. Un module en place est désormais acquis : il
+     * se referme depuis les paramètres, pas en repassant le parcours.
+     */
+    public function test_le_parcours_ne_referme_pas_un_module_deja_ouvert(): void
     {
         $this->parcoursComplet();
 
@@ -150,7 +157,7 @@ class ConfigurationVerrouilleeTest extends TestCase
         $this->actingAs($this->admin)
             ->post(route('admin.souscription.enregistrer', 4), ['familles' => []]);
 
-        $this->assertNotContains('comptabilite', $this->entreprise->fresh()->modules_actifs);
+        $this->assertContains('comptabilite', $this->entreprise->fresh()->modules_actifs);
     }
 
     /**

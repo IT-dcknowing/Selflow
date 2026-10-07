@@ -69,7 +69,7 @@
                         <th>N° tiers</th>
                         <th>NCC</th>
                         <th>RCCM</th>
-                        <th>Compte général</th>
+                        @if($comptabiliteOuverte)<th>Compte général</th>@endif
                         <th>Régime</th>
                         <th>Téléphone</th>
                         <th>E-mail</th>
@@ -104,6 +104,7 @@
                         </td>
                         <td>{{ $c->ncc ?? '—' }}</td>
                         <td>{{ $c->rccm ?? '—' }}</td>
+                        @if($comptabiliteOuverte)
                         <td style="font-family: monospace; font-weight: 700;">
                             {{ $c->compte_comptable ?? '411000' }}
                             @php
@@ -115,6 +116,7 @@
                                 </div>
                             @endif
                         </td>
+                        @endif
                         <td>{{ $c->regime_imposition ?? '—' }}</td>
                         <td>{{ $c->telephone ?? '—' }}</td>
                         <td>{{ $c->email ?? '—' }}</td>
@@ -154,7 +156,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="12" style="text-align:center; color:var(--text-3); padding:30px;">
+                        <td colspan="{{ $comptabiliteOuverte ? 12 : 11 }}" style="text-align:center; color:var(--text-3); padding:30px;">
                             Aucun client local enregistré pour le moment.
                         </td>
                     </tr>
@@ -213,7 +215,7 @@
                             <th>N° tiers</th>
                             <th>NCC</th>
                             <th>RCCM</th>
-                            <th>Compte général</th>
+                            @if($comptabiliteOuverte)<th>Compte général</th>@endif
                             <th>Régime</th>
                             <th>Téléphone</th>
                             <th>E-mail</th>
@@ -237,6 +239,7 @@
                             </td>
                             <td>{{ $c->ncc ?? '—' }}</td>
                             <td>{{ $c->rccm ?? '—' }}</td>
+                            @if($comptabiliteOuverte)
                             <td style="font-family: monospace; font-weight: 700;">
                              {{ $c->compte_comptable ?? '411000' }}
                              @php
@@ -248,6 +251,7 @@
                                  </div>
                              @endif
                          </td>
+                            @endif
                             <td>{{ $c->regime_imposition ?? '—' }}</td>
                             <td>{{ $c->telephone ?? '—' }}</td>
                             <td>{{ $c->email ?? '—' }}</td>
@@ -357,6 +361,8 @@
                             </select>
                         </div>
                         </div>
+                        {{-- Comptabilité fermée, le serveur pose le collectif : voir regleCompteCollectif(). --}}
+                        @if($comptabiliteOuverte)
                         <div class="form-group" style="margin-bottom:0;">
                             <label class="form-label">Compte comptable général collective</label>
                             <select name="compte_comptable" class="form-control" required>
@@ -367,6 +373,7 @@
                                 @endforeach
                             </select>
                         </div>
+                        @endif
                         {{-- Le numéro de tiers ne se saisit pas : le système le
                              fabrique, selon la convention choisie dans les
                              paramètres. Comptaflow retrouve un tiers par
@@ -381,8 +388,8 @@
                                     Le <strong>numéro de tiers</strong> est attribué automatiquement
                                     (410001), selon la convention réglée dans
                                     <em>Paramètres &rsaquo; Numérotation des tiers</em>.
-                                    Il ne se confond pas avec le compte de rattachement choisi ci-dessus :
-                                    celui-ci regroupe tout le monde, le numéro de tiers désigne ce client-ci.
+                                    @if($comptabiliteOuverte) Il ne se confond pas avec le compte de rattachement choisi ci-dessus :
+                                    celui-ci regroupe tout le monde, le numéro de tiers désigne ce client-ci. @endif
                                 </span>
                             </div>
                         </div>
@@ -456,6 +463,8 @@
                             </select>
                         </div>
                         </div>
+                        {{-- Comptabilité fermée, le serveur pose le collectif : voir regleCompteCollectif(). --}}
+                        @if($comptabiliteOuverte)
                         <div class="form-group" style="margin-bottom:0;">
                             <label class="form-label">Compte comptable général collective</label>
                             <select name="compte_comptable" id="edit_compte_comptable" class="form-control" required>
@@ -466,6 +475,7 @@
                                 @endforeach
                             </select>
                         </div>
+                        @endif
                         {{-- En lecture seule : changer le numéro d'un tiers déjà
                              déversé le rendrait introuvable chez Comptaflow, et
                              ses écritures futures retomberaient sur le collectif

@@ -580,4 +580,63 @@ class ParcoursSouscriptionTest extends TestCase
             . 'installation neuve ne peut pas franchir la première étape de la souscription.'
         );
     }
+
+    // ── Lot 41 : ce que l'étape 3 et l'étape 4 montrent encore ───────
+
+    /**
+     * Chantier 3.5. L'inscription ouvre dix modules d'office, et l'étape 3
+     * les présentait cochés en annonçant qu'ils « allaient être activés ».
+     */
+    public function test_un_module_deja_ouvert_est_montre_comme_acquis(): void
+    {
+        $this->entreprise->update(['modules_actifs' => ['principal', 'ventes', 'points_de_vente']]);
+
+        $this->actingAs($this->admin);
+        $this->post(route('admin.souscription.enregistrer', 1), ['categorie_id' => $this->commerce()->id]);
+        $this->post(route('admin.souscription.enregistrer', 2), ['profils' => ['boutique_quartier']])
+            ->assertRedirect(route('admin.souscription.index', ['etape' => 3]));
+
+        $corps = $this->get(route('admin.souscription.index', ['etape' => 3]))->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression('/value="ventes"\s+checked\s+disabled/', $corps,
+            'Un module déjà ouvert ne se présente pas comme un choix.');
+        $this->assertStringContainsString('déjà ouvert', $corps);
+    }
+
+    public function test_l_etape_3_se_saute_quand_tout_est_deja_ouvert(): void
+    {
+        $this->entreprise->update(['modules_actifs' => Entreprise::TOUS_LES_MODULES]);
+
+        $this->actingAs($this->admin);
+        $this->post(route('admin.souscription.enregistrer', 1), ['categorie_id' => $this->commerce()->id]);
+        $this->post(route('admin.souscription.enregistrer', 2), ['profils' => ['boutique_quartier']])
+            ->assertRedirect(route('admin.souscription.index', ['etape' => 4]))
+            ->assertSessionHas('succes');
+
+        $this->assertSame(3, $this->entreprise->fresh()->souscription_etape);
+    }
+
+    /**
+     * Chantier 3.4. Le numéro de compte s'affichait à côté de chaque rayon
+     * — « Vivres et alimentation (311100) » — à qui ne tient pas de livres.
+     */
+    public function test_le_numero_de_compte_du_rayon_suit_la_comptabilite(): void
+    {
+        $compte = \App\Modules\Admin\Modeles\Referentiel\Famille::where('code', 'VIV')->value('compte_vente');
+        $this->assertNotEmpty($compte);
+
+        $this->actingAs($this->admin);
+        $this->post(route('admin.souscription.enregistrer', 1), ['categorie_id' => $this->commerce()->id]);
+        $this->post(route('admin.souscription.enregistrer', 2), ['profils' => ['boutique_quartier']]);
+        $this->post(route('admin.souscription.enregistrer', 3), ['modules' => ['principal', 'ventes']]);
+
+        $this->get(route('admin.souscription.index', ['etape' => 4]))
+            ->assertOk()->assertSee('Vivres et alimentation')->assertDontSee($compte);
+
+        $this->entreprise->update(['comptabilite_activee' => true]);
+        $this->admin->unsetRelation('entreprise');
+
+        $this->get(route('admin.souscription.index', ['etape' => 4]))
+            ->assertOk()->assertSee($compte);
+    }
 }

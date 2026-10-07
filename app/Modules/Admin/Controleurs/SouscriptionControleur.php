@@ -147,6 +147,18 @@ class SouscriptionControleur
         // alimentera les versions suivantes du classeur.
         $entreprise->update(['activite_autre' => $donnees['activite_autre'] ?? null]);
 
+        // Rien à choisir à l'étape 3 quand tout ce que les métiers demandent
+        // est déjà ouvert — l'inscription en ouvre dix d'office. L'étape les
+        // présentait cochés en annonçant qu'ils « allaient être activés » :
+        // on faisait refaire un choix déjà fait. Elle se saute, et le dit.
+        if ($this->modulesAChoisir($retenus, $entreprise) === []) {
+            $this->memoriser($entreprise, ['modules' => $this->modulesDejaOuverts($entreprise)]);
+            $this->avancerVers(3, $entreprise);
+
+            return $this->avancerVers(4, $entreprise)->with('succes',
+                'Les modules que votre métier demande sont déjà tous ouverts : il n\'y avait rien à choisir.');
+        }
+
         return $this->avancerVers(3, $entreprise);
     }
 
@@ -172,7 +184,11 @@ class SouscriptionControleur
             array_unique(array_merge(
                 $donnees['modules'] ?? [],
                 Entreprise::MODULES_STRUCTURELS,
-                array_keys(VerrouConfigurationService::modulesVerrouilles($entreprise))
+                array_keys(VerrouConfigurationService::modulesVerrouilles($entreprise)),
+                // Un module déjà ouvert est acquis : sa case est désactivée,
+                // donc absente de l'envoi. Ce n'est pas ici qu'il se referme
+                // — c'est dans les paramètres.
+                $this->modulesDejaOuverts($entreprise)
             )),
             $entreprise->modulesAutorises()
         ));
@@ -443,6 +459,7 @@ class SouscriptionControleur
                     array_keys(VerrouConfigurationService::modulesVerrouilles($entreprise))
                   ))),
                   'modulesAutorises' => $entreprise->modulesAutorises(),
+                  'modulesDejaOuverts' => $this->modulesDejaOuverts($entreprise),
                   'modulesVerrouilles' => VerrouConfigurationService::modulesVerrouilles($entreprise)],
 
             4 => ['familles' => Famille::with(['typeArticle', 'profil'])
@@ -477,5 +494,44 @@ class SouscriptionControleur
         }
 
         return array_values(array_unique($modules));
+    }
+
+    /**
+     * Les modules que l'entreprise a ouverts — explicitement.
+     *
+     * Une liste vide vaut « tout ce qui est autorisé » pour l'affichage du
+     * menu, mais pas ici : une entreprise qui n'a encore rien choisi n'a rien
+     * d'acquis, et la lire comme ayant tout ouvert supprimerait l'étape pour
+     * celle-là même qui doit la faire.
+     *
+     * @return array<int, string>
+     */
+    private function modulesDejaOuverts(Entreprise $entreprise): array
+    {
+        $actifs = $entreprise->modules_actifs;
+
+        if (!is_array($actifs) || $actifs === []) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            Entreprise::TOUS_LES_MODULES,
+            fn (string $module) => in_array($module, $actifs, true) && $entreprise->moduleEstActif($module)
+        ));
+    }
+
+    /**
+     * Ce qui reste réellement à choisir : proposé, et pas encore ouvert.
+     *
+     * @param  array<int, string>  $codesProfils
+     * @return array<int, string>
+     */
+    private function modulesAChoisir(array $codesProfils, Entreprise $entreprise): array
+    {
+        return array_values(array_diff(
+            $this->modulesProposes($codesProfils),
+            $this->modulesDejaOuverts($entreprise),
+            Entreprise::MODULES_STRUCTURELS
+        ));
     }
 }

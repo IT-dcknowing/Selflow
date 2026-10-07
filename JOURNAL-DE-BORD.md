@@ -7045,6 +7045,68 @@ manquants du 40.4.
 
 ---
 
+### Lot 41 — Comptabilité éteinte : les fiches de tous les jours cessent d'en parler — **TERMINÉ le 07/10/2026**
+
+Section 3 du plan, chantiers 3.1, 3.2, 3.4 et 3.5. Le 3.3 (comptes du
+catalogue produits) et le 3.6 (épreuve d'ensemble) passent au lot suivant,
+avec la configuration globale : la fiche produit change une seule fois, et
+non deux.
+
+#### 41.1 — Le compte collectif des tiers (3.1)
+
+Les quatre formulaires (création et modification, clients et fournisseurs)
+exigeaient un « compte comptable général collectif » par menu déroulant
+obligatoire. Comptabilité fermée :
+
+| | Avant | Après |
+|---|---|---|
+| Écran | Menu obligatoire, colonne « Compte général » au tableau | Ni champ, ni colonne, ni mention « choisi ci-dessus » |
+| Création | Le compte posté s'écrivait | **Ignoré** ; le serveur pose 411000 / 401000 |
+| Modification | Le compte posté remplaçait l'ancien | **Le compte existant n'est pas touché** |
+
+Une seule règle, `regleCompteCollectif()`, dans chaque contrôleur : ouverte,
+le compte est obligatoire et doit exister au plan ; fermée, il est `exclude`.
+Le rendre seulement facultatif aurait laissé passer un compte que personne
+n'a pu choisir.
+
+#### 41.2 — Le numéro de tiers, automatique par toutes les portes (3.2)
+
+**TROUVÉ :** seul l'écran Clients/Fournisseurs posait le numéro. L'API
+mobile, le parcours B2B (client créé à la volée chez le vendeur, fournisseur
+chez l'acheteur) et le tiers d'un BAPA créaient des fiches **sans numéro ni
+compte collectif** — leurs écritures partaient sans tiers et retombaient en
+vrac sur le collectif chez Comptaflow.
+
+Le numéro et le collectif sont désormais posés au `creating` des modèles
+`Client` et `Fournisseur`, s'ils manquent. Un numéro déjà fourni (fiche
+venue de Comptaflow, client divers) n'est jamais remplacé. Le numéro reste
+en lecture seule à l'écran et n'est accepté d'aucun formulaire.
+
+#### 41.3 — Le parcours de configuration (3.4 et 3.5)
+
+- **Étape 4** : le numéro de compte ne s'affiche à côté du rayon que
+  comptabilité ouverte. Le préparamétrage, lui, se pose en base quoi qu'il
+  arrive. Les mentions « et ses comptes » des étapes 1, 2 et 4 sont retirées.
+- **Étape 3** (image 2 du 02/10) : l'inscription ouvre dix modules d'office,
+  et l'étape les présentait cochés en annonçant leur activation. Un module
+  **explicitement ouvert** est désormais montré comme acquis — case cochée,
+  désactivée, badge « déjà ouvert » — et se referme depuis les paramètres,
+  pas en repassant le parcours. Si rien ne reste à choisir, l'étape se saute
+  à l'enregistrement de l'étape 2 et le dit.
+- **Une liste `modules_actifs` vide** vaut « tout ce qui est autorisé » pour
+  le menu, mais **rien d'acquis** ici : la lire autrement supprimait l'étape
+  pour l'entreprise même qui doit la faire.
+
+**Épreuve révisée :** `ConfigurationVerrouilleeTest::test_un_module_sans_donnees_se_referme`
+fixait qu'on refermait un module en le décochant à l'étape 3 — exactement ce
+que le chantier 3.5 retire. Elle devient
+`test_le_parcours_ne_referme_pas_un_module_deja_ouvert`.
+
+- `tests/Feature/ComptabiliteEteinteEcransTest.php` — 10 épreuves, **7 tombent** sans le correctif
+- `tests/Feature/ParcoursSouscriptionTest.php` — 3 épreuves ajoutées, **3 tombent** sans le correctif
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
