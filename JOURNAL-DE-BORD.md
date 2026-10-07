@@ -7458,6 +7458,49 @@ d'authentification. Corrigé, et l'épreuve du 9.1 le couvre désormais.
 
 ---
 
+### Lot 47 — Les modèles d'import reflètent les écrans — **TERMINÉ le 07/10/2026**
+
+Section 11 du plan.
+
+#### 47.1 — Ce qui a quitté les modèles (11.2 et 11.3)
+
+| Modèle | Retiré | Pourquoi |
+|---|---|---|
+| Clients, fournisseurs | `numero_tiers` | automatique partout depuis le lot 41 |
+| Clients, fournisseurs | `compte_comptable` **quand la comptabilité est fermée** | la fiche ne le propose plus ; il revient avec elle |
+| Articles | `compte_vente`, `compte_achat`, `compte_stock`, `compte_variation` | la fiche n'en demande aucun : ils viennent de la configuration comptable globale (lot 42) |
+| Immobilisations | **le modèle entier, comptabilité fermée** | l'écran est derrière le garde-fou depuis le lot 42 |
+
+**Un ancien modèle ne fait pas entrer ce qui a été retiré :** le numéro de
+tiers fourni est ignoré, le compte collectif ne l'est lu que comptabilité
+ouverte, et un article importé hérite toujours de la configuration
+(`comptes_personnalises = false`). Le filtre `numeroTiersImporte()`, devenu
+sans objet, est retiré.
+
+Trois épreuves fixaient l'ancien contrat et sont révisées :
+`NumerotationTiersTest::test_l_import_garde_un_numero_conforme` (devient
+« numérote lui-même »), et dans `ImportTest` la reprise des comptes de stock
+et la liste des colonnes du modèle d'articles. `ImportTest` ouvre la
+comptabilité de son entreprise pour le parc d'immobilisations.
+
+#### 47.2 — La correspondance modèle ↔ écran (11.1 et 11.4)
+
+`ModelesDImportTest` télécharge chaque modèle et vérifie que **chaque colonne
+est un champ d'un écran** — comptabilité fermée, puis ouverte. Les seules
+exceptions sont nommées et justifiées dans l'épreuve (famille par son nom,
+stock d'ouverture, statut, référence dont le nom est posé par le script).
+
+**TROUVÉ par cette épreuve :** `prix_consignation` et `delai_retour_jours` ne
+se saisissaient **nulle part**. Le modèle d'articles était la seule porte vers
+les consignations — une entreprise qui ne passait pas par l'import ne pouvait
+pas déclarer un casier. Plutôt que de retirer la colonne, ce qui aurait fermé
+la fonction, les deux champs rejoignent la fiche produit. Absents d'un
+formulaire (la fenêtre de modification rapide), ils ne s'effacent pas.
+
+- `tests/Feature/ModelesDImportTest.php` — 6 épreuves, **toutes tombent** sans le correctif
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

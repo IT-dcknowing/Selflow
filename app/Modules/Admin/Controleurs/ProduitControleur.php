@@ -384,6 +384,9 @@ class ProduitControleur
             'date_peremption'    => ['nullable', 'date'],
             'suivi_par_lot'      => ['nullable', 'boolean'],
             'preavis_peremption' => ['nullable', 'integer', 'min:0', 'max:3650'],
+            // L'emballage consigné : il ne se posait que par l'import.
+            'prix_consignation'  => ['nullable', 'numeric', 'min:0'],
+            'delai_retour_jours' => ['nullable', 'integer', 'min:1', 'max:3650'],
         ], [
             'taxes_produit.*.taux.gt'  => 'Le taux d\'une taxe doit être strictement supérieur à 0 %.',
             'taxes_produit.*.taux.max' => 'Le taux d\'une taxe ne peut pas dépasser 100 %.',
@@ -465,7 +468,12 @@ class ProduitControleur
             // écrasant les deux premiers.
             'suivi_par_lot'      => $request->boolean('suivi_par_lot'),
             'preavis_peremption' => (int) $request->input('preavis_peremption', 30),
-        ]);
+        ] + ($request->has('prix_consignation') ? [
+            // Absents d'un formulaire (la fenêtre de modification rapide ne les
+            // porte pas), ils ne s'effacent pas.
+            'prix_consignation'  => $request->filled('prix_consignation') ? (float) $request->input('prix_consignation') : null,
+            'delai_retour_jours' => $request->filled('delai_retour_jours') ? (int) $request->input('delai_retour_jours') : null,
+        ] : []));
 
         $this->enregistrerTaxesProduit($produit, $request->input('taxes_produit', []));
 

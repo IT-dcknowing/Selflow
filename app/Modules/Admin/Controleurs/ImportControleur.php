@@ -33,17 +33,17 @@ class ImportControleur
             ],
         ],
         'clients' => [
-            'headers'  => ['nom', 'type_facturation', 'telephone', 'email', 'adresse', 'ncc', 'regime_imposition', 'rccm', 'compte_comptable', 'numero_tiers'],
+            'headers'  => ['nom', 'type_facturation', 'telephone', 'email', 'adresse', 'ncc', 'regime_imposition', 'rccm', 'compte_comptable'],
             'exemple'  => [
-                ['Société ABC SARL', 'B2B', '+225 27 00 00 01', 'contact@abc.ci', 'Cocody, Abidjan', '2302178R', 'RNI', 'CI-ABJ-2021-001', '411000', '410001'],
-                ['Marie Koffi', 'B2C', '+225 07 00 00 02', 'marie@gmail.com', 'Yopougon, Abidjan', '', '', '', '411000', '410002'],
+                ['Société ABC SARL', 'B2B', '+225 27 00 00 01', 'contact@abc.ci', 'Cocody, Abidjan', '2302178R', 'RNI', 'CI-ABJ-2021-001', '411000'],
+                ['Marie Koffi', 'B2C', '+225 07 00 00 02', 'marie@gmail.com', 'Yopougon, Abidjan', '', '', '', '411000'],
             ],
         ],
         'fournisseurs' => [
-            'headers'  => ['nom', 'type_facturation', 'telephone', 'email', 'secteur', 'adresse', 'ncc', 'regime_imposition', 'rccm', 'compte_comptable', 'numero_tiers'],
+            'headers'  => ['nom', 'type_facturation', 'telephone', 'email', 'secteur', 'adresse', 'ncc', 'regime_imposition', 'rccm', 'compte_comptable'],
             'exemple'  => [
-                ['CDCI Distribution', 'B2B', '+225 27 00 01 00', 'cdci@cdci.ci', 'Distribution', 'Zone 4, Marcory', '2169728N', 'RSI', 'CI-ABJ-2020-100', '401000', '400001'],
-                ['Société Générale CI', 'B2G', '+225 20 00 00 00', 'sgci@sg.ci', 'Finance', 'Plateau', '', '', '', '401000', '400002'],
+                ['CDCI Distribution', 'B2B', '+225 27 00 01 00', 'cdci@cdci.ci', 'Distribution', 'Zone 4, Marcory', '2169728N', 'RSI', 'CI-ABJ-2020-100', '401000'],
+                ['Société Générale CI', 'B2G', '+225 20 00 00 00', 'sgci@sg.ci', 'Finance', 'Plateau', '', '', '', '401000'],
             ],
         ],
         'utilisateurs' => [
@@ -56,13 +56,18 @@ class ImportControleur
         // **Le modèle des articles portait douze colonnes ; la fiche en compte
         // désormais bien davantage.** Un magasin qui migrait deux mille
         // références devait rouvrir chaque fiche pour saisir son stock
-        // d'ouverture, ses comptes de stock, son suivi par lot, sa
-        // consignation. C'est le moment où l'on abandonne.
+        // d'ouverture, son suivi par lot, sa consignation. C'est le moment où
+        // l'on abandonne.
+        //
+        // **Sans aucun compte depuis le lot 47** (chantiers 11.1 et 11.3) : la
+        // fiche n'en demande plus, ils viennent de la configuration comptable
+        // globale — vente et achat par type, catégorie ou en général, stock et
+        // variation par catégorie. Une colonne que la fiche ne propose pas fait
+        // saisir pour rien, et laisse croire que la donnée est entrée.
         'produits' => [
             'headers'  => [
                 'nom', 'type', 'categorie', 'sous_categorie', 'unite',
                 'prix_achat', 'prix_vente', 'taux_tva', 'remise_taux',
-                'compte_vente', 'compte_achat', 'compte_stock', 'compte_variation',
                 'reference', 'statut',
                 // Le stock d'ouverture, dans la même feuille : sans lui,
                 // l'import ne fait que la moitié du chemin.
@@ -73,31 +78,11 @@ class ImportControleur
                 'prix_consignation', 'delai_retour_jours',
             ],
             'exemple'  => [
-                ['Stylo bille bleu', 'consommable_stockable', 'Fournitures', 'Papeterie', 'pièce',
-                 '150', '250', '18', '0', '701001', '601001', '311000', '603100',
-                 'STYL-BLU-001', 'actif',
-                 'Agence Cocody', '240', '150', '20',
-                 '', 'non', '', '', ''],
-                ['Riz parfumé 25kg', 'marchandise', 'Alimentation', 'Céréales', 'sac',
-                 '12 000', '15 000', '0', '0', '701002', '601002', '311000', '603100',
-                 '', 'actif',
-                 'Agence Cocody', '85', '12 000', '10',
-                 '', 'non', '', '', ''],
-                ['Paracétamol 500 mg', 'marchandise', 'Pharmacie', 'Antalgiques', 'boîte',
-                 '400', '600', '0', '0', '701003', '601003', '311000', '603100',
-                 'MED-PARA-500', 'actif',
-                 'Agence Cocody', '300', '400', '50',
-                 '31/12/2027', 'oui', '60', '', ''],
-                ['Casier de 24 bouteilles', 'marchandise', 'Emballages', '', 'casier',
-                 '0', '0', '18', '0', '701004', '601004', '311000', '603100',
-                 'EMB-CASIER-24', 'actif',
-                 'Agence Cocody', '0', '', '',
-                 '', 'non', '', '2 000', '21'],
-                ['Mission de conseil', 'service', 'Prestations', '', 'heure',
-                 '', '25 000', '18', '0', '706000', '', '', '',
-                 'PRESTA-CONSEIL', 'actif',
-                 '', '', '', '',
-                 '', 'non', '', '', ''],
+                ['Stylo bille bleu', 'consommable_stockable', 'Fournitures', 'Papeterie', 'pièce', '150', '250', '18', '0', 'STYL-BLU-001', 'actif', 'Agence Cocody', '240', '150', '20', '', 'non', '', '', ''],
+                ['Riz parfumé 25kg', 'marchandise', 'Alimentation', 'Céréales', 'sac', '12 000', '15 000', '0', '0', '', 'actif', 'Agence Cocody', '85', '12 000', '10', '', 'non', '', '', ''],
+                ['Paracétamol 500 mg', 'marchandise', 'Pharmacie', 'Antalgiques', 'boîte', '400', '600', '0', '0', 'MED-PARA-500', 'actif', 'Agence Cocody', '300', '400', '50', '31/12/2027', 'oui', '60', '', ''],
+                ['Casier de 24 bouteilles', 'marchandise', 'Emballages', '', 'casier', '0', '0', '18', '0', 'EMB-CASIER-24', 'actif', 'Agence Cocody', '0', '', '', '', 'non', '', '2 000', '21'],
+                ['Mission de conseil', 'service', 'Prestations', '', 'heure', '', '25 000', '18', '0', 'PRESTA-CONSEIL', 'actif', '', '', '', '', '', 'non', '', '', ''],
             ],
         ],
 
@@ -138,9 +123,53 @@ class ImportControleur
     // GET — Télécharger le fichier CSV d'exemple
     // ─────────────────────────────────────────────────────────────
 
-    public function telechargerExemple(string $type): Response
+    /**
+     * Le modèle d'un module, tel que **cette** entreprise le voit (chantier 11).
+     *
+     * Une colonne du modèle = un champ réellement saisi à l'écran. Le compte
+     * collectif d'un tiers ne s'y trouve donc que si la comptabilité est
+     * ouverte — fermée, la fiche ne le propose pas (lot 41). Les
+     * immobilisations, écran de tenue de livres, n'ont pas de modèle sans elle.
+     *
+     * @return array{headers: array<int, string>, exemple: array<int, array<int, string>>}|null
+     */
+    private function modele(string $type): ?array
     {
         $config = self::COLONNES[$type] ?? null;
+        $entreprise = Auth::user()?->entreprise;
+
+        if (!$config || !$entreprise) {
+            return $config;
+        }
+
+        if ($entreprise->comptabiliteOuverte()) {
+            return $config;
+        }
+
+        if ($type === 'immobilisations') {
+            return null;
+        }
+
+        $retirer = in_array($type, ['clients', 'fournisseurs'], true) ? ['compte_comptable'] : [];
+
+        if ($retirer === []) {
+            return $config;
+        }
+
+        $garder = array_keys(array_diff($config['headers'], $retirer));
+
+        return [
+            'headers' => array_values(array_intersect_key($config['headers'], array_flip($garder))),
+            'exemple' => array_map(
+                fn (array $ligne) => array_values(array_intersect_key($ligne, array_flip($garder))),
+                $config['exemple']
+            ),
+        ];
+    }
+
+    public function telechargerExemple(string $type): Response
+    {
+        $config = $this->modele($type);
         abort_if(!$config, 404, "Module d'import inconnu : {$type}");
 
         $rows = [$config['headers'], ...$config['exemple']];
@@ -184,7 +213,7 @@ class ImportControleur
 
     public function preview(Request $request, string $type): JsonResponse
     {
-        $config = self::COLONNES[$type] ?? null;
+        $config = $this->modele($type);
         if (!$config) return response()->json(['success' => false, 'message' => 'Module inconnu.'], 400);
 
         $request->validate(['fichier' => ['required', 'file', 'mimes:csv,txt,xlsx,xls', 'max:5120']]);
@@ -216,7 +245,7 @@ class ImportControleur
 
     public function importer(Request $request, string $type): JsonResponse
     {
-        $config = self::COLONNES[$type] ?? null;
+        $config = $this->modele($type);
         if (!$config) return response()->json(['success' => false, 'message' => 'Module inconnu.'], 400);
 
         $request->validate(['fichier' => ['required', 'file', 'mimes:csv,txt,xlsx,xls', 'max:5120']]);
@@ -427,7 +456,11 @@ class ImportControleur
             return "Ligne {$num} : NCC invalide pour le client {$nom}. Il doit contenir 8 caractères et se terminer par une lettre majuscule.";
         }
 
-        $compteGeneral = trim($d['compte_comptable'] ?? '') ?: config('selflow.plan_comptable_defaut.client_collectif');
+        // Le compte collectif n'est lu que si la comptabilité est ouverte, et
+        // le numéro de tiers jamais : il est automatique (chantier 11.2). Un
+        // ancien modèle qui les porte encore ne les fait pas entrer.
+        $compteGeneral = ($entreprise->comptabiliteOuverte() ? trim($d['compte_comptable'] ?? '') : '')
+            ?: config('selflow.plan_comptable_defaut.client_collectif');
 
         Client::firstOrCreate(
             ['entreprise_id' => $entreprise->id, 'nom' => $nom],
@@ -440,53 +473,11 @@ class ImportControleur
                 'regime_imposition'=> trim($d['regime_imposition'] ?? ''),
                 'rccm'             => trim($d['rccm'] ?? ''),
                 'compte_comptable' => $compteGeneral,
-                'numero_tiers'     => $this->numeroTiersImporte(
-                    $d['numero_tiers'] ?? null, $entreprise, $compteGeneral, $nom, Client::class
-                ),
+                'numero_tiers'     => NumerotationTiersService::pourClient($entreprise, $compteGeneral, $nom),
                 'source'           => 'import_csv',
             ]
         );
         return null;
-    }
-
-    /**
-     * Le numéro de tiers d'une fiche importée : filtré, puis fabriqué à défaut.
-     *
-     * **Comptaflow filtre au déversement comme à l'import**, et il a raison :
-     * un fichier vient de partout — d'un autre logiciel, d'un tableur retouché
-     * à la main — et rien n'y garantit la convention de l'entreprise. Un
-     * numéro qui ne la respecte pas ne serait plus retrouvé par la passerelle,
-     * et chaque écriture de ce tiers retomberait sur son compte collectif.
-     *
-     * Trois motifs de rejet, et dans les trois cas le système renumérote :
-     *
-     * - **le numéro est le compte collectif lui-même** — la confusion des deux
-     *   notions, écrite en base ;
-     * - **le préfixe ne correspond pas au compte de rattachement** — un tiers
-     *   `40…` sur un client ferait partir l'écriture sur le collectif
-     *   fournisseurs ;
-     * - **la longueur n'est pas la bonne** — Comptaflow cherche par égalité de
-     *   chaîne, et `4100010` ne vaut pas `410001`.
-     *
-     * @param  class-string<Client|Fournisseur>  $modele
-     */
-    private function numeroTiersImporte($fourni, $entreprise, string $compteGeneral, string $nom, string $modele): string
-    {
-        $fourni = strtoupper(preg_replace('/\s+/', '', (string) $fourni));
-
-        $recevable = $fourni !== ''
-            && !NumerotationTiersService::estLeCompteCollectif($fourni, $compteGeneral)
-            && NumerotationTiersService::estCoherent($fourni, $compteGeneral)
-            && strlen($fourni) === NumerotationTiersService::LONGUEUR
-            && !$modele::where('entreprise_id', $entreprise->id)->where('numero_tiers', $fourni)->exists();
-
-        if ($recevable) {
-            return $fourni;
-        }
-
-        return $modele === Client::class
-            ? NumerotationTiersService::pourClient($entreprise, $compteGeneral, $nom)
-            : NumerotationTiersService::pourFournisseur($entreprise, $compteGeneral, $nom);
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -509,7 +500,11 @@ class ImportControleur
             return "Ligne {$num} : NCC invalide pour le fournisseur {$nom}. Il doit contenir 8 caractères et se terminer par une lettre majuscule.";
         }
 
-        $compteGeneral = trim($d['compte_comptable'] ?? '') ?: config('selflow.plan_comptable_defaut.fournisseur_collectif');
+        // Le compte collectif n'est lu que si la comptabilité est ouverte, et
+        // le numéro de tiers jamais : il est automatique (chantier 11.2). Un
+        // ancien modèle qui les porte encore ne les fait pas entrer.
+        $compteGeneral = ($entreprise->comptabiliteOuverte() ? trim($d['compte_comptable'] ?? '') : '')
+            ?: config('selflow.plan_comptable_defaut.fournisseur_collectif');
 
         Fournisseur::firstOrCreate(
             ['entreprise_id' => $entreprise->id, 'nom' => $nom],
@@ -523,9 +518,7 @@ class ImportControleur
                 'regime_imposition'=> trim($d['regime_imposition'] ?? ''),
                 'rccm'             => trim($d['rccm'] ?? ''),
                 'compte_comptable' => $compteGeneral,
-                'numero_tiers'     => $this->numeroTiersImporte(
-                    $d['numero_tiers'] ?? null, $entreprise, $compteGeneral, $nom, Fournisseur::class
-                ),
+                'numero_tiers'     => NumerotationTiersService::pourFournisseur($entreprise, $compteGeneral, $nom),
                 'source'           => 'import_csv',
             ]
         );
@@ -739,15 +732,11 @@ class ImportControleur
                 'prix_achat'   => $prixAchat,
                 'prix_vente'   => $prixVente,
                 'taux_tva'     => $tauxTva,
-                'compte_vente' => trim($d['compte_vente'] ?? '') ?: '701000',
-                'compte_achat' => trim($d['compte_achat'] ?? '') ?: '601000',
-                // Les comptes de stock n'ont pas de repli : il n'existe pas de
-                // « compte de stock générique » qui voudrait dire quelque
-                // chose. Les marchandises vont en 31, les matières en 32, les
-                // produits finis en 36 ; les confondre rendrait le bilan faux
-                // plutôt qu'imprécis.
-                'compte_stock'     => trim($d['compte_stock'] ?? '') ?: null,
-                'compte_variation' => trim($d['compte_variation'] ?? '') ?: null,
+                // Aucun compte n'entre par l'import (chantier 11.3) : l'article
+                // hérite de la configuration comptable globale, comme celui
+                // qu'on crée à l'écran. Un ancien modèle qui porte encore ces
+                // colonnes ne les fait pas entrer.
+                'comptes_personnalises' => false,
                 'remise_taux'      => min(100, max(0, self::nombre($d['remise_taux'] ?? 0))),
                 'date_peremption'  => self::date($d['date_peremption'] ?? null),
                 // Le suivi par lot et la consignation, ajoutés aux lots 6.3 et

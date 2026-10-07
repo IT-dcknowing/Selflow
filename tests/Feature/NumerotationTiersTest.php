@@ -235,14 +235,20 @@ class NumerotationTiersTest extends TestCase
         ]);
     }
 
-    public function test_l_import_garde_un_numero_conforme(): void
+    /**
+     * Révisé au lot 47 (chantier 11.2). L'import gardait un numéro conforme
+     * fourni par le fichier ; le numéro de tiers est désormais automatique
+     * partout, et la colonne a quitté le modèle. Un ancien fichier qui la
+     * porte encore ne la fait pas entrer.
+     */
+    public function test_l_import_numerote_lui_meme_meme_un_numero_conforme(): void
     {
         $this->importerClients([
             ['nom', 'type_facturation', 'compte_comptable', 'numero_tiers'],
             ['Société ABC', 'B2C', '411000', '410042'],
         ]);
 
-        $this->assertSame('410042', Client::where('nom', 'Société ABC')->value('numero_tiers'));
+        $this->assertSame('410001', Client::where('nom', 'Société ABC')->value('numero_tiers'));
     }
 
     public function test_l_import_renumerote_un_tiers_qui_vaut_le_collectif(): void

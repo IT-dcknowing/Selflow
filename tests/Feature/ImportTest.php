@@ -60,6 +60,11 @@ class ImportTest extends TestCase
             'secteur_activite'  => ['Commerce'],
             'modules_actifs'    => ['principal', 'ventes', 'achats', 'stock', 'produits', 'tiers', 'comptabilite'],
         ]);
+        // Le parc d'immobilisations ne s'importe qu'à qui tient ses livres
+        // (lot 42 pour l'écran, lot 47 pour le modèle). Le cas fermé est
+        // éprouvé dans ModelesDImportTest.
+        $this->entreprise->comptabilite_activee = true;
+        $this->entreprise->save();
 
         $this->magasin = PointDeVente::create([
             'entreprise_id' => $this->entreprise->id,
@@ -359,8 +364,11 @@ class ImportTest extends TestCase
 
         $produit = Produit::where('reference', 'MED-001')->firstOrFail();
 
-        $this->assertSame('311000', $produit->compte_stock);
-        $this->assertSame('603100', $produit->compte_variation);
+        // Révisé au lot 47 (chantier 11.3) : aucun compte n'entre plus par
+        // l'import, la fiche n'en demandant plus. Un ancien modèle qui les
+        // porte encore ne les fait pas entrer.
+        $this->assertNull($produit->compte_stock);
+        $this->assertNull($produit->compte_variation);
         $this->assertSame(5.0, (float) $produit->remise_taux);
         $this->assertSame('2027-12-31', $produit->date_peremption?->toDateString());
         $this->assertTrue((bool) $produit->suivi_par_lot);
@@ -572,10 +580,13 @@ class ImportTest extends TestCase
         // plus : tout se ressaisissait fiche par fiche apres l'import.
         $csv = $this->get(route('admin.import.exemple', ['type' => 'produits']))->getContent();
 
-        foreach (['stock_initial', 'compte_stock', 'compte_variation', 'suivi_par_lot',
+        foreach (['stock_initial', 'suivi_par_lot',
                   'prix_consignation', 'date_peremption', 'remise_taux'] as $colonne) {
             $this->assertStringContainsString($colonne, $csv, "Colonne manquante : {$colonne}");
         }
+
+        // Les comptes en sont sortis au lot 47 : la fiche ne les propose plus.
+        $this->assertStringNotContainsString('compte_', $csv);
     }
 
     public function test_un_module_inconnu_ne_livre_aucun_modele(): void

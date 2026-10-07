@@ -368,6 +368,20 @@
                         Trente jours conviennent à l'alimentaire ; un médicament se retire des rayons bien plus tôt.
                     </small>
                 </div>
+                {{-- L'emballage consigné. Ces deux champs ne se saisissaient
+                     nulle part : le modèle d'import les portait, et c'était la
+                     seule porte vers les consignations (relevé au chantier
+                     11.4, en comparant le modèle aux écrans). --}}
+                <div class="form-group">
+                    <label class="form-label">Prix de consignation (F)</label>
+                    <input type="number" name="prix_consignation" class="form-control" min="0" step="1"
+                           value="{{ $produit->prix_consignation }}" placeholder="Vide : l'article ne se consigne pas">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Délai de retour (jours)</label>
+                    <input type="number" name="delai_retour_jours" class="form-control" min="1" max="3650"
+                           value="{{ $produit->delai_retour_jours }}" placeholder="Au-delà, l'emballage est réputé perdu">
+                </div>
                 @include('admin::composants.imputation_produit', [
                     'cle' => 'fiche', 'produit' => $produit, 'comptes' => $comptes,
                     'comptabiliteOuverte' => $comptabiliteOuverte,
