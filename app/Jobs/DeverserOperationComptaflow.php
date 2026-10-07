@@ -52,6 +52,9 @@ class DeverserOperationComptaflow implements ShouldQueue
 {
     use Queueable, InteractsWithQueue, SerializesModels;
 
+    /** Le statut d'une ligne retenue par le contrôle avant envoi. */
+    public const ANOMALIE = 'anomalie';
+
     public int $tries = 3;
     public int $backoff = 60;
     public int $timeout = 30;
@@ -88,13 +91,35 @@ class DeverserOperationComptaflow implements ShouldQueue
             return;
         }
 
-        $lignes = $operation->ecritures
-            ->where('comptaflow_sync_status', '!=', 'synced')
-            ->values();
-
-        if ($lignes->isEmpty()) {
+        if ($operation->ecritures->every(fn (EcritureComptable $e) => $e->comptaflow_sync_status === 'synced')) {
             return;
         }
+
+        // ── Le contrôle avant envoi (chantier 7.3) ──
+        //
+        // `est_equilibree` est posé à la clôture de l'opération. Il ne dit
+        // rien d'une ligne modifiée depuis, ni d'une ligne qui porterait deux
+        // comptes, ou son montant du mauvais côté — Comptaflow ne lit qu'un
+        // compte par ligne, et rangerait l'autre nulle part. Le contrôle est
+        // refait ici, sur ce qui part réellement. Ce qui ne tombe pas n'est
+        // pas envoyé : le chercher chez Comptaflow, où l'on n'a pas la pièce
+        // d'origine, serait bien plus long que le voir ici.
+        if ($anomalie = self::anomalie($operation->ecritures)) {
+            EcritureComptable::whereIn('id', self::aReprendre($operation))
+                ->update(['comptaflow_sync_status' => self::ANOMALIE]);
+
+            Log::warning('Opération non déversée : contrôle avant envoi', [
+                'operation_id' => $operation->id,
+                'anomalie'     => $anomalie,
+            ]);
+
+            return;
+        }
+
+        // L'opération part **entière**, lignes déjà reçues comprises : c'est
+        // à cette condition que Comptaflow peut les ranger sous un même
+        // numéro de saisie. Il ignore par `cle_selflow` celles qu'il détient.
+        $lignes = $operation->ecritures->values();
 
         $exercice = Periode::where('entreprise_id', $entreprise->id)
             ->where('est_active', true)
@@ -130,7 +155,7 @@ class DeverserOperationComptaflow implements ShouldQueue
                 // `failed`, et la reprise des cinq minutes les repassera.
                 $refus = $reponse->json('refus') ?? [];
 
-                EcritureComptable::whereIn('id', $ids)->update([
+                EcritureComptable::whereIn('id', empty($refus) ? $ids : self::aReprendre($operation))->update([
                     'comptaflow_sync_status' => empty($refus) ? 'synced' : 'failed',
                 ]);
 
@@ -144,7 +169,7 @@ class DeverserOperationComptaflow implements ShouldQueue
                 return;
             }
 
-            EcritureComptable::whereIn('id', $ids)->update(['comptaflow_sync_status' => 'failed']);
+            EcritureComptable::whereIn('id', self::aReprendre($operation))->update(['comptaflow_sync_status' => 'failed']);
 
             Log::warning('Opération refusée par Comptaflow', [
                 'operation_id' => $operation->id,
@@ -152,7 +177,7 @@ class DeverserOperationComptaflow implements ShouldQueue
                 'corps'        => mb_substr($reponse->body(), 0, 500),
             ]);
         } catch (\Throwable $e) {
-            EcritureComptable::whereIn('id', $lignes->pluck('id')->all())
+            EcritureComptable::whereIn('id', self::aReprendre($operation))
                 ->update(['comptaflow_sync_status' => 'failed']);
 
             Log::error('Déversement de l\'opération impossible', [
@@ -163,11 +188,70 @@ class DeverserOperationComptaflow implements ShouldQueue
     }
 
     /**
+     * Les lignes que Comptaflow n'a pas encore confirmées. Un échec ne
+     * dégrade pas celles qu'il a déjà reçues.
+     *
+     * @return array<int, int>
+     */
+    private static function aReprendre(Operation $operation): array
+    {
+        return $operation->ecritures
+            ->where('comptaflow_sync_status', '!=', 'synced')
+            ->pluck('id')
+            ->all();
+    }
+
+    /**
+     * Ce qui empêche l'opération de partir, ou null.
+     *
+     * Trois règles, celles que Comptaflow suppose sans les vérifier :
+     * chaque ligne porte **un** compte ; son montant est du côté de ce
+     * compte ; la somme des débits égale celle des crédits.
+     *
+     * @param  \Illuminate\Support\Collection<int, EcritureComptable>  $lignes
+     */
+    public static function anomalie(\Illuminate\Support\Collection $lignes): ?string
+    {
+        if ($lignes->isEmpty()) {
+            return 'aucune ligne';
+        }
+
+        $debit = 0.0;
+        $credit = 0.0;
+
+        foreach ($lignes as $e) {
+            $aDebit  = trim((string) $e->compte_debit) !== '';
+            $aCredit = trim((string) $e->compte_credit) !== '';
+
+            if ($aDebit === $aCredit) {
+                return "ligne {$e->id} : " . ($aDebit ? 'deux comptes' : 'aucun compte');
+            }
+
+            if (($aDebit && (float) $e->credit != 0.0) || ($aCredit && (float) $e->debit != 0.0)) {
+                return "ligne {$e->id} : montant du mauvais côté";
+            }
+
+            $debit  += (float) $e->debit;
+            $credit += (float) $e->credit;
+        }
+
+        if (abs(round($debit - $credit, 2)) >= 0.01) {
+            return sprintf('débit %.2f, crédit %.2f', $debit, $credit);
+        }
+
+        return null;
+    }
+
+    /**
      * Une ligne, telle que Comptaflow l'attend.
      *
-     * Le format ne change pas d'un pouce : c'est celui que
-     * `DeverserEcritureComptaflow` envoyait, et que l'API sait lire. Seul le
-     * regroupement change.
+     * Le contrat de `ExternalSyncController::deverserEcritures()`, relu
+     * champ par champ au lot 43 : un compte par ligne — `compte_debit` OU
+     * `compte_credit`, Comptaflow prend le premier non vide —, le montant du
+     * même côté, le journal par son code, le tiers par son numéro, et
+     * `cle_selflow` pour l'idempotence. Le regroupement des lignes en une
+     * saisie se fait sur le champ `operation` de l'envoi, et non ligne à
+     * ligne : c'est Comptaflow qui attribue le numéro de saisie.
      *
      * @return array<string, mixed>
      */

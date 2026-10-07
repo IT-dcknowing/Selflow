@@ -7201,6 +7201,85 @@ depuis le lot 39 — et produisent leurs écritures.
 
 ---
 
+### Lot 43 — Le déversement Comptaflow : une opération, une saisie — **TERMINÉ le 07/10/2026** (sauf 7.5)
+
+Section 7 du plan. **Deux dépôts touchés** : Selflow (ce lot) et Comptaflow
+(révision `b40b9bd` sur `guysergekouassi/COMPTAFLOW`, branche
+`claude/tender-keller-o95s21`).
+
+#### 43.1 — Le diagnostic, corrigé (7.1)
+
+Le diagnostic du plan disait : `ligne()` envoie `compte_debit`,
+`compte_credit`, `debit` et `credit` sur une seule ligne. **Relu, ce n'est
+pas le défaut.** Chaque écriture Selflow porte déjà **un seul** compte — le
+débit sur sa ligne, le crédit sur la sienne — et l'opération part entière,
+d'un bloc, depuis le lot du déversement atomique.
+
+**Le défaut était à la réception.** `deverserEcritures()` écrivait
+`n_saisie = cle_selflow`, et `cle_selflow` est **unique par ligne**. Chaque
+ligne devenait sa propre saisie : une facture avec TVA et timbre arrivait en
+quatre saisies d'une ligne, aucune équilibrée — c'est « la ligne unique par
+numéro de saisie ». L'écran des saisies et la copie de Comptaflow regroupent
+par `n_saisie` : ils y voyaient quatre pièces.
+
+**Corrigé chez Comptaflow** : quand Selflow annonce son opération (champ
+`operation`, déjà envoyé), toutes ses lignes reçoivent **un** numéro, attribué
+par `NumerotationSaisie` à la convention de Comptaflow. Selflow envoie,
+Comptaflow numérote. `cle_selflow` reste la clé d'idempotence de la ligne.
+
+#### 43.2 — Le contrat, champ par champ (7.2)
+
+| Champ | Comptaflow en fait | Selflow envoie |
+|---|---|---|
+| `compte_debit` / `compte_credit` | prend le premier non vide — **un** compte par ligne | un seul des deux |
+| `debit` / `credit` | tels quels | le montant du côté du compte |
+| `code_journal` | cherché à sa convention puis sur le code d'origine | le code Selflow |
+| `compte_tiers` | cherché sur `numero_original` | le numéro de tiers |
+| `cle_selflow` | idempotence | `SELFLOW-{entreprise}-{ligne}` |
+| `operation` | **regroupement en une saisie** (nouveau) | `numero_saisie` de l'opération |
+| `atomique` | tout ou rien | vrai |
+| `exercice_debut` / `_fin` | refus 409 (Conflict — conflit) si les exercices ne se recouvrent pas | l'exercice actif |
+
+**Selflow renvoie désormais l'opération entière**, lignes déjà reçues
+comprises : c'est à cette condition que Comptaflow les range sous le même
+numéro. Un échec ne dégrade plus en `failed` les lignes déjà confirmées.
+
+#### 43.3 — Le contrôle avant envoi (7.3)
+
+`est_equilibree` est posé à la clôture et ne voit ni une ligne à deux
+comptes, ni un montant du mauvais côté — Comptaflow ne lit qu'un compte par
+ligne, et rangerait l'autre nulle part. `DeverserOperationComptaflow::anomalie()`
+refait le contrôle sur ce qui part réellement ; une opération qui ne tombe pas
+reste chez nous, ses lignes en statut `anomalie`, et **l'écran de liaison le
+dit** (« retenue(s) par le contrôle avant envoi »). Comptaflow refait de son
+côté le contrôle d'équilibre et des deux comptes sur un envoi atomique.
+
+#### 43.4 — Le rejeu (7.4)
+
+**L'idempotence a été vérifiée avant d'autoriser le rejeu**, côté Comptaflow
+(`DeversementEcrituresTest`) : un renvoi n'ajoute aucune ligne et garde le
+numéro ; des lignes arrivées sous l'ancienne forme — une saisie par ligne —
+**se regroupent** quand leur opération est renvoyée.
+
+`selflow:sync-ecritures --all` renvoyait, à chaque passage, les cinquante
+mêmes premières opérations. Il parcourt désormais tout l'historique.
+
+**À faire au déploiement, dans cet ordre :** déployer Comptaflow `b40b9bd`,
+puis Selflow, puis lancer `php artisan selflow:sync-ecritures --all`. Dans
+l'autre ordre, le rejeu ne casse rien — il n'ajoute aucune ligne — mais ne
+regroupe rien non plus.
+
+#### 43.5 — Reste ouvert : la vérification en réel (7.5)
+
+Une vente, un achat, un avoir, un règlement sur une entreprise liée, puis la
+balance relue chez Comptaflow. **Elle ne peut se faire que sur les
+plateformes déployées** ; la session n'y a pas accès.
+
+- Selflow : `tests/Feature/PasserelleComptaflowTest.php` — 5 épreuves ajoutées, **4 tombent** sans le correctif
+- Comptaflow : `tests/Feature/DeversementEcrituresTest.php` — 6 épreuves, **5 tombent** sans le correctif ; le schéma de la passerelle passe dans le trait `SchemaDeLaPasserelle`
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

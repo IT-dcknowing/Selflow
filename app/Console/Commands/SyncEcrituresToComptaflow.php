@@ -75,7 +75,7 @@ class SyncEcrituresToComptaflow extends Command
             // Les opérations qui portent au moins une ligne non aboutie. Une
             // opération déséquilibrée est écartée ici comme elle l'est dans le
             // travail : la déverser porterait le déséquilibre chez Comptaflow.
-            $operations = Operation::withoutGlobalScopes()
+            $requete = Operation::withoutGlobalScopes()
                 ->where('entreprise_id', $entreprise->id)
                 ->where('est_equilibree', true)
                 ->when(
@@ -85,9 +85,19 @@ class SyncEcrituresToComptaflow extends Command
                            ->orWhere('comptaflow_sync_status', '!=', 'synced');
                     }))
                 )
-                ->orderBy('id')
-                ->limit($parLot)
-                ->pluck('id');
+                ->orderBy('id');
+
+            // `--all` est le rejeu du chantier 7.4 : renvoyer ce qui est parti
+            // sous l'ancienne forme — une saisie par ligne chez Comptaflow —
+            // pour qu'il le regroupe. Il parcourt donc **tout** l'historique :
+            // limité au lot, il renvoyait à chaque passage les cinquante mêmes
+            // opérations, et jamais les suivantes.
+            //
+            // C'est sans danger, et vérifié avant d'être permis : Comptaflow
+            // reconnaît chaque ligne à sa `cle_selflow` et n'en ajoute aucune
+            // (`DeversementEcrituresTest`, côté Comptaflow) ; il range au
+            // passage sous un même numéro les lignes reçues une à une.
+            $operations = $toutRejouer ? $requete->pluck('id') : $requete->limit($parLot)->pluck('id');
 
             if ($operations->isEmpty()) {
                 $this->line('     <info>Rien en attente.</info>');
@@ -95,13 +105,12 @@ class SyncEcrituresToComptaflow extends Command
                 continue;
             }
 
-            // `--all` renvoie tout : les lignes repassent en attente pour que
-            // le travail les reprenne. L'idempotence de Comptaflow empêche le
-            // doublon.
             if ($toutRejouer) {
-                EcritureComptable::withoutGlobalScopes()
-                    ->whereIn('operation_id', $operations)
-                    ->update(['comptaflow_sync_status' => 'pending']);
+                foreach ($operations->chunk($parLot) as $paquet) {
+                    EcritureComptable::withoutGlobalScopes()
+                        ->whereIn('operation_id', $paquet)
+                        ->update(['comptaflow_sync_status' => 'pending']);
+                }
             }
 
             foreach ($operations as $operationId) {

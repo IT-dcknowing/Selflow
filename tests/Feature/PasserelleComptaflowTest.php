@@ -403,4 +403,124 @@ class PasserelleComptaflowTest extends TestCase
 
         Queue::assertNotPushed(DeverserOperationComptaflow::class);
     }
+
+    // ── Lot 43 : le contrôle avant envoi, et l'opération entière ─────
+
+    /** Une opération bâtie à la main, close, sans passer par la file. */
+    private function operationBrute(array $lignes): Operation
+    {
+        Queue::fake();
+
+        $operation = Operation::creer(
+            $this->entreprise->id, $this->site->id, '2026-03-10',
+            'test', 'VTE', 'FAC-002', 'Vente de marchandises'
+        );
+
+        foreach ($lignes as $ligne) {
+            EcritureComptable::create($ligne + [
+                'operation_id' => $operation->id, 'entreprise_id' => $this->entreprise->id,
+                'point_de_vente_id' => $this->site->id, 'date_ecriture' => '2026-03-10',
+                'libelle' => 'Vente', 'reference_document' => 'FAC-002', 'code_journal' => 'VTE',
+            ]);
+        }
+
+        $operation->cloturerEquilibre();
+
+        return $operation->fresh();
+    }
+
+    /**
+     * Le cas que `est_equilibree` ne voit pas : la somme tombe, mais une
+     * ligne porte deux comptes. Comptaflow n'en lit qu'un ; l'autre se
+     * serait perdu, et sa balance avec.
+     */
+    public function test_une_ligne_a_deux_comptes_ne_part_pas(): void
+    {
+        $operation = $this->operationBrute([
+            ['compte_debit' => '411000', 'compte_credit' => '701000', 'debit' => 1000, 'credit' => 0],
+            ['compte_credit' => '701000', 'debit' => 0, 'credit' => 1000],
+        ]);
+        $this->assertTrue($operation->est_equilibree);
+
+        (new DeverserOperationComptaflow($operation->id))->handle();
+
+        Http::assertNothingSent();
+        $this->assertSame(
+            [DeverserOperationComptaflow::ANOMALIE],
+            EcritureComptable::where('operation_id', $operation->id)->pluck('comptaflow_sync_status')->unique()->values()->all()
+        );
+    }
+
+    public function test_un_montant_du_mauvais_cote_ne_part_pas(): void
+    {
+        $this->assertSame('ligne 7 : montant du mauvais côté', DeverserOperationComptaflow::anomalie(collect([
+            (new EcritureComptable())->forceFill(['id' => 7, 'compte_debit' => '411000', 'debit' => 0, 'credit' => 500]),
+        ])));
+        $this->assertNull(DeverserOperationComptaflow::anomalie(collect([
+            (new EcritureComptable())->forceFill(['id' => 8, 'compte_debit' => '411000', 'debit' => 500, 'credit' => 0]),
+            (new EcritureComptable())->forceFill(['id' => 9, 'compte_credit' => '701000', 'debit' => 0, 'credit' => 500]),
+        ])));
+    }
+
+    /**
+     * Comptaflow range les lignes d'une opération sous un même numéro de
+     * saisie à condition de les recevoir ensemble. Une ligne déjà reçue
+     * repart donc avec les autres ; il l'ignore par sa clé.
+     */
+    public function test_l_operation_repart_entiere_lignes_deja_recues_comprises(): void
+    {
+        $operation = $this->operationBrute([
+            ['compte_debit' => '411000', 'debit' => 1000, 'credit' => 0, 'comptaflow_sync_status' => 'synced'],
+            ['compte_credit' => '701000', 'debit' => 0, 'credit' => 1000],
+        ]);
+
+        (new DeverserOperationComptaflow($operation->id))->handle();
+
+        $corps = $this->corps();
+        $this->assertCount(2, $corps['ecritures']);
+        $this->assertSame($operation->numero_saisie, $corps['operation']);
+        $this->assertSame(2, EcritureComptable::where('operation_id', $operation->id)->where('comptaflow_sync_status', 'synced')->count());
+    }
+
+    public function test_un_refus_ne_degrade_pas_ce_qui_est_deja_recu(): void
+    {
+        // Le faux de `setUp()` répond succès à tout, et le premier inscrit
+        // l'emporte : il faut une fabrique neuve pour simuler le refus.
+        Http::swap(new \Illuminate\Http\Client\Factory());
+        Http::fake(['*' => Http::response(['success' => false, 'refus' => ['?']], 422)]);
+
+        $operation = $this->operationBrute([
+            ['compte_debit' => '411000', 'debit' => 1000, 'credit' => 0, 'comptaflow_sync_status' => 'synced'],
+            ['compte_credit' => '701000', 'debit' => 0, 'credit' => 1000],
+        ]);
+
+        (new DeverserOperationComptaflow($operation->id))->handle();
+
+        $statuts = EcritureComptable::where('operation_id', $operation->id)->orderBy('id')->pluck('comptaflow_sync_status')->all();
+        $this->assertSame(['synced', 'failed'], $statuts);
+    }
+
+    /**
+     * Le rejeu (chantier 7.4) parcourt tout l'historique. Limité au lot, il
+     * renvoyait à chaque passage les mêmes premières opérations.
+     */
+    public function test_le_rejeu_renvoie_toutes_les_operations_et_non_le_premier_lot(): void
+    {
+        $this->entreprise->forceFill(['comptaflow_company_id' => 42])->save();
+
+        $ids = [];
+        foreach ([1, 2, 3] as $n) {
+            $ids[] = $this->operationBrute([
+                ['compte_debit' => '411000', 'debit' => 100 * $n, 'credit' => 0, 'comptaflow_sync_status' => 'synced'],
+                ['compte_credit' => '701000', 'debit' => 0, 'credit' => 100 * $n, 'comptaflow_sync_status' => 'synced'],
+            ])->id;
+        }
+
+        $this->artisan('selflow:sync-ecritures', ['--all' => true, '--batch' => 1])->assertSuccessful();
+
+        foreach ($ids as $id) {
+            Queue::assertPushed(DeverserOperationComptaflow::class, fn ($job) => $job->operationId === $id);
+        }
+        $this->assertSame(0, EcritureComptable::whereIn('operation_id', $ids)->where('comptaflow_sync_status', 'synced')->count());
+    }
 }

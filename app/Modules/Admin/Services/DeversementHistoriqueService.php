@@ -108,7 +108,7 @@ class DeversementHistoriqueService
     /**
      * Ce qui reste à déverser, pour l'écran.
      *
-     * @return array{operations: int, lignes: int, en_echec: int}
+     * @return array{operations: int, lignes: int, en_echec: int, anomalies: int}
      */
     public static function reste(Entreprise $entreprise): array
     {
@@ -123,6 +123,11 @@ class DeversementHistoriqueService
             'lignes'     => (clone $lignes)->count(),
             'en_echec'   => EcritureComptable::where('entreprise_id', $entreprise->id)
                 ->where('comptaflow_sync_status', 'failed')->count(),
+            // Retenues par le contrôle avant envoi : elles ne partiront pas
+            // seules, il faut les voir.
+            'anomalies'  => EcritureComptable::where('entreprise_id', $entreprise->id)
+                ->where('comptaflow_sync_status', DeverserOperationComptaflow::ANOMALIE)
+                ->distinct('operation_id')->count('operation_id'),
         ];
     }
 }

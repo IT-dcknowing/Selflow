@@ -1477,6 +1477,13 @@
                             <span style="color:#c2410c;">
                                 {{ $resteADeverser['operations'] }} opération(s) ne sont pas encore chez Comptaflow@if($resteADeverser['en_echec'] > 0), dont {{ $resteADeverser['en_echec'] }} en échec@endif.
                             </span>
+                            @if($resteADeverser['anomalies'] > 0)
+                                <br><span style="color:#991b1b;">
+                                    {{ $resteADeverser['anomalies'] }} opération(s) retenue(s) par le contrôle avant envoi :
+                                    une ligne sans compte, à deux comptes, ou un débit qui n'égale pas le crédit.
+                                    Elles ne partiront pas ainsi — le journal d'application en donne le détail.
+                                </span>
+                            @endif
                         @else
                             <span style="color:var(--text-3);">Tout est déversé.</span>
                         @endif
