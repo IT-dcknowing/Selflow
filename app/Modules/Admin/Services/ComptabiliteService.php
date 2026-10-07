@@ -536,6 +536,49 @@ class ComptabiliteService
         });
     }
 
+    /**
+     * L'écriture d'un avoir interne de BAPA (chantier 8.4).
+     *
+     * Le miroir de l'achat, sans TVA — un bordereau n'en collecte aucune :
+     * le fournisseur est débité de ce qu'on lui rend, la charge recréditée
+     * sur le compte d'achat de chaque article, par l'ordre de priorité
+     * unique d'ImputationService.
+     */
+    public static function genererEcritureAvoirBapa(\App\Modules\Admin\Modeles\AvoirBapa $avoir): void
+    {
+        $bapa = $avoir->bapa;
+        $entrepriseId = (int) $avoir->entreprise_id;
+        $pdvId = $avoir->point_de_vente_id;
+        $date = $avoir->date_avoir->toDateString();
+        $refDoc = $avoir->numero;
+        $codeJournal = self::codeJournal($entrepriseId, 'Achat', 'ACH');
+
+        $compteFournisseurGeneral = $bapa->fournisseur?->compte_comptable ?: config('selflow.plan_comptable_defaut.fournisseur_collectif');
+        $compteFournisseurTiers = self::tiersFournisseur($bapa->fournisseur, $entrepriseId);
+        $libelle = 'Avoir interne ' . $refDoc . ' sur BAPA ' . $bapa->numero_facture;
+
+        $parCompte = [];
+        foreach ($avoir->lignes as $ligne) {
+            $compte = ImputationService::compteAchat($ligne->produit, $entrepriseId);
+            $parCompte[$compte] = ($parCompte[$compte] ?? 0) + (float) $ligne->montant;
+        }
+
+        DB::transaction(function () use ($entrepriseId, $pdvId, $date, $refDoc, $codeJournal, $compteFournisseurGeneral,
+            $compteFournisseurTiers, $libelle, $parCompte, $avoir) {
+            $operation = Operation::creer($entrepriseId, $pdvId, $date, 'AvoirAchat', $codeJournal, $refDoc, $libelle);
+
+            self::ligne($operation, $entrepriseId, $pdvId, $date, $refDoc, $codeJournal,
+                $libelle, $compteFournisseurGeneral, null, $compteFournisseurTiers, (float) $avoir->montant_ttc, 0);
+
+            foreach ($parCompte as $compte => $montant) {
+                self::ligne($operation, $entrepriseId, $pdvId, $date, $refDoc, $codeJournal,
+                    $libelle, null, (string) $compte, null, 0, round($montant, 2));
+            }
+
+            $operation->cloturerEquilibre();
+        });
+    }
+
     // ─────────────────────────────────────────────────────────────────
     // HELPERS PUBLICS — libellés pour la trésorerie (appelés par les contrôleurs)
     // ─────────────────────────────────────────────────────────────────
