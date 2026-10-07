@@ -45,17 +45,29 @@ return new class extends Migration
         // Les quantités d'un bon étaient des entiers : la file « Livraisons »
         // du stock, qui crée désormais son bon, livre au gramme près, et
         // 12,5 kg y seraient devenus 12. Même précision que `stocks`.
-        Schema::table('bon_livraison_details', function (Blueprint $table) {
-            $table->decimal('qte_commandee', 15, 3)->change();
-            $table->decimal('qte_livree', 15, 3)->change();
+        //
+        // MySQL reconstruit la table pour changer un type, et revérifie alors
+        // TOUTES ses clés étrangères. Des bases réelles portent des lignes dont
+        // le `produit_id` désigne un produit disparu (rencontré le 07/10/2026 :
+        // erreur 1452 sur `bon_livraison_details_produit_id_foreign`). Ces
+        // lignes sont de l'historique : on ne les touche pas, on suspend la
+        // vérification le temps de changer deux colonnes de quantité qui ne
+        // portent aucune clé.
+        Schema::withoutForeignKeyConstraints(function () {
+            Schema::table('bon_livraison_details', function (Blueprint $table) {
+                $table->decimal('qte_commandee', 15, 3)->change();
+                $table->decimal('qte_livree', 15, 3)->change();
+            });
         });
     }
 
     public function down(): void
     {
-        Schema::table('bon_livraison_details', function (Blueprint $table) {
-            $table->integer('qte_commandee')->change();
-            $table->integer('qte_livree')->change();
+        Schema::withoutForeignKeyConstraints(function () {
+            Schema::table('bon_livraison_details', function (Blueprint $table) {
+                $table->integer('qte_commandee')->change();
+                $table->integer('qte_livree')->change();
+            });
         });
 
         Schema::table('bons_livraison', function (Blueprint $table) {
