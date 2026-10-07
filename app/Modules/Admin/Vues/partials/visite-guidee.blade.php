@@ -157,6 +157,15 @@
     });
     if (!visibles.length) return;
 
+    // Sur téléphone, la barre latérale est hors écran : la visite l'ouvre
+    // pour désigner une entrée du menu, puis la referme — sans quoi la main
+    // montrait un point à gauche de l'écran, là où rien n'est visible.
+    let barreOuverte = false;
+    const telephone = () => window.matchMedia('(max-width: 768px)').matches;
+    function refermerLaBarre() {
+        if (barreOuverte) { document.body.classList.remove('sidebar-open'); barreOuverte = false; }
+    }
+
     function placer() {
         const etape = visibles[rang];
         boite.querySelector('.vg-compteur').textContent = `Étape ${rang + 1} sur ${visibles.length}`;
@@ -167,6 +176,10 @@
         boite.querySelector('.vg-suivant').textContent = rang === visibles.length - 1 ? 'Terminer' : 'Suivant';
 
         const cible = etape.cible ? document.querySelector(etape.cible) : null;
+
+        if (!cible || !cible.closest('.sidebar')) {
+            refermerLaBarre();
+        }
 
         if (!cible) {
             halo.hidden = true;
@@ -188,7 +201,20 @@
             entete.setAttribute('aria-expanded', 'true');
         }
 
-        cible.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        if (cible.closest('.sidebar') && telephone() && !document.body.classList.contains('sidebar-open')) {
+            document.body.classList.add('sidebar-open');
+            barreOuverte = true;
+            // Mesurer pendant le glissement poserait la main où la cible
+            // n'est pas encore.
+            halo.hidden = true;
+            main.hidden = true;
+            setTimeout(placer, 350);
+            return;
+        }
+
+        // Défilement immédiat : la mesure qui suit doit lire la position
+        // d'arrivée, pas celle du départ.
+        cible.scrollIntoView({ block: 'center', behavior: 'auto' });
         const zone = cible.getBoundingClientRect();
 
         halo.hidden = false;
@@ -216,6 +242,7 @@
     }
 
     function fermer() {
+        refermerLaBarre();
         boite.remove();
         fetch(@js(route('admin.visite.terminer')), {
             method: 'POST',

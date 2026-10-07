@@ -430,7 +430,12 @@ Route::prefix('admin')
         // charge de l'exercice, ou ne passaient nulle part. Le bilan ne portait
         // pas trace de l'actif immobilisé, et la charge d'amortissement,
         // déductible, n'était pas prise.
-        Route::prefix('immobilisations')->name('immobilisations.')->middleware('modules:comptabilite')->group(function () {
+        //
+        // Derrière le garde-fou `comptabilite` (lot 55) : comptes
+        // d'immobilisation, dotations et clôture d'exercice sont de la tenue
+        // de livres. L'écran n'avait aucun lien au menu, mais restait une
+        // adresse ouverte à toute entreprise, comptabilité fermée ou non.
+        Route::prefix('immobilisations')->name('immobilisations.')->middleware(['modules:comptabilite', 'comptabilite'])->group(function () {
             Route::get('/', [ImmobilisationControleur::class, 'index'])->name('index');
             Route::get('/creer', [ImmobilisationControleur::class, 'creer'])->name('creer');
             Route::post('/creer', [ImmobilisationControleur::class, 'enregistrer'])->name('enregistrer');

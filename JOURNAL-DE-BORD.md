@@ -7382,6 +7382,43 @@ s'avoire ; un achat ordinaire est renvoyé vers son fournisseur.
 
 ---
 
+### Lot 55 — Ce que la session parallèle avait trouvé — **TERMINÉ le 07/10/2026**
+
+**Deux sessions ont travaillé en même temps sur le même plan**, toutes deux
+parties de `9c2edeb` : celle des lots 41 à 52 (branche
+`claude/exciting-keller-9d5tdz`, meledjeabrahamagnimel-lgtm/Selflow), et une
+seconde qui a refait les sections 3 à 12 de son côté (branche
+`claude/tender-keller-o95s21`, IT-dcknowing/Selflow, lots 41 à 47 de sa
+numérotation, plus un commit chez Comptaflow sur la même branche de
+guysergekouassi/COMPTAFLOW).
+
+**La branche des lots 41 à 52 fait foi** : c'est elle que décrivent le plan
+à 81 chantiers et la passation du 06/10, et elle porte la règle des achats
+DGI, la lenteur mesurée sur MariaDB et les polices servies localement. La
+seconde branche **n'est pas à fusionner** ; ce qu'elle avait trouvé et que la
+première ne couvrait pas est reporté ici, section 19 du plan :
+
+| | Défaut |
+|---|---|
+| 19.1 | `Vente::resteAAvoirer()` et le compteur des quantités créditées passaient par le **filtre de période** : un avoir d'une autre période échappait au plafond |
+| 19.2 | L'API mobile, le B2B et le tiers d'un BAPA créaient des fiches **sans numéro de tiers** ni compte collectif |
+| 19.3 | Les **immobilisations** restaient ouvertes, comptabilité fermée |
+| 19.4 | Une ligne à **deux comptes** partait chez Comptaflow, qui n'en lit qu'un |
+| 19.5 | Prix de consignation et délai de retour **ne se saisissaient nulle part** |
+| 19.6 | La visite guidée ne savait pas ouvrir la **barre d'un téléphone** |
+
+Une proposition de la seconde branche **n'est pas reportée**, faute de
+réponse du propriétaire (10.4 suite) : masquer, compte FNE coché, les champs
+que le portail détient **et** que Selflow porte à l'identique, avec un bouton
+« Reprendre les valeurs du portail » journalisé — l'import du relevé n'écrit
+rien dans `entreprises`, si bien que masquer sans reprendre ferait perdre
+l'information. Elle reste disponible sur l'autre branche.
+
+- `tests/Feature/CorrectifsReportesTest.php` — 6 épreuves, **toutes tombent** sans le correctif
+- `AmortissementTest` ouvre désormais la comptabilité de son entreprise
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

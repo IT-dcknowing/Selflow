@@ -95,6 +95,19 @@ class DeverserOperationComptaflow implements ShouldQueue
             return;
         }
 
+        // Une ligne, un compte, et son montant de ce côté-là. Comptaflow ne
+        // lit qu'un compte par ligne (le premier non vide) : une ligne qui en
+        // porterait deux en perdrait un sans bruit, et l'équilibre recompté
+        // ci-dessus n'y verrait rien.
+        if ($anomalie = self::anomalie($operation->ecritures)) {
+            Log::warning('Opération non déversée : contrôle avant envoi', [
+                'operation_id' => $operation->id,
+                'anomalie'     => $anomalie,
+            ]);
+
+            return;
+        }
+
         $lignes = $operation->ecritures
             ->where('comptaflow_sync_status', '!=', 'synced')
             ->values();
@@ -213,5 +226,29 @@ class DeverserOperationComptaflow implements ShouldQueue
     public static function cleOperation(Entreprise $entreprise, ?Operation $operation): ?string
     {
         return $operation ? 'SELFLOW-' . $entreprise->id . '-OP' . $operation->numero_saisie : null;
+    }
+
+    /**
+     * Ce qui empêche une opération de partir, ou null : chaque ligne porte
+     * un seul compte, et son montant du côté de ce compte.
+     *
+     * @param  \Illuminate\Support\Collection<int, EcritureComptable>  $lignes
+     */
+    public static function anomalie(\Illuminate\Support\Collection $lignes): ?string
+    {
+        foreach ($lignes as $e) {
+            $aDebit  = trim((string) $e->compte_debit) !== '';
+            $aCredit = trim((string) $e->compte_credit) !== '';
+
+            if ($aDebit === $aCredit) {
+                return "ligne {$e->id} : " . ($aDebit ? 'deux comptes' : 'aucun compte');
+            }
+
+            if (($aDebit && (float) $e->credit != 0.0) || ($aCredit && (float) $e->debit != 0.0)) {
+                return "ligne {$e->id} : montant du mauvais côté";
+            }
+        }
+
+        return null;
     }
 }

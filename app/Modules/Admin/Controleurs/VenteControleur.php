@@ -1967,7 +1967,8 @@ class VenteControleur
     {
         $lignesOrigine = $facture->details()->get(['id', 'produit_id', 'libelle_virtuel']);
 
-        $avoirs = Vente::where('parent_id', $facture->id)
+        // Hors du filtre de période : même raison que `Vente::resteAAvoirer()`.
+        $avoirs = Vente::withoutGlobalScopes()->where('parent_id', $facture->id)
             ->where('type_facture', 'avoir')
             ->with('details')
             ->get();

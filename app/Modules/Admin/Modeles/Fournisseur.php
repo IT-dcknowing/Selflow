@@ -14,6 +14,31 @@ class Fournisseur extends Model
     protected $table = 'fournisseurs';
     protected $fillable = ['entreprise_id', 'type_facturation', 'nom', 'telephone', 'email', 'secteur', 'adresse', 'ncc', 'regime_imposition', 'rccm', 'compte_comptable', 'numero_tiers', 'source', 'numero_original'];
 
+    /**
+     * Toute fiche naît avec son compte collectif et son numéro de tiers.
+     *
+     * Seul l'écran les posait. L'API mobile, le parcours B2B et le tiers d'un
+     * BAPA créaient des fiches sans l'un ni l'autre : leurs écritures
+     * partaient sans numéro de tiers et retombaient en vrac sur le collectif
+     * chez Comptaflow. Un numéro déjà fourni (fiche venue de Comptaflow, tiers
+     * divers) n'est jamais remplacé.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (self $tiers) {
+            if (blank($tiers->compte_comptable)) {
+                $tiers->compte_comptable = config('selflow.plan_comptable_defaut.fournisseur_collectif');
+            }
+
+            if (blank($tiers->numero_tiers) && $tiers->entreprise_id
+                && ($entreprise = Entreprise::find($tiers->entreprise_id))) {
+                $tiers->numero_tiers = \App\Modules\Admin\Services\NumerotationTiersService::pourFournisseur(
+                    $entreprise, (string) $tiers->compte_comptable, (string) $tiers->nom
+                );
+            }
+        });
+    }
+
     public function entreprise(): BelongsTo
     {
         return $this->belongsTo(Entreprise::class, 'entreprise_id');

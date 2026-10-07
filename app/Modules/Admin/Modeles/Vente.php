@@ -428,7 +428,12 @@ class Vente extends Model
      */
     public function resteAAvoirer(): float
     {
-        $dejaAvoire = (float) self::where('parent_id', $this->id)
+        // Hors du filtre de période global : un avoir établi le mois dernier
+        // a bien crédité cette facture, quelle que soit la période affichée.
+        // Lu avec le filtre, il échappait au plafond, et la même somme
+        // pouvait être rendue deux fois.
+        $dejaAvoire = (float) self::withoutGlobalScopes()
+            ->where('parent_id', $this->id)
             ->where('type_facture', 'avoir')
             ->sum('montant_ttc');
 
