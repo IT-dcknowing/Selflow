@@ -1366,7 +1366,8 @@
                         Configurez votre metier en cinq minutes
                     </div>
                     <div style="font-size:13px; color:#1D4ED8; line-height:1.55;">
-                        Selflow remplira votre catalogue, votre plan comptable et vos journaux
+                        {{-- Le plan comptable n'est promis qu'à qui tient ses livres. --}}
+                        Selflow remplira votre catalogue{{ $comptabiliteOuverte ? ', votre plan comptable et vos journaux' : '' }}
                         a partir de votre activite. Il vous restera a saisir vos prix &mdash;
                         eux seuls varient selon la zone et la periode, nous ne pouvons pas les deviner.
                     </div>

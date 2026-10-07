@@ -8,7 +8,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+    {{-- Font Awesome, épinglé, comme le reste de l'application. Ces pages
+         chargeaient Tabler Icons en version flottante (« latest ») : une version qui change sous
+         nos pieds, et les boutons de l'inscription montraient un carré vide
+         à la place de leur flèche (image 3 du 02/10/2026). --}}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
         *,
         *::before,
@@ -303,13 +307,13 @@
             <div class="gauche-interieur">
                 <div class="marque">
                     <div class="marque-icone">
-                        <i class="ti ti-cloud" aria-hidden="true"></i>
+                        <i class="fa-solid fa-cloud" aria-hidden="true"></i>
                     </div>
                     <span class="marque-nom">Selflow</span>
                 </div>
 
                 <div class="shield-icon">
-                    <i class="ti ti-shield-lock"></i>
+                    <i class="fa-solid fa-shield-halved"></i>
                 </div>
 
                 <div class="gauche-titre">
@@ -331,13 +335,13 @@
                 <p class="form-sous">Connecté en tant que <strong>{{ auth()->user()->prenom }} {{ auth()->user()->nom }}</strong></p>
 
                 <div class="alerte-obligatoire">
-                    <i class="ti ti-alert-triangle"></i>
+                    <i class="fa-solid fa-triangle-exclamation"></i>
                     <span>Cette étape est <strong>obligatoire</strong>. Votre compte a été créé avec un mot de passe provisoire.</span>
                 </div>
 
                 @if ($errors->any())
                     <div class="alerte-erreur" role="alert">
-                        <i class="ti ti-alert-circle" style="font-size:16px;"></i>
+                        <i class="fa-solid fa-circle-exclamation" style="font-size:16px;"></i>
                         {{ $errors->first() }}
                     </div>
                 @endif
@@ -353,7 +357,7 @@
                                 placeholder="Minimum 8 caractères" autocomplete="new-password"
                                 required autofocus oninput="evaluerForce(this.value)">
                             <span class="toggle-password" onclick="basculerVisibilite('password', this)">
-                                <i class="ti ti-eye"></i>
+                                <i class="fa-solid fa-eye"></i>
                             </span>
                         </div>
                         <div class="force-mdp" id="force-mdp">
@@ -371,13 +375,13 @@
                             <input type="password" id="password_confirmation" name="password_confirmation"
                                 placeholder="Saisir à nouveau" autocomplete="new-password" required>
                             <span class="toggle-password" onclick="basculerVisibilite('password_confirmation', this)">
-                                <i class="ti ti-eye"></i>
+                                <i class="fa-solid fa-eye"></i>
                             </span>
                         </div>
                     </div>
 
                     <button type="submit" class="btn-soumettre" id="btn-soumettre">
-                        <i class="ti ti-lock-check"></i> Enregistrer et accéder à la plateforme
+                        <i class="fa-solid fa-lock"></i> Enregistrer et accéder à la plateforme
                     </button>
                 </form>
 
@@ -402,10 +406,10 @@
             const icone = bouton.querySelector('i');
             if (input.type === 'password') {
                 input.type = 'text';
-                icone.className = 'ti ti-eye-off';
+                icone.className = 'fa-solid fa-eye-slash';
             } else {
                 input.type = 'password';
-                icone.className = 'ti ti-eye';
+                icone.className = 'fa-solid fa-eye';
             }
         }
 

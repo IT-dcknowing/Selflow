@@ -265,7 +265,10 @@
             <h3><i class="fas fa-store"></i> Nouveau point de vente</h3>
             <button class="modal-close" data-modal-close>✕</button>
         </div>
-        <form method="POST" action="{{ route('admin.pdv.creer') }}">
+        {{-- Le bouton se désactive et dit ce qui se passe : l'écran restait
+             figé sans rien dire, et l'on cliquait une seconde fois. --}}
+        <form method="POST" action="{{ route('admin.pdv.creer') }}"
+              onsubmit="const b = this.querySelector('button[type=submit]'); b.disabled = true; b.innerHTML = '<i class=&quot;fas fa-spinner fa-spin&quot;></i> Création du site et de ses fiches de stock…';">
             @csrf
             <div class="form-grid-2">
                 <div class="form-group">

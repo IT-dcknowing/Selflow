@@ -88,23 +88,33 @@ class PointDeVente extends Model
      */
     public function initialiserLesFichesDeStock(): void
     {
+        // Une lecture et quelques insertions groupées, et non un
+        // `firstOrCreate` par article : il en coûtait deux requêtes chacun.
+        // Mesuré le 07/10/2026 sur 1 500 articles : 3 001 requêtes, et sur
+        // l'hébergement mutualisé plusieurs secondes d'écran figé après
+        // « Créer » (image 1, chantier 9.3 du plan). Désormais : 5 requêtes, 37 ms.
         $articles = Produit::where('entreprise_id', $this->entreprise_id)
             ->selectionnables()
-            ->get();
+            ->whereIn('type', Produit::TYPES_STOCKABLES)
+            ->pluck('id');
 
-        foreach ($articles as $article) {
-            if (!$article->estStockable()) {
-                continue;
-            }
+        $dejaLa = Stock::where('point_de_vente_id', $this->id)
+            ->pluck('produit_id')
+            ->flip();
 
-            Stock::firstOrCreate([
-                'produit_id'        => $article->id,
-                'point_de_vente_id' => $this->id,
-            ], [
+        $maintenant = now();
+
+        $articles->reject(fn ($id) => $dejaLa->has($id))
+            ->map(fn ($id) => [
+                'produit_id'          => $id,
+                'point_de_vente_id'   => $this->id,
                 'quantite_disponible' => 0,
                 'stock_minimum'       => 5,
                 'stock_maximum'       => 100,
-            ]);
-        }
+                'created_at'          => $maintenant,
+                'updated_at'          => $maintenant,
+            ])
+            ->chunk(500)
+            ->each(fn ($paquet) => Stock::insert($paquet->values()->all()));
     }
 }

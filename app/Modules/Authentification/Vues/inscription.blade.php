@@ -8,7 +8,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+    {{-- Font Awesome, épinglé, comme le reste de l'application. Ces pages
+         chargeaient Tabler Icons en version flottante (« latest ») : une version qui change sous
+         nos pieds, et les boutons de l'inscription montraient un carré vide
+         à la place de leur flèche (image 3 du 02/10/2026). --}}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', sans-serif; background: #F4F6F9; min-height: 100vh; display: flex; align-items: stretch; }
@@ -143,10 +147,10 @@
     <div class="gauche">
         <div class="gauche-interieur">
             <div class="marque">
-                <div class="marque-icone"><i class="ti ti-cloud"></i></div>
+                <div class="marque-icone"><i class="fa-solid fa-cloud"></i></div>
                 <span class="marque-nom">Selflow</span>
             </div>
-            <div class="badge-promo"><i class="ti ti-star-filled"></i> Inscription gratuite</div>
+            <div class="badge-promo"><i class="fa-solid fa-star"></i> Inscription gratuite</div>
             <div class="slogan-titre">Commencez à piloter votre entreprise dès aujourd'hui</div>
             <div class="slogan-sous">Rejoignez des entreprises ivoiriennes qui gèrent leurs ventes, achats, stocks et factures FNE avec Selflow.</div>
             <div class="etapes">
@@ -164,11 +168,11 @@
             <p class="form-sous">Remplissez ce formulaire pour démarrer gratuitement</p>
 
             @if(session('info'))
-                <div class="alerte-info"><i class="ti ti-info-circle"></i> {{ session('info') }}</div>
+                <div class="alerte-info"><i class="fa-solid fa-circle-info"></i> {{ session('info') }}</div>
             @endif
             @if ($errors->has('inscription_erreur') || $errors->any())
                 <div class="alerte-erreur" role="alert">
-                    <i class="ti ti-alert-circle" style="font-size:16px;flex-shrink:0;"></i>
+                    <i class="fa-solid fa-circle-exclamation" style="font-size:16px;flex-shrink:0;"></i>
                     {{ $errors->first('inscription_erreur') ?: $errors->first() }}
                 </div>
             @endif
@@ -192,7 +196,7 @@
                         <h2>L'entreprise</h2>
                         <p>Son nom. C'est tout ce qu'il faut pour commencer.</p>
                     </div>
-                <div class="section-label"><i class="ti ti-building"></i> Votre entreprise</div>
+                <div class="section-label"><i class="fa-solid fa-building"></i> Votre entreprise</div>
 
                 <div class="champ">
                     <label for="nom_entreprise">Nom de l'entreprise <span class="req">*</span></label>
@@ -217,7 +221,7 @@
                         <p>Qui administrera l'espace, avec quelle adresse et quel mot de passe.</p>
                     </div>
                 {{-- ──── Section IDENTITÉ ──── --}}
-                <div class="section-label" style="margin-top:18px;"><i class="ti ti-user"></i> Votre identité (Gérant / Admin)</div>
+                <div class="section-label" style="margin-top:18px;"><i class="fa-solid fa-user"></i> Votre identité (Gérant / Admin)</div>
 
                 <div class="rangee-2">
                     <div class="champ" style="margin-bottom:0">
@@ -267,7 +271,7 @@
                     </div>
                 </div>
 
-                <div class="section-label" style="margin-top:18px;"><i class="ti ti-lock"></i> Sécurité du compte</div>
+                <div class="section-label" style="margin-top:18px;"><i class="fa-solid fa-lock"></i> Sécurité du compte</div>
 
                 <div class="champ">
                     <label for="password">Mot de passe <span class="req">*</span></label>
@@ -280,7 +284,7 @@
                             class="{{ $errors->has('password') ? 'erreur' : '' }}">
                         <button type="button" id="toggle-password"
                             style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#6B7280;padding:4px;">
-                            <i class="ti ti-eye" id="icone-oeil" style="font-size:18px;"></i>
+                            <i class="fa-solid fa-eye" id="icone-oeil" style="font-size:18px;"></i>
                         </button>
                     </div>
                     <div class="force-mdp" id="force-mdp" style="display:none;">
@@ -295,9 +299,19 @@
                 </div>
                 <div class="champ">
                     <label for="password_confirmation">Confirmer le mot de passe <span class="req">*</span></label>
-                    <input type="password" id="password_confirmation" name="password_confirmation"
-                        placeholder="Répétez le mot de passe"
-                        autocomplete="new-password" required>
+                    {{-- Un œil ici aussi, lié au premier : on compare deux
+                         saisies, et l'on ne peut pas les comparer si une
+                         seule est lisible. --}}
+                    <div style="position:relative;">
+                        <input type="password" id="password_confirmation" name="password_confirmation"
+                            placeholder="Répétez le mot de passe"
+                            autocomplete="new-password" required
+                            style="padding-right:44px;">
+                        <button type="button" id="toggle-password-confirmation" aria-label="Afficher les mots de passe"
+                            style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#6B7280;padding:4px;">
+                            <i class="fa-solid fa-eye" id="icone-oeil-confirmation" style="font-size:18px;"></i>
+                        </button>
+                    </div>
                 </div>
 
                 {{-- Conditions --}}
@@ -344,20 +358,20 @@
 
                 <div class="navigation">
                     <button type="button" class="btn-secondaire" id="btn-precedent" hidden>
-                        <i class="ti ti-arrow-left"></i> Retour
+                        <i class="fa-solid fa-arrow-left"></i> Retour
                     </button>
 
                     <button type="button" class="btn-inscription" id="btn-suivant">
-                        Suivant <i class="ti ti-arrow-right"></i>
+                        Suivant <i class="fa-solid fa-arrow-right"></i>
                     </button>
 
                     <button type="submit" class="btn-inscription" id="btn-soumettre" hidden>
-                        <i class="ti ti-check"></i> Créer mon compte
+                        <i class="fa-solid fa-check"></i> Créer mon compte
                     </button>
 
                     <button type="submit" class="btn-passer" id="btn-passer" hidden
                             title="Les étapes restantes se complètent depuis vos paramètres">
-                        <i class="ti ti-player-skip-forward"></i>
+                        <i class="fa-solid fa-forward"></i>
                         Terminer sans remplir la suite
                     </button>
                     <p id="note-passer" hidden
@@ -512,12 +526,20 @@
 // demandé.
 
 // ── Afficher/masquer mot de passe ──
-document.getElementById('toggle-password').addEventListener('click', function() {
-    const inp  = document.getElementById('password');
-    const icon = document.getElementById('icone-oeil');
-    if (inp.type === 'password') { inp.type = 'text'; icon.className = 'ti ti-eye-off'; }
-    else { inp.type = 'password'; icon.className = 'ti ti-eye'; }
-});
+//
+// Les deux yeux basculent ensemble : on compare deux saisies, et l'on ne peut
+// pas les comparer si une seule est lisible.
+function basculerLesMotsDePasse() {
+    const montrer = document.getElementById('password').type === 'password';
+    ['password', 'password_confirmation'].forEach(function (id) {
+        document.getElementById(id).type = montrer ? 'text' : 'password';
+    });
+    ['icone-oeil', 'icone-oeil-confirmation'].forEach(function (id) {
+        document.getElementById(id).className = montrer ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+    });
+}
+document.getElementById('toggle-password').addEventListener('click', basculerLesMotsDePasse);
+document.getElementById('toggle-password-confirmation').addEventListener('click', basculerLesMotsDePasse);
 
 // ── Force du mot de passe ──
 function evaluerForce(val) {
@@ -542,7 +564,7 @@ function evaluerForce(val) {
 document.getElementById('form-inscription').addEventListener('submit', function() {
     const btn = document.getElementById('btn-soumettre');
     btn.disabled = true;
-    btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin 1s linear infinite;"></i> Création en cours…';
+    btn.innerHTML = '<i class="fa-solid fa-spinner" style="animation:spin 1s linear infinite;"></i> Création en cours…';
 });
 </script>
 </body>

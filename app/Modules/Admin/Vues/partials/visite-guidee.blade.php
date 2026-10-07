@@ -14,6 +14,8 @@
     $utilisateur = auth()->user();
     $entreprise  = $utilisateur?->entreprise;
     $aConfigurer = $entreprise && !$entreprise->souscription_terminee_le;
+    // La visite ne promet pas des livres que l'entreprise ne tient pas.
+    $livres      = (bool) $entreprise?->comptabiliteOuverte();
 
     $etapes = array_values(array_filter([
         [
@@ -25,8 +27,11 @@
         $aConfigurer ? [
             'cible'  => '[data-visite-banniere]',
             'titre'  => 'Commencez par configurer votre métier',
-            'texte'  => 'En cinq étapes, Selflow remplit votre catalogue, votre plan comptable et '
-                      . 'vos journaux à partir de votre activité. Sans cela, vous partez d\'une page blanche.',
+            'texte'  => $livres
+                ? 'En cinq étapes, Selflow remplit votre catalogue, votre plan comptable et '
+                  . 'vos journaux à partir de votre activité. Sans cela, vous partez d\'une page blanche.'
+                : 'En cinq étapes, Selflow remplit votre catalogue à partir de votre activité. '
+                  . 'Sans cela, vous partez d\'une page blanche.',
         ] : null,
         [
             'cible'  => '[data-visite="catalogue"]',
@@ -38,7 +43,8 @@
             'cible'  => '[data-visite="nouvelle-vente"]',
             'titre'  => 'Vendre',
             'texte'  => 'Le point de départ de toute facture. Devis, bon de commande ou facture : '
-                      . 'la pièce se choisit à la saisie, et la comptabilité suit toute seule.',
+                      . ($livres ? 'la pièce se choisit à la saisie, et la comptabilité suit toute seule.'
+                                 : 'la pièce se choisit à la saisie.'),
         ],
         [
             'cible'  => '[data-visite="clients"]',
@@ -147,8 +153,58 @@
     const barre = boite.querySelector('.vg-barre');
     let rang = 0;
 
-    /** Étapes dont la cible existe réellement : un module fermé n'a pas de menu. */
-    const visibles = etapes.filter(e => !e.cible || document.querySelector(e.cible));
+    // ── Ce que la visite peut réellement montrer (chantier 9.4) ──
+    //
+    // Elle ne vérifiait que l'existence de la cible. Depuis que les sections
+    // du menu se replient (lot 37), une cible peut exister et rester
+    // invisible : la main désignait un coin vide, « l'étape 3 sur 7 parlait
+    // du catalogue alors que la section n'était pas à l'écran ». Une cible
+    // dans une section repliée est atteignable — la visite l'ouvre, puis la
+    // referme ; une cible masquée autrement (habilitation, module, écran) ne
+    // l'est pas, et l'étape est sautée.
+    const telephone = () => window.matchMedia('(max-width: 768px)').matches;
+    const enteteDe = cible => cible.closest('.nav-groupe')?.previousElementSibling ?? null;
+    const repliee = cible => enteteDe(cible)?.getAttribute('aria-expanded') === 'false';
+
+    function atteignable(etape) {
+        if (!etape.cible) return true;
+        const cible = document.querySelector(etape.cible);
+        return !!cible && (repliee(cible) || cible.getClientRects().length > 0);
+    }
+
+    let ouvertes = [];
+    let barreOuverte = false;
+
+    /** Ouvre ce qui cache la cible ; dit s'il a fallu attendre une animation. */
+    function reveler(cible) {
+        const entete = enteteDe(cible);
+        if (entete && entete.getAttribute('aria-expanded') === 'false') {
+            entete.setAttribute('aria-expanded', 'true');
+            ouvertes.push(entete);
+        }
+        if (cible.closest('.sidebar') && telephone() && !document.body.classList.contains('sidebar-open')) {
+            document.body.classList.add('sidebar-open');
+            barreOuverte = true;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Remet le menu comme l'utilisateur l'avait laissé. La barre d'un
+     * téléphone reste ouverte si l'étape suivante y désigne encore quelque
+     * chose : la refermer pour la rouvrir aussitôt ferait clignoter l'écran.
+     */
+    function ranger(garderLaBarre = false) {
+        ouvertes.forEach(e => e.setAttribute('aria-expanded', 'false'));
+        ouvertes = [];
+        if (barreOuverte && !garderLaBarre) {
+            document.body.classList.remove('sidebar-open');
+            barreOuverte = false;
+        }
+    }
+
+    const visibles = etapes.filter(atteignable);
     if (!visibles.length) return;
 
     function placer() {
@@ -161,6 +217,7 @@
         boite.querySelector('.vg-suivant').textContent = rang === visibles.length - 1 ? 'Terminer' : 'Suivant';
 
         const cible = etape.cible ? document.querySelector(etape.cible) : null;
+        ranger(!!cible?.closest('.sidebar'));
 
         if (!cible) {
             halo.hidden = true;
@@ -171,7 +228,22 @@
             return;
         }
 
-        cible.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        // La barre d'un téléphone glisse en place : mesurer pendant le
+        // glissement poserait la main là où la cible n'est pas encore.
+        if (reveler(cible)) {
+            halo.hidden = true;
+            main.hidden = true;
+            setTimeout(() => entourer(cible), 350);
+            return;
+        }
+
+        entourer(cible);
+    }
+
+    function entourer(cible) {
+        // Défilement immédiat, et non animé : la mesure qui suit doit lire
+        // la position d'arrivée, pas celle du départ.
+        cible.scrollIntoView({ block: 'center', behavior: 'auto' });
         const zone = cible.getBoundingClientRect();
 
         halo.hidden = false;
@@ -199,6 +271,7 @@
     }
 
     function fermer() {
+        ranger();
         boite.remove();
         fetch(@js(route('admin.visite.terminer')), {
             method: 'POST',

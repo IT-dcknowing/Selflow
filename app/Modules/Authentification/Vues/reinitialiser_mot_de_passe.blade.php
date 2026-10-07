@@ -8,7 +8,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+    {{-- Font Awesome, épinglé, comme le reste de l'application. Ces pages
+         chargeaient Tabler Icons en version flottante (« latest ») : une version qui change sous
+         nos pieds, et les boutons de l'inscription montraient un carré vide
+         à la place de leur flèche (image 3 du 02/10/2026). --}}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
         *,
         *::before,
@@ -217,7 +221,7 @@
             <div class="gauche-interieur">
                 <div class="marque">
                     <div class="marque-icone">
-                        <i class="ti ti-cloud" aria-hidden="true"></i>
+                        <i class="fa-solid fa-cloud" aria-hidden="true"></i>
                     </div>
                     <span class="marque-nom">Selflow</span>
                 </div>
@@ -241,7 +245,7 @@
 
                 @if ($errors->any())
                     <div class="alerte-erreur" role="alert">
-                        <i class="ti ti-alert-circle" style="font-size:16px;"></i>
+                        <i class="fa-solid fa-circle-exclamation" style="font-size:16px;"></i>
                         {{ $errors->first() }}
                     </div>
                 @endif
@@ -267,7 +271,7 @@
                     </div>
 
                     <button type="submit" class="btn-soumettre">
-                        <i class="ti ti-lock-check"></i> Enregistrer le mot de passe
+                        <i class="fa-solid fa-lock"></i> Enregistrer le mot de passe
                     </button>
                 </form>
 

@@ -7334,6 +7334,63 @@ transpose tel quel.
 
 ---
 
+### Lot 45 — Les écrans d'entrée — **TERMINÉ le 07/10/2026**
+
+Section 9 du plan.
+
+#### 45.1 — Les icônes de l'inscription (9.1)
+
+Les six pages publiques (connexion, inscription, contact, mot de passe
+oublié, réinitialisation, changement) chargeaient **Tabler Icons en version
+flottante** (`@latest` sur jsDelivr). Une version qui change sous nos pieds :
+les boutons « Retour », « Suivant », « Terminer sans remplir la suite »
+montraient un carré vide. Elles chargent désormais **Font Awesome 6.5.0,
+épinglé, servi par cdnjs** — celui du reste de l'application, qui s'affiche.
+Les 50 icônes ont été transposées une à une, y compris celles que le script
+pose (`className` de l'œil, sablier du bouton d'envoi).
+
+*Non vérifié en réel :* le CDN n'est pas joignable depuis la session. La
+cause exacte du carré (glyphe renommé ou police non servie) reste donc
+présumée ; le remède ne dépend pas d'elle.
+
+#### 45.2 — Deux yeux, liés (9.2)
+
+« Confirmer le mot de passe » porte son œil, et **les deux basculent
+ensemble** : on compare deux saisies, on ne peut pas les comparer si une seule
+est lisible.
+
+#### 45.3 — La création d'un point de vente (9.3) — mesuré d'abord
+
+| | Avant | Après |
+|---|---|---|
+| 1 500 articles | **3 001 requêtes**, 606 ms (SQLite en mémoire) | **5 requêtes**, 37 ms |
+
+La cause : `initialiserLesFichesDeStock()` faisait un `firstOrCreate` — une
+lecture et une écriture — **par article**. Sur l'hébergement mutualisé, des
+secondes d'écran figé. Désormais : une lecture des articles stockables, une des
+fiches déjà là, puis des insertions par paquets de 500. Pas besoin de file
+d'attente : ce qui coûtait n'était pas le travail, mais sa découpe. Le bouton
+« Créer » se désactive et annonce « Création du site et de ses fiches de
+stock… ».
+
+#### 45.4 — La visite guidée (9.4)
+
+Elle ne vérifiait que l'**existence** de la cible. Depuis le lot 37, les
+sections du menu se replient : la cible existe, invisible, et la main
+désignait un coin vide. Désormais :
+
+- une cible dans une **section repliée** est atteignable : la visite l'ouvre,
+  puis la **referme** en passant à l'étape suivante ;
+- sur **téléphone**, la barre latérale est hors écran : la visite l'ouvre,
+  attend la fin du glissement avant de mesurer, et la referme à la fin ;
+- une cible masquée autrement (habilitation, module) fait sauter l'étape ;
+- comptabilité fermée, ni la visite ni la bannière de configuration ne
+  promettent plus « votre plan comptable et vos journaux ».
+
+- `tests/Feature/EcransDEntreeTest.php` — 7 épreuves, **6 tombent** sans le correctif
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
