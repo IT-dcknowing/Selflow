@@ -317,6 +317,10 @@ class Habilitations
         'admin.comptabilite.plan_comptable'         => 'comptabilite_plan_comptable',
         'admin.comptabilite.creer_compte_comptable' => 'comptabilite_plan_comptable',
         'admin.comptabilite.poser_plan_defaut'      => 'comptabilite_plan_comptable',
+        // La configuration globale choisit les comptes de tout le catalogue :
+        // même main que le plan comptable dont elle tire ses comptes.
+        'admin.comptabilite.configuration'             => 'comptabilite_plan_comptable',
+        'admin.comptabilite.configuration.enregistrer' => 'comptabilite_plan_comptable',
         // La balance et le grand livre montrent le résultat de l'entreprise
         // entière : ils relèvent de la comptabilité globale, non d'un écran de
         // caisse.

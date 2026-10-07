@@ -85,7 +85,8 @@ class ImputationTest extends TestCase
     public function test_le_compte_de_l_article_prime_sur_celui_du_rayon(): void
     {
         // C'est l'exception que l'utilisateur assume : il l'a saisie expres.
-        $article = $this->article(['compte_vente' => '701700']);
+        // Depuis le lot 42, c'est la case qui en fait une exception.
+        $article = $this->article(['compte_vente' => '701700', 'comptes_personnalises' => true]);
 
         $this->assertSame('701700', ImputationService::compteVente($article));
         $this->assertSame('601200', ImputationService::compteAchat($article), 'Les autres comptes suivent le rayon.');
@@ -95,7 +96,7 @@ class ImputationTest extends TestCase
     {
         // Un import maladroit remplit une colonne d'espaces : la traiter comme
         // un compte imputerait la vente sur un numero vide.
-        $article = $this->article(['compte_vente' => '   ']);
+        $article = $this->article(['compte_vente' => '   ', 'comptes_personnalises' => true]);
 
         $this->assertSame('701200', ImputationService::compteVente($article));
     }
@@ -173,5 +174,85 @@ class ImputationTest extends TestCase
     public function test_un_article_complet_ne_manque_de_rien(): void
     {
         $this->assertSame([], ImputationService::manqueUnCompte($this->article()));
+    }
+
+    // ── Lot 42 : la configuration globale, et la case ────────────────
+
+    private function configurer(string $cle, ?string $vente, ?string $achat): void
+    {
+        \App\Modules\Admin\Modeles\ImputationGlobale::updateOrCreate(
+            ['entreprise_id' => $this->entreprise->id, 'cle' => $cle],
+            ['compte_vente' => $vente, 'compte_achat' => $achat]
+        );
+    }
+
+    /**
+     * L'ancien formulaire exigeait un compte sur chaque fiche : la colonne
+     * est remplie partout, la plupart du temps de 701000 faute de mieux. La
+     * lire comme un choix figeait l'article hors de toute configuration.
+     */
+    public function test_une_colonne_sans_la_case_n_est_pas_lue(): void
+    {
+        $article = $this->article(['compte_vente' => '701000']);
+
+        $this->assertSame('701200', ImputationService::compteVente($article));
+    }
+
+    public function test_la_configuration_par_type_prime_sur_la_categorie(): void
+    {
+        $this->configurer('type:marchandise', '701500', null);
+
+        $article = $this->article();
+
+        $this->assertSame('701500', ImputationService::compteVente($article));
+        $this->assertSame('601200', ImputationService::compteAchat($article), 'Un champ vide du type laisse parler la catégorie.');
+    }
+
+    public function test_la_configuration_generale_vient_apres_la_categorie(): void
+    {
+        $this->configurer('general', '706000', '604000');
+
+        $this->assertSame('701200', ImputationService::compteVente($this->article()));
+        $this->assertSame('706000', ImputationService::compteVente($this->article(['categorie_id' => null])));
+        $this->assertSame('604000', ImputationService::compteAchat($this->article(['categorie_id' => null])));
+    }
+
+    public function test_l_exception_prime_sur_toute_la_configuration(): void
+    {
+        $this->configurer('general', '706000', '604000');
+        $this->configurer('type:marchandise', '701500', '601500');
+
+        $article = $this->article(['compte_vente' => '701700', 'compte_achat' => '601700', 'comptes_personnalises' => true]);
+
+        $this->assertSame('701700', ImputationService::compteVente($article));
+        $this->assertSame(['compte_vente' => '701500', 'compte_achat' => '601500'], ImputationService::heritage($article),
+            'La fiche montre ce dont l\'article hériterait sans sa case.');
+    }
+
+    public function test_modifier_la_configuration_se_voit_aussitot(): void
+    {
+        $article = $this->article(['categorie_id' => null]);
+        $this->assertSame('701000', ImputationService::compteVente($article));
+
+        $this->configurer('general', '706000', null);
+
+        $this->assertSame('706000', ImputationService::compteVente($article));
+    }
+
+    public function test_le_stock_ne_passe_pas_par_la_configuration_globale(): void
+    {
+        $this->configurer('general', '706000', '604000');
+
+        $this->assertNull(ImputationService::compteStock($this->article(['categorie_id' => null])));
+    }
+
+    public function test_les_tiers_portent_leur_collectif(): void
+    {
+        $client = \App\Modules\Admin\Modeles\Client::create(['entreprise_id' => $this->entreprise->id, 'nom' => 'Koné']);
+        $client->compte_comptable = '';
+
+        $this->assertSame('411000', ImputationService::compteClient($client), 'Une chaîne vide n\'est pas un compte.');
+        $this->assertSame('411000', ImputationService::compteClient(null));
+        $this->assertSame('401000', ImputationService::compteFournisseur(null));
     }
 }

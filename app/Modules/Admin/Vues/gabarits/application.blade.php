@@ -936,6 +936,9 @@
             <a href="{{ route('admin.comptabilite.plan_comptable') }}" class="nav-item {{ request()->routeIs('admin.comptabilite.plan_comptable') ? 'active' : '' }}">
                 <i class="fas fa-book-open"></i> Plan Comptable
             </a>
+            <a href="{{ route('admin.comptabilite.configuration') }}" class="nav-item {{ request()->routeIs('admin.comptabilite.configuration') ? 'active' : '' }}">
+                <i class="fas fa-sliders"></i> Configuration comptable
+            </a>
             @endif
             @if(auth()->user()->aHabilitation('comptabilite_globale'))
             <a href="{{ route('admin.comptabilite.balance') }}" class="nav-item {{ request()->routeIs('admin.comptabilite.balance') ? 'active' : '' }}">

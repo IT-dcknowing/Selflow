@@ -7107,6 +7107,100 @@ que le chantier 3.5 retire. Elle devient
 
 ---
 
+### Lot 42 — Les comptes se saisissent une fois, et non par produit — **TERMINÉ le 07/10/2026**
+
+Sections 3.3, 3.6, 5 et 6 du plan, traitées ensemble : elles changent toutes
+la même fiche produit, et la changer deux fois aurait fait deux migrations
+d'habitudes pour l'utilisateur.
+
+#### 42.1 — L'ordre de priorité, écrit une fois (5.2)
+
+`ImputationService` était déjà la seule porte des comptes d'article. Il
+devient celle des tiers aussi, et sa chaîne s'allonge :
+
+| Rang | Source |
+|---|---|
+| 1 | Les comptes de l'article — **seulement si sa case est cochée** |
+| 2 | Configuration globale par **type** d'article |
+| 3 | Configuration par **catégorie** (`categories.compte_*`, où le préparamétrage pose la famille) |
+| 4 | Configuration **générale** |
+| 5 | 701000 / 601000 |
+
+**Écart assumé avec la lettre du plan :** le plan rangeait la configuration
+globale entière avant la famille. Mais la configuration par catégorie *est*
+le compte de la famille (même colonne), et le 6.2 dit « le plus précis
+l'emporte : type, catégorie, général ». Une configuration générale passée
+devant les catégories aurait écrasé tout le préparamétrage d'un geste.
+
+**La case compte, pas la colonne.** L'ancien formulaire exigeait un compte sur
+chaque fiche : la colonne est remplie partout, le plus souvent de 701000 faute
+de mieux. La lire comme un choix figeait l'article hors de toute
+configuration. Le stock et la variation ne passent pas par la configuration
+globale — « un compte de stock de tous les produits » rendrait le bilan faux.
+
+**Les tiers** : `compteClient()` / `compteFournisseur()` remplacent dix
+lectures dispersées dans `ComptabiliteService`, `ConsignationService` et
+`DeversementReferentielService`. Celles de `ComptabiliteService` utilisaient
+`??` : une chaîne vide passait pour un compte.
+
+La configuration se lit une fois par requête, gardée dans le conteneur en
+`scoped` — pas dans une propriété statique, qui survivrait d'un travail de
+file à l'autre et servirait la configuration d'hier.
+
+#### 42.2 — La page « Configuration comptable » (6.1 à 6.3)
+
+Derrière le garde-fou `comptabilite` (404 quand c'est fermé), habilitation
+`comptabilite_plan_comptable`. Deux sections, Ventes et Achats, trois boutons
+chacune : générale, par catégorie, par type. Une section « Stock et
+variations » montre les comptes de stock et de variation de chaque catégorie
+et accepte une correction. Chaque compte posté est relu : il doit exister au
+plan **et** appartenir à la bonne classe (7, 6, 3, 603/73). Une catégorie
+d'une autre entreprise postée à la main n'est pas lue.
+
+#### 42.3 — La fiche produit (3.3 et 6.4)
+
+| | Fermée | Ouverte |
+|---|---|---|
+| Écran | Rien | « Hérite de la configuration globale — vente X, achat Y » + case |
+| Création | Héritage, rien n'est accepté | Héritage ; case cochée = exception, comptes relus au plan et à la classe |
+| Modification | **Rien n'est touché** | Case décochée = les deux comptes sont **vidés** |
+
+Le contrôle des comptes est fait **avant** toute écriture : il venait après la
+création d'une nouvelle catégorie, qu'un refus aurait laissée orpheline.
+
+Les menus `syscohadaKws` et le bloc « Personnaliser les comptes (Profil
+Comptable) » réservé aux admins disparaissent ; la fiche détaillée affiche
+les comptes **qui s'appliquent**, et non la colonne brute.
+
+#### 42.4 — La reprise de l'existant (6.5)
+
+La migration coche la case des articles dont un compte diffère **du défaut et
+du compte de sa catégorie**. Le défaut se lit au pluriel : 701100 / 601100
+étaient les valeurs par défaut de la colonne jusqu'au 08/08/2026 — un article
+de cette époque les porte sans que personne les ait choisies. **Rien n'est
+effacé** : la case seule décide si la colonne est lue.
+
+#### 42.5 — Aucun élément comptable ne subsiste (3.6)
+
+Une épreuve parcourt clients, fournisseurs, catalogue et fiche produit, et y
+cherche douze marques comptables. **TROUVÉ en chemin :** les immobilisations
+(comptes, dotations, clôture d'exercice) n'avaient aucun lien au menu mais
+restaient une adresse ouverte à toute entreprise. Elles passent derrière le
+garde-fou. `AmortissementTest` ouvre désormais la comptabilité de son
+entreprise.
+
+#### 42.6 — Les écritures tournent quand même (5.1)
+
+Rien n'a changé dans leur production. La preuve est déjà dans la suite :
+`EcrituresVenteTest`, `EcrituresAchatTest`, `BalanceTest` et les autres
+tournent sur des entreprises **à comptabilité fermée** — c'est le défaut
+depuis le lot 39 — et produisent leurs écritures.
+
+- `tests/Feature/ConfigurationComptableTest.php` — 17 épreuves, **16 tombent** sans le correctif
+- `tests/Feature/ImputationTest.php` — 7 épreuves ajoutées ; celle de l'exception exige désormais la case
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

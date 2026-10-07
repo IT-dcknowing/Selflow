@@ -162,9 +162,14 @@
                     ['label'=>'Date d\'arrivée', 'valeur'=>$produit->date_arrivee?->format('d/m/Y') ?? '—'],
                     ['label'=>'Date péremption', 'valeur'=>$produit->date_peremption?->format('d/m/Y') ?? '—',
                      'alert'=>$produit->estPerime() ? 'danger' : ($produit->bientotPerime() ? 'warning' : null)],
-                    ['label'=>'Compte vente',  'valeur'=>$produit->compte_vente ?? '—'],
-                    ['label'=>'Compte achat',  'valeur'=>$produit->compte_achat ?? '—'],
                 ];
+                // Les comptes ne se montrent qu'à qui tient ses livres, et ce
+                // sont ceux qui s'appliquent — la colonne brute disait 701000
+                // d'un article qui s'imputait ailleurs.
+                if ($comptabiliteOuverte) {
+                    $champs[] = ['label'=>'Compte vente', 'valeur'=>\App\Modules\Admin\Services\ImputationService::compteVente($produit)];
+                    $champs[] = ['label'=>'Compte achat', 'valeur'=>\App\Modules\Admin\Services\ImputationService::compteAchat($produit)];
+                }
             @endphp
             @foreach($champs as $c)
                 <div>
@@ -363,14 +368,10 @@
                         Trente jours conviennent à l'alimentaire ; un médicament se retire des rayons bien plus tôt.
                     </small>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Compte vente</label>
-                    <input type="text" name="compte_vente" class="form-control" value="{{ $produit->compte_vente }}" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Compte achat</label>
-                    <input type="text" name="compte_achat" class="form-control" value="{{ $produit->compte_achat }}" required>
-                </div>
+                @include('admin::composants.imputation_produit', [
+                    'cle' => 'fiche', 'produit' => $produit, 'comptes' => $comptes,
+                    'comptabiliteOuverte' => $comptabiliteOuverte,
+                ])
                 {{-- La quantite ne se corrige plus ici : elle est la consequence
                      des mouvements, pas un champ qu'on retape. Une correction se
                      fait par l'inventaire, qui ecrit l'ecart, le date et le

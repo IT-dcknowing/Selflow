@@ -20,7 +20,7 @@ class ProduitControleur
         $entreprise = Auth::user()->entreprise;
         $produits   = Produit::where('entreprise_id', $entreprise->id)
             ->actifs()
-            ->with(['category', 'sousCategorieRelation', 'stocks', 'taxes'])
+            ->with(['category', 'categorieRelation', 'sousCategorieRelation', 'stocks', 'taxes'])
             ->orderBy('nom')
             ->paginate(24);
 
@@ -40,15 +40,9 @@ class ProduitControleur
             ->orderBy('nom')
             ->get();
 
-        $syscohadaKws = \App\Modules\Admin\Modeles\CategorieSyscohada::where(function($q) use ($entreprise) {
-                $q->whereNull('entreprise_id')->orWhere('entreprise_id', $entreprise->id);
-            })
-            ->orderBy('libelle_affiche')
-            ->get();
-
         return view('admin::produits.index', compact(
-            'produits', 'produits_archives', 'comptes', 'categories', 'syscohadaKws'
-        ));
+            'produits', 'produits_archives', 'comptes', 'categories'
+        ) + ['comptabiliteOuverte' => $entreprise->comptabiliteOuverte()]);
     }
 
     public function creer(Request $request): RedirectResponse
@@ -66,8 +60,6 @@ class ProduitControleur
             'prix_achat'    => [$request->input('type') === 'service' ? 'nullable' : 'required', 'numeric', 'min:0'],
             'prix_vente'    => ['required', 'numeric', 'min:0'],
             'taux_tva'      => ['required', 'numeric', 'min:0'],
-            'compte_vente'  => ['required', 'string', 'max:20'],
-            'compte_achat'  => ['required', 'string', 'max:20'],
             'stock_actuel'  => [in_array($request->input('type'), ['service', 'consommable_non_stockable']) ? 'nullable' : 'required', 'integer', 'min:0'],
             'stock_minimum' => [in_array($request->input('type'), ['service', 'consommable_non_stockable']) ? 'nullable' : 'required', 'integer', 'min:0'],
             'unite'         => ['nullable', 'string', 'max:20'],
@@ -84,6 +76,10 @@ class ProduitControleur
             'taxes_produit.*.nom.required_with' => 'Chaque taxe doit avoir un nom.',
             'remise_taux.max' => 'La remise ne peut pas dépasser 100 %.',
         ]);
+
+        // Avant toute écriture : un compte refusé ne doit pas laisser derrière
+        // lui une catégorie créée pour rien.
+        $comptes = $this->comptesDuProduit($request, $entreprise, null);
 
         $reference = null;
         if ($request->input('reference_auto') === '0' || $request->input('reference_auto') === 0 || $request->input('reference_auto') === 'false') {
@@ -137,7 +133,7 @@ class ProduitControleur
             $sousCategorieId = null;
         }
 
-        $produit = Produit::create([
+        $produit = Produit::create($comptes + [
             'entreprise_id'     => $entreprise->id,
             'reference'         => $reference,
             'nom'               => $request->nom,
@@ -147,8 +143,6 @@ class ProduitControleur
             'prix_achat'        => $request->input('type') === 'service' ? 0 : $request->prix_achat,
             'prix_vente'        => $request->prix_vente,
             'taux_tva'          => $request->taux_tva,
-            'compte_vente'      => $request->compte_vente,
-            'compte_achat'      => $request->compte_achat,
             'unite'             => $request->unite,
             'remise_taux'       => floatval($request->input('remise_taux', 0)),
             'code_tva_manuel'   => $request->boolean('code_tva_manuel'),
@@ -369,8 +363,6 @@ class ProduitControleur
             'prix_achat'    => [$isService ? 'nullable' : 'required', 'numeric', 'min:0'],
             'prix_vente'    => ['required', 'numeric', 'min:0'],
             'taux_tva'      => ['required', 'numeric', 'min:0'],
-            'compte_vente'  => ['required', 'string', 'max:20'],
-            'compte_achat'  => ['required', 'string', 'max:20'],
             // La quantite n'est plus modifiable depuis le catalogue : le champ
             // est en lecture seule et rien ne l'envoie. La regle reste
             // permissive pour ne pas refuser une requete qui le porterait
@@ -399,6 +391,8 @@ class ProduitControleur
             'remise_taux.max' => 'La remise ne peut pas dépasser 100 %.',
             'preavis_peremption.max' => 'Un préavis de péremption se compte en jours, dix ans au plus.',
         ]);
+
+        $comptes = $this->comptesDuProduit($request, $entreprise, $produit);
 
         $categorieId = $request->input('categorie_id');
         if ($categorieId === 'nouvelle' && $request->filled('nouvelle_categorie')) {
@@ -443,7 +437,7 @@ class ProduitControleur
         // La spécification demande "génération automatique et unique basée sur la catégorie" à la création.
         // Restons fidèles à la création pour garder la cohérence historique.
 
-        $produit->update([
+        $produit->update($comptes + [
             'nom'               => $request->nom,
             'type'              => $request->type,
             'categorie_id'      => $categorieId ?: null,
@@ -451,8 +445,6 @@ class ProduitControleur
             'prix_achat'        => $isService ? 0 : $request->prix_achat,
             'prix_vente'        => $request->prix_vente,
             'taux_tva'          => $request->taux_tva,
-            'compte_vente'      => $request->compte_vente,
-            'compte_achat'      => $request->compte_achat,
             'unite'             => $request->unite,
             'remise_taux'       => floatval($request->input('remise_taux', 0)),
             'code_tva_manuel'   => $request->boolean('code_tva_manuel'),
@@ -515,7 +507,13 @@ class ProduitControleur
 
         $produit->load(['category', 'sousCategorieRelation', 'stocks.pointDeVente', 'detailsLibres']);
 
-        return view('admin::produits.fiche', compact('produit'));
+        $entreprise = Auth::user()->entreprise;
+        $comptes = \App\Modules\Admin\Modeles\PlanComptable::where(fn ($q) => $q->whereNull('entreprise_id')->orWhere('entreprise_id', $entreprise->id))
+            ->orderBy('numero')
+            ->get();
+
+        return view('admin::produits.fiche', compact('produit', 'comptes')
+            + ['comptabiliteOuverte' => $entreprise->comptabiliteOuverte()]);
     }
 
     /**
@@ -586,5 +584,51 @@ class ProduitControleur
         $categorieId  = $request->input('categorie_id');
         $reference    = \App\Modules\Admin\Modeles\Produit::genererReference($entrepriseId, $categorieId);
         return response()->json(['reference' => $reference]);
+    }
+
+    /**
+     * Les comptes d'un article, selon l'état de la comptabilité.
+     *
+     * Deux menus obligatoires — compte de vente, compte d'achat — figuraient
+     * sur chaque fiche, comptabilité ouverte ou non. Désormais :
+     *
+     * - **fermée**, rien n'est demandé ni accepté. Un article créé hérite ;
+     *   un article modifié garde ce qu'il avait, puisque personne n'a pu le
+     *   revoir ;
+     * - **ouverte**, l'article hérite de la configuration globale, sauf si la
+     *   case « comptes propres à cet article » est cochée. Décochée, elle
+     *   vide les deux comptes : l'ancienne valeur ne reste pas en silence,
+     *   prête à resurgir au prochain cochage sans que personne l'ait revue.
+     *
+     * @return array<string, mixed>
+     */
+    private function comptesDuProduit(Request $request, \App\Modules\Admin\Modeles\Entreprise $entreprise, ?Produit $produit): array
+    {
+        if (!$entreprise->comptabiliteOuverte()) {
+            return $produit ? [] : ['comptes_personnalises' => false, 'compte_vente' => null, 'compte_achat' => null];
+        }
+
+        if (!$request->boolean('comptes_personnalises')) {
+            return ['comptes_personnalises' => false, 'compte_vente' => null, 'compte_achat' => null];
+        }
+
+        $auPlan = fn (string $classe) => [
+            'required', 'string', 'max:20', 'starts_with:' . $classe,
+            \Illuminate\Validation\Rule::exists('plan_comptable', 'numero')->where(function ($q) use ($entreprise) {
+                $q->whereNull('entreprise_id')->orWhere('entreprise_id', $entreprise->id);
+            }),
+        ];
+
+        $donnees = $request->validate([
+            'compte_vente' => $auPlan('7'),
+            'compte_achat' => $auPlan('6'),
+        ], [
+            'compte_vente.starts_with' => 'Un compte de vente appartient à la classe 7.',
+            'compte_achat.starts_with' => 'Un compte d\'achat appartient à la classe 6.',
+            'compte_vente.exists'      => 'Ce compte de vente n\'existe pas au plan comptable.',
+            'compte_achat.exists'      => 'Ce compte d\'achat n\'existe pas au plan comptable.',
+        ]);
+
+        return ['comptes_personnalises' => true] + $donnees;
     }
 }

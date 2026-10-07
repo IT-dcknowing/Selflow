@@ -317,55 +317,10 @@
                                     'produit' => $p,
                                     'regime'  => Auth::user()->entreprise->regime_imposition ?? null,
                                 ])
-                                <div class="form-group">
-                                    <label class="form-label">Nature de la vente (Compte de vente) <span style="color:var(--danger)">*</span></label>
-                                    <select name="compte_vente" id="compte_vente_select_{{ $p->id }}" class="form-control" required>
-                                        @foreach($syscohadaKws->where('type_lie', 'Vente') as $kw)
-                                            <option value="{{ $kw->compte_comptable_reel }}" {{ ($p->compte_vente ?? '701000') == $kw->compte_comptable_reel ? 'selected' : '' }}>
-                                                {{ $kw->libelle_affiche }} @if(Auth::user()->role === 'admin') ({{ $kw->compte_comptable_reel }}) @endif
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">Nature de l'achat (Compte d'achat) <span style="color:var(--danger)">*</span></label>
-                                    <select name="compte_achat" id="compte_achat_select_{{ $p->id }}" class="form-control" required>
-                                        @foreach($syscohadaKws->where('type_lie', 'Achat') as $kw)
-                                            <option value="{{ $kw->compte_comptable_reel }}" {{ ($p->compte_achat ?? '601000') == $kw->compte_comptable_reel ? 'selected' : '' }}>
-                                                {{ $kw->libelle_affiche }} @if(Auth::user()->role === 'admin') ({{ $kw->compte_comptable_reel }}) @endif
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-
-                                @if(Auth::user()->role === 'admin')
-                                <div style="grid-column: 1/-1; display:flex; align-items:center; gap:8px; margin-top:-8px; margin-bottom:8px;">
-                                    <input type="checkbox" id="toggle_custom_compta_{{ $p->id }}" onchange="toggleCustomCompta('{{ $p->id }}')">
-                                    <label for="toggle_custom_compta_{{ $p->id }}" style="font-size:11px; font-weight:600; cursor:pointer; color:var(--text-3);">
-                                        <i class="fas fa-sliders-h"></i> Personnaliser les comptes de comptabilité (Profil Comptable)
-                                    </label>
-                                </div>
-                                <div class="form-group custom-compta-group-{{ $p->id }}" style="display:none;">
-                                    <label class="form-label">Compte de vente personnalisé</label>
-                                    <select id="custom_compte_vente_{{ $p->id }}" class="form-control">
-                                        @foreach($comptes as $compte)
-                                            <option value="{{ $compte->numero }}" {{ ($p->compte_vente ?? '701000') == $compte->numero ? 'selected' : '' }}>
-                                                {{ $compte->numero }} - {{ $compte->libelle }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="form-group custom-compta-group-{{ $p->id }}" style="display:none;">
-                                    <label class="form-label">Compte d'achat personnalisé</label>
-                                    <select id="custom_compte_achat_{{ $p->id }}" class="form-control">
-                                        @foreach($comptes as $compte)
-                                            <option value="{{ $compte->numero }}" {{ ($p->compte_achat ?? '601000') == $compte->numero ? 'selected' : '' }}>
-                                                {{ $compte->numero }} - {{ $compte->libelle }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                @endif
+                                @include('admin::composants.imputation_produit', [
+                                    'cle' => $p->id, 'produit' => $p, 'comptes' => $comptes,
+                                    'comptabiliteOuverte' => $comptabiliteOuverte,
+                                ])
                                 <div class="form-group" id="group-prix-achat-container-{{ $p->id }}">
                                     <label class="form-label">Prix achat</label>
                                     <input type="number" name="prix_achat" class="form-control" value="{{ $p->prix_achat }}" min="0" required>
@@ -487,55 +442,10 @@
                     'produit' => null,
                     'regime'  => Auth::user()->entreprise->regime_imposition ?? null,
                 ])
-                <div class="form-group">
-                    <label class="form-label">Nature de la vente (Compte de vente) <span style="color:var(--danger)">*</span></label>
-                    <select name="compte_vente" id="compte_vente_select_nouveau" class="form-control" required>
-                        @foreach($syscohadaKws->where('type_lie', 'Vente') as $kw)
-                            <option value="{{ $kw->compte_comptable_reel }}" {{ $kw->compte_comptable_reel == '701000' ? 'selected' : '' }}>
-                                {{ $kw->libelle_affiche }} @if(Auth::user()->role === 'admin') ({{ $kw->compte_comptable_reel }}) @endif
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Nature de l'achat (Compte d'achat) <span style="color:var(--danger)">*</span></label>
-                    <select name="compte_achat" id="compte_achat_select_nouveau" class="form-control" required>
-                        @foreach($syscohadaKws->where('type_lie', 'Achat') as $kw)
-                            <option value="{{ $kw->compte_comptable_reel }}" {{ $kw->compte_comptable_reel == '601000' ? 'selected' : '' }}>
-                                {{ $kw->libelle_affiche }} @if(Auth::user()->role === 'admin') ({{ $kw->compte_comptable_reel }}) @endif
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                @if(Auth::user()->role === 'admin')
-                <div style="grid-column: 1/-1; display:flex; align-items:center; gap:8px; margin-top:-8px; margin-bottom:8px;">
-                    <input type="checkbox" id="toggle_custom_compta_nouveau" onchange="toggleCustomCompta('nouveau')">
-                    <label for="toggle_custom_compta_nouveau" style="font-size:11px; font-weight:600; cursor:pointer; color:var(--text-3);">
-                        <i class="fas fa-sliders-h"></i> Personnaliser les comptes de comptabilité (Profil Comptable)
-                    </label>
-                </div>
-                <div class="form-group custom-compta-group-nouveau" style="display:none;">
-                    <label class="form-label">Compte de vente personnalisé</label>
-                    <select id="custom_compte_vente_nouveau" class="form-control">
-                        @foreach($comptes as $compte)
-                            <option value="{{ $compte->numero }}" {{ $compte->numero == '701000' ? 'selected' : '' }}>
-                                {{ $compte->numero }} - {{ $compte->libelle }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="form-group custom-compta-group-nouveau" style="display:none;">
-                    <label class="form-label">Compte d'achat personnalisé</label>
-                    <select id="custom_compte_achat_nouveau" class="form-control">
-                        @foreach($comptes as $compte)
-                            <option value="{{ $compte->numero }}" {{ $compte->numero == '601000' ? 'selected' : '' }}>
-                                {{ $compte->numero }} - {{ $compte->libelle }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                @endif
+                @include('admin::composants.imputation_produit', [
+                    'cle' => 'nouveau', 'produit' => null, 'comptes' => $comptes,
+                    'comptabiliteOuverte' => $comptabiliteOuverte,
+                ])
                 <div class="form-group" id="group-prix-achat-container-nouveau">
                     <label class="form-label">Prix d'achat (FCFA) <span style="color:var(--danger)">*</span></label>
                     <input type="number" name="prix_achat" class="form-control" min="0" required>
@@ -690,27 +600,6 @@ function calculerReferenceDynamique(id) {
         .catch(() => {
             input.value = prefixe + '-001';
         });
-}
-
-function toggleCustomCompta(id) {
-    const checkbox = document.getElementById('toggle_custom_compta_' + id);
-    const groups = document.querySelectorAll('.custom-compta-group-' + id);
-    const selectVente = document.getElementById('compte_vente_select_' + id);
-    const selectAchat = document.getElementById('compte_achat_select_' + id);
-
-    if (checkbox.checked) {
-        groups.forEach(g => g.style.display = 'block');
-        if (selectVente) selectVente.removeAttribute('name');
-        if (selectAchat) selectAchat.removeAttribute('name');
-        document.getElementById('custom_compte_vente_' + id).setAttribute('name', 'compte_vente');
-        document.getElementById('custom_compte_achat_' + id).setAttribute('name', 'compte_achat');
-    } else {
-        groups.forEach(g => g.style.display = 'none');
-        if (selectVente) selectVente.setAttribute('name', 'compte_vente');
-        if (selectAchat) selectAchat.setAttribute('name', 'compte_achat');
-        document.getElementById('custom_compte_vente_' + id).removeAttribute('name');
-        document.getElementById('custom_compte_achat_' + id).removeAttribute('name');
-    }
 }
 
 /**

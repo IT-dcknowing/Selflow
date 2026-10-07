@@ -259,7 +259,7 @@ class DeversementReferentielService
                 $client->numero_tiers,
                 $client->nom,
                 'client',
-                $client->compte_comptable ?: config('selflow.plan_comptable_defaut.client_collectif'),
+                ImputationService::compteClient($client),
                 $client
             );
         }
@@ -269,7 +269,7 @@ class DeversementReferentielService
                 $fournisseur->numero_tiers,
                 $fournisseur->nom,
                 'fournisseur',
-                $fournisseur->compte_comptable ?: config('selflow.plan_comptable_defaut.fournisseur_collectif'),
+                ImputationService::compteFournisseur($fournisseur),
                 $fournisseur
             );
         }

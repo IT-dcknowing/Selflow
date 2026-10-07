@@ -2,34 +2,46 @@
 
 namespace App\Modules\Admin\Services;
 
+use App\Modules\Admin\Modeles\Client;
+use App\Modules\Admin\Modeles\Fournisseur;
+use App\Modules\Admin\Modeles\ImputationGlobale;
 use App\Modules\Admin\Modeles\Produit;
 
 /**
- * Sur quel compte s'impute un article.
+ * Sur quel compte s'impute un article — et un tiers.
  *
  * La question se posait à cinq endroits de `ComptabiliteService`, résolue
  * chaque fois par la même paire :
  *
  *     $detail->produit?->compte_vente ?? config('…vente_defaut')
  *
- * Deux niveaux là où le référentiel en prévoit trois, et le plus utile —
- * **le rayon** — sautait. Un article créé à la main après la souscription
- * n'héritait donc de rien et tombait sur le compte générique `701000` : la
- * balance d'un magasin qui a soigneusement réparti ses rayons se retrouvait
- * avec une seule ligne de ventes.
+ * Elle se pose désormais ici, et seulement ici (chantier 5.2 du plan). Quand
+ * l'utilisateur ne voit aucun champ de compte — comptabilité fermée, ou
+ * configuration globale renseignée — c'est cette classe qui choisit.
  *
- * La chaîne complète, du plus précis au plus général :
+ * ## Vente et achat, du plus précis au plus général
  *
  * | Rang | Source | Ce que cela veut dire |
  * |---|---|---|
- * | 1 | `produits.compte_*` | L'exception que l'utilisateur assume, article par article |
- * | 2 | `categories.compte_*` | Le rayon — la règle métier, celle du référentiel |
- * | 3 | `config('selflow.plan_comptable_defaut')` | Le filet, quand rien n'est renseigné |
+ * | 1 | `produits.compte_*`, **case cochée** | L'exception que l'utilisateur assume, article par article |
+ * | 2 | `imputations_globales`, `type:<type>` | La configuration globale par type d'article |
+ * | 3 | `categories.compte_*` | La configuration par catégorie — où le préparamétrage du métier pose les comptes de la famille |
+ * | 4 | `imputations_globales`, `general` | La configuration générale : « tous les produits » |
+ * | 5 | `config('selflow.plan_comptable_defaut')` | 701000 / 601000, le filet |
  *
- * Le rang 1 l'emporte parce qu'il est explicite : un utilisateur qui a saisi un
- * compte sur une fiche l'a fait exprès. Le rang 3 n'est pas une imputation,
- * c'est un aveu d'ignorance — il vaut mieux qu'une écriture perdue, mais il se
+ * Le rang 1 l'emporte parce qu'il est explicite. **La case compte, pas la
+ * colonne** : une colonne remplie par un import ou par l'ancien formulaire —
+ * qui l'exigeait — n'est pas un choix, et la lire comme tel figeait l'article
+ * hors de toute configuration. Le rang 5 n'est pas une imputation, c'est un
+ * aveu d'ignorance — il vaut mieux qu'une écriture perdue, mais il se
  * signale : `manqueUnCompte()` permet aux écrans de le dire.
+ *
+ * ## Les tiers
+ *
+ * Le client porte son compte collectif, sinon 411000 ; le fournisseur le
+ * sien, sinon 401000. Les oublier laissait une écriture de vente ou d'achat
+ * sans contrepartie de tiers — et c'est précisément ce compte que le numéro
+ * de tiers subdivise chez Comptaflow.
  */
 class ImputationService
 {
@@ -43,6 +55,38 @@ class ImputationService
     public static function compteAchat(?Produit $produit): string
     {
         return self::resoudre($produit, 'compte_achat', 'achat_defaut');
+    }
+
+    /** Compte collectif d'un client — 411000 s'il n'en porte pas. */
+    public static function compteClient(?Client $client): string
+    {
+        $compte = trim((string) ($client?->compte_comptable ?? ''));
+
+        return $compte !== '' ? $compte : (string) config('selflow.plan_comptable_defaut.client_collectif');
+    }
+
+    /** Compte collectif d'un fournisseur — 401000 s'il n'en porte pas. */
+    public static function compteFournisseur(?Fournisseur $fournisseur): string
+    {
+        $compte = trim((string) ($fournisseur?->compte_comptable ?? ''));
+
+        return $compte !== '' ? $compte : (string) config('selflow.plan_comptable_defaut.fournisseur_collectif');
+    }
+
+    /**
+     * Ce dont l'article hérite s'il n'est pas une exception.
+     *
+     * Pour la fiche produit : « hérite de la configuration globale », avec
+     * les comptes qui s'appliquent — case cochée ou non.
+     *
+     * @return array{compte_vente: string, compte_achat: string}
+     */
+    public static function heritage(Produit $produit): array
+    {
+        return [
+            'compte_vente' => self::herite($produit, 'compte_vente') ?? (string) config('selflow.plan_comptable_defaut.vente_defaut'),
+            'compte_achat' => self::herite($produit, 'compte_achat') ?? (string) config('selflow.plan_comptable_defaut.achat_defaut'),
+        ];
     }
 
     /**
@@ -128,7 +172,7 @@ class ImputationService
     }
 
     /**
-     * Le compte porté par l'article, sinon par son rayon, sinon rien.
+     * Le compte de l'article selon la chaîne, sans le filet de configuration.
      *
      * Une chaîne vide vaut absence : une colonne remplie d'espaces par un
      * import maladroit ne doit pas passer pour une imputation.
@@ -139,14 +183,40 @@ class ImputationService
             return null;
         }
 
-        $surLArticle = trim((string) ($produit->$champ ?? ''));
+        $configurable = in_array($champ, ['compte_vente', 'compte_achat'], true);
 
-        if ($surLArticle !== '') {
-            return $surLArticle;
+        // Le stock et la variation ne passent pas par la configuration
+        // globale : leur compte suit la nature de l'article (31, 32, 36…), et
+        // un « compte de stock de tous les produits » rendrait le bilan faux.
+        if (!$configurable || $produit->comptes_personnalises) {
+            $surLArticle = self::valeur($produit->$champ ?? null);
+
+            if ($surLArticle !== null) {
+                return $surLArticle;
+            }
         }
 
-        $surLeRayon = trim((string) ($produit->categorieRelation?->$champ ?? ''));
+        if (!$configurable) {
+            return self::valeur($produit->categorieRelation?->$champ ?? null);
+        }
 
-        return $surLeRayon !== '' ? $surLeRayon : null;
+        return self::herite($produit, $champ);
+    }
+
+    /** Les rangs 2 à 4 de la chaîne. */
+    private static function herite(Produit $produit, string $champ): ?string
+    {
+        $globale = $produit->entreprise_id ? ImputationGlobale::pour((int) $produit->entreprise_id) : [];
+
+        return self::valeur($globale[ImputationGlobale::clePourType((string) $produit->type)][$champ] ?? null)
+            ?? self::valeur($produit->categorieRelation?->$champ ?? null)
+            ?? self::valeur($globale[ImputationGlobale::GENERALE][$champ] ?? null);
+    }
+
+    private static function valeur(mixed $compte): ?string
+    {
+        $compte = trim((string) ($compte ?? ''));
+
+        return $compte !== '' ? $compte : null;
     }
 }

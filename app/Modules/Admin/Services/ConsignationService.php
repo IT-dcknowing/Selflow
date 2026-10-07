@@ -340,12 +340,10 @@ class ConsignationService
     private static function compteTiers(Consignation $consignation): ?string
     {
         if ($consignation->estAuClient()) {
-            return $consignation->client?->compte_comptable
-                ?: config('selflow.plan_comptable_defaut.client_collectif');
+            return ImputationService::compteClient($consignation->client);
         }
 
-        return $consignation->fournisseur?->compte_comptable
-            ?: config('selflow.plan_comptable_defaut.fournisseur_collectif');
+        return ImputationService::compteFournisseur($consignation->fournisseur);
     }
 
     private static function operation(

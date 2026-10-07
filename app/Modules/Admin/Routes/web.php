@@ -239,6 +239,11 @@ Route::prefix('admin')
                 Route::get('/creances', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'creances'])->name('creances');
                 Route::get('/tiers/{type}/{id}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'releveTiers'])->name('releve_tiers');
                 Route::post('/reglement', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'enregistrerReglement'])->name('enregistrer_reglement');
+                // La configuration globale : les comptes de vente et d'achat
+                // saisis une fois — pour tous les produits, par catégorie, par
+                // type — et non sur chaque fiche.
+                Route::get('/configuration', [\App\Modules\Admin\Controleurs\ConfigurationComptableControleur::class, 'index'])->name('configuration');
+                Route::put('/configuration', [\App\Modules\Admin\Controleurs\ConfigurationComptableControleur::class, 'enregistrer'])->name('configuration.enregistrer');
                 Route::get('/plan-comptable', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'planComptable'])->name('plan_comptable');
                 Route::post('/plan-comptable', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'creerCompteComptable'])->name('creer_compte_comptable');
                 Route::post('/plan-comptable/poser-le-defaut', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'poserLePlanParDefaut'])->name('poser_plan_defaut');
@@ -421,7 +426,12 @@ Route::prefix('admin')
         // charge de l'exercice, ou ne passaient nulle part. Le bilan ne portait
         // pas trace de l'actif immobilisé, et la charge d'amortissement,
         // déductible, n'était pas prise.
-        Route::prefix('immobilisations')->name('immobilisations.')->middleware('modules:comptabilite')->group(function () {
+        //
+        // Derrière le garde-fou `comptabilite` depuis le lot 42 (chantier 3.6) :
+        // comptes d'immobilisation, dotations et clôture d'exercice sont de la
+        // tenue de livres. L'écran n'avait aucun lien au menu, mais restait
+        // une adresse ouverte à toute entreprise, comptabilité fermée ou non.
+        Route::prefix('immobilisations')->name('immobilisations.')->middleware(['modules:comptabilite', 'comptabilite'])->group(function () {
             Route::get('/', [ImmobilisationControleur::class, 'index'])->name('index');
             Route::get('/creer', [ImmobilisationControleur::class, 'creer'])->name('creer');
             Route::post('/creer', [ImmobilisationControleur::class, 'enregistrer'])->name('enregistrer');

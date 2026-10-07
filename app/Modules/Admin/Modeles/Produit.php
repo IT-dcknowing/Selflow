@@ -211,6 +211,10 @@ class Produit extends Model
         'code_tva_manuel',  // false = code déduit du taux et du régime
         'compte_vente',
         'compte_achat',
+        // La case de l'exception : sans elle, `compte_vente` et
+        // `compte_achat` ne sont pas lus, et l'article hérite de la
+        // configuration globale. Voir ImputationService.
+        'comptes_personnalises',
         'compte_stock',
         'compte_variation',
         // Phase 1 — catalogue enrichi
@@ -239,6 +243,7 @@ class Produit extends Model
             'taux_tva'                => 'decimal:2',
             'remise_taux'             => 'decimal:2',
             'code_tva_manuel'         => 'boolean',
+            'comptes_personnalises'   => 'boolean',
             'categorie_id'            => 'integer',
             'sous_categorie_id'       => 'integer',
             'date_arrivee'            => 'date',

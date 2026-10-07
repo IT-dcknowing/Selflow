@@ -127,7 +127,7 @@ class ComptabiliteService
             $libelle = fn (string $role) => LibelleEcritureService::ligne(
                 $entrepriseId, 'FactureVente', $role, $jetons
             );
-            $compteClientGeneral = $vente->client?->compte_comptable ?? config('selflow.plan_comptable_defaut.client_collectif');
+            $compteClientGeneral = ImputationService::compteClient($vente->client);
             $compteClientTiers = self::tiersClient($vente->client, $entrepriseId);
 
             $opFacture = Operation::creer(
@@ -197,7 +197,7 @@ class ComptabiliteService
 
         [$compteFinancier, $codeJournal] = self::compteEtJournalFinancier($entrepriseId, $modePaiement);
 
-        $compteClientGeneral = $vente->client?->compte_comptable ?? config('selflow.plan_comptable_defaut.client_collectif');
+        $compteClientGeneral = ImputationService::compteClient($vente->client);
         $compteClientTiers = self::tiersClient($vente->client, $entrepriseId);
 
         [$libelleProduits, $descriptionProduits] = self::libelleEtDescriptionProduits($vente->loadMissing('details.produit')->details);
@@ -297,7 +297,7 @@ class ComptabiliteService
             // qu'on lui payait au comptant, son numéro de tiers n'était
             // transmis à Comptaflow sur aucun de ces achats, et le journal des
             // achats ne les contenait pas.
-            $compteFournisseurGeneral = $achat->fournisseur?->compte_comptable ?? config('selflow.plan_comptable_defaut.fournisseur_collectif');
+            $compteFournisseurGeneral = ImputationService::compteFournisseur($achat->fournisseur);
             $compteFournisseurTiers = self::tiersFournisseur($achat->fournisseur, $entrepriseId);
 
             $opFacture = Operation::creer(
@@ -357,7 +357,7 @@ class ComptabiliteService
 
         [$compteFinancier, $codeJournal] = self::compteEtJournalFinancier($entrepriseId, $modePaiement);
 
-        $compteFournisseurGeneral = $achat->fournisseur?->compte_comptable ?? config('selflow.plan_comptable_defaut.fournisseur_collectif');
+        $compteFournisseurGeneral = ImputationService::compteFournisseur($achat->fournisseur);
         $compteFournisseurTiers = self::tiersFournisseur($achat->fournisseur, $entrepriseId);
 
         [$libelleProduits, $descriptionProduits] = self::libelleEtDescriptionProduits($achat->loadMissing('details.produit')->details);
@@ -441,7 +441,7 @@ class ComptabiliteService
         $refDoc = $avoir->numero_facture;
         $codeJournal = self::codeJournal($entrepriseId, 'Vente', 'VTE');
 
-        $compteClientGeneral = $avoir->client?->compte_comptable ?? config('selflow.plan_comptable_defaut.client_collectif');
+        $compteClientGeneral = ImputationService::compteClient($avoir->client);
         $compteClientTiers = self::tiersClient($avoir->client, $entrepriseId);
 
         $ventilation = self::ventilationVente($avoir);
@@ -493,7 +493,7 @@ class ComptabiliteService
         $refDoc = $avoir->numero_facture;
         $codeJournal = self::codeJournal($entrepriseId, 'Achat', 'ACH');
 
-        $compteFournisseurGeneral = $avoir->fournisseur?->compte_comptable ?? config('selflow.plan_comptable_defaut.fournisseur_collectif');
+        $compteFournisseurGeneral = ImputationService::compteFournisseur($avoir->fournisseur);
         $compteFournisseurTiers = self::tiersFournisseur($avoir->fournisseur, $entrepriseId);
 
         $ventilation = self::ventilationAchat($avoir);

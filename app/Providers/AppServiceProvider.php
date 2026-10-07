@@ -11,7 +11,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // La lecture de la configuration comptable globale, gardée le temps
+        // d'une requête ou d'un travail de file — `scoped`, et non
+        // `singleton` : un travailleur de file vit des jours, et servirait
+        // sinon la configuration d'avant sa dernière modification.
+        $this->app->scoped('imputations.globales', fn () => new \ArrayObject());
     }
 
     /**

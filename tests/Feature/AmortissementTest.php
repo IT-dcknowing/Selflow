@@ -37,6 +37,10 @@ class AmortissementTest extends TestCase
         parent::setUp();
 
         $this->entreprise = Entreprise::create(['nom' => 'Transports du Bandama']);
+        // Les immobilisations sont derrière le garde-fou `comptabilite` depuis
+        // le lot 42 : une entreprise qui amortit ses biens tient ses livres.
+        $this->entreprise->comptabilite_activee = true;
+        $this->entreprise->save();
 
         $this->siege = PointDeVente::create([
             'entreprise_id' => $this->entreprise->id,
