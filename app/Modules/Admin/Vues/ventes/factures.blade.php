@@ -657,7 +657,7 @@ function telechargerDirectement(url) {
                              Le champ de recherche voisin, lui, était déjà
                              corrigé — c'est ce qui a laissé le défaut ici. --}}
                         @foreach($facturesDispo as $f)
-                            <option value="{{ $f->uuid }}">{{ $f->numero_facture }} - {{ $f->client?->nom ?? 'Client de passage' }} ({{ number_format($f->montant_ttc, 0, ',', ' ') }} F)</option>
+                            <option value="{{ $f->uuid }}">{{ $f->numero_facture }} - {{ $f->client?->nom ?? 'Client de passage' }} ({{ \App\Modules\Admin\Controleurs\VenteControleur::libelleDuReste($f) }})</option>
                         @endforeach
                     </select>
                 </div>
@@ -675,6 +675,10 @@ function telechargerDirectement(url) {
                             <div id="avoir_client_nom" style="font-size: 15px; font-weight: 700; color: #0f172a;">—</div>
                         </div>
                     </div>
+                    {{-- Ce qui reste à rendre. Sans lui, on saisit un montant au
+                         jugé, et le serveur refuse ce que l'écran laissait
+                         croire possible. --}}
+                    <div id="avoir_reste_info" style="display:none; margin:-10px 0 20px; padding:10px 14px; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; font-size:12.5px; color:#92400e;"></div>
 
                     <!-- Raison / Motif -->
                     <div class="form-group" style="margin-bottom: 20px;">
@@ -1066,6 +1070,16 @@ function selectionnerFacturePourAvoir(id) {
             document.getElementById('avoir_parent_id').value = data.id;
             document.getElementById('avoir_facture_ref').textContent = data.numero_facture;
             document.getElementById('avoir_client_nom').textContent = data.client_nom;
+
+            const resteInfo = document.getElementById('avoir_reste_info');
+            const fmt = v => Math.round(v).toLocaleString('fr-FR').replace(/\u202f/g, ' ');
+            if (resteInfo && Number(data.deja_avoire) > 0.01) {
+                resteInfo.textContent = 'Déjà avoiré : ' + fmt(data.deja_avoire) + ' F. Reste à avoirer : '
+                    + fmt(data.reste_a_avoirer) + ' F sur ' + fmt(data.montant_ttc) + ' F.';
+                resteInfo.style.display = 'block';
+            } else if (resteInfo) {
+                resteInfo.style.display = 'none';
+            }
 
             const tbody = document.getElementById('avoirItemsTableBody');
             tbody.innerHTML = '';

@@ -602,7 +602,9 @@ class VenteControleur
                 ->where(function ($queryType) {
                     $queryType->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir');
                 })
-                ->where('archived', false);
+                ->where('archived', false)
+                ->avecDejaAvoire()
+                ->encoreAvoirables();
             if ($pointDeVenteId) {
                 $facturesDispoQuery->where('point_de_vente_id', $pointDeVenteId);
             }
@@ -1296,6 +1298,19 @@ class VenteControleur
             'raison' => ['required', 'string', 'max:255'],
         ]);
 
+        // L'avoir total reprend la facture entière. Il ne regardait pas les
+        // avoirs déjà établis : une facture avoirée à moitié pouvait l'être
+        // encore en entier, et l'on rendait une fois et demie ce qui avait
+        // été facturé.
+        if ($vente->montantDejaAvoire() > 0.01) {
+            return back()->withErrors(['raison' => sprintf(
+                'Cette facture porte déjà %s F d\'avoir : un avoir total rendrait plus qu\'elle ne portait. '
+                . 'Établissez un avoir partiel sur ce qui reste (%s F).',
+                number_format($vente->montantDejaAvoire(), 0, ',', ' '),
+                number_format($vente->resteAAvoirer(), 0, ',', ' ')
+            )]);
+        }
+
         $avoirId = null;
 
         DB::transaction(function () use ($vente, $request, &$avoirId) {
@@ -1817,7 +1832,9 @@ class VenteControleur
             ->where(function ($queryType) {
                 $queryType->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir');
             })
-            ->where('archived', false);
+            ->where('archived', false)
+            ->avecDejaAvoire()
+            ->encoreAvoirables();
 
         if ($q) {
             $query->where(function ($querySearch) use ($q) {
@@ -1837,11 +1854,24 @@ class VenteControleur
                 // un 404 (Not Found — introuvable), et le script, qui lisait la
                 // réponse en JSON, recevait la page d'erreur en HTML.
                 'id' => $f->uuid,
-                'text' => "{$f->numero_facture} - {$clientNom} (" . number_format($f->montant_ttc, 0, ',', ' ') . " XOF)"
+                'text' => "{$f->numero_facture} - {$clientNom} (" . self::libelleDuReste($f) . ')',
             ];
         });
 
         return response()->json($factures);
+    }
+
+    /**
+     * « 120 000 F », ou « reste 45 000 F sur 120 000 F » quand la facture
+     * porte déjà un avoir (chantier 8.3).
+     */
+    public static function libelleDuReste(Vente $facture): string
+    {
+        $total = number_format((float) $facture->montant_ttc, 0, ',', ' ');
+
+        return $facture->montantDejaAvoire() > 0.01
+            ? 'reste ' . number_format($facture->resteAAvoirer(), 0, ',', ' ') . " F sur {$total} F"
+            : "{$total} F";
     }
 
     public function detailsFacturePourAvoir(Vente $vente): \Illuminate\Http\JsonResponse
@@ -1861,6 +1891,10 @@ class VenteControleur
             'numero_facture' => $vente->numero_facture,
             'client_nom' => $vente->client ? $vente->client->nom : 'Client de passage',
             'montant_ttc' => $vente->montant_ttc,
+            // Ce que les avoirs précédents ont déjà rendu, et ce qui reste :
+            // sans eux, on saisit un montant au jugé et on se fait refuser.
+            'deja_avoire' => $vente->montantDejaAvoire(),
+            'reste_a_avoirer' => $vente->resteAAvoirer(),
             'autres_mentions' => $vente->autres_mentions,
             'pied_de_page' => $vente->pied_de_page,
             'details' => $vente->details->map(function ($d) use ($dejaCredite) {
@@ -1969,7 +2003,9 @@ class VenteControleur
     {
         $lignesOrigine = $facture->details()->get(['id', 'produit_id', 'libelle_virtuel']);
 
-        $avoirs = Vente::where('parent_id', $facture->id)
+        // Hors du filtre de période : un avoir du mois dernier a bien crédité
+        // la facture, et l'ignorer laissait recréditer ce qu'il avait rendu.
+        $avoirs = Vente::withoutGlobalScopes()->where('parent_id', $facture->id)
             ->where('type_facture', 'avoir')
             ->with('details')
             ->get();
@@ -2193,6 +2229,28 @@ class VenteControleur
                         $itemData['stock_action'] ?? 'none'
                     );
                 }
+            }
+
+            // ── Le plafond en montant (chantier 8.1) ──
+            //
+            // Le plafond par quantité ne suffisait pas : il ne voit ni une
+            // ligne ajoutée à l'avoir, ni un prix unitaire relevé à la main.
+            // Le cumul des avoirs ne dépasse pas la facture, contrôlé ici, au
+            // serveur, dans la transaction — un refus défait tout, stock
+            // compris. La facture est relue verrouillée : deux avoirs saisis en
+            // même temps sur le même reste ne passent pas tous les deux.
+            $reste = Vente::withoutGlobalScopes()->lockForUpdate()->findOrFail($parent->id)->resteAAvoirer();
+
+            if ($totalTtc > $reste + 0.01) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'items' => sprintf(
+                        'Cet avoir porte %s F, et il ne reste que %s F à avoirer sur %s F facturés. '
+                        . 'Un avoir ne peut pas rendre plus que la facture.',
+                        number_format($totalTtc, 0, ',', ' '),
+                        number_format($reste, 0, ',', ' '),
+                        number_format((float) $parent->montant_ttc, 0, ',', ' ')
+                    ),
+                ]);
             }
 
             $avoir->update([

@@ -416,4 +416,59 @@ class Vente extends Model
     {
         return $this->hasMany(Vente::class, 'parent_id');
     }
+
+    /**
+     * Ce que les avoirs de cette facture ont déjà crédité, TTC.
+     *
+     * Lu sur `deja_avoire` quand la requête l'a préchargé (portée
+     * `avecDejaAvoire`), pour qu'une liste de factures ne fasse pas une
+     * requête par ligne.
+     */
+    public function montantDejaAvoire(): float
+    {
+        if (array_key_exists('deja_avoire', $this->attributes)) {
+            return (float) $this->attributes['deja_avoire'];
+        }
+
+        // Hors du filtre de période : un avoir établi le mois dernier a bien
+        // crédité cette facture, quelle que soit la période affichée.
+        return (float) self::withoutGlobalScopes()
+            ->where('parent_id', $this->id)->where('type_facture', 'avoir')->sum('montant_ttc');
+    }
+
+    /**
+     * Ce qui reste à avoirer sur cette facture (chantier 8.1).
+     *
+     * Un avoir ne peut pas dépasser la pièce d'origine : ce serait rendre
+     * plus que ce qui a été facturé, et la TVA collectée deviendrait
+     * négative sur la pièce. Validé par le propriétaire le 02/10/2026.
+     */
+    public function resteAAvoirer(): float
+    {
+        return max(0.0, round((float) $this->montant_ttc - $this->montantDejaAvoire(), 2));
+    }
+
+    /** Précharge le montant déjà avoiré, en une sous-requête. */
+    public function scopeAvecDejaAvoire($query)
+    {
+        return $query->addSelect([
+            'deja_avoire' => \Illuminate\Support\Facades\DB::table('ventes as avoirs_deja')
+                ->selectRaw('COALESCE(SUM(avoirs_deja.montant_ttc), 0)')
+                ->whereColumn('avoirs_deja.parent_id', 'ventes.id')
+                ->where('avoirs_deja.type_facture', 'avoir'),
+        ]);
+    }
+
+    /**
+     * Les factures qui ont encore quelque chose à rendre (chantier 8.2).
+     *
+     * Une facture entièrement avoirée sortait quand même dans la liste : la
+     * choisir menait à un refus qu'on ne comprenait qu'après coup.
+     */
+    public function scopeEncoreAvoirables($query)
+    {
+        return $query->whereRaw(
+            "ventes.montant_ttc - (SELECT COALESCE(SUM(a.montant_ttc), 0) FROM ventes a WHERE a.parent_id = ventes.id AND a.type_facture = 'avoir') > 0.01"
+        );
+    }
 }

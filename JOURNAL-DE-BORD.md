@@ -7280,6 +7280,60 @@ plateformes déployées** ; la session n'y a pas accès.
 
 ---
 
+### Lot 44 — Un avoir ne rend pas plus que la facture — **TERMINÉ le 07/10/2026** (8.4 à trancher)
+
+Section 8 du plan. Règle validée par le propriétaire le 02/10/2026.
+
+#### 44.1 — Trois trous dans le plafond (8.1)
+
+Le plafond existait, **en quantité**, sur l'avoir partiel. Il laissait passer :
+
+| Trou | Ce qui passait |
+|---|---|
+| Le prix unitaire est posté par l'écran | toute la quantité, au double du prix : 236 000 F d'avoir sur 118 000 F facturés |
+| Une ligne ajoutée à l'avoir (`est_nouveau`) n'a pas d'origine | elle s'ajoutait sans limite |
+| L'avoir total ne regardait pas les avoirs déjà établis | une facture avoirée à moitié l'était encore en entier |
+
+**Le plafond est désormais en montant**, au serveur : cumul des avoirs + avoir
+en cours ≤ TTC de la facture. Il est contrôlé **dans la transaction**, après le
+calcul des lignes et avant les écritures : un refus défait tout, stock compris.
+La facture est relue **verrouillée**, pour que deux avoirs saisis en même temps
+sur le même reste ne passent pas tous les deux. L'avoir total refuse une
+facture qui porte déjà un avoir, et dit le reste à avoirer en partiel.
+
+**Trouvé en chemin :** le compteur des quantités déjà créditées passait par le
+filtre de période global de `Vente`. Un avoir du mois dernier n'était pas
+compté quand on travaillait sur la période en cours — la quantité qu'il avait
+rendue redevenait créditable. Il le lit désormais hors période.
+
+#### 44.2 — La liste des factures d'origine (8.2 et 8.3)
+
+`Vente::scopeEncoreAvoirables()` retire de la liste déroulante **et** de la
+recherche les factures entièrement avoirées ; `scopeAvecDejaAvoire()` précharge
+le montant déjà rendu en une sous-requête, sans requête par ligne. Une facture
+partiellement avoirée s'annonce « reste 88 500 F sur 118 000 F », et la
+fenêtre d'avoir le rappelle une fois la facture choisie.
+
+#### 44.3 — L'avoir de BAPA (8.4) — À TRANCHER
+
+La précision du 05/10 dit : « l'avoir fournisseur ne concerne QUE les BAPA ».
+**L'écran n'en propose aucun autre** : l'avoir fournisseur a été retiré le
+25/09 (la DGI ne prévoit pas qu'un acheteur établisse l'avoir de son
+fournisseur), et aucun écran d'achat n'en offre plus.
+
+**Mais l'avoir de BAPA lui-même est fermé depuis le lot 23**, pour une raison
+qui tient toujours : la DGI ne normalise pas l'avoir d'un bordereau d'achat.
+L'ouvrir ferait une pièce dans nos livres que rien ne certifierait, ou
+obligerait à toucher `FneService` — périmètre gelé, hors des trois
+exceptions de `CLAUDE.md`. **Question posée au propriétaire :** la plateforme
+accepte-t-elle désormais l'avoir d'un BAPA (nouvelle version du référentiel) ?
+Si oui, c'est l'exception n° 1, et le contrôle de dépassement de 44.1 se
+transpose tel quel.
+
+- `tests/Feature/AvoirPlafonneTest.php` — 7 épreuves, **6 tombent** sans le correctif
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
