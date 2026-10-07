@@ -1,0 +1,88 @@
+================================================================================
+SELFLOW — PASSATION DU 7 OCTOBRE 2026
+Session ayant traité les lots 53 à 55, et réconcilié deux sessions parallèles.
+À coller en premier message d'une nouvelle session Claude Code sur ce dépôt.
+================================================================================
+
+
+0. CE QU'IL FAUT FAIRE EN PREMIER
+---------------------------------
+1. Lire `CLAUDE.md` — la règle d'or FNE y fait foi.
+2. Lire `JOURNAL-DE-BORD.md` — les lots 41 à 55 sont à la fin de la section 5.
+3. Ouvrir `PLAN-CORRECTION-SELFLOW.xlsx`. Feuille « Index » : 19 sections,
+   87 chantiers, 75 terminés, 4 à faire (tous au déploiement ou chez
+   Comptaflow), 0 à trancher, 8 de référence.
+4. Lire aussi `PASSATION-06-10-2026.txt` : son ordre de déploiement vaut
+   toujours, complété au § 3 ci-dessous.
+
+LES BRANCHES — à lire avant tout
+· Selflow : `reprise-du-plan-achats-livraison-avoir-bapa`, poussée sur LES
+  DEUX dépôts (IT-dcknowing/Selflow et meledjeabrahamagnimel-lgtm/Selflow).
+  Elle part de `claude/exciting-keller-9d5tdz` (lots 41 à 52) et porte les
+  lots 53 à 55. C'EST ELLE QUI FAIT FOI. Pas encore fusionnée dans `main`.
+· Comptaflow : `numero-de-saisie-par-operation-selflow`, poussée sur LES DEUX
+  dépôts (guysergekouassi/COMPTAFLOW et IT-dcknowing/COMPTAFLOW). À déployer
+  AVEC Selflow : Selflow appelle son `POST …/ecritures/regrouper`.
+· À NE PAS FUSIONNER : `claude/tender-keller-o95s21` (Selflow et Comptaflow).
+  Une seconde session a refait les mêmes sections en parallèle ; ce qu'elle
+  avait trouvé d'utile est reporté au lot 55 (section 19 du plan).
+· Convention du propriétaire : les branches se nomment EN FRANÇAIS, d'après
+  ce qu'elles traitent. Pousser TOUJOURS sur tous les dépôts.
+
+Suite Selflow : 1 512 épreuves, 1 507 passantes, 5 sautées.
+`verifier:variables` : propre. Périmètre FNE gelé : non touché.
+
+
+1. CE QUI A ÉTÉ FAIT
+--------------------
+LOT 53  Le transport d'une livraison (15.3 — TRANCHÉ : tout obligatoire, et
+        imprimé). Au départ : adresse, livreur (personnel choisi dans
+        l'entreprise, ou prestataire), véhicule, heure. À l'arrivée : heure,
+        réceptionnaire, signature tracée à l'écran, observations.
+        TROUVÉ : la file « Livraisons » du stock n'établissait AUCUN bon ; et
+        les quantités du bon étaient des entiers (12,5 → 12) — passées en
+        decimal(15,3) par une nouvelle migration.
+LOT 54  L'avoir interne d'un BAPA (8.4 — la DGI ne le normalise toujours
+        pas). Option (b) : non certifié, comptabilité et stock seulement.
+        Tables à part (`avoirs_bapa`) : une ligne `achats` sur un vendeur sans
+        NCC serait prise pour un BAPA par quatre chemins qui parlent à la DGI.
+        Plafond en quantité et en montant sous verrou.
+        ⚠ Le message du propriétaire s'arrêtait sur « donc vas » : (b) est
+        retenue faute de (a) ; À CONFIRMER.
+LOT 55  Reports de la session parallèle : plafond des avoirs hors filtre de
+        période ; numéro de tiers posé par toutes les portes ;
+        immobilisations derrière le garde-fou ; ligne à deux comptes non
+        déversée ; consignation saisissable ; visite guidée sur téléphone.
+
+
+2. CE QUI ATTEND LE PROPRIÉTAIRE
+--------------------------------
+· 8.4 — confirmer l'option (b), l'avoir interne non certifié.
+· 10.4 (suite) — masquer, compte FNE coché, les champs que le portail
+  détient ? Proposition prête sur la branche parallèle : masquer seulement ce
+  que le portail porte À L'IDENTIQUE, et un bouton « Reprendre les valeurs du
+  portail » journalisé (l'import n'écrit rien dans `entreprises`).
+· Fusion dans `main` des deux branches ci-dessus.
+
+
+3. AU DÉPLOIEMENT — DANS CET ORDRE
+----------------------------------
+1. Selflow ET Comptaflow ensemble, migrations comprises (Selflow : les trois
+   du 06/10 et les deux du 07/10, toutes additives ; Comptaflow : une).
+2. `php artisan selflow:ecritures-factures-recues`
+3. `php artisan selflow:regrouper-comptaflow`
+4. `php artisan selflow:verifier-stocks` — corriger par inventaire physique.
+5. Vérifier en réel (7.5) : vente, achat, avoir, règlement → balance par
+   pièce chez Comptaflow.
+6. Prévenir les entreprises qui amortissent des biens : les immobilisations
+   demandent désormais la comptabilité ouverte (lot 55), comme le reste des
+   livres depuis le lot 39.
+Toujours valable : le lot 39 ferme la comptabilité pour toutes les
+entreprises existantes ; `EXTERNAL_SYNC_SECRET` est à changer.
+
+
+4. CE QUI RESTE AU PLAN
+-----------------------
+7.5, 17.5, 18.2 — au déploiement (ci-dessus).
+18.3 — 19 épreuves rouges de la suite Comptaflow, antérieures : au
+mainteneur de Comptaflow (pages qui exigent le manifeste Vite).
