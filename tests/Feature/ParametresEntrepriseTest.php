@@ -263,11 +263,28 @@ class ParametresEntrepriseTest extends TestCase
         // Blade : une carte laissée en double, ou perdue en route, ne se verrait
         // qu'à l'écran.
         foreach (['identite' => $gauche, 'fiscal' => $gauche, 'dgi' => $gauche,
-                  'tiers' => $gauche, 'compte-fne' => $droite, 'options' => $droite,
+                  'tiers' => $gauche, 'options' => $droite,
                   'impression' => $droite] as $ancre => $attendue) {
             $this->assertSame(1, substr_count($attendue, 'id="' . $ancre . '"'),
                 "La carte « {$ancre} » n'est pas dans la colonne attendue, ou s'y trouve en double.");
         }
+    }
+
+    /**
+     * Chantier 10.1 (lot 46) : le compte FNE passe en tête, juste après
+     * « Votre configuration » et avant les deux colonnes. C'est la question
+     * qui commande tout le reste. L'épreuve précédente le fixait dans la
+     * colonne de droite.
+     */
+    public function test_le_compte_fne_vient_en_tete(): void
+    {
+        $page = $this->get(route('admin.entreprise.parametres'))->assertOk()->getContent();
+        $avantLaGrille = explode('class="grille-parametres"', $page)[0];
+
+        $this->assertSame(1, substr_count($avantLaGrille, 'id="compte-fne"'));
+        $this->assertSame(1, substr_count($page, 'id="compte-fne"'));
+        $this->assertLessThan(strpos($page, 'href="#identite"'), strpos($page, 'href="#compte-fne"'),
+            'La barre de raccourcis suit l\'ordre des cartes.');
     }
 
     public function test_les_raccourcis_menent_a_toutes_les_cartes(): void

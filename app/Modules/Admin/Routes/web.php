@@ -478,6 +478,9 @@ Route::prefix('admin')
         // ── Paramètres entreprise ──
         Route::get('/entreprise/parametres', [EntrepriseControleur::class, 'parametres'])->name('entreprise.parametres');
         Route::put('/entreprise/parametres', [EntrepriseControleur::class, 'enregistrerParametres'])->name('entreprise.parametres.enregistrer');
+        // Reprendre d'un geste ce que le portail FNE détient de l'entreprise
+        // (chantier 10.4) : l'import du relevé n'écrit rien dans `entreprises`.
+        Route::post('/entreprise/portail/reprendre', [EntrepriseControleur::class, 'reprendreLeReleve'])->name('entreprise.portail.reprendre');
         // Ces trois boutons appellent un service extérieur — la plateforme de
         // la DGI, puis Comptaflow. Les marteler use un quota qui n'est pas le
         // nôtre.

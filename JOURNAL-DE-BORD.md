@@ -7391,6 +7391,73 @@ désignait un coin vide. Désormais :
 
 ---
 
+### Lot 46 — Le compte FNE : ne demander que ce qui manque — **TERMINÉ le 07/10/2026**
+
+Section 10 du plan. **Écran et lecture du relevé seulement** : aucun fichier
+du périmètre gelé n'a bougé (vérifié par `git diff` depuis `9c2edeb` sur
+`FneService`, le timbre, le QR, les stickers, les vues `factures/` et
+`FnePayloadTest`).
+
+#### 46.1 — En tête (10.1)
+
+La carte « Compte sur la plateforme FNE » passe juste après « Votre
+configuration », avant les deux colonnes, et la barre d'ancres s'ouvre sur
+elle (« Pour commencer »). `ParametresEntrepriseTest` la fixait dans la
+colonne de droite : l'épreuve est révisée, et une nouvelle fixe la tête.
+
+#### 46.2 — « Je n'en ai pas encore » (10.2)
+
+La carte listait **les dix** informations, renseignées comprises. Elle ne
+liste plus que celles qui manquent — ou dit que tout est là.
+
+#### 46.3 — « J'ai déjà un compte » (10.3)
+
+NCC et mot de passe de l'espace FNE n'apparaissent que s'ils ne sont pas
+connus : le NCC est connu s'il est sur la fiche ou associé aux clés ; l'accès
+est réglé dès que le mot de passe a été fourni **ou** qu'une clé est posée.
+Saisis ici, ils passent par `AccesFneService` (chiffré, jamais rendu), comme
+à l'inscription.
+
+#### 46.4 — Le relevé du portail, fait avant de retirer quoi que ce soit (10.4)
+
+| Carte | Ramené par le scraper | Pas ramené — reste à saisir |
+|---|---|---|
+| Informations générales | adresse, téléphone, e-mail | raison sociale, gérant, RCCM, forme juridique |
+| Identité fiscale | références bancaires | NCC (identifiant du relevé), régime, centre des impôts |
+| DGI & local professionnel | IDU, commune, quartier, référence cadastrale, propriétaire, solde d'alerte | — |
+| Impression des factures | pied de page, autres mentions | — |
+
+**Ce que le relevé a appris, et qui change la façon de retirer :**
+`ImportPortailFneService` **n'écrit rien dans `entreprises`**, et c'est
+délibéré. Masquer un champ « ramené par le portail » aurait donc fait
+disparaître une information qui n'était pas chez nous — le pied de page part
+à la DGI avec chaque facture.
+
+D'où la règle retenue (`ReleveDuPortailService`) :
+
+- un champ **disparaît** (lecture seule, « relevé de votre espace FNE ») quand
+  le portail le porte **et** que Selflow porte la même valeur ;
+- un **écart** reste à l'écran, et le bouton **« Reprendre les valeurs du
+  portail »** le comble d'un geste — geste journalisé ;
+- ce que le portail **ne rend pas** reste à saisir ;
+- `timbre_quittance`, `bapa` et `sticker_solde_alerte` ne sont **jamais**
+  repris : ils changent ce que Selflow fait d'une facture.
+
+#### 46.5 — Le logo FNE (10.5)
+
+Il ne se dépose plus : la carte montre le logo du système (`logo-FNE.png`),
+celui que portent les factures A4, en toutes circonstances. Un fichier posté
+à la main n'est pas lu. *Les logos déjà déposés restent en base* : le ticket
+de caisse les lit encore, et sa vue est dans le périmètre gelé.
+
+**Trouvé en chemin :** le partiel `compte-fne`, inclus par l'inscription,
+portait encore deux icônes Tabler — le lot 45 ne regardait que les vues
+d'authentification. Corrigé, et l'épreuve du 9.1 le couvre désormais.
+
+- `tests/Feature/CompteFneParametresTest.php` — 7 épreuves, **5 tombent** sans le correctif
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

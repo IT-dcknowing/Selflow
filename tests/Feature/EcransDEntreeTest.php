@@ -28,7 +28,14 @@ class EcransDEntreeTest extends TestCase
      */
     public function test_les_pages_publiques_chargent_une_police_d_icones_epinglee(): void
     {
-        foreach (glob(base_path('app/Modules/Authentification/Vues/*.blade.php')) as $vue) {
+        // Le partiel du compte FNE est inclus par l'inscription : il en fait
+        // partie, et ses deux icônes Tabler avaient échappé au premier passage.
+        $vues = array_merge(
+            glob(base_path('app/Modules/Authentification/Vues/*.blade.php')),
+            [base_path('app/Modules/Admin/Vues/partiels/compte-fne.blade.php')]
+        );
+
+        foreach ($vues as $vue) {
             $source = file_get_contents($vue);
 
             $this->assertStringNotContainsString('tabler-icons', $source, basename($vue));

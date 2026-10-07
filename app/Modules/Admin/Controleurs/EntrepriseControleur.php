@@ -68,6 +68,9 @@ class EntrepriseControleur
 
         // Normaliser le NCC : suppression des espaces et mise en majuscule
         $request->merge(['ncc' => $request->has('ncc') ? strtoupper(preg_replace('/\s+/', '', $request->input('ncc'))) : null]);
+        if ($request->filled('fne_ncc')) {
+            $request->merge(['fne_ncc' => strtoupper(preg_replace('/\s+/', '', $request->input('fne_ncc')))]);
+        }
 
         // Mentions transmises à la FNE : un copier-coller depuis un document
         // apporte des retours à la ligne et des espaces multiples qui font
@@ -91,7 +94,10 @@ class EntrepriseControleur
             'email'                  => ['nullable', 'email', 'max:150'],
             'ref_bancaire'           => ['nullable', 'string', 'max:1000'],
             'logo'                   => ['nullable', 'image', 'mimes:png,jpg,jpeg,svg,webp', 'max:2048'],
-            'logo_fne'               => ['nullable', 'image', 'mimes:png,jpg,jpeg,svg,webp', 'max:2048'],
+            // L'accès à l'espace FNE, demandé seulement s'il n'est pas déjà
+            // connu (chantier 10.3).
+            'fne_ncc'                => ['nullable', 'string', 'size:8', 'regex:/^[A-Z0-9]{7}[A-Z]$/'],
+            'fne_mot_de_passe'       => ['nullable', 'string', 'max:255'],
             // `comptaflow_sync_key` était ici, en champ libre. Coller la clé
             // d'une autre entreprise ouvrait la liaison vers ses livres : le
             // secret partagé est détenu par le serveur, il ne dit pas qui
@@ -235,12 +241,21 @@ class EntrepriseControleur
             $data['logo_path'] = $request->file('logo')->store('logos/entreprises', 'public');
         }
 
-        // Traitement du logo FNE / secondaire
-        if ($request->hasFile('logo_fne')) {
-            if ($entreprise->logo_fne_path && Storage::disk('public')->exists($entreprise->logo_fne_path)) {
-                Storage::disk('public')->delete($entreprise->logo_fne_path);
+        // Le logo FNE ne se dépose plus (chantier 10.5) : c'est le système qui
+        // le pose, et il reste affiché en toutes circonstances. Un fichier
+        // posté à la main n'est pas lu.
+
+        // L'accès à l'espace FNE, quand l'écran l'a demandé. Le NCC rejoint la
+        // fiche s'il y manquait ; le mot de passe part chiffré, et ne se rend
+        // jamais.
+        if ($request->filled('fne_ncc') || $request->filled('fne_mot_de_passe')) {
+            $nccFne = $request->filled('fne_ncc') ? strtoupper(preg_replace('/\s+/', '', $request->input('fne_ncc'))) : null;
+
+            \App\Modules\Admin\Services\AccesFneService::enregistrer($entreprise, $nccFne, $request->input('fne_mot_de_passe'));
+
+            if ($nccFne && blank($entreprise->ncc) && blank($data['ncc'] ?? null)) {
+                $data['ncc'] = $nccFne;
             }
-            $data['logo_fne_path'] = $request->file('logo_fne')->store('logos/entreprises', 'public');
         }
 
         $ancien = $entreprise->only(array_keys($data));
@@ -254,6 +269,32 @@ class EntrepriseControleur
         // seul superadministrateur.
 
         return back()->with('succes', 'Paramètres de l\'entreprise mis à jour avec succès.');
+    }
+
+    /**
+     * Reprendre ce que le portail FNE détient de l'entreprise (chantier 10.4).
+     *
+     * Le relevé ne s'applique jamais tout seul : un fichier déposé dans un
+     * dossier ne doit pas changer une fiche sans que personne l'ait décidé.
+     * Ce bouton est cette décision, et elle est journalisée. Seuls les champs
+     * descriptifs sont repris — jamais le timbre, le BAPA ni le solde
+     * d'alerte des stickers, qui changent ce que Selflow fait d'une facture.
+     */
+    public function reprendreLeReleve(): RedirectResponse
+    {
+        $entreprise = Auth::user()->entreprise;
+        $ancien = $entreprise->only(array_keys(\App\Modules\Admin\Services\ReleveDuPortailService::LIBELLES));
+
+        $repris = \App\Modules\Admin\Services\ReleveDuPortailService::reprendre($entreprise);
+
+        if ($repris === []) {
+            return back()->with('info', 'Votre fiche porte déjà tout ce que le portail détient.');
+        }
+
+        $this->journaliser('reprise_releve_portail_fne', 'Entreprise', $entreprise->id, $ancien,
+            array_map(fn (array $e) => $e['portail'], $repris));
+
+        return back()->with('succes', count($repris) . ' information(s) reprise(s) de votre espace FNE.');
     }
 
     /**

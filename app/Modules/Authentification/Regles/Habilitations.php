@@ -440,6 +440,7 @@ class Habilitations
         // plateforme lit sur chaque facture.
         'admin.entreprise.parametres'             => 'gestion_pdv',
         'admin.entreprise.parametres.enregistrer' => 'gestion_pdv',
+        'admin.entreprise.portail.reprendre'      => 'gestion_pdv',
         'admin.entreprise.periodes.creer'         => 'comptabilite_globale',
         'admin.entreprise.periodes.cloturer'      => 'comptabilite_globale',
         'admin.entreprise.fne.tester_connexion'   => 'gestion_pdv',
