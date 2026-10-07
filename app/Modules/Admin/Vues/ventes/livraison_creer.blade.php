@@ -38,6 +38,14 @@
       id="form-bl">
     @csrf
 
+    @if($errors->any())
+        <div style="margin-bottom:16px;padding:12px 16px;background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;color:#991b1b;font-size:13px;">
+            @foreach($errors->all() as $erreur)<div>{{ $erreur }}</div>@endforeach
+        </div>
+    @endif
+
+    @include('admin::composants.transport_depart', ['livreurs' => $livreurs, 'adresse' => $vente->client?->adresse])
+
     <div class="card" style="margin-bottom:20px;">
         <div style="padding:20px; border-bottom:1px solid var(--border); display:flex; gap:24px; flex-wrap:wrap;">
             <div style="flex:1; min-width:200px;">

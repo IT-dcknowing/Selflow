@@ -2,6 +2,10 @@
 
 namespace App\Modules\Admin\Controleurs;
 
+use App\Modules\Admin\Modeles\BonLivraisonDetail;
+use App\Modules\Admin\Modeles\BonLivraison;
+use App\Modules\Admin\Services\NumerotationService;
+use App\Modules\Admin\Services\TransportLivraisonService;
 use App\Modules\Admin\Modeles\Achat;
 use App\Modules\Admin\Modeles\Vente;
 /*
@@ -573,7 +577,10 @@ class StockControleur
         abort_unless($vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
         $vente->load(['client', 'pointDeVente', 'details.produit']);
 
-        return view('admin::stock.livraison_fiche', compact('vente'));
+        $livreurs = \App\Modules\Authentification\Modeles\Utilisateur::where('entreprise_id', Auth::user()->entreprise_id)
+            ->orderBy('nom')->get(['id', 'nom', 'prenom']);
+
+        return view('admin::stock.livraison_fiche', compact('vente', 'livreurs'));
     }
 
     /**
@@ -583,10 +590,14 @@ class StockControleur
     {
         abort_unless($vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
 
+        $entreprise = Auth::user()->entreprise;
+
+        // Le transport, au départ (chantier 15.3) : cette file expédiait sans
+        // dire où, par qui ni quand, et sans laisser de bon à remettre.
         $request->validate([
             'livraison'   => ['nullable', 'array'],
             'livraison.*' => Quantite::facultative(),
-        ]);
+        ] + TransportLivraisonService::reglesDuDepart($entreprise), TransportLivraisonService::messages());
 
         $aLivrer = collect($request->input('livraison', []))
             ->filter(fn ($q) => (float) $q > 0);
@@ -597,7 +608,22 @@ class StockControleur
 
         $pointDeVenteId = $vente->point_de_vente_id;
 
-        DB::transaction(function () use ($request, $vente, $pointDeVenteId) {
+        $numeroBL = null;
+
+        DB::transaction(function () use ($request, $vente, $pointDeVenteId, $entreprise, &$numeroBL) {
+            // Le bon que l'on remettra : il porte le transport, et les lignes
+            // réellement expédiées ci-dessous.
+            $numeroBL = NumerotationService::genererNumeroBL($entreprise->id);
+            $bl = BonLivraison::create([
+                'numero_bl'         => $numeroBL,
+                'vente_id'          => $vente->id,
+                'point_de_vente_id' => $pointDeVenteId,
+                'client_id'         => $vente->client_id,
+                'created_by'        => Auth::id(),
+                'date_livraison'    => now()->toDateString(),
+                'statut'            => 'en_preparation',
+            ] + TransportLivraisonService::depart($request));
+
             foreach ($request->livraison as $detailId => $qtyALivrer) {
                 $qtyALivrer = round((float) $qtyALivrer, Stock::DECIMALES);
                 if ($qtyALivrer <= 0) continue;
@@ -627,6 +653,15 @@ class StockControleur
 
                     $detail->increment('quantite_livree', $qtyALivrer);
 
+                    BonLivraisonDetail::create([
+                        'bon_livraison_id' => $bl->id,
+                        'produit_id'       => $produit->id,
+                        'libelle'          => $detail->libelle_virtuel ?? $produit->nom,
+                        'unite'            => $detail->unite,
+                        'qte_commandee'    => $cmd,
+                        'qte_livree'       => $qtyALivrer,
+                    ]);
+
                     StockService::sortie($produit, (int) $pointDeVenteId, (float) $qtyALivrer,
                         MouvementStock::LIVRAISON, [
                             'piece'     => $vente,
@@ -647,6 +682,8 @@ class StockControleur
             if ($toutLivre && $vente->etape === 'Bon de commande') {
                 $vente->update(['etape' => 'Facture', 'statut' => 'Payé']);
             }
+
+            $bl->update(['livraison_partielle' => !$toutLivre, 'statut' => $toutLivre ? 'en_preparation' : 'partiel']);
         });
 
         // Journaliser
@@ -658,6 +695,7 @@ class StockControleur
         ]);
 
         return redirect()->route('admin.stock.livraisons')
-            ->with('succes', 'Livraison validée et stock mis à jour.');
+            ->with('succes', "Livraison validée et stock mis à jour. Bon de livraison {$numeroBL} établi : "
+                . "l'arrivée se confirme depuis le bon, avec la signature du réceptionnaire.");
     }
 }

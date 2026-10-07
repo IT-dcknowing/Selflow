@@ -94,8 +94,11 @@ class BonLivraisonControleur extends Controller
 
         $stockInsuffisant = $lignes->where('est_insuffisant', true)->count();
 
+        $livreurs = \App\Modules\Authentification\Modeles\Utilisateur::where('entreprise_id', $entreprise->id)
+            ->orderBy('nom')->get(['id', 'nom', 'prenom']);
+
         return view('admin::ventes.livraison_creer', compact(
-            'vente', 'lignes', 'stockInsuffisant'
+            'vente', 'lignes', 'stockInsuffisant', 'livreurs'
         ));
     }
 
@@ -116,7 +119,7 @@ class BonLivraisonControleur extends Controller
         }
 
         // Validation
-        $request->validate([
+        $request->validate(\App\Modules\Admin\Services\TransportLivraisonService::reglesDuDepart($entreprise) + [
             'date_livraison'  => 'required|date',
             'notes'           => 'nullable|string|max:1000',
             'lignes'          => 'required|array|min:1',
@@ -125,7 +128,7 @@ class BonLivraisonControleur extends Controller
             'lignes.*.qte_livree'    => 'required|integer|min:0',
             'lignes.*.libelle'       => 'required|string',
             'lignes.*.unite'         => 'nullable|string',
-        ]);
+        ], \App\Modules\Admin\Services\TransportLivraisonService::messages());
 
         $blId = null;
         $blCle = null;
@@ -181,7 +184,7 @@ class BonLivraisonControleur extends Controller
                 'statut'              => $statut,
                 'livraison_partielle' => $estPartiel,
                 'notes'               => $request->notes,
-            ]);
+            ] + \App\Modules\Admin\Services\TransportLivraisonService::depart($request));
 
             // Créer les lignes et déduire le stock
             foreach ($request->lignes as $ligne) {
@@ -278,7 +281,7 @@ class BonLivraisonControleur extends Controller
     // MARQUER LIVRÉ
     // ──────────────────────────────────────────────────────────────────────────
 
-    public function marquerLivre(BonLivraison $bl): RedirectResponse
+    public function marquerLivre(Request $request, BonLivraison $bl): RedirectResponse
     {
         $entreprise = Auth::user()->entreprise;
         abort_unless($bl->pointDeVente->entreprise_id === $entreprise->id, 404);
@@ -287,8 +290,15 @@ class BonLivraisonControleur extends Controller
             return back()->with('info', 'Ce BL est déjà facturé.');
         }
 
+        // L'arrivée ne se confirme plus d'un clic : l'heure, le réceptionnaire
+        // et sa signature sont ce qui prouve la remise (chantier 15.3).
+        $request->validate(
+            \App\Modules\Admin\Services\TransportLivraisonService::reglesDeLArrivee($bl),
+            \App\Modules\Admin\Services\TransportLivraisonService::messages()
+        );
+
         $statut = $bl->livraison_partielle ? 'partiel' : 'livre';
-        $bl->update(['statut' => $statut]);
+        $bl->update(['statut' => $statut] + \App\Modules\Admin\Services\TransportLivraisonService::arrivee($request));
 
         $this->journaliser('livraison_confirmee', 'BonLivraison', $bl->id);
 

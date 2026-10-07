@@ -240,9 +240,16 @@
             $prefixeRoutePdf = request()->routeIs('caissier.*') ? 'caissier' : 'admin';
         @endphp
         <div style="display: flex; gap: 8px; align-items: center;">
-            @if(isset($bl))
+            @if(isset($bl) && !in_array($bl->statut, ['livre', 'facture']))
+    {{-- L'arrivée se confirme avec l'heure, le réceptionnaire et sa signature
+         (chantier 15.3) : un clic seul n'en gardait aucune trace. --}}
+    @include('admin::composants.transport_arrivee', [
+        'action' => request()->routeIs('caissier.*') ? route('caissier.ventes.livraison.livrer', $bl) : route('admin.ventes.livraison.livrer', $bl),
+    ])
+@endif
+@if(isset($bl))
                 @if(!in_array($bl->statut, ['livre', 'facture']))
-                <button type="button" class="print-btn" style="background:#0369a1; color:#fff; border-color:#0369a1; font-weight:700;" onclick="executerAction('{{ request()->routeIs('caissier.*') ? route('caissier.ventes.livraison.livrer', $bl) : route('admin.ventes.livraison.livrer', $bl) }}', true)">
+                <button type="button" class="print-btn" style="background:#0369a1; color:#fff; border-color:#0369a1; font-weight:700;" onclick="document.getElementById('modalArriveeLivraison').classList.add('open')">
                     <i class="fas fa-check"></i> Marquer Livré
                 </button>
                 @endif
@@ -611,9 +618,51 @@ var DATA = {
         timbre_fiscal: {{ (float) \App\Modules\Admin\Services\TimbreQuittanceService::pourVente($vente) }},
         timbre_provenance: {!! json_encode(\App\Modules\Admin\Services\TimbreQuittanceService::provenance($vente)) !!},
         ref_bl: {!! json_encode(isset($bl) ? $bl->numero_bl : ($vente->etape === 'Bon de commande' ? ($vente->bonLivraison?->numero_bl ?? '') : ($vente->bonLivraisonSource?->numero_bl ?? ''))) !!},
+        // Le transport du bon (chantier 15.3) : il s'imprime avec lui.
+        transport: {!! json_encode(isset($bl) ? [
+            'adresse'        => $bl->adresse_livraison,
+            'livreur'        => $bl->livreur_nom ? ($bl->livreur_nom . ($bl->livreur_type === 'prestataire' ? ' (prestataire)' : '')) : null,
+            'vehicule'       => $bl->vehicule,
+            'depart'         => $bl->heure_depart?->format('d/m/Y H:i'),
+            'arrivee'        => $bl->heure_arrivee?->format('d/m/Y H:i'),
+            'receptionnaire' => $bl->receptionnaire_nom,
+            'signature'      => $bl->receptionnaire_signature,
+            'observations'   => $bl->observations,
+        ] : null) !!},
         ref_bc: {!! json_encode(isset($bl) ? $bl->bonDeCommande->numero_facture : ($vente->etape === 'Bon de commande' ? $vente->numero_facture : (optional($vente->bonLivraisonSource?->bonDeCommande)->numero_facture ?? ''))) !!}
     }
 };
+
+/**
+ * Le transport d'un bon de livraison (chantier 15.3), commun aux modeles.
+ *
+ * Tranche par le proprietaire le 07/10/2026 : le bon imprime porte la
+ * destination, le livreur, le vehicule, les heures, le receptionnaire et sa
+ * signature. Ce qui n'est pas encore connu — l'arrivee, avant la remise —
+ * s'imprime en blanc, a remplir a la main.
+ */
+function echapper(t) {
+    return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) {
+        return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
+    });
+}
+function blocTransport(d) {
+    var t = d.transport;
+    if (!isDeliveryMode || !t) return '';
+    var ligne = function (libelle, valeur) {
+        return '<div><span style="color:var(--mu)">' + libelle + ' : </span><strong>'
+            + (valeur ? echapper(valeur) : '<span style="display:inline-block;min-width:110px;border-bottom:0.5px dotted var(--mu)">&nbsp;</span>')
+            + '</strong></div>';
+    };
+    return '<div style="margin-top:18px;padding:10px 12px;border:0.5px solid var(--border);border-radius:6px;font-size:11px;line-height:1.8;display:grid;grid-template-columns:1fr 1fr;gap:0 18px">'
+        + '<div style="grid-column:1/-1;font-weight:700;letter-spacing:.4px;text-transform:uppercase;font-size:10px;color:var(--mu)">Transport</div>'
+        + ligne('Livré à', t.adresse) + ligne('Livreur', t.livreur)
+        + ligne('Véhicule', t.vehicule) + ligne('Départ', t.depart)
+        + ligne('Arrivée', t.arrivee) + ligne('Réceptionnaire', t.receptionnaire)
+        + '<div style="grid-column:1/-1">' + ligne('Observations', t.observations).replace(/^<div>|<\/div>$/g, '') + '</div>'
+        + (t.signature ? '<div style="grid-column:1/-1;margin-top:4px"><span style="color:var(--mu)">Signature du réceptionnaire :</span><br><img src="' + echapper(t.signature) + '" alt="Signature" style="height:48px"></div>' : '')
+        + '</div>';
+}
 
 /**
  * Le bloc de la monnaie rendue, commun aux quatre modeles.
@@ -1187,6 +1236,7 @@ function model1(d) {
             </tbody>
         </table>
         
+        ${blocTransport(d)}
         ${isDeliveryMode ? `
         <div style="border-top:0.5px solid var(--border);padding-top:14px;margin-top:40px;display:flex;justify-content:space-between;align-items:flex-end">
             <div style="font-size:11px;color:var(--mu);line-height:1.7">Merci pour votre confiance.<br>Document généré par <strong>Selflow</strong> · selflow.app</div>
@@ -1322,6 +1372,7 @@ function model2(d) {
                 </tbody>
             </table>
             
+            ${blocTransport(d)}
             ${isDeliveryMode ? `
             <div style="border-top:0.5px solid var(--border);padding-top:14px;margin-top:40px;display:flex;justify-content:space-between;align-items:flex-end">
                 <div style="font-size:10px;color:var(--mu)">Généré automatiquement par <strong>Selflow</strong></div>
@@ -1454,6 +1505,7 @@ function model3(d) {
             </tbody>
         </table>
         
+        ${blocTransport(d)}
         ${isDeliveryMode ? `
         <div style="border-top:0.5px solid var(--border);padding-top:12px;margin-top:40px;display:flex;justify-content:space-between;align-items:center">
             <div style="font-size:11px;color:var(--mu)">Généré par <strong>Selflow</strong> · selflow.app · Document officiel</div>
@@ -1682,6 +1734,7 @@ function modelStandard(d) {
             </tbody>
         </table>
         
+        ${blocTransport(d)}
         ${isDeliveryMode ? `
         <!-- Pied de page pour Bon de livraison -->
         <div style="border-top:1px solid #000; padding-top:25px; margin-top:50px; display:flex; justify-content:space-between; align-items:flex-end;">

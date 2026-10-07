@@ -24,6 +24,17 @@ class BonLivraison extends Model
         'statut',
         'livraison_partielle',
         'notes',
+        // Le transport (chantier 15.3) : voir TransportLivraisonService.
+        'adresse_livraison',
+        'livreur_type',
+        'livreur_utilisateur_id',
+        'livreur_nom',
+        'vehicule',
+        'heure_depart',
+        'heure_arrivee',
+        'receptionnaire_nom',
+        'receptionnaire_signature',
+        'observations',
     ];
 
     protected function casts(): array
@@ -31,6 +42,8 @@ class BonLivraison extends Model
         return [
             'date_livraison'     => 'date',
             'livraison_partielle'=> 'boolean',
+            'heure_depart'       => 'datetime',
+            'heure_arrivee'      => 'datetime',
         ];
     }
 

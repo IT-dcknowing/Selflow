@@ -55,6 +55,14 @@
 
 <form method="POST" action="{{ route('admin.stock.livraisons.valider', $vente) }}">
     @csrf
+
+    @if($errors->any())
+        <div style="margin-bottom:16px;padding:12px 16px;background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;color:#991b1b;font-size:13px;">
+            @foreach($errors->all() as $erreur)<div>{{ $erreur }}</div>@endforeach
+        </div>
+    @endif
+
+    @include('admin::composants.transport_depart', ['livreurs' => $livreurs, 'adresse' => $vente->client?->adresse])
     
     <div class="card" style="padding:20px;">
         <div class="card-header" style="border-bottom:1px solid var(--border); padding-bottom:12px; margin-bottom:14px;">

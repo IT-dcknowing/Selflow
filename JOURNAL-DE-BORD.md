@@ -7289,6 +7289,56 @@ l'ancien code y avait gonflées. **À lancer en production après déploiement.*
 
 ---
 
+### Lot 53 — Le transport d'une livraison — **TERMINÉ le 07/10/2026**
+
+Chantier 15.3. **Tranché par le propriétaire le 07/10/2026 : tout est
+obligatoire, et le bon imprimé le porte.**
+
+#### 53.1 — Deux temps, parce que deux informations n'existent qu'après coup
+
+| Au départ (création du bon) | À l'arrivée (« marquer livré ») |
+|---|---|
+| adresse de livraison, livreur (personnel ou prestataire), véhicule / immatriculation, heure de départ | heure d'arrivée, nom du réceptionnaire, **sa signature**, observations |
+
+`TransportLivraisonService` porte les deux jeux de règles, et les deux chemins
+qui expédient y passent : le bon de livraison des ventes et la file
+« Livraisons » du stock. Une règle écrite deux fois finit par dire deux
+choses.
+
+- Un livreur du personnel est **choisi** dans l'entreprise, jamais saisi ; un
+  identifiant d'une autre entreprise posté à la main est refusé. Son nom est
+  **figé** sur le bon : un collaborateur renommé ne change pas un document
+  déjà remis.
+- La signature se trace au doigt ou à la souris ; elle part en PNG, et seul
+  un `data:image/png;base64` est accepté — une chaîne arbitraire n'entre pas
+  dans une page imprimée.
+- L'arrivée ne peut pas précéder le départ. Les observations sont exigées :
+  « RAS » quand il n'y a rien à signaler.
+
+#### 53.2 — La file du stock n'établissait aucun bon
+
+**TROUVÉ :** « Livraisons » sortait la marchandise du stock sans créer de bon
+de livraison — rien à remettre au client, rien à faire signer. Elle établit
+désormais son bon (numéro, lignes réellement expédiées, transport), à
+confirmer à l'arrivée comme l'autre.
+
+**Et ses quantités étaient des entiers :** `bon_livraison_details` tenait
+`qte_commandee` et `qte_livree` en `integer`, alors que la file livre au
+gramme près — 12,5 sacs seraient devenus 12. Une nouvelle migration les passe
+en `decimal(15,3)`, la précision des stocks (l'ancienne n'est pas retouchée).
+
+#### 53.3 — Le bon imprimé
+
+Les quatre modèles du document (`factures/vente.blade.php`, mode bon de
+livraison seulement) portent un bloc « Transport » ; ce qui n'est pas encore
+connu s'imprime en pointillés, à remplir à la main. **Le bloc de
+certification FNE n'est pas touché** : le transport ne s'affiche jamais sur
+une facture.
+
+- `tests/Feature/TransportLivraisonTest.php` — 9 épreuves, **toutes tombent** sans le correctif
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
