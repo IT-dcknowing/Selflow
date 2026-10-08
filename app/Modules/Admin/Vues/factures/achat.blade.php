@@ -143,7 +143,10 @@
             <button class="tab" id="receipt-toggle-btn" onclick="toggleReceiptMode()" style="border-color: var(--primary); color: var(--primary);">
                 <i class="fas fa-truck-ramp-box"></i> Passer en Bon de réception
             </button>
-            @if(empty($achat->fournisseur->ncc))
+            {{-- Le format du bordereau, pour un bordereau établi seulement :
+                 il était offert sur toute pièce d'un fournisseur sans NCC,
+                 demande de prix comprise. --}}
+            @if($achat->type_facture === 'bapa' && $achat->etape === 'Facture')
                 <a href="{{ route('admin.achats.bapa', $achat) }}" class="tab" style="border-color: var(--danger); color: var(--danger); text-decoration:none;">
                     <i class="fas fa-file-invoice"></i> Imprimer sous format BAPA
                 </a>
@@ -160,16 +163,15 @@
                     title="Choisissez la destination « Enregistrer au format PDF » pour obtenir le fichier, ou votre imprimante pour une sortie papier.">
                 <i class="fas fa-file-pdf"></i> Imprimer / PDF
             </button>
-            <button class="print-btn" onclick="window.print()">
-                <i class="fas fa-print"></i> Imprimer
-            </button>
+            {{-- Un seul bouton d'impression : « Imprimer / PDF » ouvre déjà la
+                 boîte d'impression du navigateur. --}}
             
             @if($achat->etape === 'Demande de prix')
                 <button class="print-btn" style="background:var(--warning); color:#fff; border-color:var(--warning);" onclick="executerAction('{{ route('admin.achats.confirmer', $achat) }}')">
                     <i class="fas fa-check-circle"></i> Confirmer la commande
                 </button>
             @elseif($achat->etape === 'Bon de commande')
-                <button class="print-btn" style="background:#10b981; color:#fff; border-color:#10b981;" onclick="executerAction('{{ route('admin.achats.facturer', $achat) }}')">
+                <button class="print-btn" style="background:#10b981; color:#fff; border-color:#10b981;" onclick="document.getElementById('modal-facturer-achat').style.display='flex'">
                     <i class="fas fa-file-invoice-dollar"></i> Valider & Facturer
                 </button>
             @endif
@@ -180,6 +182,18 @@
 <form id="action-form" method="POST" style="display:none;">
     @csrf
 </form>
+
+@if($achat->etape === 'Bon de commande')
+    @include('admin::factures.partials.modale_reglement', [
+        'idModale'       => 'modal-facturer-achat',
+        'action'         => route('admin.achats.facturer', $achat),
+        'titre'          => 'Valider & Facturer',
+        'montant'        => (float) $achat->montant_ttc,
+        'modeDefaut'     => 'Crédit',
+        'banques'        => $banques ?? collect(),
+        'libelleMontant' => 'Montant payé au fournisseur',
+    ])
+@endif
 
 <div class="invoice-container">
     <div id="invoice-wrap"></div>

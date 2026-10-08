@@ -183,8 +183,11 @@ class AchatControleur
 
             $montantTtc = $montantHtNet + $montantTva;
 
-            // Déterminer le mode de paiement final (par défaut Caisse si non fourni)
-            $modePaiementFinal = $request->input('mode_paiement', 'Caisse');
+            // Déterminer le mode de paiement final. Sans mode saisi, une
+            // facture se règle en caisse comme avant ; une demande de prix ou
+            // une commande, elle, n'a rien réglé : elle part à crédit, et le
+            // règlement se demande à la facturation.
+            $modePaiementFinal = $request->input('mode_paiement') ?: ($etape === 'Facture' ? 'Caisse' : 'Crédit');
             if ($request->mode_paiement === 'Banque' && $request->filled('banque_id')) {
                 $codeJournal = CodeJournal::where('entreprise_id', Auth::user()->entreprise_id)->findOrFail($request->banque_id);
                 $modePaiementFinal = 'Banque : ' . $codeJournal->intitule;
@@ -646,12 +649,22 @@ class AchatControleur
         $this->autoriserAcces($achat);
         $achat->load(['fournisseur', 'pointDeVente.entreprise', 'details.produit']);
         $dejaPaye = \App\Modules\Admin\Modeles\TresorerieJournal::where('reference_document', $achat->numero_facture)->sum('montant_sortie');
-        return view('admin::factures.achat', compact('achat', 'dejaPaye'));
+        // Les banques, pour le règlement saisi à « Valider & Facturer ».
+        $banques = CodeJournal::where('type', 'Banque')->where('entreprise_id', Auth::user()->entreprise_id)->orderBy('intitule')->get();
+        return view('admin::factures.achat', compact('achat', 'dejaPaye', 'banques'));
     }
 
+    /**
+     * Le bordereau d'achat imprimé.
+     *
+     * Seulement pour un bordereau, et une fois établi : le format était
+     * proposé sur toute pièce d'un fournisseur sans NCC, demande de prix
+     * comprise — un « bordereau » d'une opération qui n'avait pas eu lieu.
+     */
     public function imprimerBapa(Achat $achat): View
     {
         $this->autoriserAcces($achat);
+        abort_unless($achat->type_facture === 'bapa' && $achat->etape === 'Facture', 404);
         $achat->load(['fournisseur', 'pointDeVente.entreprise', 'details.produit']);
         $dejaPaye = \App\Modules\Admin\Modeles\TresorerieJournal::where('reference_document', $achat->numero_facture)->sum('montant_sortie');
         return view('admin::factures.bapa', compact('achat', 'dejaPaye'));
@@ -725,6 +738,31 @@ class AchatControleur
         );
     }
 
+    /**
+     * Donne à la pièce le numéro de sa nouvelle étape.
+     *
+     * Côté achat, la pièce change d'étape sur place — elle reste la même
+     * opération chez le même fournisseur. Elle gardait pourtant son numéro
+     * `DP-` jusqu'à la facture. Le numéro suit désormais l'étape (`BC-`, puis
+     * `ACH-` ou `BA-`), et la négociation B2B qui portait l'ancien numéro le
+     * suit aussi.
+     */
+    private static function renumeroter(Achat $achat, string $etape): void
+    {
+        $ancien = $achat->numero_facture;
+        $nouveau = \App\Modules\Admin\Services\NumerotationService::genererNumeroAchat(
+            $achat->pointDeVente->entreprise_id,
+            $etape,
+            $etape === 'Facture' && $achat->type_facture === 'bapa' ? 'bapa' : null
+        );
+
+        $achat->update(['etape' => $etape, 'numero_facture' => $nouveau]);
+
+        B2bNegotiation::where('entreprise_client_id', $achat->pointDeVente->entreprise_id)
+            ->where('reference_commande', $ancien)
+            ->update(['reference_commande' => $nouveau]);
+    }
+
     public function confirmerCommande(Achat $achat): RedirectResponse
     {
         $this->autoriserAcces($achat);
@@ -732,32 +770,67 @@ class AchatControleur
             return back()->with('info', 'Le document n\'est pas à l\'étape Demande de prix.');
         }
 
-        $achat->update(['etape' => 'Bon de commande']);
+        DB::transaction(fn () => self::renumeroter($achat, 'Bon de commande'));
 
-        return back()->with('succes', 'Commande fournisseur confirmée.');
+        return back()->with('succes', 'Commande fournisseur confirmée : ' . $achat->fresh()->numero_facture . '.');
     }
 
-    public function facturer(Achat $achat): RedirectResponse
+    /**
+     * « Valider & Facturer » une commande fournisseur.
+     *
+     * - n'entre en stock que ce que la file des réceptions n'a pas déjà fait
+     *   entrer : une réception partielle suivie de la facture faisait entrer
+     *   la marchandise deux fois ;
+     * - le règlement se demande (mode et montant) ; sans réponse, la facture
+     *   part à crédit. Le mode « Caisse » posé par défaut à la saisie de la
+     *   commande décaissait un paiement que personne n'avait saisi ;
+     * - la certification d'un bordereau ne part que pour un bordereau, et non
+     *   pour tout fournisseur sans NCC.
+     */
+    public function facturer(Request $request, Achat $achat): RedirectResponse
     {
         $this->autoriserAcces($achat);
         if ($achat->etape === 'Facture') {
             return back()->with('info', 'Cette facture est déjà validée.');
         }
+        if ($achat->etape !== 'Bon de commande') {
+            return back()->with('erreur', 'Confirmez d\'abord la commande : une demande de prix ne se facture pas.');
+        }
 
-        DB::transaction(function () use ($achat) {
-            $nouveauStatut = ($achat->mode_paiement === 'Crédit' || str_contains($achat->mode_paiement, 'Crédit')) ? 'Crédit' : 'Payé';
-            $achat->update(['etape' => 'Facture', 'statut' => $nouveauStatut]);
+        $request->validate([
+            'mode_paiement'      => ['nullable', 'string', 'max:50'],
+            'montant_paye'       => ['nullable', 'numeric', 'min:0'],
+            'banque_id'          => ['required_if:mode_paiement,Banque', 'nullable', 'integer', Appartenance::a('codes_journaux', 'id')],
+            'moyen_bancaire'     => ['required_if:mode_paiement,Banque', 'nullable', 'string', 'in:carte,virement,cheque'],
+            'reference_paiement' => ['required_if:mode_paiement,Banque', 'nullable', 'string', 'max:255'],
+        ]);
 
-            // 1. Incrémenter le stock uniquement pour les articles stockables
+        $mode = $request->input('mode_paiement') ?: 'Crédit';
+        $estBanque = $mode === 'Banque';
+
+        DB::transaction(function () use ($achat, $request, $mode, $estBanque) {
+            $modeFinal = $mode;
+            if ($estBanque && $request->filled('banque_id')) {
+                $journal = CodeJournal::where('entreprise_id', Auth::user()->entreprise_id)->findOrFail($request->banque_id);
+                $modeFinal = 'Banque : ' . $journal->intitule;
+            }
+
+            self::renumeroter($achat, 'Facture');
+            $achat->update([
+                'mode_paiement'      => $modeFinal,
+                'moyen_bancaire'     => $estBanque ? $request->moyen_bancaire : null,
+                'reference_paiement' => $estBanque ? $request->reference_paiement : null,
+            ]);
+            $achat->refresh();
+
+            // 1. N'entre que ce qui reste à recevoir
             foreach ($achat->details as $detail) {
                 $produit = $detail->produit;
-                if ($produit && $produit->estStockable()) {
-                    // Meme raison qu'a la facturation directe : sans cela, la
-                    // file des receptions proposerait de receptionner une
-                    // seconde fois ce qui vient d'entrer.
+                $reste = max(0.0, round((float) $detail->quantite - (float) $detail->quantite_receptionnee, 3));
+                if ($produit && $produit->estStockable() && $reste > 0) {
                     $detail->update(['quantite_receptionnee' => $detail->quantite]);
 
-                    StockService::entree($produit, (int) $achat->point_de_vente_id, (float) $detail->quantite,
+                    StockService::entree($produit, (int) $achat->point_de_vente_id, $reste,
                         MouvementStock::RECEPTION,
                         ['piece' => $achat, 'reference' => $achat->numero_facture,
                          'fournisseur_id' => $achat->fournisseur_id,
@@ -765,11 +838,20 @@ class AchatControleur
                 }
             }
 
-            // 2. Trésorerie : ne décaisser que si l'achat n'est pas à crédit
-            //    (correctif : l'ancien code décaissait systématiquement le TTC
-            //    total même pour un achat "Crédit", payant à tort une dette
-            //    fournisseur censée rester impayée).
-            $montantPaye = $nouveauStatut === 'Crédit' ? 0 : $achat->montant_ttc;
+            // 2. Le règlement saisi, jamais plus que le dû
+            $net = $achat->netAPayer();
+            $montantPaye = 0.0;
+            if ($mode !== 'Crédit') {
+                $montantPaye = $request->filled('montant_paye') ? (float) $request->montant_paye : $net;
+                $montantPaye = round(min(max(0.0, $montantPaye), $net), 2);
+            }
+
+            $statut = match (true) {
+                $montantPaye <= 0            => 'Crédit',
+                $montantPaye >= $net - 0.01  => 'Payé',
+                default                      => 'Avance',
+            };
+            $achat->update(['statut' => $statut]);
 
             if ($montantPaye > 0) {
                 $soldeActuel = TresorerieJournal::where('point_de_vente_id', $achat->point_de_vente_id)
@@ -777,12 +859,12 @@ class AchatControleur
 
                 TresorerieJournal::create([
                     'point_de_vente_id'  => $achat->point_de_vente_id,
-                    'date_operation'     => $achat->date_achat->toDateString(),
+                    'date_operation'     => now()->toDateString(),
                     'type_operation'     => 'Décaissement',
                     'libelle'            => \App\Modules\Admin\Services\ComptabiliteService::libelleTresorerieAchat($achat),
-                    'mode_paiement'      => $achat->mode_paiement,
-                    'moyen_bancaire'     => $achat->moyen_bancaire,
-                    'reference_paiement' => $achat->reference_paiement,
+                    'mode_paiement'      => $modeFinal,
+                    'moyen_bancaire'     => $estBanque ? $request->moyen_bancaire : null,
+                    'reference_paiement' => $estBanque ? $request->reference_paiement : null,
                     'montant_entree'     => 0,
                     'montant_sortie'     => $montantPaye,
                     'solde_resultat'     => $soldeActuel - $montantPaye,
@@ -795,20 +877,21 @@ class AchatControleur
             \App\Modules\Admin\Services\ComptabiliteService::genererEcrituresAchat(
                 $achat,
                 $montantPaye,
-                $achat->mode_paiement,
+                $modeFinal,
                 $achat->date_achat->toDateString(),
-                $achat->moyen_bancaire,
-                $achat->reference_paiement
+                $estBanque ? $request->moyen_bancaire : null,
+                $estBanque ? $request->reference_paiement : null
             );
         });
 
-        // Si le fournisseur n'a pas de NCC, normalisation BAPA asynchrone
-        if (empty($achat->fournisseur?->ncc)) {
+        $achat->refresh();
+
+        // La certification du bordereau : seulement pour un bordereau.
+        if ($achat->type_facture === 'bapa') {
             NormaliserAchatBapaJob::dispatch($achat);
         }
 
-
-        return back()->with('succes', 'Facture d\'achat validée, stock mis à jour et écritures générées.');
+        return back()->with('succes', 'Facture d\'achat ' . $achat->numero_facture . ' validée, stock mis à jour et écritures générées.');
     }
 
 
