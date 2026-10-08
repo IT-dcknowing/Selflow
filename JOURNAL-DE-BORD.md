@@ -7482,6 +7482,63 @@ Les rapports complets sont dans la réponse du 08/10 ; les corrections attendent
 l'accord du propriétaire (certaines changent ce qui part à la DGI).
 
 
+### Lot 59 — le cycle vente / achat corrigé (08/10/2026)
+
+Accord du propriétaire le 08/10 : « corrige tout ce qui est anomalie
+révélée ». Les 32 épreuves de la recette sont devenues l'épreuve permanente
+`tests/Feature/CycleVenteAchatRecetteTest.php` (36 épreuves, toutes vertes).
+Le propriétaire a autorisé le changement de numérotation de ce qui part à la
+DGI ; aucun fichier gelé n'a été touché (FneService, timbre, QR, stickers,
+codes TVA, colonnes fne_*, blocs de certification, FnePayloadTest).
+
+**Ce qui est arrêté :**
+
+- **Une seule porte du BC à la facture** : `FacturationCommandeService`.
+  « Valider & Facturer », « → Facture » et la facturation d'un BL y passent.
+  Montants calculés comme à la caisse (remise de ligne, remise globale au
+  prorata, TVA de ligne, taxes de ligne et taxes sur TTC), aux prix de la
+  commande ; facture nouvelle `VTE-`, écritures, trésorerie plafonnée à
+  `netAPayer()`, certification selon `normaliseAutomatiquement()`. Les
+  acomptes reçus sur le BC ou son devis sont rattachés à la facture.
+- **Le BC n'est jamais transformé sur place** : « Confirmer la commande »
+  copie le devis en `BC-` (comme « → Commande ») ; la facture est une copie
+  `VTE-`. Le BC se clôt (`archived`, `converti_en_id`) quand il est facturé
+  en bloc, ou quand il est entièrement livré et que tous ses BL sont facturés.
+- **Plusieurs BL par BC** (`Vente::bonsLivraison()`, hasMany), chacun
+  reconstruit depuis les lignes du BC et plafonné au reste à livrer ;
+  quantités décimales. Migration `2026_10_08_000002` : `vente_detail_id` sur
+  les lignes de BL, `qte_*` en décimal.
+- **Facturer en bloc ne sort que le reste** (`quantite - quantite_livree`) et
+  rattache les BL existants à la facture. Un BC dont un BL est facturé se
+  facture par ses BL (refus en bloc). Base « Qtés BC d'origine » d'un BL =
+  toute la commande, reste expédié. Case « livraison immédiate » retirée.
+- **Un BC livré est figé** (`estFige()` regarde les livraisons) ; la liste
+  affiche son vrai état et ne propose plus « Modifier » sur une pièce figée.
+- **La file du stock ne facture plus** : elle ne change que le statut
+  logistique (vente : Partiel / En livraison ; achat : Reçu en partie / Reçu).
+- **Achat** : numéro qui suit l'étape (DP- → BC- → ACH-/BA-, négociation B2B
+  suivie) ; facturer n'entre que le reste à recevoir ; règlement demandé par
+  une modale, crédit par défaut ; BAPA seulement pour `type_facture = bapa`
+  établi (404 sinon), certification BAPA idem.
+- Avoir refusé hors facture avoirable ; ticket borné au BL de la vente et de
+  l'entreprise ; modale d'avoir retirée des pages imprimées ; pas de PDF du BC
+  sur la page d'un BL ; « Livré » de la liste → page du BL, modale d'arrivée ;
+  titre d'onglet selon l'étape ; envoi B2B du BC réparé ; routes caissier
+  `confirmer` / `facturer` ; un seul bouton d'impression à l'achat ; vues
+  `ventes/livraisons` et `ventes/livraison_fiche` (jamais rendues) supprimées.
+
+**Épreuves existantes retouchées** : `DevisOpposableTest` (deux épreuves
+reçoivent du stock : la facture d'un BC fait désormais sortir la
+marchandise). Dans la recette, deux attentes étaient fausses et ont été
+réécrites : la modale du BL partiel doit proposer 57 820 et non 88 500 ; le
+bouton « Livré » mène à la modale signée au lieu de poster un formulaire vide
+(qui contredisait `TransportLivraisonTest`).
+
+**Note d'outillage** : dans une copie git dont `vendor` pointe vers celui de
+`/home/user/Selflow`, `php artisan test` charge le code de Selflow ; lancer
+`php vendor/bin/phpunit`.
+
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
