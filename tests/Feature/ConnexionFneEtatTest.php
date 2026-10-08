@@ -139,7 +139,8 @@ class ConnexionFneEtatTest extends TestCase
         $this->assertStringContainsString('name="fne_mot_de_passe"', $page, 'Les deux champs, comme à l\'inscription.');
         $this->assertStringContainsString('data-volet-fne="non"', $page);
         $this->assertStringContainsString('Renseignez vos informations fiscales', $page);
-        $this->assertStringContainsString('seront remplis automatiquement', $page);
+        $this->assertStringContainsString('se fera automatiquement', $page);
+        $this->assertStringContainsString('Veuillez bien remplir ce qui reste', $page);
     }
 
     public function test_avec_un_compte_les_champs_du_portail_sont_grises(): void

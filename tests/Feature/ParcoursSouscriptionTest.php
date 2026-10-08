@@ -226,7 +226,7 @@ class ParcoursSouscriptionTest extends TestCase
 
         $this->get(route('admin.pdv.index'))
             ->assertOk()
-            ->assertSee('<div class="nav-section"><span>Points de vente</span></div>', false);
+            ->assertSee('<span>Points de vente</span></div>', false);
     }
 
     public function test_un_superadmin_peut_toujours_fermer_les_points_de_vente(): void

@@ -336,8 +336,8 @@
                             <div style="font-size:12.5px;color:var(--text-2);line-height:1.6;margin-top:2px;">{{ $etatFne['detail'] }}</div>
                             @if(!$etatFne['a_saisir'] && $aCompteFne === true)
                                 <div style="font-size:12px;color:var(--text-3);line-height:1.6;margin-top:6px;">
-                                    <i class="fas fa-rotate"></i> Les champs grisés plus bas viennent de votre espace FNE
-                                    et se mettent à jour d'eux-mêmes.
+                                    <i class="fas fa-rotate"></i> L'enregistrement des champs grisés se fait automatiquement,
+                                    avec les informations exactes de votre espace FNE. Veuillez bien remplir ce qui reste.
                                 </div>
                             @endif
                         </div>
@@ -374,9 +374,8 @@
                             @endif
                             <div style="padding:11px 13px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12.5px;color:#1e40af;line-height:1.65;">
                                 <i class="fas fa-rotate"></i>
-                                <strong>Les champs grisés plus bas seront remplis automatiquement</strong> depuis
-                                votre espace FNE. Renseignez seulement ceux qui restent ouverts : la plateforme
-                                ne nous les communique pas.
+                                <strong>L'enregistrement des champs grisés se fera automatiquement</strong>, avec les
+                                informations exactes de votre espace FNE. Veuillez bien remplir ce qui reste.
                             </div>
                         </div>
 
