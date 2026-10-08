@@ -263,7 +263,7 @@ class ParametresEntrepriseTest extends TestCase
         // Blade : une carte laissée en double, ou perdue en route, ne se verrait
         // qu'à l'écran.
         foreach (['identite' => $gauche, 'fiscal' => $gauche, 'dgi' => $gauche,
-                  'tiers' => $gauche, 'options' => $droite,
+                  'options' => $droite,
                   'impression' => $droite] as $ancre => $attendue) {
             $this->assertSame(1, substr_count($attendue, 'id="' . $ancre . '"'),
                 "La carte « {$ancre} » n'est pas dans la colonne attendue, ou s'y trouve en double.");
@@ -352,11 +352,39 @@ class ParametresEntrepriseTest extends TestCase
         $corps = $this->get(route('admin.entreprise.parametres'))->assertOk()->getContent();
 
         foreach (['identite', 'fiscal', 'comptaflow', 'dgi', 'compte-fne',
-                  'conformite', 'options', 'tiers', 'impression', 'exercices',
+                  'conformite', 'options', 'impression', 'exercices',
                   'statut-fne'] as $ancre) {
             $this->assertStringContainsString('id="' . $ancre . '"', $corps,
                 "L'ancre « {$ancre} » est annoncée en tête de page et ne mène nulle part.");
             $this->assertStringContainsString('href="#' . $ancre . '"', $corps);
         }
+    }
+
+    public function test_la_numerotation_des_tiers_ne_se_regle_que_comptabilite_ouverte(): void
+    {
+        // Propriétaire, 08/10/2026 : comptabilité fermée, la numérotation par
+        // défaut s'applique et la carte disparaît. Ouverte, elle se règle — et
+        // ne prétend plus dicter quoi que ce soit à Comptaflow.
+        $fermee = $this->get(route('admin.entreprise.parametres'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('id="tiers"', $fermee);
+        $this->assertStringNotContainsString('href="#tiers"', $fermee);
+
+        $this->entreprise->forceFill(['comptabilite_activee' => true])->save();
+        $this->admin->unsetRelation('entreprise');
+
+        $this->get(route('admin.entreprise.parametres'))->assertOk()
+            ->assertSee('id="tiers"', false)
+            ->assertSee('href="#tiers"', false)
+            ->assertSee('ce choix ne lui impose rien')
+            ->assertDontSee('Ce réglage doit être le même que dans Comptaflow');
+    }
+
+    public function test_la_case_de_la_comptabilite_dit_simplement_ce_qu_elle_fait(): void
+    {
+        $this->get(route('admin.entreprise.parametres'))->assertOk()
+            ->assertSee('<b>Je tiens ma comptabilité</b>', false)
+            ->assertSee('Votre comptabilité se tient')
+            ->assertDontSee('Refermer ne supprime rien')
+            ->assertDontSee('Je tiens ma comptabilité dans Selflow');
     }
 }

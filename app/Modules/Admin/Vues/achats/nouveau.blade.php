@@ -47,6 +47,9 @@
      porter deux fois la même charge. Le rapprochement automatique rattrape
      le doublon quand il le reconnaît — mêmes fournisseur, date et montant —,
      mais une saisie qui diffère d'un franc lui échappe. Mieux vaut le dire. --}}
+{{-- Comptabilité fermée, aucune écriture ne se montre : l'avertissement
+     n'a de sens que pour qui tient sa comptabilité (propriétaire, 08/10/2026). --}}
+@if(auth()->user()->entreprise?->comptabiliteOuverte())
 <div id="avisSaisieAchat" style="display:flex; gap:12px; align-items:flex-start; background:#FFF8E1; border:1px solid #FFE082; color:#5D4037; border-radius:10px; padding:12px 16px; margin-bottom:16px; font-size:13px; line-height:1.5;">
     <i class="fas fa-circle-info" style="margin-top:3px; color:#F59E0B;"></i>
     <div>
@@ -56,6 +59,7 @@
         Réservez cet écran aux charges qu'aucun fournisseur ne normalise, et aux bordereaux d'achat (BAPA).
     </div>
 </div>
+@endif
 
 <form method="POST" action="{{ route('admin.achats.enregistrer') }}" id="formAchat">
 @csrf

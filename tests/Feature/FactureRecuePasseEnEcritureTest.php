@@ -313,10 +313,25 @@ class FactureRecuePasseEnEcritureTest extends TestCase
 
     public function test_l_ecran_de_saisie_previent_qu_une_facture_normalisee_ne_se_saisit_pas(): void
     {
+        $this->entreprise->forceFill(['comptabilite_activee' => true])->save();
+        $this->admin->unsetRelation('entreprise');
+
         $this->actingAs($this->admin)
             ->get(route('admin.achats.nouveau'))
             ->assertOk()
             ->assertSee('Tout achat enregistré ici passe en écriture comptable.')
             ->assertSee('ne les saisissez pas ici', false);
+    }
+
+    public function test_comptabilite_fermee_l_ecran_de_saisie_ne_parle_pas_d_ecriture(): void
+    {
+        // Propriétaire, 08/10/2026 : la note ne paraît que comptabilité ouverte.
+        $this->entreprise->forceFill(['comptabilite_activee' => false])->save();
+        $this->admin->unsetRelation('entreprise');
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.achats.nouveau'))
+            ->assertOk()
+            ->assertDontSee('Tout achat enregistré ici passe en écriture comptable.');
     }
 }

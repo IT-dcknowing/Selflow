@@ -383,6 +383,7 @@
                              numéros que sa recherche ne trouverait jamais, et
                              chaque écriture de ce tiers retomberait sur son
                              compte collectif. --}}
+                        @if($comptaOuverte)
                         <div class="form-group" style="margin-bottom:0; grid-column: 1/-1;">
                             <div style="display:flex;align-items:flex-start;gap:8px;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--text-2);line-height:1.55;">
                                 <i class="fas fa-hashtag" style="margin-top:2px;color:var(--primary);"></i>
@@ -395,6 +396,7 @@
                                 </span>
                             </div>
                         </div>
+                        @endif
                     </div>
                 </div>
             </div>

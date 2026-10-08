@@ -104,9 +104,13 @@
                 [
                     'comptabilite' => ['Activer la comptabilité', 'fa-toggle-on'],
                     'comptaflow'   => ['Liaison Comptaflow', 'fa-link'],
-                    'tiers'        => ['Numérotation des tiers', 'fa-hashtag'],
                 ],
-                $comptabiliteOuverte ? ['libelles' => ["Libellés d'écriture", 'fa-pen-nib']] : []
+                // Comptabilité fermée, la numérotation ne se règle pas : le
+                // système prend le numéro par défaut (préfixe + compteur).
+                $comptabiliteOuverte ? [
+                    'tiers'    => ['Numérotation des tiers', 'fa-hashtag'],
+                    'libelles' => ["Libellés d'écriture", 'fa-pen-nib'],
+                ] : []
             ),
             'Documents' => [
                 'impression' => ['Impression', 'fa-print'],
@@ -335,7 +339,7 @@
                             que la DGI exige pour ouvrir un compte, et elles serviront à créer
                             votre espace FNE.
                             <br>
-                            Les éléments qui n'existent pas encore — clé API, numéro de compte
+                            Les éléments qui n'existent pas encore — clé de connexion, numéro de compte
                             attribué par la plateforme — seront complétés une fois le compte
                             ouvert. Vous n'avez aucune démarche à faire de votre côté.
                         </div>
@@ -396,7 +400,7 @@
                             @endforeach
                         </div>
                         <p style="font-size:11.5px;color:var(--text-3);line-height:1.6;margin-top:12px;">
-                            La clé API n'est pas saisie ici : elle est enregistrée par
+                            La clé de connexion n'est pas saisie ici : elle est enregistrée par
                             l'administrateur Selflow une fois délivrée par la DGI.
                         </p>
                     @endif
@@ -693,7 +697,12 @@
                      Le numéro de tiers n'est pas le compte général. 411000 est
                      le compte collectif « Clients » du plan comptable ; 411001
                      ou 411KONE désigne un client précis. Les confondre fait
-                     remonter, dans le relevé d'un client, le solde de tous. --}}
+                     remonter, dans le relevé d'un client, le solde de tous.
+
+                     Comptabilité fermée, la carte disparaît : le numéro par
+                     défaut (préfixe + compteur) s'applique sans rien régler.
+                     Décision du propriétaire, 08/10/2026. --}}
+                @if($comptabiliteOuverte)
                 <div class="card" style="padding:24px;">
                     <div
                         style="font-size:12px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
@@ -701,12 +710,9 @@
                     </div>
 
                     <div style="font-size:12px;color:var(--text-3);margin-bottom:14px;line-height:1.6;">
-                        Le système attribue lui-même le numéro d'un client ou d'un fournisseur —
-                        il ne se saisit pas. Vous choisissez seulement sa forme.
-                        <strong>Ce réglage doit être le même que dans Comptaflow</strong>
-                        (Configuration &rsaquo; Type d'identifiant tiers) : la passerelle retrouve un
-                        tiers par son numéro exact, et deux conventions différentes feraient
-                        retomber chaque écriture sur son compte collectif.
+                        Le système attribue lui-même le numéro d'un client ou d'un fournisseur :
+                        il ne se saisit pas, vous choisissez seulement sa forme.
+                        Comptaflow applique ensuite ses propres réglages : ce choix ne lui impose rien.
                         Les fiches déjà créées gardent leur numéro.
                     </div>
 
@@ -747,6 +753,7 @@
                         tout le monde.
                     </div>
                 </div>
+                @endif
 
                 {{-- Les pièces refusées par la DGI. Elles vivaient dans le menu
                      « Fiscalité & DGI », comme un écran qu'on visite. Ce n'en
@@ -858,9 +865,10 @@
 
                     <div style="font-size:12px;color:var(--text-3);margin-bottom:14px;line-height:1.6;">
                         Selflow établit vos ventes, vos achats, vos factures et votre stock sans
-                        qu'aucun numéro de compte ne vous soit demandé. Ouvrez la comptabilité si
-                        vous tenez vos livres ici : plan comptable, codes journaux, balance,
-                        grand livre et lettrage apparaîtront.
+                        qu'aucun numéro de compte ne vous soit demandé. Votre comptabilité se tient
+                        dans Comptaflow. Activez cette option pour retrouver dans Selflow les numéros
+                        de compte, le plan comptable, les codes journaux et les indicateurs comptables
+                        (balance, grand livre).
                     </div>
 
                     {{-- Le champ caché fait que la case est toujours postée :
@@ -873,11 +881,7 @@
                                {{ $entreprise?->comptabilite_activee ? 'checked' : '' }}
                                {{ $entreprise?->aAttribution('comptabilite') ? 'disabled' : '' }}>
                         <span>
-                            <b>Je tiens ma comptabilité dans Selflow.</b><br>
-                            <span style="color:var(--text-3);font-size:12px;">
-                                Refermer ne supprime rien — vos écritures continuent d'être
-                                enregistrées, elles cessent seulement d'être affichées.
-                            </span>
+                            <b>Je tiens ma comptabilité</b>
                         </span>
                     </label>
 
@@ -927,7 +931,7 @@
                         <i class="fas fa-circle-info" style="color:#2563eb;"></i>
                         Ces options se règlent sur la <strong>plateforme FNE</strong>, et c'est
                         là qu'elles s'appliquent. Reportez ici l'état que vous y avez
-                        constaté : l'API ne le communique pas encore.
+                        constaté : le système de la DGI ne le communique pas encore.
                     </div>
 
                     <div style="display:flex;flex-direction:column;gap:14px;">
@@ -957,7 +961,7 @@
                                     <strong>réclamé au client sur les règlements en espèces</strong> :
                                     il entre dans le net à payer de la facture et dans l'écriture de
                                     caisse. Il reflète l'option cochée sur votre espace FNE, que
-                                    l'API ne communique pas — c'est donc votre administrateur
+                                    le système de la DGI ne communique pas — c'est donc votre administrateur
                                     Selflow qui la reporte, en même temps qu'il configure votre clé.
                                     <br>
                                     Si l'état affiché ne correspond pas à celui de votre espace FNE,
@@ -1186,7 +1190,7 @@
                             ],
                             [
                                 'titre' => 'Signaler un écart avec les options de votre espace FNE',
-                                'texte' => 'Le timbre de quittance et le bordereau d\'achat agricole se règlent sur la plateforme, et l\'API ne permet pas de les lire. L\'état affiché plus bas est celui que votre administrateur Selflow y a constaté : s\'il ne correspond plus, signalez-le — vous encaisseriez un timbre que la plateforme ne retiendra pas.',
+                                'texte' => 'Le timbre de quittance et le bordereau d\'achat agricole se règlent sur la plateforme, et le système de la DGI ne permet pas de les lire. L\'état affiché plus bas est celui que votre administrateur Selflow y a constaté : s\'il ne correspond plus, signalez-le — vous encaisseriez un timbre que la plateforme ne retiendra pas.',
                                 'fait' => null,
                                 'constat' => 'Timbre de quittance : ' . ($entreprise->timbre_quittance ? 'appliqué' : 'non appliqué')
                                     . ' · Normalisation : ' . (($entreprise->normalisation_auto_factures ?? true) ? 'automatique' : 'manuelle') . '.',
