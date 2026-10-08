@@ -46,6 +46,8 @@
              jamais Node pendant un test. -->
         <env name="PORTAIL_FNE_CORRECTION_AUTO" value="true" force="true"/>
         <env name="PORTAIL_FNE_SCRAPER_ACTIF" value="false" force="true"/>
+        <!-- Les épreuves n'écrivent jamais le vrai magasin d'accès du scraper. -->
+        <env name="PORTAIL_FNE_SCRAPER_SCRIPT" value="/nulle-part/selflow-epreuves/fne.js" force="true"/>
         <!-- Le dossier de dépôt des relevés, pointé sur un dossier de test.
              Sans cela, une épreuve qui appelle `portail-fne:importer` range les
              relevés RÉELS du poste dans la base de test : c'est arrivé le

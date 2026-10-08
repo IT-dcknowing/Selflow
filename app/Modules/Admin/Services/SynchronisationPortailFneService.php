@@ -14,10 +14,10 @@ use Illuminate\Support\Facades\Log;
  * grisent à l'écran et se remplissent depuis le dernier relevé. « Tout doit
  * être synchronisé. »
  *
- * Ne sont repris que les champs de `Entreprise::CHAMPS_REPRIS_DU_PORTAIL_FNE`.
- * Le timbre, le BAPA et le seuil des stickers restent au superadministrateur :
- * ils changent le calcul d'une facture, et un fichier déposé ne décide pas de
- * cela à sa place.
+ * Sont repris les champs de `Entreprise::CHAMPS_REPRIS_DU_PORTAIL_FNE` et les
+ * options de `Entreprise::OPTIONS_REPRISES_DU_PORTAIL_FNE` (timbre de
+ * quittance, BAPA) : propriétaire, 08/10/2026, c'est l'espace FNE qui fait
+ * foi. Chaque changement est journalisé.
  *
  * Une valeur que le portail n'a pas rendue n'efface rien.
  */
@@ -42,14 +42,18 @@ class SynchronisationPortailFneService
 
         $changements = [];
 
-        foreach (Entreprise::CHAMPS_REPRIS_DU_PORTAIL_FNE as $champ) {
+        foreach (array_merge(Entreprise::CHAMPS_REPRIS_DU_PORTAIL_FNE, Entreprise::OPTIONS_REPRISES_DU_PORTAIL_FNE) as $champ) {
             $portail = $fiche->{$champ};
 
             if ($portail === null || trim((string) $portail) === '') {
                 continue;
             }
 
-            if ((string) $portail !== (string) $entreprise->{$champ}) {
+            $different = is_bool($portail)
+                ? $portail !== (bool) $entreprise->{$champ}
+                : (string) $portail !== (string) $entreprise->{$champ};
+
+            if ($different) {
                 $changements[$champ] = ['avant' => $entreprise->{$champ}, 'apres' => $portail];
                 $entreprise->{$champ} = $portail;
             }

@@ -126,7 +126,8 @@ class ConfigurationFneTest extends TestCase
             ->get(route('admin.entreprise.parametres'))
             ->assertOk()
             ->assertSee('Timbre de quittance', false)
-            ->assertSee('Réglé par Selflow', false)
+            ->assertSee('Repris de votre espace FNE', false)
+            ->assertSee('Le timbre de quittance est coché sur votre espace FNE.', false)
             ->assertDontSee('name="timbre_quittance"', false);
     }
 

@@ -329,14 +329,23 @@ class Entreprise extends Model
      * « tout doit être synchronisé »). Ils se grisent à l'écran : l'entreprise
      * n'a pas à les ressaisir.
      *
-     * Le timbre de quittance, le BAPA et le seuil d'alerte des stickers sont
-     * aussi relevés, mais ne sont **pas** recopiés : ils commandent le calcul
-     * d'une facture, et c'est le superadministrateur qui les pose.
+     * Le seuil d'alerte des stickers se saisit aussi à l'écran : il se grise
+     * de même.
      */
     public const CHAMPS_REPRIS_DU_PORTAIL_FNE = [
         'email', 'telephone', 'adresse', 'commune', 'quartier', 'reference_cadastrale',
         'idu', 'proprietaire_local', 'ref_bancaire', 'pied_de_page_facture', 'facture_autres_mentions',
+        'sticker_solde_alerte',
     ];
+
+    /**
+     * Les options de l'espace FNE que Selflow reprend aussi (propriétaire,
+     * 08/10/2026) : c'est l'espace FNE qui fait foi. Le timbre de quittance
+     * est requis pour normaliser une facture réglée en espèces ; le BAPA ne
+     * gêne pas une entreprise qui n'en fait pas. Elles ne se saisissent pas à
+     * l'écran : l'écran dit seulement ce que l'espace FNE a coché.
+     */
+    public const OPTIONS_REPRISES_DU_PORTAIL_FNE = ['timbre_quittance', 'bapa'];
 
     /**
      * Où en est la connexion de l'entreprise à la plateforme FNE

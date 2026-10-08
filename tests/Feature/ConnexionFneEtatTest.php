@@ -172,8 +172,37 @@ class ConnexionFneEtatTest extends TestCase
         $this->assertSame('Cocody', $e->commune);
         $this->assertSame('IDU-42', $e->idu);
         $this->assertSame('Riviera II', $e->adresse, 'Un champ que le portail n\'a pas rendu n\'efface rien.');
-        $this->assertFalse((bool) $e->timbre_quittance, 'Le timbre reste au superadministrateur.');
-        $this->assertSame(['email', 'commune', 'idu'], array_keys($changements));
+        // Propriétaire, 08/10/2026 : l'espace FNE fait foi, timbre et BAPA compris.
+        $this->assertTrue((bool) $e->timbre_quittance, 'Le timbre coché sur l\'espace FNE est repris.');
+        $this->assertSame(['email', 'commune', 'idu', 'timbre_quittance'], array_keys($changements));
+    }
+
+    public function test_le_releve_reprend_le_bapa_le_seuil_et_l_ecran_le_dit(): void
+    {
+        $this->entreprise->update(['possede_compte_fne' => true, 'bapa' => false, 'sticker_solde_alerte' => 50, 'timbre_quittance' => false]);
+        $this->releve(['bapa' => true, 'sticker_solde_alerte' => 200, 'timbre_quittance' => true]);
+
+        SynchronisationPortailFneService::reprendre($this->entreprise->fresh());
+
+        $e = $this->entreprise->fresh();
+        $this->assertTrue((bool) $e->bapa);
+        $this->assertSame(200, $e->sticker_solde_alerte);
+
+        $this->admin->unsetRelation('entreprise');
+        $page = $this->parametres();
+        $this->assertStringContainsString('Le timbre de quittance est coché sur votre espace FNE.', $page);
+        $this->assertStringContainsString('Option BAPA de votre espace FNE : <strong>cochée</strong>', $page);
+    }
+
+    public function test_un_timbre_decoche_sur_le_portail_n_est_pas_force(): void
+    {
+        // Un relevé qui ne rend pas l'option ne prouve rien : rien ne change.
+        $this->entreprise->update(['possede_compte_fne' => true, 'timbre_quittance' => true]);
+        $this->releve(['email' => 'portail@dck.ci']);
+
+        SynchronisationPortailFneService::reprendre($this->entreprise->fresh());
+
+        $this->assertTrue((bool) $this->entreprise->fresh()->timbre_quittance);
     }
 
     public function test_sans_compte_le_releve_ne_touche_a_rien(): void
@@ -196,6 +225,33 @@ class ConnexionFneEtatTest extends TestCase
             ])->assertSessionHasNoErrors();
 
         $this->assertSame('portail@dck.ci', $this->entreprise->fresh()->email);
+    }
+
+    // ── Les accès partent au scraper, et le relevé est demandé ───────
+
+    public function test_les_acces_fournis_partent_au_scraper_et_demandent_un_releve(): void
+    {
+        $dossier = storage_path('framework/testing/scraper-' . uniqid());
+        mkdir($dossier, 0777, true);
+        file_put_contents($dossier . '/identifiants.json', json_encode(['_lisez-moi' => 'note', '9999999Z' => 'autre']));
+        config(['selflow.portail_fne.scraper.script' => $dossier . '/fne.js']);
+
+        $this->entreprise->update(['possede_compte_fne' => true]);
+        $this->actingAs($this->admin)->withSession(['point_de_vente_actif_id' => $this->site->id])
+            ->put(route('admin.entreprise.parametres.enregistrer'), [
+                'nom' => $this->entreprise->nom, 'possede_compte_fne' => '1',
+                'fne_ncc' => '1864699a', 'fne_mot_de_passe' => 'Mdp-Portail-2026',
+            ])->assertSessionHasNoErrors();
+
+        $magasin = json_decode(file_get_contents($dossier . '/identifiants.json'), true);
+        $this->assertSame('Mdp-Portail-2026', $magasin['1864699A']['motDePasse']);
+        $this->assertSame('autre', $magasin['9999999Z'], 'Les accès des autres entreprises restent.');
+        $this->assertSame('0600', substr(sprintf('%o', fileperms($dossier . '/identifiants.json')), -4));
+
+        $this->assertDatabaseHas('portail_fne_demandes', ['login' => '1864699A', 'statut' => 'en_attente', 'entreprise_id' => $this->entreprise->id]);
+
+        array_map('unlink', glob($dossier . '/*'));
+        rmdir($dossier);
     }
 
     // ── Le superadministrateur voit les accès ────────────────────────

@@ -1,5 +1,5 @@
 {
-  "_lisez-moi": "Copier ce fichier en identifiants.json (ignoré par git) et y mettre les accès réels. La clé est le login du portail, tel que le rend `php artisan portail-fne:demandes --json` — en pratique le NCC. Selflow ne connaît pas ces mots de passe et n'a pas à les connaître : il ne transmet que des logins.",
+  "_lisez-moi": "Copier ce fichier en identifiants.json (ignoré par git) et y mettre les accès réels. La clé est le login du portail, tel que le rend `php artisan portail-fne:demandes --json` — en pratique le NCC. Depuis le 08/10/2026, Selflow y inscrit lui-même les accès qu'une entreprise fournit (« J'ai déjà un compte FNE ») : ne retirez pas une entrée qu'il a posée.",
 
   "1864699A": "le-mot-de-passe-du-portail",
 

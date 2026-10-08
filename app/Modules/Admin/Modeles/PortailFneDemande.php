@@ -129,8 +129,11 @@ class PortailFneDemande extends Model
             return 0;
         }
 
+        // Seules les demandes ouvertes par un rejet : celle qui suit des accès
+        // fournis attend son premier relevé, quel que soit l'état des rejets.
         return self::where('login', $login)
             ->where('statut', self::STATUT_EN_ATTENTE)
+            ->whereNotNull('rejet_id')
             ->update(['statut' => self::STATUT_ABANDONNEE]);
     }
 

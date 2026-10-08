@@ -113,6 +113,11 @@
             box-shadow: 0 6px 18px rgba(0,43,92,.22);
         }
         .btn-principal:hover { background: var(--primary-d); color: #fff; box-shadow: var(--shadow-h); }
+        /* Dans la barre du haut, « .menu a » (plus précis) imposait son gris
+           au texte du bouton : « Créer un compte » restait sombre sur bleu nuit. */
+        .menu a.btn-principal, .menu a.btn-principal:hover { color: #fff; }
+        .menu a.btn-principal { background: var(--primary-l); border-color: var(--primary-l); }
+        .menu a.btn-principal:hover { background: var(--primary); }
         .btn-clair { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.28); color: #fff; }
         .btn-clair:hover { background: rgba(255,255,255,.2); color: #fff; }
 

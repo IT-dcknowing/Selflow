@@ -61,6 +61,13 @@ class AccesFneService
         }
 
         $identifiants->save();
+
+        // Propriétaire, 08/10/2026 : les accès reçus partent au scraper, et le
+        // relevé est demandé tout de suite — c'est lui qui remplit les champs
+        // grisés des paramètres.
+        if ($motDePasse !== '' && filled($identifiants->ncc_associe)) {
+            IdentifiantsScraperService::apresAccesFourni($entreprise, $identifiants->ncc_associe, $motDePasse);
+        }
     }
 
     /**

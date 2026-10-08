@@ -685,7 +685,7 @@
                                 Seuil d'alerte stickers <span style="color:#E53E3E">*</span>
                             </label>
                             <div style="display:flex;align-items:center;gap:10px;">
-                                <input type="number" name="sticker_solde_alerte" class="form-control"
+                                <input type="number" name="sticker_solde_alerte" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title=\"Repris automatiquement de votre espace FNE\" @endif class="form-control"
                                     value="{{ old('sticker_solde_alerte', $entreprise->sticker_solde_alerte ?? 5) }}"
                                     min="1" max="9999" style="max-width:120px;">
                                 <small style="color:var(--text-3);font-size:12px;">sticker(s) restants → notification
@@ -958,19 +958,21 @@
                                     Timbre de quittance —
                                     <span style="color:{{ $entreprise->timbre_quittance ? 'var(--success)' : 'var(--text-3)' }};">{{ $entreprise->timbre_quittance ? 'appliqué' : 'non appliqué' }}</span>
                                     <span
-                                        style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#92400e;background:#fef3c7;border-radius:4px;padding:1px 6px;margin-left:6px;">Réglé par Selflow</span>
+                                        style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#92400e;background:#fef3c7;border-radius:4px;padding:1px 6px;margin-left:6px;">Repris de votre espace FNE</span>
                                 </div>
-                                <div style="font-size:12px;color:var(--text-3);margin-top:2px;line-height:1.6;">
+                                @if($entreprise->timbre_quittance)
+                                <div style="font-size:12.5px;color:#065f46;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:8px 10px;margin-top:6px;line-height:1.6;">
+                                    <i class="fas fa-circle-info"></i>
+                                    <strong>Le timbre de quittance est coché sur votre espace FNE.</strong>
+                                    Il est appliqué aux factures réglées en espèces, comme la DGI l'attend pour les normaliser.
+                                </div>
+                                @endif
+                                <div style="font-size:12px;color:var(--text-3);margin-top:6px;line-height:1.6;">
                                     Ce droit est établi au barème de l'article 873 du CGI et
                                     <strong>réclamé au client sur les règlements en espèces</strong> :
                                     il entre dans le net à payer de la facture et dans l'écriture de
-                                    caisse. Il reflète l'option cochée sur votre espace FNE, que
-                                    le système de la DGI ne communique pas — c'est donc votre administrateur
-                                    Selflow qui la reporte, en même temps qu'il configure votre clé.
-                                    <br>
-                                    Si l'état affiché ne correspond pas à celui de votre espace FNE,
-                                    signalez-le : une facture annoncerait un timbre que la
-                                    plateforme ne retiendra pas, ou l'inverse.
+                                    caisse. Il suit l'option cochée sur votre espace FNE, reprise
+                                    automatiquement à chaque relevé du portail.
                                 </div>
                             </div>
                         </div>
@@ -994,6 +996,11 @@
                                     Son ouverture ne se règle pas ici mais sur <strong>votre espace
                                     FNE</strong> : si l'option n'y est pas cochée, la plateforme
                                     refusera le bordereau, quoi que Selflow en dise.
+                                </div>
+                                <div style="font-size:12px;margin-top:6px;color:{{ $entreprise->bapa ? '#065f46' : 'var(--text-3)' }};">
+                                    <i class="fas {{ $entreprise->bapa ? 'fa-circle-check' : 'fa-circle-minus' }}"></i>
+                                    Option BAPA de votre espace FNE : <strong>{{ $entreprise->bapa ? 'cochée' : 'non cochée' }}</strong>
+                                    — reprise automatiquement à chaque relevé du portail.
                                 </div>
                             </div>
                         </div>
