@@ -80,10 +80,10 @@
                 </thead>
                 <tbody>
                     @foreach($lignes as $i => $ligne)
-                    <input type="hidden" name="lignes[{{ $i }}][produit_id]"    value="{{ $ligne['produit_id'] }}">
-                    <input type="hidden" name="lignes[{{ $i }}][libelle]"       value="{{ $ligne['libelle'] }}">
-                    <input type="hidden" name="lignes[{{ $i }}][unite]"         value="{{ $ligne['unite'] }}">
-                    <input type="hidden" name="lignes[{{ $i }}][qte_commandee]" value="{{ $ligne['qte_commandee'] }}">
+                    {{-- La ligne de commande, et rien d'autre : l'article, le
+                         libellé et la quantité commandée se relisent sur la
+                         commande, jamais dans la requête. --}}
+                    <input type="hidden" name="lignes[{{ $i }}][detail_id]" value="{{ $ligne['detail_id'] }}">
                     <tr id="ligne-{{ $i }}" class="{{ $ligne['est_insuffisant'] ? 'ligne-alerte' : '' }}">
                         <td>
                             <div style="font-weight:600; color:var(--text);">{{ $ligne['libelle'] }}</div>
@@ -94,7 +94,12 @@
                             @endif
                         </td>
                         <td style="color:var(--text-2);">{{ $ligne['unite'] ?? '—' }}</td>
-                        <td style="text-align:center; font-weight:700;">{{ $ligne['qte_commandee'] }}</td>
+                        <td style="text-align:center; font-weight:700;">
+                            {{ $ligne['qte_commandee'] }}
+                            @if($ligne['qte_deja_livree'] > 0)
+                                <div style="font-size:11px; color:var(--text-3); font-weight:500;">déjà livré : {{ $ligne['qte_deja_livree'] }} — reste {{ $ligne['qte_reste'] }}</div>
+                            @endif
+                        </td>
                         <td style="text-align:center;">
                             <span style="font-weight:700; color:{{ $ligne['est_insuffisant'] ? '#d97706' : '#059669' }};">
                                 {{ $ligne['stock_dispo'] }}
@@ -105,16 +110,16 @@
                                    name="lignes[{{ $i }}][qte_livree]"
                                    id="qte-livree-{{ $i }}"
                                    value="{{ $ligne['qte_suggere'] }}"
-                                   min="0"
-                                   max="{{ $ligne['qte_commandee'] }}"
-                                   data-commande="{{ $ligne['qte_commandee'] }}"
+                                   min="0" step="any"
+                                   max="{{ $ligne['qte_reste'] }}"
+                                   data-commande="{{ $ligne['qte_reste'] }}"
                                    data-index="{{ $i }}"
                                    onchange="calculerReliquat({{ $i }})"
                                    style="width:80px; text-align:center; padding:6px; border:1px solid {{ $ligne['est_insuffisant'] ? '#fbbf24' : 'var(--border)' }}; border-radius:6px; background:var(--bg2); font-weight:700;">
                         </td>
                         <td style="text-align:center;">
-                            <span id="reliquat-{{ $i }}" style="font-weight:700; color:{{ ($ligne['qte_commandee'] - $ligne['qte_suggere']) > 0 ? '#d97706' : '#059669' }};">
-                                {{ $ligne['qte_commandee'] - $ligne['qte_suggere'] }}
+                            <span id="reliquat-{{ $i }}" style="font-weight:700; color:{{ ($ligne['qte_reste'] - $ligne['qte_suggere']) > 0 ? '#d97706' : '#059669' }};">
+                                {{ $ligne['qte_reste'] - $ligne['qte_suggere'] }}
                             </span>
                         </td>
                     </tr>
@@ -144,8 +149,8 @@
 
 <script>
 function calculerReliquat(i) {
-    const qteL    = parseInt(document.getElementById('qte-livree-' + i).value) || 0;
-    const qteCom  = parseInt(document.getElementById('qte-livree-' + i).dataset.commande) || 0;
+    const qteL    = parseFloat(document.getElementById('qte-livree-' + i).value) || 0;
+    const qteCom  = parseFloat(document.getElementById('qte-livree-' + i).dataset.commande) || 0;
     const reliquat = Math.max(0, qteCom - qteL);
     const span    = document.getElementById('reliquat-' + i);
     span.textContent = reliquat;
@@ -157,8 +162,8 @@ function mettreAJourRecap() {
     const inputs  = document.querySelectorAll('[id^="qte-livree-"]');
     let totalCom  = 0, totalLivre = 0;
     inputs.forEach(inp => {
-        totalCom   += parseInt(inp.dataset.commande) || 0;
-        totalLivre += parseInt(inp.value) || 0;
+        totalCom   += parseFloat(inp.dataset.commande) || 0;
+        totalLivre += parseFloat(inp.value) || 0;
     });
     const recap = document.getElementById('recap-partiel');
     if (totalLivre < totalCom) {

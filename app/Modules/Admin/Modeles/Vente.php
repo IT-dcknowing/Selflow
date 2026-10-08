@@ -6,7 +6,6 @@ use App\Modules\Admin\Modeles\Concerns\IdentifiantOpaque;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Vente extends Model
 {
@@ -182,11 +181,71 @@ class Vente extends Model
     }
 
     /**
-     * Si ce BC a généré un Bon de Livraison
+     * Les bons de livraison de ce bon de commande.
+     *
+     * Plusieurs, et non un seul : une commande se livre souvent en plusieurs
+     * fois, et la relation `hasOne` d'origine interdisait le second bon — le
+     * solde d'une livraison partielle ne pouvait plus partir que par la file
+     * du stock. Chaque bon reste plafonné au reste à livrer.
      */
-    public function bonLivraison(): HasOne
+    public function bonsLivraison(): HasMany
     {
-        return $this->hasOne(BonLivraison::class, 'vente_id');
+        return $this->hasMany(BonLivraison::class, 'vente_id');
+    }
+
+    /**
+     * Ce qui reste à livrer sur chaque ligne de la commande, indexé par ligne.
+     *
+     * Seules les lignes d'article comptent : une ligne libre (prestation
+     * saisie à la main) ne sort d'aucun stock et ne se livre pas.
+     *
+     * @return array<int, float>
+     */
+    public function resteALivrerParLigne(): array
+    {
+        $reste = [];
+        foreach ($this->details as $detail) {
+            if (!$detail->produit_id) {
+                continue;
+            }
+            $reste[$detail->id] = max(0.0, round((float) $detail->quantite - (float) $detail->quantite_livree, 3));
+        }
+
+        return $reste;
+    }
+
+    /** Toute la commande est-elle partie ? */
+    public function estEntierementLivree(): bool
+    {
+        return array_sum($this->resteALivrerParLigne()) <= 0;
+    }
+
+    /**
+     * La commande a-t-elle commencé à partir ?
+     *
+     * Un bon de livraison, ou une quantité sortie par la file du stock : dans
+     * les deux cas, de la marchandise a quitté le magasin sur la foi de ce
+     * document, qui ne peut plus dire autre chose.
+     */
+    public function aDesLivraisons(): bool
+    {
+        if ($this->etape !== 'Bon de commande') {
+            return false;
+        }
+
+        return $this->bonsLivraison()->exists()
+            || $this->details()->where('quantite_livree', '>', 0)->exists();
+    }
+
+    /**
+     * Un de ses bons de livraison a-t-il déjà été facturé ?
+     *
+     * La commande se facture alors par ses bons : la facturer en bloc
+     * reprendrait ce qui figure déjà sur une facture.
+     */
+    public function aUnBonDeLivraisonFacture(): bool
+    {
+        return $this->bonsLivraison()->whereNotNull('facture_vente_id')->exists();
     }
 
     /**
@@ -331,7 +390,12 @@ class Vente extends Model
      */
     public function estFige(): bool
     {
-        return $this->estUneOffre() && ($this->estAccepte() || $this->estConverti());
+        // Une commande livrée — même en partie — est figée elle aussi : la
+        // marchandise est partie sur la foi de ses lignes, et la modifier
+        // ferait dire au bon de livraison et à la facture autre chose que ce
+        // que le client a reçu.
+        return $this->estUneOffre()
+            && ($this->estAccepte() || $this->estConverti() || $this->aDesLivraisons());
     }
 
     /**
@@ -339,12 +403,44 @@ class Vente extends Model
      */
     public function etatDeLOffre(): string
     {
+        if (!$this->estUneOffre()) {
+            return '';
+        }
+
+        if ($this->estConverti()) {
+            return $this->etape === 'Bon de commande' ? 'Facturé' : 'Converti';
+        }
+
+        // Le sort logistique d'une commande prime sur celui de l'offre : une
+        // commande livrée n'est plus un « brouillon ».
+        if ($this->aDesLivraisons()) {
+            if ($this->aUnBonDeLivraisonFacture()) {
+                return 'Facturé en partie';
+            }
+
+            return $this->estEntierementLivree() ? 'Livré' : 'Livré en partie';
+        }
+
         return match (true) {
-            !$this->estUneOffre() => '',
-            $this->estConverti()  => 'Converti',
             $this->estAccepte()   => 'Accepté',
             $this->estExpire()    => 'Expiré',
             default               => $this->statut === 'Envoyé' ? 'En attente' : 'Brouillon',
+        };
+    }
+
+    /**
+     * Le nom de la pièce, tel que l'écran et l'onglet du navigateur le disent.
+     */
+    public function libelleEtape(): string
+    {
+        if ($this->type_facture === 'avoir') {
+            return 'Facture d\'avoir';
+        }
+
+        return match ($this->etape) {
+            'Devis'           => 'Devis',
+            'Bon de commande' => 'Bon de commande',
+            default           => $this->estRecu() ? 'Reçu' : 'Facture',
         };
     }
 

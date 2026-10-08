@@ -521,16 +521,18 @@ class StockControleur
                 }
             }
 
-            // Mettre à jour l'étape ou le statut si tout est entièrement réceptionné
-            $toutRecu = true;
-            foreach ($achat->details as $d) {
-                if ($d->quantite_receptionnee < $d->quantite) {
-                    $toutRecu = false;
-                    break;
-                }
-            }
-            if ($toutRecu && $achat->etape === 'Bon de commande') {
-                $achat->update(['etape' => 'Facture', 'statut' => 'Payé']);
+            // Seul le sort logistique de la commande change. Recevoir n'est
+            // pas facturer : la file passait le bon en « Facture / Payé »,
+            // sans écriture ni décaissement, sous son numéro `BC-` — une
+            // commande à crédit se retrouvait payée. La facture se valide par
+            // « Valider & Facturer », qui n'entre plus que ce qui reste à
+            // recevoir.
+            $achat->load('details');
+            $toutRecu = $achat->details->every(
+                fn ($d) => (float) $d->quantite_receptionnee >= (float) $d->quantite
+            );
+            if ($achat->etape === 'Bon de commande') {
+                $achat->update(['statut' => $toutRecu ? 'Reçu' : 'Reçu en partie']);
             }
         });
 
@@ -655,6 +657,7 @@ class StockControleur
 
                     BonLivraisonDetail::create([
                         'bon_livraison_id' => $bl->id,
+                        'vente_detail_id'  => $detail->id,
                         'produit_id'       => $produit->id,
                         'libelle'          => $detail->libelle_virtuel ?? $produit->nom,
                         'unite'            => $detail->unite,
@@ -671,16 +674,17 @@ class StockControleur
                 }
             }
 
-            // Mettre à jour l'étape ou le statut si tout est entièrement livré
-            $toutLivre = true;
-            foreach ($vente->details as $d) {
-                if ($d->quantite_livree < $d->quantite) {
-                    $toutLivre = false;
-                    break;
-                }
-            }
-            if ($toutLivre && $vente->etape === 'Bon de commande') {
-                $vente->update(['etape' => 'Facture', 'statut' => 'Payé']);
+            // Seul le statut logistique change. Livrer n'est pas facturer : la
+            // file passait le bon de commande en « Facture / Payé » sous son
+            // numéro `BC-`, sans paiement, sans écriture ni certification. La
+            // facture s'établit par le bon de livraison ou par « Valider &
+            // Facturer ».
+            $vente->load('details');
+            $toutLivre = $vente->details->every(
+                fn ($d) => !$d->produit_id || (float) $d->quantite_livree >= (float) $d->quantite
+            );
+            if ($vente->etape === 'Bon de commande') {
+                $vente->update(['statut' => $toutLivre ? 'En livraison' : 'Partiel']);
             }
 
             $bl->update(['livraison_partielle' => !$toutLivre, 'statut' => $toutLivre ? 'en_preparation' : 'partiel']);

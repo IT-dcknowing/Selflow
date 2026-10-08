@@ -6,13 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Modules\Admin\Modeles\BonLivraison;
 use App\Modules\Admin\Modeles\BonLivraisonDetail;
 use App\Modules\Admin\Modeles\Vente;
-use App\Modules\Admin\Modeles\Stock;
 use App\Modules\Admin\Modeles\Produit;
 use App\Modules\Admin\Modeles\VenteDetail;
 use App\Modules\Admin\Modeles\MouvementStock;
 use App\Modules\Admin\Modeles\CodeJournal;
 use App\Modules\Admin\Modeles\TresorerieJournal;
-use App\Jobs\NormaliserFactureFne;
 use App\Modules\Admin\Services\NumerotationService;
 use App\Modules\Admin\Traits\JournaliseActions;
 use Illuminate\Http\RedirectResponse;
@@ -21,6 +19,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use App\Modules\Admin\Services\StockService;
+use App\Modules\Admin\Services\FacturationCommandeService;
 
 class BonLivraisonControleur extends Controller
 {
@@ -44,8 +43,28 @@ class BonLivraisonControleur extends Controller
     // ──────────────────────────────────────────────────────────────────────────
 
     /**
+     * Ce qui interdit d'établir un bon de livraison sur ce document, ou `null`.
+     */
+    private static function obstacleALaLivraison(Vente $vente): ?string
+    {
+        if ($vente->etape !== 'Bon de commande') {
+            return 'Ce document n\'est pas un bon de commande.';
+        }
+        if ($vente->estConverti()) {
+            return 'Cette commande a déjà été facturée : il n\'y a plus rien à livrer sur elle.';
+        }
+        if ($vente->estEntierementLivree()) {
+            return 'Cette commande est entièrement livrée : il ne reste rien à livrer.';
+        }
+
+        return null;
+    }
+
+    /**
      * Formulaire de création du BL pré-rempli depuis le BC.
-     * Vérifie le stock disponible pour chaque article.
+     *
+     * Une commande se livre en autant de bons qu'il le faut ; chaque bon
+     * propose ce qui reste à livrer, borné par le stock disponible.
      */
     public function creerDepuisBC(Vente $vente): View|RedirectResponse
     {
@@ -54,21 +73,16 @@ class BonLivraisonControleur extends Controller
         // Sécurité : le BC doit appartenir à l'entreprise
         abort_unless($vente->pointDeVente->entreprise_id === $entreprise->id, 404);
 
-        // Seulement si c'est bien un Bon de Commande sans BL existant
-        if ($vente->etape !== 'Bon de commande') {
-            return back()->with('erreur', 'Ce document n\'est pas un bon de commande.');
-        }
-        if ($vente->bonLivraison) {
-            return redirect()
-                ->route(request()->routeIs('caissier.*') ? 'caissier.ventes.livraison.voir' : 'admin.ventes.livraison.voir',
-                        $vente->bonLivraison)
-                ->with('info', 'Un bon de livraison existe déjà pour cette commande.');
+        if ($obstacle = self::obstacleALaLivraison($vente)) {
+            return back()->with('erreur', $obstacle);
         }
 
         $pointDeVenteId = $vente->point_de_vente_id;
+        $vente->load('details.produit');
+        $reste = $vente->resteALivrerParLigne();
 
         // Construire la liste des lignes avec contrôle de stock
-        $lignes = $vente->details->map(function ($detail) use ($pointDeVenteId) {
+        $lignes = $vente->details->filter(fn ($d) => ($reste[$d->id] ?? 0) > 0)->values()->map(function ($detail) use ($pointDeVenteId, $reste) {
             $stock = \App\Modules\Admin\Modeles\Stock::where('produit_id', $detail->produit_id)
                 ->where('point_de_vente_id', $pointDeVenteId)
                 ->first();
@@ -76,16 +90,19 @@ class BonLivraisonControleur extends Controller
             // En float : le stock se compte aussi en kilos et en litres, et
             // (int) faisait apparaitre 12,5 kg comme 12 disponibles.
             $stockDispo    = $stock ? max(0, (float) $stock->quantite_disponible) : 0;
-            $qteCom        = (float) $detail->quantite;
-            $qteSuggestion = min($qteCom, $stockDispo);
-            $estInsuffisant = $stockDispo < $qteCom;
+            $qteReste      = (float) $reste[$detail->id];
+            $estStockable  = $detail->produit?->estStockable() ?? false;
+            $qteSuggestion = $estStockable ? min($qteReste, $stockDispo) : $qteReste;
+            $estInsuffisant = $estStockable && $stockDispo < $qteReste;
 
             return [
                 'detail_id'      => $detail->id,
                 'produit_id'     => $detail->produit_id,
                 'libelle'        => $detail->libelle_virtuel ?? $detail->produit?->nom ?? '(article supprimé)',
                 'unite'          => $detail->unite,
-                'qte_commandee'  => $qteCom,
+                'qte_commandee'  => (float) $detail->quantite,
+                'qte_deja_livree'=> (float) $detail->quantite_livree,
+                'qte_reste'      => $qteReste,
                 'stock_dispo'    => $stockDispo,
                 'qte_suggere'    => $qteSuggestion,
                 'est_insuffisant'=> $estInsuffisant,
@@ -104,18 +121,21 @@ class BonLivraisonControleur extends Controller
 
     /**
      * Enregistre le Bon de Livraison.
-     * Déduit le stock (qte_livree) et met à jour le statut du BC.
+     *
+     * Les lignes se reconstruisent depuis la commande : la requête ne dit que
+     * la quantité livrée sur chacune. Elle portait aussi l'article, la
+     * quantité commandée et le libellé, et le bon les prenait tels quels —
+     * 25 sacs livrés pour 10 commandés passaient sans rien dire.
      */
     public function enregistrer(Request $request, Vente $vente): RedirectResponse
     {
         $entreprise = Auth::user()->entreprise;
         abort_unless($vente->pointDeVente->entreprise_id === $entreprise->id, 404);
 
-        if ($vente->etape !== 'Bon de commande') {
-            return back()->with('erreur', 'Ce document n\'est pas un bon de commande.');
-        }
-        if ($vente->bonLivraison) {
-            return back()->with('erreur', 'Un bon de livraison existe déjà pour cette commande.');
+        $vente->load('details.produit');
+
+        if ($obstacle = self::obstacleALaLivraison($vente)) {
+            return back()->with('erreur', $obstacle);
         }
 
         // Validation
@@ -123,55 +143,63 @@ class BonLivraisonControleur extends Controller
             'date_livraison'  => 'required|date',
             'notes'           => 'nullable|string|max:1000',
             'lignes'          => 'required|array|min:1',
-            'lignes.*.produit_id'    => 'required|integer',
-            'lignes.*.qte_commandee' => 'required|integer|min:0',
-            'lignes.*.qte_livree'    => 'required|integer|min:0',
-            'lignes.*.libelle'       => 'required|string',
-            'lignes.*.unite'         => 'nullable|string',
+            'lignes.*.detail_id'     => 'nullable|integer',
+            'lignes.*.produit_id'    => 'nullable|integer',
+            // Décimale : le ciment se livre au sac, le sable à la tonne et
+            // l'huile au litre. La règle `integer` refusait 2,5.
+            'lignes.*.qte_livree'    => \App\Modules\Admin\Regles\Quantite::facultative(),
         ], \App\Modules\Admin\Services\TransportLivraisonService::messages());
 
-        $blId = null;
-        $blCle = null;
+        // Chaque quantité livrée, rapportée à sa ligne de commande.
+        $reste = $vente->resteALivrerParLigne();
+        $aLivrer = [];
+        foreach ((array) $request->input('lignes', []) as $ligne) {
+            $qte = round((float) ($ligne['qte_livree'] ?? 0), \App\Modules\Admin\Modeles\Stock::DECIMALES);
+            if ($qte <= 0) {
+                continue;
+            }
 
-        // Vérification de disponibilité AVANT toute écriture en base.
-        foreach ($request->lignes as $ligne) {
-            $qteL = max(0, (int) ($ligne['qte_livree'] ?? 0));
-            if ($qteL > 0 && !empty($ligne['produit_id'])) {
-                $produit = Produit::find($ligne['produit_id']);
-                if ($produit && $produit->estStockable()) {
-                    $dispo = $produit->stockActuel($vente->point_de_vente_id);
-                    if ($dispo < $qteL) {
-                        return back()->withInput()->with('erreur',
-                            "❌ Stock insuffisant pour livrer « {$produit->nom} » (Disponible: {$dispo}, Demandé: {$qteL})."
-                        );
-                    }
+            $detail = !empty($ligne['detail_id'])
+                ? $vente->details->firstWhere('id', (int) $ligne['detail_id'])
+                : $vente->details->first(fn ($d) => (int) $d->produit_id === (int) ($ligne['produit_id'] ?? 0)
+                    && !isset($aLivrer[$d->id]) && isset($reste[$d->id]));
+
+            if (!$detail || !isset($reste[$detail->id])) {
+                return back()->withInput()->with('erreur', 'Une ligne livrée ne figure pas sur cette commande.');
+            }
+
+            $aLivrer[$detail->id] = ($aLivrer[$detail->id] ?? 0) + $qte;
+        }
+
+        if ($aLivrer === []) {
+            return back()->withInput()->with('erreur', 'Aucune quantité à livrer.');
+        }
+
+        // Plafond : le reste à livrer de chaque ligne, puis le stock.
+        foreach ($aLivrer as $detailId => $qteL) {
+            $detail = $vente->details->firstWhere('id', $detailId);
+            $nom = $detail->produit?->nom ?? $detail->libelle_virtuel;
+            if ($qteL > $reste[$detailId] + 0.0005) {
+                return back()->withInput()->with('erreur',
+                    "❌ « {$nom} » : {$qteL} à livrer pour un reste de {$reste[$detailId]} sur la commande."
+                );
+            }
+
+            if ($detail->produit && $detail->produit->estStockable()) {
+                $dispo = $detail->produit->stockActuel($vente->point_de_vente_id);
+                if ($dispo < $qteL) {
+                    return back()->withInput()->with('erreur',
+                        "❌ Stock insuffisant pour livrer « {$nom} » (Disponible: {$dispo}, Demandé: {$qteL})."
+                    );
                 }
             }
         }
 
-        DB::transaction(function () use ($request, $vente, $entreprise, &$blId, &$blCle) {
-            $numeroBL    = NumerotationService::genererNumeroBL($entreprise->id);
-            $totalCom    = 0;
-            $totalLivre  = 0;
-            $estPartiel  = false;
+        $blId = null;
+        $blCle = null;
 
-            // Calculer si livraison partielle
-            foreach ($request->lignes as $ligne) {
-                $qteC = (int) $ligne['qte_commandee'];
-                $qteL = (int) $ligne['qte_livree'];
-                $totalCom   += $qteC;
-                $totalLivre += $qteL;
-                if ($qteL < $qteC) {
-                    $estPartiel = true;
-                }
-            }
-
-            $statut = 'en_preparation';
-            if ($totalLivre === 0) {
-                $statut = 'en_preparation';
-            } elseif ($estPartiel) {
-                $statut = 'partiel';
-            }
+        DB::transaction(function () use ($request, $vente, $entreprise, $aLivrer, &$blId, &$blCle) {
+            $numeroBL = NumerotationService::genererNumeroBL($entreprise->id);
 
             // Créer le BL
             $bl = BonLivraison::create([
@@ -181,64 +209,59 @@ class BonLivraisonControleur extends Controller
                 'client_id'           => $vente->client_id,
                 'created_by'          => Auth::id(),
                 'date_livraison'      => $request->date_livraison,
-                'statut'              => $statut,
-                'livraison_partielle' => $estPartiel,
+                'statut'              => 'en_preparation',
+                'livraison_partielle' => false,
                 'notes'               => $request->notes,
             ] + \App\Modules\Admin\Services\TransportLivraisonService::depart($request));
 
-            // Créer les lignes et déduire le stock
-            foreach ($request->lignes as $ligne) {
-                $qteL = max(0, (int) $ligne['qte_livree']);
+            foreach ($aLivrer as $detailId => $qteL) {
+                $detail = $vente->details->firstWhere('id', $detailId);
 
                 BonLivraisonDetail::create([
                     'bon_livraison_id' => $bl->id,
-                    'produit_id'       => $ligne['produit_id'],
-                    'libelle'          => $ligne['libelle'],
-                    'unite'            => $ligne['unite'] ?? null,
-                    'qte_commandee'    => (int) $ligne['qte_commandee'],
+                    'vente_detail_id'  => $detail->id,
+                    'produit_id'       => $detail->produit_id,
+                    'libelle'          => $detail->libelle_virtuel ?? $detail->produit?->nom ?? 'Article',
+                    'unite'            => $detail->unite,
+                    'qte_commandee'    => (float) $detail->quantite,
                     'qte_livree'       => $qteL,
                 ]);
 
                 // Déduire du stock (sortie), avec verrou, contrôle final et traçabilité
-                if ($qteL > 0 && !empty($ligne['produit_id'])) {
-                    $produit = Produit::lockForUpdate()->find($ligne['produit_id']);
+                $produit = Produit::lockForUpdate()->find($detail->produit_id);
+                if ($produit && $produit->estStockable()) {
+                    // La disponibilite se lit sous le verrou de la fiche,
+                    // celui-la meme qui servira a la sortie.
+                    $disponible = StockService::disponible($produit, (int) $vente->point_de_vente_id);
 
-                    if ($produit && $produit->estStockable()) {
-                        // La disponibilite se lit sous le verrou de la fiche,
-                        // celui-la meme qui servira a la sortie.
-                        $disponible = StockService::disponible($produit, (int) $vente->point_de_vente_id);
-
-                        if ($disponible < $qteL) {
-                            throw new \InvalidArgumentException(
-                                "Stock insuffisant pour livrer « {$produit->nom} » (Disponible: {$disponible}, Demandé: {$qteL})."
-                            );
-                        }
-
-                        // Ce mouvement partait sans sous-type : l'ecran des
-                        // mouvements le rangeait dans le defaut, en gris, et la
-                        // section « Ventes » ne le montrait pas.
-                        StockService::sortie($produit, (int) $vente->point_de_vente_id, (float) $qteL,
-                            MouvementStock::LIVRAISON, [
-                                'piece'     => $bl,
-                                'reference' => $numeroBL,
-                                'client_id' => $vente->client_id,
-                            ]);
-
-                        // Synchroniser avec le détail de vente d'origine : évite le
-                        // double décrément si l'utilisateur passe aussi par la file
-                        // "Livraisons à valider" (StockControleur::livraisons()),
-                        // qui se base sur VenteDetail.quantite_livree.
-                        $venteDetail = VenteDetail::where('vente_id', $vente->id)
-                            ->where('produit_id', $produit->id)
-                            ->first();
-                        if ($venteDetail) {
-                            $venteDetail->increment('quantite_livree', $qteL);
-                        }
+                    if ($disponible < $qteL) {
+                        throw new \InvalidArgumentException(
+                            "Stock insuffisant pour livrer « {$produit->nom} » (Disponible: {$disponible}, Demandé: {$qteL})."
+                        );
                     }
+
+                    StockService::sortie($produit, (int) $vente->point_de_vente_id, (float) $qteL,
+                        MouvementStock::LIVRAISON, [
+                            'piece'     => $bl,
+                            'reference' => $numeroBL,
+                            'client_id' => $vente->client_id,
+                        ]);
                 }
+
+                // La ligne de commande retient ce qui est parti : c'est le
+                // reste à livrer du prochain bon, et ce que la file du stock
+                // (StockControleur::livraisons()) ne proposera plus.
+                $detail->increment('quantite_livree', $qteL);
             }
 
-            // Mettre à jour le statut du BC
+            // Partiel : quelque chose reste à livrer sur la commande après ce
+            // bon — et non « ce bon livre moins que la commande », ce qui
+            // marquait partiel le bon qui solde une livraison.
+            $vente->load('details');
+            $estPartiel = !$vente->estEntierementLivree();
+            $bl->update(['statut' => $estPartiel ? 'partiel' : 'en_preparation', 'livraison_partielle' => $estPartiel]);
+
+            // Mettre à jour le statut logistique du BC
             $vente->update(['statut' => $estPartiel ? 'Partiel' : 'En livraison']);
 
             $blId = $bl->id;
@@ -266,15 +289,23 @@ class BonLivraisonControleur extends Controller
         $entreprise = Auth::user()->entreprise;
         abort_unless($bl->pointDeVente->entreprise_id === $entreprise->id, 404);
 
-        $bl->load(['details.produit', 'bonDeCommande.utilisateur', 'facture', 'client', 'pointDeVente']);
+        $bl->load(['details.produit', 'bonDeCommande.utilisateur', 'bonDeCommande.details.produit', 'bonDeCommande.details.taxes',
+            'bonDeCommande.taxesPersonnalisees', 'facture', 'client', 'pointDeVente']);
 
         $vente = $bl->bonDeCommande;
         $vendeur = $vente->utilisateur;
         $dejaPaye = TresorerieJournal::where('reference_document', $vente->numero_facture)->sum('montant_entree');
 
+        // Ce que la facture de ce bon demandera au client : les quantités
+        // livrées, aux prix et remises de la commande. La modale proposait le
+        // TTC de toute la commande, et un bon partiel encaissait le tout.
+        $montantAFacturer = FacturationCommandeService::netHorsTimbre(
+            $vente, FacturationCommandeService::quantitesDuBon($bl, $vente)
+        );
+
         $banques = CodeJournal::where('type', 'Banque')->where('entreprise_id', $entreprise->id)->orderBy('intitule')->get();
 
-        return view('admin::factures.vente', compact('bl', 'vente', 'vendeur', 'dejaPaye', 'banques'));
+        return view('admin::factures.vente', compact('bl', 'vente', 'vendeur', 'dejaPaye', 'banques', 'montantAFacturer'));
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -310,164 +341,117 @@ class BonLivraisonControleur extends Controller
     // ──────────────────────────────────────────────────────────────────────────
 
     /**
+     * Ce qui interdit de facturer ce bon, ou `null`.
+     */
+    private static function obstacleALaFacturation(BonLivraison $bl, Vente $bc, string $base): ?string
+    {
+        if ($bl->statut === 'facture' || $bl->facture_vente_id) {
+            return 'Ce BL est déjà facturé.';
+        }
+
+        // La commande a déjà sa facture — en bloc, ou par le dernier de ses
+        // bons : la facturer encore, c'est facturer deux fois le client.
+        if ($bc->estConverti()) {
+            return 'La commande ' . $bc->numero_facture . ' est déjà facturée'
+                . ($bc->convertiEn ? ' (' . $bc->convertiEn->numero_facture . ')' : '') . '.';
+        }
+
+        // « Quantités de la commande » facture toute la commande : ce n'est
+        // possible que tant qu'aucun de ses bons n'a été facturé.
+        if ($base === 'commandee' && $bc->aUnBonDeLivraisonFacture()) {
+            return 'Un autre bon de cette commande est déjà facturé : facturez celui-ci sur les quantités livrées.';
+        }
+
+        return null;
+    }
+
+    /**
      * Génère une Facture depuis ce BL.
-     * L'utilisateur choisit si on facture sur les qté commandées (BC) ou livrées (BL).
-     * Redirige ensuite vers /modifier pour compléter le paiement.
+     *
+     * Deux bases :
+     *
+     * - **les quantités livrées** — la facture porte ce que ce bon a remis ;
+     *   la commande se clôt quand elle est entièrement livrée et que tous ses
+     *   bons sont facturés ;
+     * - **les quantités de la commande** — la facture porte toute la
+     *   commande, le reste non livré part à l'instant, et la commande se clôt.
+     *
+     * Les montants se calculent comme à la caisse, remise globale et taxes
+     * comprises (`FacturationCommandeService`).
      */
     public function convertirEnFacture(Request $request, BonLivraison $bl): RedirectResponse
     {
         $entreprise = Auth::user()->entreprise;
         abort_unless($bl->pointDeVente->entreprise_id === $entreprise->id, 404);
 
-        if ($bl->statut === 'facture') {
+        if ($bl->statut === 'facture' || $bl->facture_vente_id) {
             return back()->with('erreur', 'Ce BL est déjà facturé.');
         }
 
-        // Valider les nouveaux champs de règlement et livraison immédiate
+        // Valider les champs de règlement
         $request->validate([
             'base_facturation'   => 'required|in:livree,commandee',
             'mode_paiement'      => 'required|in:Caisse,Banque,Crédit',
             'montant_paye'       => 'nullable|numeric|min:0',
-            'banque_id'          => 'required_if:mode_paiement,Banque',
+            'banque_id'          => ['required_if:mode_paiement,Banque', 'nullable', 'integer', \App\Modules\Admin\Regles\Appartenance::a('codes_journaux', 'id')],
             'moyen_bancaire'     => 'required_if:mode_paiement,Banque|nullable|in:carte,virement,cheque',
             'reference_paiement' => 'required_if:mode_paiement,Banque|nullable|string|max:100',
-            'livraison_immediate'=> 'nullable',
         ]);
 
         $baseQte = $request->input('base_facturation', 'livree');
-        $bc = $bl->bonDeCommande->load('details.produit');
-        $pointDeVenteId = $bl->point_de_vente_id;
+        $bc = $bl->bonDeCommande->load('details.produit', 'details.taxes', 'taxesPersonnalisees');
 
-        $nouvelleFactureId = null;
+        if ($obstacle = self::obstacleALaFacturation($bl, $bc, $baseQte)) {
+            return back()->with('erreur', $obstacle);
+        }
 
-        DB::transaction(function () use ($bl, $bc, $baseQte, $entreprise, $request, $pointDeVenteId, &$nouvelleFactureId) {
-            $numeroFacture = NumerotationService::genererNumeroVente($entreprise->id, 'Facture');
+        if ($baseQte === 'commandee' && ($manque = FacturationCommandeService::manqueDeStockPourLeReste($bc))) {
+            return back()->with('erreur', $manque);
+        }
 
-            // Recalculer les montants selon la base choisie
-            $montantHt  = 0;
-            $montantTva = 0;
-            $montantTtc = 0;
+        $quantites = $baseQte === 'commandee'
+            ? FacturationCommandeService::quantitesDeLaCommande($bc)
+            : FacturationCommandeService::quantitesDuBon($bl, $bc);
 
-            foreach ($bc->details as $detail) {
-                // Trouver la ligne correspondante dans le BL
-                $blDetail = $bl->details->firstWhere('produit_id', $detail->produit_id);
-                $qte = ($baseQte === 'livree' && $blDetail)
-                    ? $blDetail->qte_livree
-                    : $detail->quantite;
-
-                $ratio       = $detail->quantite > 0 ? ($qte / $detail->quantite) : 0;
-                $montantHt  += $detail->prix_unitaire * $qte;
-                $montantTva += $detail->montant_tva * $ratio;
-                $montantTtc += $detail->montant_ttc * $ratio;
-            }
-
-            // Déterminer la valeur finale du mode de paiement pour l'enregistrement
-            $modePaiementFinal = $request->mode_paiement;
-            if ($request->mode_paiement === 'Banque' && $request->filled('banque_id')) {
-                $codeJournal = CodeJournal::where('entreprise_id', Auth::user()->entreprise_id)->findOrFail($request->banque_id);
-                $modePaiementFinal = 'Banque : ' . $codeJournal->intitule;
-            }
-
-            // Calcul du statut de la vente
-            $montantPaye = 0;
-            if ($request->mode_paiement === 'Crédit') {
-                $statutVente = 'Crédit';
-            } else {
-                $montantPaye = $request->filled('montant_paye') ? floatval($request->montant_paye) : $montantTtc;
-                if ($montantPaye <= 0) {
-                    $statutVente = 'Crédit';
-                    $montantPaye = 0;
-                } elseif ($montantPaye >= $montantTtc) {
-                    $statutVente = 'Payé';
-                } else {
-                    $statutVente = 'Avance';
-                }
-            }
-
-            // Cloner le BC en Facture
-            $facture = $bc->replicate(['archived', 'normalise', 'numero_fne', 'signature_dgi', 'qr_code_data', 'statut']);
-            $facture->numero_facture   = $numeroFacture;
-            $facture->etape            = 'Facture';
-            $facture->statut           = $statutVente;
-            $facture->mode_paiement    = $modePaiementFinal;
-            $facture->moyen_bancaire   = $request->mode_paiement === 'Banque' ? $request->moyen_bancaire : null;
-            $facture->reference_paiement = $request->mode_paiement === 'Banque' ? $request->reference_paiement : null;
-            $facture->archived         = false;
-            $facture->normalise        = false;
-            $facture->numero_fne       = null;
-            $facture->signature_dgi    = null;
-            $facture->qr_code_data     = null;
-            $facture->bon_livraison_id  = $bl->id;
-            $facture->montant_ht       = $montantHt;
-            $facture->montant_tva      = $montantTva;
-            $facture->montant_ttc      = $montantTtc;
-            $facture->save();
-
-            // Cloner les lignes avec la quantité selon la base choisie
-            foreach ($bc->details as $detail) {
-                $blDetail = $bl->details->firstWhere('produit_id', $detail->produit_id);
-                $qte = ($baseQte === 'livree' && $blDetail) ? $blDetail->qte_livree : $detail->quantite;
-
-                $newDetail = $detail->replicate();
-                $newDetail->vente_id  = $facture->id;
-                $newDetail->quantite  = $qte;
-                $newDetail->save();
-            }
-
-            // Écritures comptables (+ règlement immédiat le cas échéant) : décide
-            // seule si vente comptant (aucune ligne 411) ou à crédit (411 pour
-            // le solde réellement non couvert immédiatement).
-            \App\Modules\Admin\Services\ComptabiliteService::genererEcrituresVente(
-                $facture,
-                $statutVente === 'Crédit' ? 0 : $montantPaye,
-                $modePaiementFinal,
-                now()->toDateString(),
-                $request->mode_paiement === 'Banque' ? $request->moyen_bancaire : null,
-                $request->mode_paiement === 'Banque' ? $request->reference_paiement : null
-            );
-
-            if ($statutVente !== 'Crédit' && $montantPaye > 0) {
-                $soldeActuel = TresorerieJournal::where('point_de_vente_id', $pointDeVenteId)
-                    ->orderByDesc('created_at')->value('solde_resultat') ?? 0;
-
-                TresorerieJournal::create([
-                    'point_de_vente_id'  => $pointDeVenteId,
-                    'date_operation'     => now()->toDateString(),
-                    'type_operation'     => 'Encaissement',
-                    'libelle'            => \App\Modules\Admin\Services\ComptabiliteService::libelleTresorerieVente($facture),
-                    'mode_paiement'      => $modePaiementFinal,
-                    'moyen_bancaire'     => $request->mode_paiement === 'Banque' ? $request->moyen_bancaire : null,
-                    'reference_paiement' => $request->mode_paiement === 'Banque' ? $request->reference_paiement : null,
-                    'montant_entree'     => $montantPaye,
-                    'montant_sortie'     => 0,
-                    'solde_resultat'     => $soldeActuel + $montantPaye,
-                    'reference_document' => $numeroFacture,
-                ]);
-            }
-
-            // Normalisation FNE
-            $estRne = empty($facture->client_id) || ($facture->client_id == 'divers');
-            NormaliserFactureFne::dispatch($facture, $estRne);
-
-            // Gérer le statut du BL (si livraison immédiate cochée, on le marque comme livré si pas déjà fait)
-            if ($request->filled('livraison_immediate') && !in_array($bl->statut, ['livre', 'facture'])) {
-                $bl->update(['statut' => 'facture', 'livraison_partielle' => false]);
-            } else {
-                $bl->update(['statut' => 'facture']);
-            }
-
-            // Lier le BL à la facture
-            $bl->update([
-                'facture_vente_id' => $facture->id,
+        $facture = DB::transaction(function () use ($bl, $bc, $baseQte, $request, $quantites) {
+            $facture = FacturationCommandeService::etablir($bc, $quantites, [
+                'mode'               => $request->mode_paiement,
+                'montant'            => $request->input('montant_paye'),
+                'banque_id'          => $request->input('banque_id'),
+                'moyen_bancaire'     => $request->input('moyen_bancaire'),
+                'reference_paiement' => $request->input('reference_paiement'),
+            ], [
+                'bon_livraison_id'  => $bl->id,
+                'expedier_le_reste' => $baseQte === 'commandee',
             ]);
 
-            $nouvelleFactureId = $facture->id;
+            // Le bon est facturé. Sa remise au client, elle, garde sa propre
+            // preuve — l'heure d'arrivée et la signature du réceptionnaire —,
+            // qu'aucune case à cocher ne remplace : la case « livraison
+            // immédiate et finale » marquait livré un bon que personne n'avait
+            // signé, et déclarait complet un bon partiel.
+            $bl->update(['statut' => 'facture', 'facture_vente_id' => $facture->id]);
+
+            if ($baseQte === 'commandee') {
+                // Toute la commande est sur cette facture : ses autres bons
+                // aussi.
+                BonLivraison::where('vente_id', $bc->id)->whereNull('facture_vente_id')
+                    ->update(['statut' => 'facture', 'facture_vente_id' => $facture->id]);
+            }
+
+            $bc->refresh()->load('details');
+            $resteNonFacture = BonLivraison::where('vente_id', $bc->id)->whereNull('facture_vente_id')->exists();
+            if ($bc->estEntierementLivree() && !$resteNonFacture) {
+                FacturationCommandeService::clore($bc, $facture);
+            }
+
+            return $facture;
         });
 
         $this->journaliser('facturation_depuis_bl', 'BonLivraison', $bl->id);
 
-        $route = request()->routeIs('caissier.*') ? 'caissier.ventes.factures' : 'admin.ventes.factures';
-        return redirect()->route($route, ['etape' => 'Facture'])
-            ->with('succes', 'Facture ' . $bl->bonDeCommande->numero_facture . ' générée avec succès !');
+        $route = request()->routeIs('caissier.*') ? 'caissier.ventes.imprimer' : 'admin.ventes.imprimer';
+        return redirect()->route($route, $facture)
+            ->with('succes', 'Facture ' . $facture->numero_facture . ' générée depuis le bon ' . $bl->numero_bl . '.');
     }
 }

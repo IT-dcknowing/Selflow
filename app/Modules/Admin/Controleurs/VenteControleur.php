@@ -444,37 +444,13 @@ class VenteControleur
         // ── Envoi B2B automatique pour "Bon de commande" ───────────────────────
         // Si le client a un NCC qui correspond à une entreprise enregistrée dans
         // Selflow, on crée automatiquement un bon de commande dans son espace B2B.
-        if (isset($etape) && $etape === 'Bon de commande' && isset($vente)) {
-            $clientNcc = null;
-            if ($vente->client_id) {
-                $clientNcc = Client::where('id', $vente->client_id)->value('ncc');
-            }
-            if ($clientNcc) {
-                $entrepriseDestinataire = Entreprise::where('ncc', $clientNcc)->first();
-                if ($entrepriseDestinataire && $entrepriseDestinataire->id !== Auth::user()->entreprise_id) {
-                    // Charger les détails avec les produits
-                    $vente->load('details.produit');
-                    $produitsDemandes = $vente->details->map(function ($d) {
-                        return [
-                            'nom' => $d->produit?->nom ?? 'Produit #' . $d->produit_id,
-                            'quantite' => $d->quantite,
-                            'unite' => $d->unite ?? $d->produit?->unite ?? 'pcs',
-                            'prix_propose' => $d->prix_unitaire,
-                        ];
-                    })->values()->all();
-
-                    B2bNegotiation::create([
-                        'entreprise_client_id' => Auth::user()->entreprise_id,
-                        'entreprise_fournisseur_id' => $entrepriseDestinataire->id,
-                        'statut' => 'RFQ',
-                        'type_demande' => 'commande',
-                        'reference_commande' => $vente->numero_facture,
-                        'produits_demandes' => $produitsDemandes,
-                        'prix_final' => $vente->montant_ttc,
-                        'historique_discussions' => [],
-                    ]);
-                }
-            }
+        //
+        // La vente se relit après la transaction : le bloc testait `$vente` et
+        // `$etape`, qui ne vivaient que dans la closure, et l'envoi ne partait
+        // jamais.
+        $venteCreee = $venteId ? Vente::find($venteId) : null;
+        if ($venteCreee && $venteCreee->etape === 'Bon de commande') {
+            self::transmettreLaCommandeEnB2b($venteCreee);
         }
 
         // Journaliser la création de la vente
@@ -484,6 +460,51 @@ class VenteControleur
         $etape = $request->input('etape', 'Facture');
         return redirect()->route($routeRetour, ['etape' => $etape])
             ->with('succes', $etape . ' enregistré(e) avec succès.');
+    }
+
+    /**
+     * Le bon de commande transmis au client, quand ce client est lui-même
+     * inscrit dans Selflow (même NCC) : il le trouve dans son espace B2B.
+     */
+    private static function transmettreLaCommandeEnB2b(Vente $vente): void
+    {
+        $clientNcc = $vente->client_id ? Client::where('id', $vente->client_id)->value('ncc') : null;
+        if (!$clientNcc) {
+            return;
+        }
+
+        $entrepriseDestinataire = Entreprise::where('ncc', $clientNcc)->first();
+        $emettrice = $vente->pointDeVente->entreprise_id;
+        if (!$entrepriseDestinataire || $entrepriseDestinataire->id === $emettrice) {
+            return;
+        }
+
+        if (B2bNegotiation::where('entreprise_client_id', $emettrice)
+            ->where('reference_commande', $vente->numero_facture)->exists()) {
+            return;
+        }
+
+        // Charger les détails avec les produits
+        $vente->load('details.produit');
+        $produitsDemandes = $vente->details->map(function ($d) {
+            return [
+                'nom' => $d->produit?->nom ?? $d->libelle_virtuel ?? 'Produit #' . $d->produit_id,
+                'quantite' => $d->quantite,
+                'unite' => $d->unite ?? $d->produit?->unite ?? 'pcs',
+                'prix_propose' => $d->prix_unitaire,
+            ];
+        })->values()->all();
+
+        B2bNegotiation::create([
+            'entreprise_client_id' => $emettrice,
+            'entreprise_fournisseur_id' => $entrepriseDestinataire->id,
+            'statut' => 'RFQ',
+            'type_demande' => 'commande',
+            'reference_commande' => $vente->numero_facture,
+            'produits_demandes' => $produitsDemandes,
+            'prix_final' => $vente->montant_ttc,
+            'historique_discussions' => [],
+        ]);
     }
 
     public function factures(): View
@@ -526,7 +547,7 @@ class VenteControleur
         $nbBL = $blCompteQuery->count();
 
         if ($etapeActive === 'Bon de livraison') {
-            $blQuery = BonLivraison::with(['bonDeCommande', 'client', 'pointDeVente', 'facture'])
+            $blQuery = BonLivraison::with(['bonDeCommande.details.taxes', 'bonDeCommande.taxesPersonnalisees', 'details', 'client', 'pointDeVente', 'facture'])
                 ->whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entreprise->id));
             if ($pointDeVenteId) {
                 $blQuery->where('point_de_vente_id', $pointDeVenteId);
@@ -536,7 +557,7 @@ class VenteControleur
             }
             $ventes = $blQuery->latest()->paginate(20);
         } else {
-            $baseQuery = Vente::with(['client', 'pointDeVente', 'details.produit', 'pieceLiee', 'rejets']);
+            $baseQuery = Vente::with(['client', 'pointDeVente', 'details.produit', 'pieceLiee', 'rejets', 'bonsLivraison']);
 
             if ($type === 'avoir') {
                 $baseQuery->where('type_facture', 'avoir');
@@ -621,7 +642,10 @@ class VenteControleur
         // Calculer ce qui a été effectivement payé
         $dejaPaye = TresorerieJournal::where('reference_document', $vente->numero_facture)->sum('montant_entree');
 
-        return view('admin::factures.vente', compact('vente', 'vendeur', 'dejaPaye'));
+        // Les banques, pour le règlement saisi à « Valider & Facturer ».
+        $banques = CodeJournal::where('type', 'Banque')->where('entreprise_id', Auth::user()->entreprise_id)->orderBy('intitule')->get();
+
+        return view('admin::factures.vente', compact('vente', 'vendeur', 'dejaPaye', 'banques'));
     }
 
     /**
@@ -685,9 +709,21 @@ class VenteControleur
         $vendeur = $vente->utilisateur;
         $dejaPaye = TresorerieJournal::where('reference_document', $vente->numero_facture)->sum('montant_entree');
 
+        // Le bon de livraison imprimé avec le ticket : celui de cette vente —
+        // le bon qu'elle facture, ou un bon de la commande qu'elle solde —, et
+        // jamais un bon pris par son seul numéro de ligne : n'importe quel
+        // numéro donnait le bon d'une autre entreprise.
         $bl = null;
         if (request()->filled('bl')) {
-            $bl = BonLivraison::with('details.produit')->find(request('bl'));
+            $bl = BonLivraison::with('details.produit')
+                ->whereKey((int) request('bl'))
+                ->whereHas('pointDeVente', fn ($q) => $q->where('entreprise_id', Auth::user()->entreprise_id))
+                ->where(function ($q) use ($vente) {
+                    $q->where('facture_vente_id', $vente->id)
+                      ->orWhere('vente_id', $vente->id)
+                      ->orWhere('id', $vente->bon_livraison_id);
+                })
+                ->first();
         }
 
         return view('admin::factures.ticket', compact('vente', 'vendeur', 'dejaPaye', 'bl'));
@@ -1050,6 +1086,16 @@ class VenteControleur
      */
     private static function pourquoiFige(Vente $offre): string
     {
+        if ($offre->estConverti() && $offre->etape === 'Bon de commande') {
+            return 'Cette commande a été facturée (' . ($offre->convertiEn?->numero_facture ?? 'facture')
+                . ') : elle ne se modifie plus. Une correction passe par un avoir.';
+        }
+
+        if (!$offre->estConverti() && $offre->aDesLivraisons()) {
+            return 'Cette commande a déjà été livrée, au moins en partie : elle ne se modifie plus. '
+                . 'Ses lignes sont celles que le client a reçues.';
+        }
+
         if ($offre->estConverti()) {
             return 'Ce document a été converti en ' . ($offre->convertiEn?->numero_facture ?? 'une autre pièce')
                 . ' : il ne se modifie plus. Modifiez la pièce qui en est issue.';
@@ -1083,6 +1129,32 @@ class VenteControleur
             return 'Ce devis a expiré le ' . $offre->date_validite->format('d/m/Y')
                 . ' : ses prix ne vous engagent plus. Prolongez sa validité ou '
                 . 'établissez-en un nouveau avant de le convertir.';
+        }
+
+        return null;
+    }
+
+    /**
+     * Ce qui interdit de facturer une commande en bloc, ou `null`.
+     *
+     * Une commande dont un bon de livraison est déjà facturé se facture par
+     * ses bons : la facturer en bloc reprendrait ce qui figure déjà sur une
+     * facture. Le terme, lui, ne bloque pas une commande déjà livrée — la
+     * marchandise est chez le client, elle doit être facturée.
+     */
+    private static function obstacleALaFacturation(Vente $commande): ?string
+    {
+        if ($commande->estConverti()) {
+            return self::obstacleALaConversion($commande);
+        }
+
+        if ($commande->aUnBonDeLivraisonFacture()) {
+            return 'Un bon de livraison de cette commande est déjà facturé : la commande se facture '
+                . 'par ses bons de livraison. Facturez les bons restants depuis leur page.';
+        }
+
+        if (!$commande->aDesLivraisons() && ($obstacle = self::obstacleALaConversion($commande))) {
+            return $obstacle;
         }
 
         return null;
@@ -1164,6 +1236,14 @@ class VenteControleur
         );
     }
 
+    /**
+     * « Confirmer la commande », depuis la page du devis.
+     *
+     * Même geste que « → Commande » de la liste : un bon de commande naît
+     * sous son propre numéro `BC-`, et le devis dit ce qu'il est devenu. Le
+     * bouton basculait l'étape sur place, et la commande gardait le numéro
+     * `DV-` du devis.
+     */
     public function confirmerCommande(Vente $vente): RedirectResponse
     {
         abort_unless($vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
@@ -1175,103 +1255,108 @@ class VenteControleur
             return back()->with('erreur', $obstacle);
         }
 
-        $vente->update(['etape' => 'Bon de commande']);
+        $commande = self::copierEnCommande($vente);
 
-        return back()->with('succes', 'Commande client confirmée avec succès.');
+        $route = request()->routeIs('caissier.*') ? 'caissier.ventes.imprimer' : 'admin.ventes.imprimer';
+
+        return redirect()->route($route, $commande)
+            ->with('succes', 'Commande client confirmée : bon de commande ' . $commande->numero_facture . '.');
     }
 
-    public function facturer(Vente $vente): RedirectResponse
+    /**
+     * Les quantités et le règlement que la facturation reçoit de la requête.
+     */
+    private static function reglementDeLaRequete(Request $request): array
     {
-        abort_unless($vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
-        if ($vente->etape === 'Facture') {
+        $request->validate([
+            'mode_paiement'      => ['nullable', 'string', 'max:50'],
+            'montant_paye'       => ['nullable', 'numeric', 'min:0'],
+            'banque_id'          => ['required_if:mode_paiement,Banque', 'nullable', 'integer', Appartenance::a('codes_journaux', 'id')],
+            'moyen_bancaire'     => ['required_if:mode_paiement,Banque', 'nullable', 'string', 'in:carte,virement,cheque'],
+            'reference_paiement' => ['required_if:mode_paiement,Banque', 'nullable', 'string', 'max:255'],
+        ], [
+            'banque_id.required_if' => 'Veuillez sélectionner la banque.',
+            'moyen_bancaire.required_if' => 'Veuillez sélectionner le moyen de paiement bancaire.',
+            'reference_paiement.required_if' => 'Veuillez saisir le numéro ou référence de paiement.',
+        ]);
+
+        return [
+            'mode'               => $request->input('mode_paiement'),
+            'montant'            => $request->input('montant_paye'),
+            'banque_id'          => $request->input('banque_id'),
+            'moyen_bancaire'     => $request->input('moyen_bancaire'),
+            'reference_paiement' => $request->input('reference_paiement'),
+        ];
+    }
+
+    /**
+     * Facture une commande en bloc : la facture naît sous son propre numéro,
+     * ce que la commande n'a pas encore livré part à l'instant, ses bons de
+     * livraison sont rattachés à la facture, et la commande se clôt.
+     */
+    private function facturerLaCommande(Request $request, Vente $commande): RedirectResponse
+    {
+        abort_unless($commande->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
+
+        if ($commande->etape === 'Facture') {
             return back()->with('info', 'Cette facture est déjà validée.');
         }
+        if ($commande->etape !== 'Bon de commande') {
+            return back()->with('erreur', 'Ce document n\'est pas un bon de commande.');
+        }
 
-        DB::transaction(function () use ($vente) {
-            // Vérification de disponibilité AVANT toute décrémentation.
-            foreach ($vente->details as $detail) {
-                if ($detail->produit && $detail->produit->estStockable()) {
-                    $dispo = $detail->produit->stockActuel($vente->point_de_vente_id);
-                    if ($dispo < $detail->quantite) {
-                        throw new \InvalidArgumentException(
-                            "Stock insuffisant pour « {$detail->produit->nom} » (Disponible: {$dispo}, Demandé: {$detail->quantite})."
-                        );
-                    }
-                }
-            }
+        if ($obstacle = self::obstacleALaFacturation($commande)) {
+            return back()->with('erreur', $obstacle);
+        }
 
-            $vente->update(['etape' => 'Facture']);
+        $reglement = self::reglementDeLaRequete($request);
 
-            // 1. Décrémenter le stock uniquement pour les articles stockables
-            foreach ($vente->details as $detail) {
-                // Verrou de ligne pour éviter toute décrémentation concurrente incohérente
-                $produit = $detail->produit ? \App\Modules\Admin\Modeles\Produit::lockForUpdate()->find($detail->produit->id) : null;
-                if ($produit && $produit->estStockable()) {
-                    // Évite le double décrément via la file "Livraisons à valider"
-                    // (StockControleur::livraisons()) — voir explication dans store().
-                    $detail->update(['quantite_livree' => $detail->quantite]);
+        $commande->load('details.produit', 'details.taxes', 'taxesPersonnalisees');
+        if ($commande->details->isEmpty()) {
+            return back()->with('erreur', 'Cette commande ne porte aucune ligne : il n\'y a rien à facturer.');
+        }
+        if ($manque = \App\Modules\Admin\Services\FacturationCommandeService::manqueDeStockPourLeReste($commande)) {
+            return back()->with('erreur', '❌ ' . $manque);
+        }
 
-                    StockService::sortie(
-                        $produit,
-                        (int) $vente->point_de_vente_id,
-                        (float) $detail->quantite,
-                        MouvementStock::LIVRAISON,
-                        [
-                            'piece' => $vente,
-                            'reference' => $vente->numero_facture,
-                            'client_id' => $vente->client_id
-                        ]
-                    );
-                }
-            }
+        $facture = DB::transaction(function () use ($commande, $reglement) {
+            $bons = BonLivraison::where('vente_id', $commande->id)->whereNull('facture_vente_id')->get();
 
-            // 2. Normalisation FNE en arrière-plan (Section 18.5)
-            $estRne = empty($vente->client_id) || ($vente->client_id == 'divers');
-            NormaliserFactureFne::dispatch($vente, $estRne);
-
-            // 3. Trésorerie : enregistrer le solde encaissé aujourd'hui, si la facture
-            //    est totalement soldée (un éventuel acompte a pu être versé plus tôt,
-            //    au stade Devis — voir le bloc "Étape Devis" dans store()).
-            $dejaPayeAvant = TresorerieJournal::where('reference_document', $vente->numero_facture)->sum('montant_entree');
-            $resteAPayer = $vente->statut === 'Payé' ? max(0, $vente->montant_ttc - $dejaPayeAvant) : 0;
-
-            if ($resteAPayer > 0) {
-                $soldeActuel = TresorerieJournal::where('point_de_vente_id', $vente->point_de_vente_id)
-                    ->orderByDesc('created_at')->value('solde_resultat') ?? 0;
-
-                TresorerieJournal::create([
-                    'point_de_vente_id' => $vente->point_de_vente_id,
-                    'date_operation' => now()->toDateString(),
-                    'type_operation' => 'Encaissement',
-                    'libelle' => \App\Modules\Admin\Services\ComptabiliteService::libelleTresorerieVente($vente),
-                    'mode_paiement' => $vente->mode_paiement,
-                    'moyen_bancaire' => $vente->moyen_bancaire,
-                    'reference_paiement' => $vente->reference_paiement,
-                    'montant_entree' => $resteAPayer,
-                    'montant_sortie' => 0,
-                    'solde_resultat' => $soldeActuel + $resteAPayer,
-                    'reference_document' => $vente->numero_facture,
-                ]);
-            }
-
-            // 4. Écritures comptables de facturation, en une seule opération cohérente :
-            //    - le montant total déjà encaissé à ce jour (acompte devis + solde ci-dessus)
-            //      est transmis à genererEcrituresVente(), qui décide seule s'il s'agit
-            //      d'une facture intégralement soldée (aucune ligne 411) ou d'une facture
-            //      à crédit total/partiel (411 pour la part réellement non couverte).
-            $montantPayeTotal = $dejaPayeAvant + $resteAPayer;
-
-            \App\Modules\Admin\Services\ComptabiliteService::genererEcrituresVente(
-                $vente,
-                $montantPayeTotal,
-                $vente->mode_paiement,
-                now()->toDateString(),
-                $vente->moyen_bancaire,
-                $vente->reference_paiement
+            $facture = \App\Modules\Admin\Services\FacturationCommandeService::etablir(
+                $commande,
+                \App\Modules\Admin\Services\FacturationCommandeService::quantitesDeLaCommande($commande),
+                $reglement,
+                [
+                    'bon_livraison_id'  => $bons->count() === 1 ? $bons->first()->id : null,
+                    'expedier_le_reste' => true,
+                ]
             );
+
+            // Les bons déjà établis sont couverts par cette facture : ils ne
+            // se factureront pas une seconde fois.
+            BonLivraison::whereIn('id', $bons->pluck('id'))
+                ->update(['statut' => 'facture', 'facture_vente_id' => $facture->id]);
+
+            \App\Modules\Admin\Services\FacturationCommandeService::clore($commande, $facture);
+
+            return $facture;
         });
 
-        return back()->with('succes', 'Facture validée, stock mis à jour et écritures comptables générées.');
+        $this->journaliser('facturation_commande', 'Vente', $facture->id);
+
+        $route = request()->routeIs('caissier.*') ? 'caissier.ventes.imprimer' : 'admin.ventes.imprimer';
+
+        return redirect()->route($route, $facture)
+            ->with('succes', 'Facture ' . $facture->numero_facture . ' établie depuis la commande '
+                . $commande->numero_facture . ' : stock mis à jour et écritures comptables générées.');
+    }
+
+    /**
+     * « Valider & Facturer », depuis la page du bon de commande.
+     */
+    public function facturer(Request $request, Vente $vente): RedirectResponse
+    {
+        return $this->facturerLaCommande($request, $vente);
     }
 
     /**
@@ -1281,6 +1366,15 @@ class VenteControleur
     {
         abort_unless($vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
         abort_if($vente->type_facture === 'avoir', 400, "Impossible de générer un avoir sur une facture d'avoir.");
+
+        // Un avoir corrige une facture. Établi sur un devis ou un bon de
+        // commande, il faisait entrer en stock une marchandise qui n'en était
+        // jamais sortie, et passait des écritures inverses d'une vente qui
+        // n'avait pas eu lieu. Même règle que la liste des factures avoirables.
+        if ($vente->etape !== 'Facture' || $vente->archived) {
+            return back()->with('erreur', 'Un avoir ne s\'établit que sur une facture : ce document est '
+                . ($vente->etape === 'Facture' ? 'archivé' : 'un ' . strtolower($vente->libelleEtape())) . '.');
+        }
 
         $request->validate([
             'raison' => ['required', 'string', 'max:255'],
@@ -1299,6 +1393,10 @@ class VenteControleur
                     number_format((float) $vente->montant_ttc, 0, ',', ' ')
                 ),
             ]);
+        }
+
+        if (!Vente::whereKey($vente->id)->avoirables()->exists()) {
+            return back()->with('erreur', 'Cette facture ne peut plus recevoir d\'avoir.');
         }
 
         $avoirId = null;
@@ -1552,21 +1650,12 @@ class VenteControleur
     }
 
     /**
-     * Convertir un devis en bon de commande.
-     * L'original est archivé, un clone est créé à l'étape Bon de commande.
+     * Le bon de commande né d'un devis : une pièce nouvelle, sous son propre
+     * numéro, et le devis archivé qui dit ce qu'il est devenu.
      */
-    public function convertirEnCommande(Vente $vente): RedirectResponse
+    private static function copierEnCommande(Vente $vente): Vente
     {
-        abort_unless($vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
-        if ($vente->etape !== 'Devis') {
-            return back()->with('erreur', 'Ce document n\'est pas un devis.');
-        }
-
-        if ($obstacle = self::obstacleALaConversion($vente)) {
-            return back()->with('erreur', $obstacle);
-        }
-
-        DB::transaction(function () use ($vente) {
+        $commande = DB::transaction(function () use ($vente) {
             // 1. Cloner en Bon de commande
             $entrepriseId = $vente->pointDeVente->entreprise_id;
             $nouveauNumero = \App\Modules\Admin\Services\NumerotationService::genererNumeroVente($entrepriseId, 'Bon de commande');
@@ -1594,89 +1683,73 @@ class VenteControleur
             $clone->converti_en_id = null;
             $clone->save();
 
-            // 2. Cloner les lignes de détail
-            foreach ($vente->details as $detail) {
-                $newDetail = $detail->replicate();
+            // 2. Cloner les lignes de détail, avec leurs taxes
+            foreach ($vente->details()->with('taxes')->get() as $detail) {
+                $newDetail = $detail->replicate(['fne_invoice_item_id']);
                 $newDetail->vente_id = $clone->id;
+                $newDetail->quantite_livree = 0;
                 $newDetail->save();
+
+                foreach ($detail->taxes as $taxe) {
+                    $newDetail->taxes()->create(['nom' => $taxe->nom, 'taux' => $taxe->taux]);
+                }
+            }
+
+            foreach ($vente->taxesPersonnalisees as $taxe) {
+                $clone->taxesPersonnalisees()->create([
+                    'nom' => $taxe->nom, 'taux' => $taxe->taux, 'montant' => $taxe->montant,
+                ]);
             }
 
             // 3. Le devis d'origine dit ce qu'il est devenu. `archived` seul ne
             //    le disait pas, et n'empêchait pas une seconde conversion : le
             //    même devis produisait deux commandes, donc deux livraisons.
             $vente->update(['archived' => true, 'converti_en_id' => $clone->id]);
+
+            return $clone;
         });
 
-        return back()->with('succes', 'Le devis a été converti en bon de commande et archivé.');
+        self::transmettreLaCommandeEnB2b($commande);
+
+        return $commande;
     }
 
     /**
-     * Convertir un bon de commande en facture à finaliser.
-     * L'original est archivé, un clone Facture est créé et l'utilisateur est
-     * redirigé vers sa fiche de modification pour saisir le paiement.
+     * Convertir un devis en bon de commande.
+     * L'original est archivé, un clone est créé à l'étape Bon de commande.
      */
-    public function convertirEnFacture(Vente $vente): RedirectResponse
+    public function convertirEnCommande(Vente $vente): RedirectResponse
     {
         abort_unless($vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
-        if ($vente->etape !== 'Bon de commande') {
-            return back()->with('erreur', 'Ce document n\'est pas un bon de commande.');
+        if ($vente->etape !== 'Devis') {
+            return back()->with('erreur', 'Ce document n\'est pas un devis.');
         }
 
         if ($obstacle = self::obstacleALaConversion($vente)) {
             return back()->with('erreur', $obstacle);
         }
 
-        $nouvelleFactureCle = null;
+        self::copierEnCommande($vente);
 
-        DB::transaction(function () use ($vente, &$nouvelleFactureCle) {
-            // 1. Cloner en Facture (statut Crédit par défaut, en attente de finalisation)
-            $entrepriseId = $vente->pointDeVente->entreprise_id;
-            $nouveauNumero = \App\Modules\Admin\Services\NumerotationService::genererNumeroVente($entrepriseId, 'Facture');
+        return back()->with('succes', 'Le devis a été converti en bon de commande et archivé.');
+    }
 
-            $clone = $vente->replicate(['archived', 'normalise', 'numero_fne', 'signature_dgi', 'qr_code_data']);
-            $clone->numero_facture = $nouveauNumero;
-            $clone->etape = 'Facture';
-            $clone->statut = 'Crédit';
-            $clone->archived = false;
-            $clone->normalise = false;
-            $clone->numero_fne = null;
-            $clone->signature_dgi = null;
-            $clone->qr_code_data = null;
+    /**
+     * « → Facture », depuis la liste des bons de commande.
+     *
+     * Une vraie facturation, et la même que « Valider & Facturer » : la
+     * conversion produisait une facture sans écriture comptable ni
+     * certification, et renvoyait vers l'écran de modification, qui reprenait
+     * les prix du catalogue du jour au lieu de ceux de la commande.
+     */
+    public function convertirEnFacture(Request $request, Vente $vente): RedirectResponse
+    {
+        abort_unless($vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
+        if ($vente->etape !== 'Bon de commande') {
+            return back()->with('erreur', 'Ce document n\'est pas un bon de commande.');
+        }
 
-            // **La facture naît aujourd'hui.** `replicate()` recopiait la date
-            // du bon de commande : une facture de juin issue d'une commande de
-            // janvier était datée de janvier et entrait dans la déclaration de
-            // TVA du mauvais mois. Une facture n'a pas de terme — elle engage
-            // dès son émission —, et l'acceptation appartient à l'offre.
-            $clone->date_vente = now()->toDateString();
-            $clone->date_validite = null;
-            $clone->date_acceptation = null;
-            $clone->accepte_par = null;
-            $clone->converti_en_id = null;
-            $clone->save();
-
-            // 2. Cloner les lignes
-            foreach ($vente->details as $detail) {
-                $newDetail = $detail->replicate();
-                $newDetail->vente_id = $clone->id;
-                $newDetail->save();
-            }
-
-            // 3. La commande dit ce qu'elle est devenue, et ne se convertit
-            //    plus : deux factures pour une commande, c'est un client
-            //    facturé deux fois.
-            $vente->update(['archived' => true, 'converti_en_id' => $clone->id]);
-
-            // La clé d'adressage, et non le numéro de ligne : la route
-            // `ventes.modifier` se lie par `uuid`, et la redirection tombait
-            // sur une page introuvable (404).
-            $nouvelleFactureCle = $clone->getRouteKey();
-        });
-
-        // Rediriger vers la modification pour finaliser le paiement
-        $route = request()->routeIs('caissier.*') ? 'caissier.ventes.modifier' : 'admin.ventes.modifier';
-        return redirect()->route($route, $nouvelleFactureCle)
-            ->with('succes', 'Bon de commande converti en facture. Veuillez renseigner le mode de paiement et valider.');
+        return $this->facturerLaCommande($request, $vente);
     }
 
     /**

@@ -670,6 +670,11 @@ Route::prefix('caissier')
             Route::post('/{vente}/convertir-piece', [VenteControleur::class, 'convertirPiece'])->name('convertir_piece');
             Route::get('/{vente}/modifier', [VenteControleur::class, 'modifierFormulaire'])->name('modifier');
             Route::put('/{vente}/modifier', [VenteControleur::class, 'enregistrerModification'])->name('modifier.enregistrer');
+            // Les deux boutons de la page d'un devis et d'une commande : ils
+            // existaient seulement sous `admin.`, et le caissier habilité aux
+            // factures voyait des boutons qui lui répondaient 403.
+            Route::post('/{vente}/confirmer', [VenteControleur::class, 'confirmerCommande'])->name('confirmer');
+            Route::post('/{vente}/facturer', [VenteControleur::class, 'facturer'])->name('facturer');
             Route::post('/{vente}/normaliser', [VenteControleur::class, 'normaliser'])->name('normaliser');
             // Workflow Devis → Commande → Facture
             Route::post('/{vente}/envoyer', [VenteControleur::class, 'envoyer'])->name('envoyer');

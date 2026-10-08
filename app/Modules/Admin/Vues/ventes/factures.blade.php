@@ -248,7 +248,6 @@
                 @foreach($ventes as $bl)
                 @php
                     $routeVoirBL   = $isCaissier ? route('caissier.ventes.livraison.voir', $bl) : route('admin.ventes.livraison.voir', $bl);
-                    $routeLivrerBL = $isCaissier ? route('caissier.ventes.livraison.livrer', $bl) : route('admin.ventes.livraison.livrer', $bl);
                     $blBadgeStyle  = match($bl->statut) {
                         'en_preparation' => 'background:#f3f4f6; color:#374151;',
                         'partiel'        => 'background:#fffbeb; color:#b45309;',
@@ -289,20 +288,27 @@
                             @if($bl->statut !== 'facture')
                             @php
                                 $actionUrl = $isCaissier ? route('caissier.ventes.livraison.facturer', $bl) : route('admin.ventes.livraison.facturer', $bl);
-                                $totalTtc  = $bl->bonDeCommande->montant_ttc;
+                                // Ce que la facture de ce bon demandera — ses
+                                // quantités livrées —, et non le TTC de toute
+                                // la commande.
+                                $totalTtc  = \App\Modules\Admin\Services\FacturationCommandeService::netHorsTimbre(
+                                    $bl->bonDeCommande,
+                                    \App\Modules\Admin\Services\FacturationCommandeService::quantitesDuBon($bl, $bl->bonDeCommande)
+                                );
                                 $dejaLivre = $bl->statut === 'livre' ? 1 : 0;
                             @endphp
                             <button type="button" class="btn btn-success btn-sm btn-facturer-bl" style="font-weight:700; font-size:11px; padding:4px 8px; color: #fff;" data-action="{{ $actionUrl }}" data-total="{{ $totalTtc }}" data-deja-livre="{{ $dejaLivre }}">
                                 <i class="fas fa-file-invoice-dollar"></i> Facturer
                             </button>
                             @endif
+                            {{-- L'arrivée se confirme avec l'heure, le
+                                 réceptionnaire et sa signature : le bouton
+                                 postait un formulaire vide, toujours refusé.
+                                 Il mène à la page du bon, modale ouverte. --}}
                             @if(!in_array($bl->statut, ['livre', 'facture']))
-                            <form method="POST" action="{{ $routeLivrerBL }}" style="display:inline; margin:0;">
-                                @csrf
-                                <button type="submit" class="btn btn-sm" style="background:#e0f2fe; color:#0369a1; border:0.5px solid #7dd3fc; font-weight:700; font-size:11px; padding:4px 8px;">
-                                    <i class="fas fa-check"></i> Livré
-                                </button>
-                            </form>
+                            <a href="{{ $routeVoirBL }}?arrivee=1" class="btn btn-sm" style="background:#e0f2fe; color:#0369a1; border:0.5px solid #7dd3fc; font-weight:700; font-size:11px; padding:4px 8px;">
+                                <i class="fas fa-check"></i> Livré
+                            </a>
                             @endif
                         </div>
                     </td>
@@ -402,13 +408,20 @@
                     {{-- Statut : workflow pour Devis/BC, paiement pour Facture --}}
                     <td style="white-space: nowrap;">
                         @if($estDevisOuBC)
-                            @if($vente->statut === 'Envoyé')
+                            {{-- Le vrai sort de la pièce : une commande livrée
+                                 s'affichait « Brouillon ». --}}
+                            @php $etatPiece = $vente->etatDeLOffre(); @endphp
+                            @if($etatPiece === 'En attente')
                                 <span style="background:#e0f2fe; color:#0369a1; padding:4px 10px; border-radius:20px; font-weight:700; font-size:12px; display:inline-flex; align-items:center; gap:4px;">
                                     <i class="fas fa-paper-plane" style="font-size:10px;"></i> Envoyé
                                 </span>
-                            @else
+                            @elseif($etatPiece === 'Brouillon')
                                 <span style="background:#f3f4f6; color:#374151; padding:4px 10px; border-radius:20px; font-weight:700; font-size:12px; display:inline-flex; align-items:center; gap:4px;">
                                     <i class="fas fa-pencil" style="font-size:10px;"></i> Brouillon
+                                </span>
+                            @else
+                                <span style="background:#ecfdf5; color:#047857; padding:4px 10px; border-radius:20px; font-weight:700; font-size:12px; display:inline-flex; align-items:center; gap:4px;">
+                                    <i class="fas fa-circle-check" style="font-size:10px;"></i> {{ $etatPiece }}
                                 </span>
                             @endif
                         @else
@@ -535,10 +548,14 @@
                             @elseif($estDevisOuBC)
                                 {{-- Mode Devis / Bon de commande : actions de workflow --}}
 
-                                {{-- Modifier (si non normalisé, toujours pour devis/BC) --}}
+                                {{-- Modifier : seulement ce qui se modifie encore.
+                                     Un devis accepté ou converti, une commande
+                                     livrée répondaient 403. --}}
+                                @if(!$vente->estFige())
                                 <a href="{{ $routeModifier }}" class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;" title="Modifier">
                                     <i class="fas fa-edit"></i> Modifier
                                 </a>
+                                @endif
 
                                 {{-- Envoyer (si statut Brouillon) --}}
                                 @if($vente->statut !== 'Envoyé')
@@ -562,17 +579,18 @@
 
                                 {{-- Passer en BL (BC → BL) --}}
                                 @if($etapeActive === 'Bon de commande')
-                                    @if(!$vente->bonLivraison)
-                                    {{-- Pas encore de BL : proposer de créer le BL --}}
-                                    <a href="{{ $isCaissier ? route('caissier.ventes.livraison.creer', $vente) : route('admin.ventes.livraison.creer', $vente) }}"
-                                       class="btn btn-sm" style="background:#e0f2fe; color:#0369a1; border:0.5px solid #7dd3fc; font-weight:700; font-size:11px; padding:4px 8px;" title="Créer le bon de livraison">
-                                        <i class="fas fa-truck"></i> &rarr; BL
+                                    {{-- Une commande se livre en autant de bons
+                                         qu'il le faut, chacun plafonné au reste. --}}
+                                    @foreach($vente->bonsLivraison as $blCommande)
+                                    <a href="{{ $isCaissier ? route('caissier.ventes.livraison.voir', $blCommande) : route('admin.ventes.livraison.voir', $blCommande) }}"
+                                       class="btn btn-sm" style="background:#e0f2fe; color:#0369a1; border:0.5px solid #7dd3fc; font-weight:700; font-size:11px; padding:4px 8px;" title="Voir le bon de livraison">
+                                        <i class="fas fa-truck"></i> {{ $blCommande->numero_bl }}
                                     </a>
-                                    @else
-                                    {{-- BL existant : lien vers le BL (le paiement se fait sur la page BL) --}}
-                                    <a href="{{ $isCaissier ? route('caissier.ventes.livraison.voir', $vente->bonLivraison) : route('admin.ventes.livraison.voir', $vente->bonLivraison) }}"
-                                       class="btn btn-sm" style="background:#e0f2fe; color:#0369a1; border:0.5px solid #7dd3fc; font-weight:700; font-size:11px; padding:4px 8px;">
-                                        <i class="fas fa-truck"></i> Voir BL
+                                    @endforeach
+                                    @if(!$vente->estConverti() && !$vente->estEntierementLivree())
+                                    <a href="{{ $isCaissier ? route('caissier.ventes.livraison.creer', $vente) : route('admin.ventes.livraison.creer', $vente) }}"
+                                       class="btn btn-sm" style="background:#e0f2fe; color:#0369a1; border:0.5px solid #7dd3fc; font-weight:700; font-size:11px; padding:4px 8px;" title="Créer un bon de livraison pour le reste à livrer">
+                                        <i class="fas fa-truck"></i> &rarr; BL
                                     </a>
                                     @endif
                                 @endif

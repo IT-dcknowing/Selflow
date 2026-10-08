@@ -1,6 +1,8 @@
 @extends('admin::gabarits.application')
-@section('titre', isset($bl) ? 'Bon de Livraison ' . $bl->numero_bl : ($vente->type_facture === 'avoir' ? 'Facture d\'avoir ' . $vente->numero_facture : 'Facture ' . $vente->numero_facture))
-@section('topbar_titre', isset($bl) ? 'Ventes — Bons de Livraison' : ($vente->type_facture === 'avoir' ? 'Vente — Facture d\'avoir' : 'Vente — Facture'))
+{{-- Le titre dit la nature de la pièce : un devis et un bon de commande
+     s'intitulaient « Facture » dans l'onglet du navigateur. --}}
+@section('titre', isset($bl) ? 'Bon de Livraison ' . $bl->numero_bl : $vente->libelleEtape() . ' ' . $vente->numero_facture)
+@section('topbar_titre', isset($bl) ? 'Ventes — Bons de Livraison' : 'Vente — ' . $vente->libelleEtape())
 
 @section('styles')
 <style>
@@ -297,11 +299,17 @@
                  changement d'onglet (voir `setModel`). On telechargeait
                  toujours le premier modele, quel que soit celui qu'on
                  regardait. --}}
+            {{-- Pas sur la page d'un bon de livraison : le PDF serveur est
+                 celui de la pièce de vente, et le bouton remettait le bon de
+                 commande sous le nom du bon de livraison. Le bon s'imprime
+                 par « Imprimer / PDF ». --}}
+            @if(!isset($bl))
             <a class="print-btn" id="lien-pdf" data-base="{{ route($prefixeRoutePdf . '.ventes.pdf', $vente) }}"
                href="{{ route($prefixeRoutePdf . '.ventes.pdf', $vente) }}?modele=1"
                title="Enregistrer le document au format PDF, dans le modele affiche.">
                 <i class="fas fa-download"></i> Télécharger le PDF
             </a>
+            @endif
             <button class="print-btn main" onclick="telechargerPdf()"
                     title="Choisissez la destination « Enregistrer au format PDF » pour obtenir le fichier, ou votre imprimante pour une sortie papier.">
                 <i class="fas fa-file-pdf"></i> Imprimer / PDF
@@ -320,12 +328,14 @@
                         <i class="fas fa-hourglass-half"></i> Prolonger la validité
                     </button>
                 @endif
+                {{-- Le préfixe de l'écran courant : en dur sur `admin.`, ces
+                     deux boutons étaient refusés au caissier. --}}
                 @if($vente->etape === 'Devis' && !$vente->estConverti())
-                    <button class="print-btn" style="background:var(--warning); color:#fff; border-color:var(--warning);" onclick="executerAction('{{ route('admin.ventes.confirmer', $vente) }}')">
+                    <button class="print-btn" style="background:var(--warning); color:#fff; border-color:var(--warning);" onclick="executerAction('{{ route($prefixeRoutePdf . '.ventes.confirmer', $vente) }}')">
                         <i class="fas fa-check-circle"></i> Confirmer la commande
                     </button>
-                @elseif($vente->etape === 'Bon de commande' && !$vente->estConverti())
-                    <button class="print-btn" style="background:#10b981; color:#fff; border-color:#10b981;" onclick="executerAction('{{ route('admin.ventes.facturer', $vente) }}')">
+                @elseif($vente->etape === 'Bon de commande' && !$vente->estConverti() && !$vente->aUnBonDeLivraisonFacture())
+                    <button class="print-btn" style="background:#10b981; color:#fff; border-color:#10b981;" onclick="document.getElementById('modal-facturer-commande').style.display='flex'">
                         <i class="fas fa-file-invoice-dollar"></i> Valider & Facturer
                     </button>
                 @endif
@@ -342,31 +352,22 @@
     <div id="invoice-wrap"></div>
 </div>
 
-{{-- Modal de confirmation de l'avoir --}}
-<div class="modal-overlay" id="modalAvoir" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
-    <div class="modal" style="background:#fff; border-radius:12px; max-width:480px; width:100%; box-shadow:0 10px 30px rgba(0,0,0,0.15); overflow:hidden;">
-        <div class="modal-header" style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="font-size:16px; font-weight:700; color:var(--text-1); margin:0;"><i class="fas fa-rotate-left" style="color:var(--danger)"></i> Générer une facture d'avoir</h3>
-            <button type="button" class="modal-close" onclick="fermerModalAvoir()" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--text-3);">&times;</button>
-        </div>
-        <form method="POST" action="{{ route(request()->routeIs('caissier.*') ? 'caissier.ventes.avoir' : 'admin.ventes.avoir', $vente) }}" style="margin:0; padding:20px;">
-            @csrf
-            <div style="font-size:13px; color:var(--text-2); margin-bottom:14px; line-height:1.5;">
-                Cette action va générer une facture d'avoir pour un montant total de <strong>{{ number_format($vente->montant_ttc, 0, ',', ' ') }} FCFA</strong>. Les stocks des articles stockables associés seront ré-incrémentés en stock.
-            </div>
+{{-- La modale « Générer une facture d'avoir » vivait ici, sur toutes les
+     pages imprimées — devis, bon de commande et bon de livraison compris —,
+     sans qu'aucun bouton ne l'ouvre. L'avoir s'établit depuis la liste des
+     factures, sur une facture avoirable (recette du 08/10/2026). --}}
 
-            <div class="form-group" style="margin-bottom:14px;">
-                <label class="form-label">Motif ou Raison de l'avoir <span style="color:var(--danger)">*</span></label>
-                <input type="text" name="raison" class="form-control" required placeholder="Ex: Retour d'article défectueux, erreur de facturation..." maxlength="255">
-            </div>
-
-            <div style="border-top:1px solid var(--border); padding-top:14px; margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
-                <button type="button" class="btn btn-outline" onclick="fermerModalAvoir()">Annuler</button>
-                <button type="submit" class="btn btn-danger"><i class="fas fa-check-circle"></i> Confirmer & Créer l'avoir</button>
-            </div>
-        </form>
-    </div>
-</div>
+@if(!isset($bl) && $vente->etape === 'Bon de commande' && !$vente->estConverti() && !$vente->aUnBonDeLivraisonFacture())
+    @include('admin::factures.partials.modale_reglement', [
+        'idModale'       => 'modal-facturer-commande',
+        'action'         => route($prefixeRoutePdf . '.ventes.facturer', $vente),
+        'titre'          => 'Valider & Facturer',
+        'montant'        => max(0, (float) $vente->montant_ttc + (float) ($vente->montant_autres_taxes ?? 0) - (float) ($dejaPaye ?? 0)),
+        'modeDefaut'     => in_array($vente->mode_paiement, ['Caisse', 'Banque'], true) ? $vente->mode_paiement : 'Crédit',
+        'banques'        => $banques ?? collect(),
+        'libelleMontant' => 'Montant reçu à la facturation',
+    ])
+@endif
 
 @if(isset($bl))
     {{-- Modal choix facturation & règlement --}}
@@ -476,23 +477,21 @@
                     <label
                         style="font-weight:700; font-size:12px; text-transform:uppercase; color:#475569; display:block; margin-bottom:6px;"
                         id="label-montant-paye">Montant reçu / réglé *</label>
+                    {{-- Ce que la facture de CE bon demandera : les quantités
+                         livrées, aux prix et remises de la commande. Le TTC de
+                         toute la commande était proposé, et un bon partiel
+                         l'encaissait en entier. --}}
                     <input type="number" name="montant_paye" id="bl-montant-input"
-                        value="{{ round($bl->bonDeCommande->montant_ttc) }}"
+                        value="{{ round($montantAFacturer ?? 0) }}"
                         style="width:100%; padding:10px 14px; border:1px solid #cbd5e1; border-radius:8px; font-size:14px; font-weight:700;">
                 </div>
 
-                {{-- 4. Case à cocher Livraison Immédiate --}}
-                @if($bl->statut !== 'livre')
-                    <div
-                        style="margin-bottom:20px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:12px 14px;">
-                        <label
-                            style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600; font-size:13px; color:#166534;">
-                            <input type="checkbox" name="livraison_immediate" value="1" checked
-                                style="width:16px; height:16px; cursor:pointer;">
-                            Marquer la livraison comme immédiate et finale ?
-                        </label>
-                    </div>
-                @endif
+                {{-- La case « livraison immédiate et finale » a été retirée : elle
+                     déclarait complet un bon partiel et livré un bon que personne
+                     n'avait signé. L'arrivée se confirme par « Marquer Livré ». --}}
+                <p style="font-size:12px; color:#6b7280; margin-bottom:18px;">
+                    « Qtés BC d'origine » facture toute la commande : ce qui n'a pas encore été livré sort du stock à l'instant.
+                </p>
 
                 <div style="display:flex; gap:10px; justify-content:flex-end;">
                     <button type="button" onclick="document.getElementById('modal-facturer').style.display='none'"
@@ -575,10 +574,24 @@ var DATA = {
         },
         items: [
             @foreach($vente->details as $detail)
+            @php
+                // Sur un bon de livraison : la quantité que CE bon a remise,
+                // rapportée à sa ligne de commande. Les lignes qu'il ne livre
+                // pas n'y figurent pas.
+                $qteLigne = $detail->quantite;
+                if (isset($bl)) {
+                    $qteLigne = (float) $bl->details->filter(fn ($l) => $l->vente_detail_id
+                        ? $l->vente_detail_id === $detail->id
+                        : $l->produit_id === $detail->produit_id)->sum('qte_livree');
+                }
+            @endphp
+            @if(isset($bl) && $qteLigne <= 0)
+                @continue
+            @endif
             {
                 ref: {!! json_encode($detail->produit?->reference ?? 'REF-VIR-' . str_pad($detail->id, 3, '0', STR_PAD_LEFT)) !!},
                 desc: {!! json_encode($detail->libelle_virtuel ?? ($detail->produit?->nom ?? 'Article')) !!},
-                qty: {{ isset($bl) ? ($bl->details->firstWhere('produit_id', $detail->produit_id)?->qte_livree ?? 0) : $detail->quantite }},
+                qty: {{ $qteLigne }},
                 unite: {!! json_encode($detail->unite ?? 'Unité') !!},
                 pu: {{ $detail->prix_unitaire }},
                 remise_taux: {{ (float) ($detail->remise_taux ?? 0) }},
@@ -617,7 +630,7 @@ var DATA = {
         // l'article 873 du CGI (voir TimbreQuittanceService).
         timbre_fiscal: {{ (float) \App\Modules\Admin\Services\TimbreQuittanceService::pourVente($vente) }},
         timbre_provenance: {!! json_encode(\App\Modules\Admin\Services\TimbreQuittanceService::provenance($vente)) !!},
-        ref_bl: {!! json_encode(isset($bl) ? $bl->numero_bl : ($vente->etape === 'Bon de commande' ? ($vente->bonLivraison?->numero_bl ?? '') : ($vente->bonLivraisonSource?->numero_bl ?? ''))) !!},
+        ref_bl: {!! json_encode(isset($bl) ? $bl->numero_bl : ($vente->etape === 'Bon de commande' ? $vente->bonsLivraison->pluck('numero_bl')->implode(', ') : ($vente->bonLivraisonSource?->numero_bl ?? ''))) !!},
         // Le transport du bon (chantier 15.3) : il s'imprime avec lui.
         transport: {!! json_encode(isset($bl) ? [
             'adresse'        => $bl->adresse_livraison,
@@ -1866,11 +1879,10 @@ if (urlParams.get('facturer') === '1' && document.getElementById('modal-facturer
     document.getElementById('modal-facturer').style.display = 'flex';
 }
 
-function ouvrirModalAvoir() {
-    document.getElementById('modalAvoir').style.display = 'flex';
-}
-function fermerModalAvoir() {
-    document.getElementById('modalAvoir').style.display = 'none';
+// Le bouton « Livré » de la liste des bons mène ici : la modale d'arrivée
+// s'ouvre, puisque l'arrivée se confirme avec sa signature.
+if (urlParams.get('arrivee') === '1' && document.getElementById('modalArriveeLivraison')) {
+    document.getElementById('modalArriveeLivraison').classList.add('open');
 }
 
 function selectionnerMode(mode) {
