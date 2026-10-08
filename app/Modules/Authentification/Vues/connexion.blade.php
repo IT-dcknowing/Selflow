@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Connexion à Selflow — Plateforme intelligente de gestion des ventes et stocks">
     <title>Connexion — Selflow</title>
+    @include('partials.icones-selflow')
     <link rel="stylesheet" href="{{ asset('vendor/inter/inter.css') }}">
     <link rel="stylesheet" href="{{ asset('vendor/fontawesome/css/all.min.css') }}">
     <style>
@@ -296,7 +297,7 @@
             <div class="gauche-interieur">
                 <div class="marque">
                     <div class="marque-icone">
-                        <i class="fa-solid fa-cloud" aria-hidden="true"></i>
+                        <img src="{{ asset('images/selflow/logo-blanc.png') }}" alt="" style="width:32px;height:32px;object-fit:contain;">
                     </div>
                     <span class="marque-nom">Selflow</span>
                 </div>

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ isset($bl) ? 'Bon de livraison' : ($vente->normalise ? 'Reçu normalisé' : 'Reçu') }} — {{ $vente->numero_facture }}</title>
+    @include('partials.icones-selflow')
     <style>
         @page {
             size: 80mm auto;

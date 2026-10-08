@@ -15,6 +15,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Selflow — DC-Knowing</title>
+    @include('partials.icones-selflow')
     <meta name="description" content="Selflow, la gestion commerciale conforme à la facture normalisée électronique de la DGI. Une application DC-Knowing.">
     <link rel="stylesheet" href="{{ asset('vendor/inter/inter.css') }}">
     <link rel="stylesheet" href="{{ asset('vendor/fontawesome/css/all.min.css') }}">
@@ -388,7 +389,7 @@
 <header class="entete" id="entete">
     <div class="dedans">
         <a href="{{ route('vitrine') }}" class="marque">
-            <div class="pastille">S</div>
+            <div class="pastille"><img src="{{ asset('images/selflow/logo-blanc.png') }}" alt="" style="width:28px;height:28px;object-fit:contain;"></div>
             <div>
                 <div class="nom">Selflow</div>
                 <div class="sous">DC-Knowing</div>

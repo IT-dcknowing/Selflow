@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('titre', 'Tableau de bord') — Selflow</title>
+    @include('partials.icones-selflow')
     <link rel="stylesheet" href="{{ asset('vendor/inter/inter.css') }}">
     <link rel="stylesheet" href="{{ asset('vendor/fontawesome/css/all.min.css') }}">
     <style>
@@ -576,7 +577,7 @@
 <!-- ────────────────── SIDEBAR ────────────────── -->
 <aside class="sidebar">
     <div class="sidebar-logo">
-        <div class="logo-icon">S</div>
+        <div class="logo-icon"><img src="{{ asset('images/selflow/logo-blanc.png') }}" alt="" style="width:30px;height:30px;object-fit:contain;"></div>
         <div>
             <div class="logo-text">Selflow</div>
             <div class="logo-sub">Gestion commerciale</div>
