@@ -377,6 +377,66 @@ class BoutonCorrigerMaintenantTest extends TestCase
         $this->post(route('admin.fne.rejets.corriger_maintenant', $sonRejet))->assertNotFound();
     }
 
+    /**
+     * Le pop-up interroge `statut-scraping` en attendant le relevé.
+     *
+     * Constaté en ligne le 15/09/2026 : scraper éteint, le pop-up affichait
+     * « Récupération des points de vente sur le portail en cours... » pour
+     * toujours. Éteint, il n'y a rien à attendre : la réponse le dit aussitôt.
+     */
+    public function test_scraper_eteint_le_pop_up_n_attend_pas_un_releve_qui_ne_viendra_pas(): void
+    {
+        config(['selflow.portail_fne.scraper.actif' => false]);
+
+        $rejet = FneRejet::consigner($this->uneVente('FA-0042'), $this->refus());
+
+        $reponse = $this->getJson(route('admin.fne.rejets.statut_scraping', $rejet))
+            ->assertOk()
+            ->assertJson(['pret' => true, 'resolu' => false]);
+
+        $this->assertStringContainsString('éteinte sur ce serveur', $reponse->json('message'));
+    }
+
+    public function test_scraper_allume_le_pop_up_attend_le_releve(): void
+    {
+        config([
+            'selflow.portail_fne.scraper.actif'  => true,
+            'selflow.portail_fne.scraper.node'   => 'node-qui-n-existe-pas',
+            'selflow.portail_fne.scraper.script' => 'script-qui-n-existe-pas.js',
+        ]);
+
+        $rejet = FneRejet::consigner($this->uneVente('FA-0042'), $this->refus());
+
+        $this->getJson(route('admin.fne.rejets.statut_scraping', $rejet))
+            ->assertOk()
+            ->assertJson(['pret' => false]);
+    }
+
+    /**
+     * Le relevé arrivé, le pop-up reçoit la liste des points déclarés.
+     *
+     * Depuis `6ee578f`, cette route rendait 500 à chaque appel :
+     * `PointsDeVentePortailService` n'était pas importé dans le contrôleur, et
+     * le pop-up réessayait en silence jusqu'à abandonner. La liste des points
+     * de vente ne pouvait arriver que par la redirection, jamais par le polling.
+     */
+    public function test_releve_arrive_le_pop_up_recoit_la_liste_des_points(): void
+    {
+        $rejet = FneRejet::consigner($this->uneVente('FA-0042'), $this->refus());
+
+        $this->unReleve(['FACTURATION SIEGE', 'FACTURATION TEST 2']);
+
+        $reponse = $this->getJson(route('admin.fne.rejets.statut_scraping', $rejet))
+            ->assertOk()
+            ->assertJson(['pret' => true, 'resolu' => false]);
+
+        $this->assertSame(
+            ['FACTURATION SIEGE', 'FACTURATION TEST 2'],
+            array_column($reponse->json('choix'), 'nom')
+        );
+        $this->assertSame('FACTURATION SIEGES', $this->monMagasin->refresh()->nom);
+    }
+
     // ──────────────────────────────────────────────────────────────────────
 
     /** @return array<string, mixed> */

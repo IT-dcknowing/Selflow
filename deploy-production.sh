@@ -48,6 +48,28 @@ php artisan view:cache
 echo "📁 Dossier des relevés du portail FNE..."
 mkdir -p storage/app/portail-fne
 
+# 5 ter. Le scraper du portail FNE
+#
+# Constaté le 15/09/2026 : en ligne, un refus `pointOfSale` laissait le pop-up
+# sur « Récupération des points de vente... en cours » pour toujours. Le
+# scraper a son propre package.json — le `npm ci` du point 2 ne l'installe pas —
+# et Chromium doit l'être pour l'utilisateur qui le lance : le serveur web.
+# Le lancement est détaché, son échec n'arrive jamais jusqu'à l'écran.
+echo "🧭 Scraper du portail FNE..."
+WEB_USER=www-data
+if command -v node >/dev/null 2>&1; then
+    (cd SCRAPER-PORTAIL-FNE && npm ci --omit=dev)
+    # Les bibliothèques système de Chromium (root), puis Chromium lui-même
+    # dans le dossier personnel du serveur web, là où Playwright le cherche.
+    (cd SCRAPER-PORTAIL-FNE && npx playwright install-deps chromium) || echo "⚠️  install-deps a échoué (droits root ?)"
+    WEB_HOME=$(getent passwd "$WEB_USER" | cut -d: -f6)
+    mkdir -p "$WEB_HOME/.cache" && chown -R "$WEB_USER":"$WEB_USER" "$WEB_HOME/.cache"
+    chown -R "$WEB_USER":"$WEB_USER" SCRAPER-PORTAIL-FNE
+    (cd SCRAPER-PORTAIL-FNE && sudo -u "$WEB_USER" HOME="$WEB_HOME" npx playwright install chromium)
+else
+    echo "⚠️  Node est absent : le scraper du portail FNE ne tournera pas."
+fi
+
 # 6. Permissions
 echo "🔐 Permissions fichiers..."
 chmod -R 775 storage bootstrap/cache

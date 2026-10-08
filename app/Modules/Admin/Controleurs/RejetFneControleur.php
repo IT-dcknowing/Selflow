@@ -8,6 +8,7 @@ use App\Modules\Admin\Modeles\PortailFneFiche;
 use App\Modules\Admin\Modeles\PortailFneImport;
 use App\Modules\Admin\Services\CorrectionFneService;
 use App\Modules\Admin\Services\DiagnosticFneService;
+use App\Modules\Admin\Services\PointsDeVentePortailService;
 use App\Modules\Admin\Services\ScraperPortailFneService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
@@ -469,6 +470,19 @@ class RejetFneControleur
         $rejet->refresh();
 
         if (($diagnostic['releve'] ?? null) === null) {
+            // Scraper éteint : aucun relevé n'est parti, et le pop-up attendrait
+            // deux minutes un relevé qui n'arrivera pas. Constaté en ligne le
+            // 15/09/2026 — « Récupération en cours... » affiché pour toujours.
+            if (!config('selflow.portail_fne.scraper.actif')) {
+                return response()->json([
+                    'pret'    => true,
+                    'resolu'  => false,
+                    'message' => "La récupération automatique des points de vente est éteinte sur ce serveur : "
+                        . "aucun relevé du portail FNE n'est parti. Déposez le relevé à la main depuis l'écran "
+                        . "des rejets FNE, ou demandez à l'administrateur d'activer le scraper.",
+                ]);
+            }
+
             return response()->json([
                 'pret' => false,
                 'message' => 'Relève en cours sur le portail FNE...',

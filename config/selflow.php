@@ -275,6 +275,15 @@ return [
             'script_achats' => env('PORTAIL_FNE_SCRAPER_SCRIPT_ACHATS', base_path('SCRAPER-PORTAIL-FNE/achats.js')),
 
             /*
+            | Le relevé des factures d'avoir (notes de crédit émises et reçues).
+            */
+            'avoirs_actif' => filter_var(env('PORTAIL_FNE_SCRAPER_AVOIRS_ACTIF', true), FILTER_VALIDATE_BOOL),
+
+            'avoirs_minutes' => (int) env('PORTAIL_FNE_SCRAPER_AVOIRS_MINUTES', 5),
+
+            'script_avoirs' => env('PORTAIL_FNE_SCRAPER_SCRIPT_AVOIRS', base_path('SCRAPER-PORTAIL-FNE/avoirs.js')),
+
+            /*
             | Le relevé à l'ouverture de Selflow.
             |
             | Le passage horaire ne va au portail que si une pièce a été
