@@ -37,9 +37,15 @@ return new class extends Migration
             }
         });
 
-        Schema::table('bon_livraison_details', function (Blueprint $table) {
-            $table->decimal('qte_commandee', 15, 3)->default(0)->change();
-            $table->decimal('qte_livree', 15, 3)->default(0)->change();
+        // Clés suspendues le temps du changement de type : MySQL reconstruit
+        // la table et revérifie toutes ses clés, et une ligne dont le produit a
+        // disparu ferait tomber la migration (erreur 1452, rencontrée le
+        // 07/10/2026 sur une base réelle — voir la migration du transport).
+        Schema::withoutForeignKeyConstraints(function () {
+            Schema::table('bon_livraison_details', function (Blueprint $table) {
+                $table->decimal('qte_commandee', 15, 3)->default(0)->change();
+                $table->decimal('qte_livree', 15, 3)->default(0)->change();
+            });
         });
     }
 
@@ -55,9 +61,11 @@ return new class extends Migration
             }
         });
 
-        Schema::table('bon_livraison_details', function (Blueprint $table) {
-            $table->integer('qte_commandee')->change();
-            $table->integer('qte_livree')->change();
+        Schema::withoutForeignKeyConstraints(function () {
+            Schema::table('bon_livraison_details', function (Blueprint $table) {
+                $table->integer('qte_commandee')->change();
+                $table->integer('qte_livree')->change();
+            });
         });
     }
 };
