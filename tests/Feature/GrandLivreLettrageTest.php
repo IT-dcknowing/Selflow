@@ -49,6 +49,9 @@ class GrandLivreLettrageTest extends TestCase
             // repondent 404 (Not Found -- introuvable).
             'comptabilite_activee' => true,
         ]);
+        // Grand livre et lettrage s'accordent à part (08/10/2026) : la
+        // comptabilité ouverte ne les montre pas.
+        $this->entreprise->forceFill(['attributions' => ['grand_livre', 'lettrage']])->save();
 
         $this->site = PointDeVente::create([
             'entreprise_id' => $this->entreprise->id,

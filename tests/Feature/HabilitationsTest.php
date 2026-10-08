@@ -254,7 +254,7 @@ class HabilitationsTest extends TestCase
 
         $this->actingAs($admin)->withSession(['point_de_vente_actif_id' => $this->magasin->id]);
 
-        $this->get(route('admin.comptabilite.grand_livre'))->assertOk();
+        $this->get(route('admin.comptabilite.plan_comptable'))->assertOk();
         $this->get(route('admin.immobilisations.index'))->assertOk();
         $this->get(route('admin.consignations.index'))->assertOk();
     }
