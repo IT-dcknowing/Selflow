@@ -89,17 +89,25 @@
                      même chose — ce que la saisie va produire. --}}
                 <div class="form-group">
                     <label class="form-label">Nature de l'achat</label>
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                    <div style="display:grid; grid-template-columns:{{ auth()->user()->entreprise?->bapa ? '1fr 1fr' : '1fr' }}; gap:8px;">
                         <button type="button" class="btn payment-toggle-btn" id="btnFacturePhysique" onclick="toggleFacturePhysique()"
                                 style="justify-content:center; font-size:12px; padding:8px 6px; text-align:center;">
                             <i class="fas fa-file-invoice" id="iconFacturePhysique"></i>
                             <span id="labelFacturePhysique">Facture physique fournisseur</span>
                         </button>
+                        @if(auth()->user()->entreprise?->bapa)
                         <button type="button" class="btn payment-toggle-btn" id="btnBapa" onclick="toggleBapa()"
                                 style="justify-content:center; font-size:12px; padding:8px 6px; text-align:center;">
                             <i class="fas fa-file-invoice" id="iconBapa"></i>
                             <span id="labelBapa">BAPA (DGI)</span>
                         </button>
+                        @else
+                        {{-- BAPA non disponible : expliquer sans bloquer --}}
+                        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:11.5px;color:#92400e;">
+                            <i class="fas fa-lock" style="font-size:12px;"></i>
+                            <span>BAPA non activé sur votre espace FNE</span>
+                        </div>
+                        @endif
                     </div>
                     <small style="color:var(--text-3); font-size:11px;" id="aideNatureAchat">
                         Sans choix, l'achat reste une demande de prix ou un bon de commande.
@@ -661,7 +669,8 @@ let facturePhysiqueActive = false;
  */
 function marquerNature(actif) {
     ['btnFacturePhysique', 'btnBapa'].forEach(function (id) {
-        document.getElementById(id).classList.toggle('active', id === actif);
+        var el = document.getElementById(id);
+        if (el) el.classList.toggle('active', id === actif);
     });
     // Le detail de la piece -- numero, reglement, montants -- n'a de sens que
     // si l'une des deux natures est choisie.
@@ -671,6 +680,7 @@ function marquerNature(actif) {
     document.getElementById('blocTypeDocument').style.display = actif === 'btnBapa' ? 'none' : 'block';
     basculerB2b();
 }
+
 
 function toggleFacturePhysique() {
     facturePhysiqueActive = !facturePhysiqueActive;

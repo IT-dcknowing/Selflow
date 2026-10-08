@@ -515,17 +515,49 @@ class Entreprise extends Model
      * en dit. Un seul élément aujourd'hui ; la liste est faite pour grossir.
      */
     public const ATTRIBUTIONS = [
-        'comptabilite' => 'Comptabilité — plan comptable, journaux, grand livre, lettrage',
-        // Propriétaire, 08/10/2026 : la balance se tient dans Comptaflow.
-        // Ouvrir la comptabilité ne la montre pas ; seul le superadministrateur
-        // l'accorde, entreprise par entreprise.
-        'balance'      => 'Balance de contrôle — accordée à part : la balance se tient dans Comptaflow',
+        'comptabilite'         => 'Comptabilité (base) — plan comptable, journaux, créances, configuration',
+        'encaissements'        => 'Encaissements — gestion des encaissements de trésorerie',
+        'decaissements'        => 'Décaissements — gestion des décaissements de trésorerie',
+        'comptabilite_globale' => 'Opération & écriture globale — saisie et écritures générales',
+        'grand_livre'          => 'Grand livre — consultation du grand livre comptable',
+        'lettrage'             => 'Lettrage — lettrage des comptes et factures',
+        'balance'              => 'Balance de contrôle — accordée à part : la balance se tient dans Comptaflow',
     ];
 
     /** La balance de contrôle est-elle accordée à cette entreprise ? */
     public function balanceAccordee(): bool
     {
         return $this->aAttribution('balance');
+    }
+
+    /** Les encaissements sont-ils accordés par le superadmin ? */
+    public function encaissementsAccordes(): bool
+    {
+        return $this->aAttribution('encaissements');
+    }
+
+    /** Les décaissements sont-ils accordés par le superadmin ? */
+    public function decaissementsAccordes(): bool
+    {
+        return $this->aAttribution('decaissements');
+    }
+
+    /** L'opération & écriture globale est-elle accordée par le superadmin ? */
+    public function ecritureGlobaleAccordee(): bool
+    {
+        return $this->aAttribution('comptabilite_globale');
+    }
+
+    /** Le grand livre est-il accordé par le superadmin ? */
+    public function grandLivreAccorde(): bool
+    {
+        return $this->aAttribution('grand_livre');
+    }
+
+    /** Le lettrage est-il accordé par le superadmin ? */
+    public function lettrageAccorde(): bool
+    {
+        return $this->aAttribution('lettrage');
     }
 
     /**

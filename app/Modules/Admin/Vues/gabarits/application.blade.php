@@ -1022,31 +1022,42 @@
                  Le menu dit ce qu'on propose ; c'est le middleware
                  `comptabilite` qui dit ce qu'on autorise. --}}
             @if($comptabiliteOuverte)
-            @if(auth()->user()->aHabilitation('tresorerie_encaissements'))
+            {{-- Encaissements : réservé au superadministrateur --}}
+            @if((auth()->user()->estSuperAdmin() || $entreprise?->encaissementsAccordes()) && auth()->user()->aHabilitation('tresorerie_encaissements'))
             <a href="{{ route('admin.tresorerie.encaissements') }}" class="nav-item {{ request()->routeIs('admin.tresorerie.encaissements') ? 'active' : '' }}">
                 <i class="fas fa-arrow-down" style="color:#10b981;"></i> Encaissements
             </a>
             @endif
-            @if(auth()->user()->aHabilitation('tresorerie_decaissements'))
+
+            {{-- Décaissements : réservé au superadministrateur --}}
+            @if((auth()->user()->estSuperAdmin() || $entreprise?->decaissementsAccordes()) && auth()->user()->aHabilitation('tresorerie_decaissements'))
             <a href="{{ route('admin.tresorerie.decaissements') }}" class="nav-item {{ request()->routeIs('admin.tresorerie.decaissements') ? 'active' : '' }}">
                 <i class="fas fa-arrow-up" style="color:#ef4444;"></i> Décaissements
             </a>
             @endif
+
+            {{-- Codes Journaux : ouvert par défaut si la comptabilité est cochée --}}
             @if(auth()->user()->aHabilitation('tresorerie_codes_journaux'))
             <a href="{{ route('admin.tresorerie.codes_journaux') }}" class="nav-item {{ request()->routeIs('admin.tresorerie.codes_journaux') ? 'active' : '' }}">
                 <i class="fas fa-book"></i> Codes Journaux
             </a>
             @endif
-            @if(auth()->user()->aHabilitation('comptabilite_globale'))
+
+            {{-- Opération & écriture globale : réservé au superadministrateur --}}
+            @if((auth()->user()->estSuperAdmin() || $entreprise?->ecritureGlobaleAccordee()) && auth()->user()->aHabilitation('comptabilite_globale'))
             <a href="{{ route('admin.comptabilite.globale') }}" class="nav-item {{ request()->routeIs('admin.comptabilite.globale') ? 'active' : '' }}">
                 <i class="fas fa-list-check"></i> Opération &amp; écriture globale
             </a>
             @endif
+
+            {{-- Créances & règlements : ouvert par défaut si la comptabilité est cochée --}}
             @if(auth()->user()->aHabilitation('comptabilite_creances'))
             <a href="{{ route('admin.comptabilite.creances') }}" class="nav-item {{ request()->routeIs('admin.comptabilite.creances') ? 'active' : '' }}">
                 <i class="fas fa-scale-balanced"></i> Créances &amp; règlements
             </a>
             @endif
+
+            {{-- Plan Comptable & Configuration des comptes : ouverts par défaut si la comptabilité est cochée --}}
             @if(auth()->user()->aHabilitation('comptabilite_plan_comptable'))
             <a href="{{ route('admin.comptabilite.plan_comptable') }}" class="nav-item {{ request()->routeIs('admin.comptabilite.plan_comptable') ? 'active' : '' }}">
                 <i class="fas fa-book-open"></i> Plan Comptable
@@ -1055,17 +1066,23 @@
                 <i class="fas fa-sitemap"></i> Configuration des comptes
             </a>
             @endif
-            @if(auth()->user()->aHabilitation('comptabilite_globale'))
-            {{-- La balance se tient dans Comptaflow : elle ne paraît que si le
-                 superadministrateur l'a accordée (08/10/2026). --}}
+
+            {{-- Balance de contrôle : réservée au superadministrateur --}}
             @if(auth()->user()->estSuperAdmin() || $entreprise?->balanceAccordee())
             <a href="{{ route('admin.comptabilite.balance') }}" class="nav-item {{ request()->routeIs('admin.comptabilite.balance') ? 'active' : '' }}">
                 <i class="fas fa-scale-balanced"></i> Balance de contrôle
             </a>
             @endif
+
+            {{-- Grand livre : réservé au superadministrateur --}}
+            @if(auth()->user()->estSuperAdmin() || $entreprise?->grandLivreAccorde())
             <a href="{{ route('admin.comptabilite.grand_livre') }}" class="nav-item {{ request()->routeIs('admin.comptabilite.grand_livre') ? 'active' : '' }}">
                 <i class="fas fa-book-open"></i> Grand livre
             </a>
+            @endif
+
+            {{-- Lettrage : réservé au superadministrateur --}}
+            @if(auth()->user()->estSuperAdmin() || $entreprise?->lettrageAccorde())
             <a href="{{ route('admin.comptabilite.lettrage') }}" class="nav-item {{ request()->routeIs('admin.comptabilite.lettrage') ? 'active' : '' }}">
                 <i class="fas fa-link"></i> Lettrage
             </a>

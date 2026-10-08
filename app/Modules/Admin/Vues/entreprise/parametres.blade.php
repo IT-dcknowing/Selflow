@@ -885,8 +885,9 @@
                         Selflow établit vos ventes, vos achats, vos factures et votre stock sans
                         qu'aucun numéro de compte ne vous soit demandé. Votre comptabilité se tient
                         dans Comptaflow. Activez cette option pour retrouver dans Selflow les numéros
-                        de compte, le plan comptable, les codes journaux et les indicateurs comptables
-                        (balance, grand livre).
+                        de compte, le plan comptable, les codes journaux et le solde &amp; journal.
+                        Les indicateurs comptables avancés (balance, grand livre) sont accordés
+                        séparément par l'administrateur de la plateforme.
                     </div>
 
                     {{-- Le champ caché fait que la case est toujours postée :
@@ -993,6 +994,14 @@
                                 </div>
                             </div>
                         </div>
+                        @if($entreprise->timbre_quittance)
+                        <div style="font-size:12px;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;margin-top:8px;line-height:1.6;">
+                            <i class="fas fa-triangle-exclamation"></i>
+                            <strong>Il est nécessaire de garder cette option cochée sur votre espace FNE.</strong>
+                            La décocher sur la plateforme DGI supprimera automatiquement le timbre de vos factures
+                            lors du prochain relevé du portail.
+                        </div>
+                        @endif
 
                         {{-- Le BAPA était une case à cocher. Elle ne commandait
                              rien : aucune ligne du code ne la lisait, hors le
@@ -1014,10 +1023,11 @@
                                     FNE</strong> : si l'option n'y est pas cochée, la plateforme
                                     refusera le bordereau, quoi que Selflow en dise.
                                 </div>
-                                <div style="font-size:12px;margin-top:6px;color:{{ $entreprise->bapa ? '#065f46' : 'var(--text-3)' }};">
-                                    <i class="fas {{ $entreprise->bapa ? 'fa-circle-check' : 'fa-circle-minus' }}"></i>
+                                <div style="font-size:12px;margin-top:6px;color:{{ $entreprise->bapa ? '#065f46' : '#b45309' }};">
+                                    <i class="fas {{ $entreprise->bapa ? 'fa-circle-check' : 'fa-circle-xmark' }}"></i>
                                     Option BAPA de votre espace FNE : <strong>{{ $entreprise->bapa ? 'cochée' : 'non cochée' }}</strong>
-                                    — reprise automatiquement à chaque relevé du portail.
+                                    — {{ $entreprise->bapa ? 'le bordereau BAPA est disponible dans vos achats.' : 'le bordereau BAPA n\'apparaîtra pas dans l\'application.' }}
+                                    Repris automatiquement à chaque relevé du portail.
                                 </div>
                             </div>
                         </div>

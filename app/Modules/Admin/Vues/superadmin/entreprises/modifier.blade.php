@@ -155,8 +155,39 @@
                                 Les modules de communication inter-entreprises (B2B) et de facturation normalisée (FNE / DGI) sont automatiquement activés par défaut comme services d'infrastructure système.
                             </p>
                         </div>
-                    </div>
                 </details>
+            </div>
+
+            {{-- Attributions spécifiques SuperAdmin --}}
+            <div class="card" style="padding: 24px;">
+                <div style="font-size:12px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+                    <i class="fas fa-sliders" style="color:var(--primary);"></i> Attributions comptables (SuperAdmin)
+                </div>
+                <p style="font-size:11.5px;color:var(--text-3);margin-bottom:14px;line-height:1.5;">
+                    Par défaut, l'activation de la comptabilité n'ouvre que le socle de base (Solde &amp; journal, Codes Journaux, Créances &amp; règlements, Plan Comptable et Configuration). Cochez ici les fonctionnalités avancées que vous accordez spécifiquement à cette entreprise.
+                </p>
+
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    @php
+                        $attributionsDispos = [
+                            'encaissements'        => ['Encaissements', 'Gestion et suivi des encaissements de trésorerie'],
+                            'decaissements'        => ['Décaissements', 'Gestion et suivi des décaissements de trésorerie'],
+                            'comptabilite_globale' => ['Opération & écriture globale', 'Écran complet des écritures et opérations générales'],
+                            'grand_livre'          => ['Grand livre', 'Consultation chronologique du grand livre des comptes'],
+                            'lettrage'             => ['Lettrage', 'Rapprochement des créances et règlements'],
+                            'balance'              => ['Balance de contrôle', 'Génération et consultation de la balance'],
+                        ];
+                    @endphp
+                    @foreach($attributionsDispos as $attrCle => [$attrTitre, $attrDesc])
+                    <label style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;cursor:pointer;">
+                        <input type="checkbox" name="attributions[]" value="{{ $attrCle }}" {{ $entreprise->aAttribution($attrCle) ? 'checked' : '' }} style="margin-top:3px;accent-color:var(--primary);">
+                        <div>
+                            <div style="font-weight:600;font-size:12.5px;color:var(--text);">{{ $attrTitre }}</div>
+                            <div style="font-size:11px;color:var(--text-3);margin-top:2px;">{{ $attrDesc }}</div>
+                        </div>
+                    </label>
+                    @endforeach
+                </div>
             </div>
             
             <button type="submit" class="btn btn-primary" style="width:100%; padding:14px; font-weight:700; justify-content:center; gap:8px; border-radius:12px;">

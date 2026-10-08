@@ -497,7 +497,7 @@ class RejetFneControleur
                 'pret' => true,
                 'resolu' => false,
                 'choix' => $this->boutonsDeChoix($rejet, $auChoix),
-                'message' => 'La DGI a refusé la pièce : le point de vente ne correspond pas. Sélectionnez et activez le point de vente correspondant sur votre espace FNE :',
+                'message' => "Normalisation impossible car le point de vente sélectionné n'est pas reconnu. Veuillez sélectionner ou écrire avec l'orthographe correcte le point de vente au niveau de la FNE :",
             ]);
         }
 

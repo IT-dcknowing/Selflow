@@ -1591,7 +1591,7 @@ class VenteControleur
                 }
 
                 return back()
-                    ->with('avertissement', 'La DGI a refusé la facture : le point de vente ne correspond pas. Sélectionnez et activez le point de vente correspondant sur votre espace FNE :')
+                    ->with('avertissement', "Normalisation impossible car le point de vente sélectionné n'est pas reconnu. Veuillez sélectionner ou écrire avec l'orthographe correcte le point de vente au niveau de la FNE :")
                     ->with('avertissement_action', $boutons);
             }
 
@@ -1600,8 +1600,8 @@ class VenteControleur
 
             return back()
                 ->with('avertissement', sprintf(
-                    "La DGI a refusé la facture%s : le point de vente n'est pas déclaré à "
-                    . "l'identique sur votre espace FNE. Récupération des points de vente sur le portail en cours...",
+                    "Normalisation impossible car le point de vente sélectionné n'est pas reconnu%s : le point de vente n'est pas déclaré à "
+                    . "l'identique sur votre espace FNE. Veuillez sélectionner ou écrire avec l'orthographe correcte le point de vente au niveau de la FNE. Récupération des points de vente sur le portail en cours...",
                     $precision
                 ))
                 ->with('rejet_en_cours_id', $rejet->id)

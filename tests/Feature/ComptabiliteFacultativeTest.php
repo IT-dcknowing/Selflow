@@ -263,11 +263,60 @@ class ComptabiliteFacultativeTest extends TestCase
 
     // ══════════════ L'entreprise l'ouvre ══════════════
 
-    public function test_la_case_des_parametres_ouvre_les_ecrans(): void
+    public function test_la_case_des_parametres_ouvre_les_ecrans_par_defaut(): void
     {
         $this->ouvrirLaComptabilite();
 
-        foreach (array_diff(self::ECRANS_FERMES, ['admin.comptabilite.balance']) as $route) {
+        // Par défaut, seuls les écrans du socle de base s'ouvrent :
+        // Codes journaux, Créances, Plan comptable, Configuration
+        $ecransParDefaut = [
+            'admin.tresorerie.codes_journaux',
+            'admin.comptabilite.creances',
+            'admin.comptabilite.plan_comptable',
+            'admin.comptabilite.configuration',
+        ];
+
+        foreach ($ecransParDefaut as $route) {
+            $this->connecte()->get(route($route))->assertOk();
+        }
+
+        // Le reste est réservé au superadministrateur (404 tant que non attribué)
+        $ecransSuperadmin = [
+            'admin.tresorerie.encaissements',
+            'admin.tresorerie.decaissements',
+            'admin.comptabilite.globale',
+            'admin.comptabilite.grand_livre',
+            'admin.comptabilite.lettrage',
+            'admin.comptabilite.balance',
+        ];
+
+        foreach ($ecransSuperadmin as $route) {
+            $this->connecte()->get(route($route))->assertNotFound();
+        }
+    }
+
+    public function test_les_ecrans_avances_s_ouvrent_quand_le_superadmin_les_attribue(): void
+    {
+        $this->ouvrirLaComptabilite();
+
+        $this->entreprise->forceFill([
+            'attributions' => [
+                'encaissements', 'decaissements', 'comptabilite_globale',
+                'grand_livre', 'lettrage', 'balance',
+            ],
+        ])->save();
+        $this->admin->unsetRelation('entreprise');
+
+        $ecransAttribues = [
+            'admin.tresorerie.encaissements',
+            'admin.tresorerie.decaissements',
+            'admin.comptabilite.globale',
+            'admin.comptabilite.grand_livre',
+            'admin.comptabilite.lettrage',
+            'admin.comptabilite.balance',
+        ];
+
+        foreach ($ecransAttribues as $route) {
             $this->connecte()->get(route($route))->assertOk();
         }
     }
@@ -294,9 +343,23 @@ class ComptabiliteFacultativeTest extends TestCase
         $this->ouvrirLaComptabilite();
         $menu = $this->menu();
 
+        // Éléments du socle par défaut
         $this->assertStringContainsString('Plan Comptable', $menu);
-        $this->assertStringContainsString('Grand livre', $menu);
+        $this->assertStringContainsString('Codes Journaux', $menu);
+        $this->assertStringContainsString('Créances &amp; règlements', $menu);
         $this->assertStringContainsString('<span>Comptabilité</span>', $menu);
+
+        // Les éléments réservés au superadmin ne doivent PAS être présents par défaut
+        $this->assertStringNotContainsString('Grand livre', $menu);
+        $this->assertStringNotContainsString('Lettrage', $menu);
+        $this->assertStringNotContainsString('Opération &amp; écriture globale', $menu);
+
+        // Dès que le superadmin accorde le grand livre, il paraît dans le menu
+        $this->entreprise->forceFill(['attributions' => ['grand_livre']])->save();
+        $this->admin->unsetRelation('entreprise');
+
+        $menuAvecGrandLivre = $this->menu();
+        $this->assertStringContainsString('Grand livre', $menuAvecGrandLivre);
     }
 
     public function test_la_case_se_coche_et_se_decoche_depuis_les_parametres(): void

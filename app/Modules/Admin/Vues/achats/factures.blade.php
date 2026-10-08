@@ -55,13 +55,16 @@
      * l'une n'est jamais normalisée, l'autre est la seule que nous
      * normalisions, la troisième arrive déjà certifiée par le fournisseur.
      * Les mêler obligeait chaque ligne à expliquer ce qu'elle était.
+     *
+     * L'onglet BAPA n'apparaît que si l'option est cochée sur la FNE.
      */
-    $sections = [
-        'enregistrees' => ['Factures enregistrées', 'fa-file-invoice', $nbEnregistrees],
-        'bapa'         => ['Factures BAPA', 'fa-file-signature', $nbBapa],
-        'dgi'          => ['Factures achat DGI', 'fa-cloud-arrow-down', $nbDgi],
-    ];
+    $sections = ['enregistrees' => ['Factures enregistrées', 'fa-file-invoice', $nbEnregistrees]];
+    if ($entreprise->bapa) {
+        $sections['bapa'] = ['Factures BAPA', 'fa-file-signature', $nbBapa];
+    }
+    $sections['dgi'] = ['Factures achat DGI', 'fa-cloud-arrow-down', $nbDgi];
 @endphp
+
 
 @if($etapeActive === 'Facture')
 <div style="display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap;">

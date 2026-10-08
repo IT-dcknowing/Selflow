@@ -348,7 +348,8 @@
                     <th style="white-space: nowrap;">Date</th>
                     <th style="white-space: nowrap;">Client</th>
                     <th style="white-space: nowrap;">Point de vente</th>
-                    <th style="white-space: nowrap;">TTC</th>
+                    <th style="white-space: nowrap;">HT</th>
+                    <th style="white-space: nowrap;" title="Total TTC incluant le timbre de quittance s'il s'applique">TTC</th>
                     {{-- Mode paiement seulement pour les factures --}}
                     @if(!$estDevisOuBC)
                     <th style="white-space: nowrap;">Mode paiement</th>
@@ -398,7 +399,25 @@
                     <td style="white-space: nowrap;">{{ \Carbon\Carbon::parse($vente->date_vente)->format('d/m/Y') }}</td>
                     <td style="white-space: nowrap;">{{ $vente->client?->nom ?? '— Passage —' }}</td>
                     <td style="font-weight:500; color:var(--text-2); white-space: nowrap;"><i class="fas fa-store" style="font-size:11px; margin-right:4px;"></i>{{ $vente->pointDeVente->nom }}</td>
-                    <td style="font-weight:700; color:var(--text); white-space: nowrap;">{{ number_format($vente->montant_ttc, 0, ',', ' ') }} F</td>
+                    @php
+                        // La colonne HT : sous-total HT brut de la facture.
+                        $montantHtLigne = $vente->montant_ht ?? ($vente->montant_ttc - ($vente->montant_tva ?? 0));
+                        // La colonne TTC doit afficher le NET À PAYER réel :
+                        // TTC + timbre de quittance. Sans le timbre, la liste
+                        // annonce 6 000 F là où le client paie 6 100 F.
+                        $timbreLigne = \App\Modules\Admin\Services\TimbreQuittanceService::pourVente($vente);
+                        $netAPayerLigne = $vente->montant_ttc + ($vente->montant_autres_taxes ?? 0) + $timbreLigne;
+                    @endphp
+                    <td style="font-weight:500; color:var(--text-2); white-space: nowrap;">
+                        {{ number_format($montantHtLigne, 0, ',', ' ') }} F
+                    </td>
+                    <td style="font-weight:700; color:var(--text); white-space: nowrap;">
+                        {{ number_format($netAPayerLigne, 0, ',', ' ') }} F
+                        @if($timbreLigne > 0)
+                            <span title="dont {{ number_format($timbreLigne, 0, ',', ' ') }} F de timbre de quittance"
+                                  style="font-size:10px; color:var(--text-3); font-weight:500; margin-left:2px;">*</span>
+                        @endif
+                    </td>
 
                     {{-- Mode paiement : seulement pour les factures --}}
                     @if(!$estDevisOuBC)

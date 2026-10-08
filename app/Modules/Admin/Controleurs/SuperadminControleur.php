@@ -320,6 +320,13 @@ class SuperadminControleur
             'modules_actifs'         => $modules,
         ]);
 
+        if ($request->has('attributions')) {
+            $attributionsChoisies = is_array($request->attributions) ? $request->attributions : [];
+            $clesAutorisees = array_keys(Entreprise::ATTRIBUTIONS);
+            $entreprise->attributions = array_values(array_intersect($attributionsChoisies, $clesAutorisees));
+            $entreprise->save();
+        }
+
         return redirect()->route('superadmin.entreprises')->with('succes', 'Entreprise mise à jour avec succès.');
     }
 

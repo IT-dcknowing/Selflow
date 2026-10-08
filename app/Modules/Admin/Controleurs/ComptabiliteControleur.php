@@ -33,6 +33,8 @@ class ComptabiliteControleur
     public function globale(Request $request): View
     {
         $entreprise = Auth::user()->entreprise;
+        abort_unless(Auth::user()->estSuperAdmin() || $entreprise?->ecritureGlobaleAccordee(), 404);
+
         $isAdmin = Auth::user()->role === 'admin';
 
         // Récupérer les points de vente pour le filtre (via cache Section 18.4)
@@ -630,6 +632,7 @@ class ComptabiliteControleur
     public function grandLivre(Request $request): View
     {
         $entreprise = Auth::user()->entreprise;
+        abort_unless(Auth::user()->estSuperAdmin() || $entreprise?->grandLivreAccorde(), 404);
 
         [$debut, $fin] = FiltrePeriodeService::intervalle($request);
 
@@ -699,6 +702,7 @@ class ComptabiliteControleur
     public function lettrage(Request $request): View
     {
         $entreprise = Auth::user()->entreprise;
+        abort_unless(Auth::user()->estSuperAdmin() || $entreprise?->lettrageAccorde(), 404);
 
         $comptes = PlanComptable::where('entreprise_id', $entreprise->id)
             ->orderBy('numero')
@@ -723,6 +727,8 @@ class ComptabiliteControleur
      */
     public function lettrer(Request $request): RedirectResponse
     {
+        abort_unless(Auth::user()->estSuperAdmin() || Auth::user()->entreprise?->lettrageAccorde(), 403);
+
         $donnees = $request->validate([
             'compte'      => ['required', 'string', 'max:20'],
             'ecritures'   => ['required', 'array', 'min:2'],
@@ -749,6 +755,7 @@ class ComptabiliteControleur
      */
     public function delettrer(\App\Modules\Admin\Modeles\Lettrage $lettrage): RedirectResponse
     {
+        abort_unless(Auth::user()->estSuperAdmin() || Auth::user()->entreprise?->lettrageAccorde(), 403);
         abort_unless($lettrage->entreprise_id === Auth::user()->entreprise_id, 404);
 
         $nombre = LettrageService::delettrer($lettrage);
