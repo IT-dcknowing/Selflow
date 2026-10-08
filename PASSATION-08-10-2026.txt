@@ -1,0 +1,59 @@
+PASSATION DU 08/10/2026 — SELFLOW
+=================================
+
+À lire avec CLAUDE.md, JOURNAL-DE-BORD.md (lots 57 à 62) et
+PLAN-CORRECTION-SELFLOW.xlsx (section 20).
+
+
+1. OÙ NOUS EN SOMMES
+--------------------
+Branche de référence : main, poussée sur les deux dépôts
+(IT-dcknowing/Selflow et meledjeabrahamagnimel-lgtm/Selflow).
+Comptaflow : main sur les deux dépôts (guysergekouassi/COMPTAFLOW et
+IT-dcknowing/COMPTAFLOW).
+
+Plan : 104 chantiers, 89 terminés, 6 à faire, 1 à trancher.
+
+
+2. FAIT LE 08/10/2026
+---------------------
+- Cycle vente / achat corrigé (lot 60), production corrigée (lot 59),
+  recette « nouvelle entreprise de zéro » (lot 61).
+- Logo et icône du navigateur ; barre latérale modèle A ; page de
+  connexion proposition 1 (la branche « connexion » N'EST PAS fusionnée).
+- Compte FNE : états de connexion ; champs grisés seulement après un
+  relevé ; accès inscrits pour le scraper ; « Voir les accès FNE ».
+- Timbre, BAPA, seuil des stickers : suivent l'espace FNE dans les deux
+  sens ; BAPA décoché = rien du bordereau.
+- Comptabilité : socle par défaut, le reste accordé par le superadmin
+  (fiche entreprise, carte « Attributions comptables », ou écran
+  Attributions) ; balance accordée à part ; exercices antérieurs.
+- Relevé des avoirs du collaborateur intégré ; avoirs émis écartés des
+  achats.
+- Lenteur : écrans inchangés ; relevés achats et avoirs décalés.
+
+
+3. DÉPLOIEMENT (dans cet ordre)
+-------------------------------
+  git fetch origin && git checkout main && git pull origin main
+  composer install --no-dev --optimize-autoloader
+  php artisan migrate --force
+     (2026_10_07_000001, 2026_10_08_000001 à 000004 : toutes additives,
+      testées sur MySQL 8 avec une ligne orpheline)
+  php artisan config:cache && php artisan route:cache && php artisan view:cache
+  php artisan queue:restart
+  php artisan selflow:ecritures-factures-recues
+  php artisan selflow:regrouper-comptaflow
+  php artisan selflow:verifier-stocks        (lecture seule)
+  Côté scraper : cd SCRAPER-PORTAIL-FNE && npm install
+     PORTAIL_FNE_SCRAPER_ACTIF=true dans .env pour qu'il parte.
+  EXTERNAL_SYNC_SECRET : même nouvelle valeur dans les deux .env.
+
+
+4. CE QUI RESTE
+---------------
+- 20.14 Page « Entrée de stock » : proposée, à trancher.
+- 20.15 / 7.5 Liaison Comptaflow réelle et déversement à vérifier.
+- 20.16 Résumé de la logique de Selflow (rédaction interrompue).
+- 20.17 Défauts restants de la recette de zéro.
+- 17.5, 18.2 : à lancer au déploiement (commandes ci-dessus).

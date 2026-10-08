@@ -7680,6 +7680,31 @@ antérieur annoncé avec les bornes de l'exercice actif ; `db:seed` qui tombe su
 - Suite : 1 625 épreuves, 1 620 passantes, 5 sautées ; `verifier:variables` propre.
 
 
+---
+
+### Lot 62 — Connexion, socle comptable, avoirs relevés, timbre et BAPA, lenteur — **TERMINÉ le 08/10/2026**
+
+Reprise après la session parallèle qui avait poussé sur `main` le socle
+comptable (5689476) et le relevé des avoirs du collaborateur (c2bc0aa), et
+laissé une branche `connexion` jugée ratée par le propriétaire (non fusionnée).
+
+| Point | Fait |
+|---|---|
+| Page de connexion | refaite fidèlement à la proposition 1 (tuile 3D, fond quadrillé), toute la logique gardée ; polices locales |
+| Socle comptable | case cochée = solde & journal, codes journaux, créances & règlements, plan comptable, configuration des comptes ; le reste accordé par le superadmin. **Corrigé** : le caissier perdait « Mes encaissements » (404) ; la carte du superadmin ne retirait rien quand tout était décoché et effaçait l'attribution « comptabilite » |
+| Avoirs relevés | **défaut corrigé** : un avoir ÉMIS à un client était rangé avec le client comme émetteur et partait au journal des achats. Colonne `liste_portail` (issued / received), avoir émis écarté de l'écriture, de la liste des achats DGI et du rapprochement |
+| Timbre / BAPA | un décochage n'était jamais repris (`(string) false` = ''). Coché → coché, décoché → décoché. Timbre décoché : pas de barème, message « il est nécessaire de garder cette case cochée ». BAPA décoché : rien du bordereau (archives consultables), refus côté serveur |
+| Lenteur | écrans mesurés contre le code du 07/10 (300 articles, 200 ventes) : mêmes requêtes, mêmes temps. Cause trouvée en arrière-plan : relevés achats et avoirs ouvraient deux navigateurs à la même minute toutes les 5 min. Le relevé des avoirs est décalé d'une demi-période |
+| Colonne HT | vérifiée : TTC = net à payer (timbre compris), le calcul de la facture |
+
+- `tests/Feature/SocleComptableTest.php` (3), épreuves ajoutées à `ReleveDesAvoirsTest` et `ConnexionFneEtatTest`
+- Vérification au retrait : avoir émis, timbre décoché.
+
+Restent (plan, section 20) : page « Entrée de stock » à trancher ; liaison
+Comptaflow réelle à vérifier (7.5) ; résumé de la logique de Selflow ;
+défauts restants de la recette de zéro (20.17).
+
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
