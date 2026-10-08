@@ -427,6 +427,51 @@ class EntrepriseControleur
     }
 
     /**
+     * Demander la comptabilité d'exercices antérieurs (propriétaire,
+     * 08/10/2026). Seules les années qui portent encore des opérations à
+     * déverser se demandent ; l'administrateur de la plateforme accorde.
+     */
+    public function demanderExercicesAnterieurs(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $entreprise = Auth::user()->entreprise;
+
+        $possibles = array_values(array_diff(
+            \App\Modules\Admin\Services\DeversementHistoriqueService::anneesAnterieuresNonDeversees($entreprise),
+            \App\Modules\Admin\Modeles\DemandeExercicesAnterieurs::anneesAccordees($entreprise->id),
+            \App\Modules\Admin\Modeles\DemandeExercicesAnterieurs::anneesEnAttente($entreprise->id),
+        ));
+
+        // L'écran appelle en JSON : une erreur lui revient en JSON, pas en redirection.
+        $validation = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'annees'   => ['required', 'array', 'min:1'],
+            'annees.*' => ['integer', \Illuminate\Validation\Rule::in($possibles)],
+        ], [
+            'annees.required' => 'Cochez au moins un exercice.',
+            'annees.*.in'     => 'Cet exercice ne se demande pas : il est déjà accordé, déjà demandé, ou n\'a rien à déverser.',
+        ]);
+
+        if ($validation->fails()) {
+            return response()->json(['success' => false, 'message' => $validation->errors()->first()], 422);
+        }
+        $donnees = $validation->validated();
+
+        $demande = \App\Modules\Admin\Modeles\DemandeExercicesAnterieurs::create([
+            'entreprise_id'    => $entreprise->id,
+            'annees_demandees' => collect($donnees['annees'])->map(fn ($a) => (int) $a)->unique()->sort()->values()->all(),
+            'statut'           => \App\Modules\Admin\Modeles\DemandeExercicesAnterieurs::EN_ATTENTE,
+            'demandee_par'     => Auth::id(),
+        ]);
+
+        $this->journaliser('demande_exercices_anterieurs', 'Entreprise', $entreprise->id, [], ['annees' => $demande->annees_demandees]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Demande envoyée pour ' . implode(', ', $demande->annees_demandees)
+                . ". L'administrateur de la plateforme choisira le ou les exercices qu'il accorde.",
+        ]);
+    }
+
+    /**
      * Vérifie la joignabilité de l'API FNE avec la clé active de l'entreprise
      * (test ou réelle selon le statut). Ne révèle JAMAIS la clé — la lecture
      * de la clé pour l'appel se fait côté serveur uniquement.

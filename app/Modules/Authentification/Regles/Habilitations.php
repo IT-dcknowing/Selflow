@@ -446,6 +446,7 @@ class Habilitations
         // Le deversement de l'historique engage le dossier comptable : meme
         // droit que la synchronisation du referentiel.
         'admin.entreprise.comptaflow.deverser'    => 'comptabilite_globale',
+        'admin.entreprise.comptaflow.exercices_anterieurs' => 'comptabilite_globale',
 
         // ── FNE ──
         // Les écrans fiscaux : la normalisation engage l'entreprise devant la

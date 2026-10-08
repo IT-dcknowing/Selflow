@@ -711,6 +711,11 @@
             <a href="{{ route('superadmin.attributions.index') }}" class="nav-item {{ request()->routeIs('superadmin.attributions*') ? 'active' : '' }}">
                 <i class="fas fa-sliders"></i> Attributions
             </a>
+            <a href="{{ route('superadmin.exercices_anterieurs.index') }}" class="nav-item {{ request()->routeIs('superadmin.exercices_anterieurs*') ? 'active' : '' }}">
+                <i class="fas fa-clock-rotate-left"></i> Exercices antérieurs
+                @php $demandesExercices = \App\Modules\Admin\Modeles\DemandeExercicesAnterieurs::where('statut', 'en_attente')->count(); @endphp
+                @if($demandesExercices > 0)<span class="badge" style="margin-left:auto;background:#f59e0b;color:#fff;">{{ $demandesExercices }}</span>@endif
+            </a>
             @endif
 
             <div class="nav-section"><span>INTÉGRATIONS</span></div>

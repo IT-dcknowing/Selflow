@@ -1518,6 +1518,46 @@
                         <div id="retour-deversement" style="display:none;margin-top:10px;padding:10px 12px;border-radius:6px;font-size:12px;line-height:1.5;"></div>
                     </div>
 
+                    {{-- Les exercices antérieurs (propriétaire, 08/10/2026) : ils
+                         se demandent, exercice par exercice, et ne partent
+                         qu'une fois accordés par l'administrateur de la
+                         plateforme. L'exercice en cours n'attend rien. --}}
+                    @php
+                        $anneesAnterieures = \App\Modules\Admin\Services\DeversementHistoriqueService::anneesAnterieuresNonDeversees($entreprise);
+                        $anneesAccordees   = \App\Modules\Admin\Modeles\DemandeExercicesAnterieurs::anneesAccordees($entreprise->id);
+                        $anneesDemandees   = \App\Modules\Admin\Modeles\DemandeExercicesAnterieurs::anneesEnAttente($entreprise->id);
+                        $anneesADemander   = array_values(array_diff($anneesAnterieures, $anneesAccordees, $anneesDemandees));
+                    @endphp
+                    @if($anneesAnterieures !== [] || $anneesAccordees !== [] || $anneesDemandees !== [])
+                    <div id="exercices-anterieurs" style="margin-top:12px;padding:12px 14px;background:#fff;border:1px solid var(--border);border-radius:8px;font-size:12.5px;line-height:1.7;">
+                        <strong>Comptabilité des exercices antérieurs</strong><br>
+                        <span style="color:var(--text-3);">
+                            Les exercices passés partent chez Comptaflow une fois accordés par l'administrateur de la plateforme.
+                        </span>
+                        @if($anneesAccordees !== [])
+                            <div style="margin-top:6px;color:#047857;"><i class="fas fa-circle-check"></i> Accordés : {{ implode(', ', $anneesAccordees) }}</div>
+                        @endif
+                        @if($anneesDemandees !== [])
+                            <div style="margin-top:6px;color:#b45309;"><i class="fas fa-hourglass-half"></i> Demande en attente : {{ implode(', ', $anneesDemandees) }}</div>
+                        @endif
+                        @if($anneesADemander !== [])
+                            <div style="margin-top:8px;" data-exercices-a-demander>
+                                @foreach($anneesADemander as $annee)
+                                    <label style="display:inline-flex;align-items:center;gap:5px;margin-right:12px;font-weight:600;">
+                                        <input type="checkbox" value="{{ $annee }}" data-exercice-anterieur> {{ $annee }}
+                                    </label>
+                                @endforeach
+                                <div style="margin-top:8px;">
+                                    <button type="button" onclick="demanderExercicesAnterieurs(this)" class="btn btn-outline btn-sm" style="padding:7px 14px;">
+                                        <i class="fas fa-paper-plane"></i> Demander ces exercices
+                                    </button>
+                                </div>
+                                <div id="retour-exercices" style="display:none;margin-top:8px;font-size:12px;"></div>
+                            </div>
+                        @endif
+                    </div>
+                    @endif
+
                     <div style="margin-top:12px;font-size:11.5px;color:var(--text-3);line-height:1.6;">
                         Pour délier ce dossier, écrivez au support : la clé doit être révoquée
                         des deux côtés le même jour.
@@ -1747,6 +1787,30 @@ function lancerLeDeversementComptaflow() {
         radio.addEventListener('change', function () { appliquer(radio.dataset.choixFne); });
     });
 })();
+</script>
+
+
+<script>
+function demanderExercicesAnterieurs(bouton) {
+    var annees = Array.from(document.querySelectorAll('[data-exercice-anterieur]:checked')).map(function (c) { return c.value; });
+    var retour = document.getElementById('retour-exercices');
+    if (!annees.length) { retour.style.display = 'block'; retour.style.color = '#b91c1c'; retour.textContent = 'Cochez au moins un exercice.'; return; }
+    bouton.disabled = true;
+    fetch(@json(route('admin.entreprise.comptaflow.exercices_anterieurs')), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json',
+                   'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+        body: JSON.stringify({ annees: annees })
+    })
+    .then(function (r) { return r.json().catch(function () { return { message: 'Réponse illisible (' + r.status + ').' }; }); })
+    .then(function (d) {
+        retour.style.display = 'block';
+        retour.style.color = d.success ? '#047857' : '#b91c1c';
+        retour.textContent = d.message || (d.errors ? Object.values(d.errors)[0][0] : 'Erreur.');
+        if (d.success) setTimeout(function () { location.reload(); }, 1500);
+    })
+    .finally(function () { bouton.disabled = false; });
+}
 </script>
 
 @endsection

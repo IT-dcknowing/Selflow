@@ -3,6 +3,7 @@
 namespace App\Modules\Admin\Services;
 
 use App\Jobs\DeverserOperationComptaflow;
+use App\Modules\Admin\Modeles\DemandeExercicesAnterieurs;
 use App\Modules\Admin\Modeles\EcritureComptable;
 use App\Modules\Admin\Modeles\Entreprise;
 use App\Modules\Admin\Modeles\Operation;
@@ -64,12 +65,10 @@ class DeversementHistoriqueService
         }
 
         // ── 2. Les opérations qui n'ont pas encore abouti ──
-        $aEnvoyer = Operation::where('entreprise_id', $entreprise->id)
-            ->where('est_equilibree', true)
-            ->whereHas('ecritures', fn ($q) => $q->where(function ($qs) {
-                $qs->whereNull('comptaflow_sync_status')
-                   ->orWhere('comptaflow_sync_status', '!=', 'synced');
-            }))
+        // L'exercice en cours part sans rien demander ; un exercice antérieur
+        // seulement s'il a été accordé (propriétaire, 08/10/2026).
+        $aEnvoyer = self::nonDeversees($entreprise)
+            ->where(fn ($q) => self::exercicesPermis($q, $entreprise))
             ->orderBy('id')
             ->pluck('id');
 
@@ -91,6 +90,13 @@ class DeversementHistoriqueService
                 $aEnvoyer->count()
             );
 
+        $retenues = self::anneesAnterieuresNonDeversees($entreprise);
+        $nonAccordees = array_values(array_diff($retenues, DemandeExercicesAnterieurs::anneesAccordees($entreprise->id)));
+        if ($nonAccordees !== []) {
+            $message .= ' Les exercices ' . implode(', ', $nonAccordees)
+                . " ne partent pas : la comptabilité d'un exercice antérieur se demande, et l'administrateur de la plateforme l'accorde.";
+        }
+
         if ($desequilibrees > 0) {
             $message .= sprintf(
                 " %d opération(s) déséquilibrée(s) ne sont pas envoyées : les déverser porterait le déséquilibre chez Comptaflow.",
@@ -105,6 +111,45 @@ class DeversementHistoriqueService
         ];
     }
 
+    /** Les opérations équilibrées dont une ligne n'est pas encore passée. */
+    private static function nonDeversees(Entreprise $entreprise)
+    {
+        return Operation::where('entreprise_id', $entreprise->id)
+            ->where('est_equilibree', true)
+            // Sans la période active : les écritures portent un filtre par
+            // période, et « tout l'historique » se réduisait à la période
+            // affichée à l'écran.
+            ->whereHas('ecritures', fn ($q) => $q->withoutGlobalScopes()->where(function ($qs) {
+                $qs->whereNull('comptaflow_sync_status')
+                   ->orWhere('comptaflow_sync_status', '!=', 'synced');
+            }));
+    }
+
+    /** L'exercice en cours, plus les exercices antérieurs accordés. */
+    private static function exercicesPermis($requete, Entreprise $entreprise): void
+    {
+        $requete->where('date_operation', '>=', now()->startOfYear()->toDateString());
+
+        foreach (DemandeExercicesAnterieurs::anneesAccordees($entreprise->id) as $annee) {
+            $requete->orWhereBetween('date_operation', ["{$annee}-01-01", "{$annee}-12-31"]);
+        }
+    }
+
+    /**
+     * Les exercices antérieurs à l'exercice en cours qui portent encore des
+     * opérations à déverser — ceux qu'une entreprise peut demander.
+     *
+     * @return array<int, int>
+     */
+    public static function anneesAnterieuresNonDeversees(Entreprise $entreprise): array
+    {
+        return self::nonDeversees($entreprise)
+            ->where('date_operation', '<', now()->startOfYear()->toDateString())
+            ->distinct()->pluck('date_operation')
+            ->map(fn ($d) => (int) \Illuminate\Support\Carbon::parse($d)->year)
+            ->unique()->sort()->values()->all();
+    }
+
     /**
      * Ce qui reste à déverser, pour l'écran.
      *
@@ -112,7 +157,7 @@ class DeversementHistoriqueService
      */
     public static function reste(Entreprise $entreprise): array
     {
-        $lignes = EcritureComptable::where('entreprise_id', $entreprise->id)
+        $lignes = EcritureComptable::withoutGlobalScopes()->where('entreprise_id', $entreprise->id)
             ->where(function ($q) {
                 $q->whereNull('comptaflow_sync_status')
                   ->orWhere('comptaflow_sync_status', '!=', 'synced');
@@ -121,7 +166,7 @@ class DeversementHistoriqueService
         return [
             'operations' => (clone $lignes)->distinct('operation_id')->count('operation_id'),
             'lignes'     => (clone $lignes)->count(),
-            'en_echec'   => EcritureComptable::where('entreprise_id', $entreprise->id)
+            'en_echec'   => EcritureComptable::withoutGlobalScopes()->where('entreprise_id', $entreprise->id)
                 ->where('comptaflow_sync_status', 'failed')->count(),
         ];
     }

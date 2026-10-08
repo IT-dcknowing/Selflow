@@ -491,6 +491,8 @@ Route::prefix('admin')
         // un ecran -- une entreprise reliee apres six mois d'activite gardait
         // ses six mois.
         Route::post('/entreprise/comptaflow/deverser', [EntrepriseControleur::class, 'lancerLeDeversement'])->middleware('throttle:plateforme')->name('entreprise.comptaflow.deverser');
+        // Les exercices antérieurs se demandent ; le superadministrateur les accorde (08/10/2026).
+        Route::post('/entreprise/comptaflow/exercices-anterieurs', [EntrepriseControleur::class, 'demanderExercicesAnterieurs'])->name('entreprise.comptaflow.exercices_anterieurs');
         Route::post('/entreprise/onboarding/entreprise-nom', [EntrepriseControleur::class, 'enregistrerNomOnboarding'])->name('onboarding.entreprise_nom');
 
 
@@ -577,6 +579,13 @@ Route::prefix('superadmin')
          * elle-meme ce qui ne lui revient pas -- `attributions` n'est pas
          * assignable en masse, et ne se lit d'aucun formulaire d'entreprise.
          */
+        // ── Comptabilité des exercices antérieurs (08/10/2026) ──
+        Route::prefix('exercices-anterieurs')->name('exercices_anterieurs.')->group(function () {
+            Route::get('/', [\App\Modules\Admin\Controleurs\SuperadminExercicesAnterieursControleur::class, 'index'])->name('index');
+            Route::post('/{demande}/valider', [\App\Modules\Admin\Controleurs\SuperadminExercicesAnterieursControleur::class, 'valider'])->name('valider');
+            Route::post('/{demande}/refuser', [\App\Modules\Admin\Controleurs\SuperadminExercicesAnterieursControleur::class, 'refuser'])->name('refuser');
+        });
+
         Route::prefix('attributions')->name('attributions.')->group(function () {
             Route::get('/', [\App\Modules\Admin\Controleurs\SuperadminAttributionControleur::class, 'index'])->name('index');
             Route::post('/{entreprise}', [\App\Modules\Admin\Controleurs\SuperadminAttributionControleur::class, 'basculer'])->name('basculer');

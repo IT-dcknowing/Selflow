@@ -56,6 +56,9 @@ class VerifierHabilitationRoute
         // entreprises : decider de ce qu'un dossier comporte.
         'superadmin.attributions.index'    => 'gestion_entreprises',
         'superadmin.attributions.basculer' => 'gestion_entreprises',
+        'superadmin.exercices_anterieurs.index'   => 'gestion_entreprises',
+        'superadmin.exercices_anterieurs.valider' => 'gestion_entreprises',
+        'superadmin.exercices_anterieurs.refuser' => 'gestion_entreprises',
 
         'superadmin.liaisons.index'            => 'gestion_comptaflow',
         // `lier` et `creerComptaflow` n'existent plus : la cle est delivree par
