@@ -48,6 +48,9 @@ class BalanceTest extends TestCase
             // repondent 404 (Not Found -- introuvable).
             'comptabilite_activee' => true,
         ]);
+        // La balance s'accorde à part (08/10/2026) : la comptabilité ouverte
+        // ne la montre pas.
+        $this->entreprise->forceFill(['attributions' => ['balance']])->save();
 
         $this->magasin = PointDeVente::create([
             'entreprise_id' => $this->entreprise->id,

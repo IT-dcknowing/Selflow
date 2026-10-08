@@ -267,9 +267,26 @@ class ComptabiliteFacultativeTest extends TestCase
     {
         $this->ouvrirLaComptabilite();
 
-        foreach (self::ECRANS_FERMES as $route) {
+        foreach (array_diff(self::ECRANS_FERMES, ['admin.comptabilite.balance']) as $route) {
             $this->connecte()->get(route($route))->assertOk();
         }
+    }
+
+    public function test_la_balance_ne_s_ouvre_pas_avec_la_comptabilite(): void
+    {
+        // Propriétaire, 08/10/2026 : la balance se tient dans Comptaflow. La
+        // comptabilité ouverte ne la montre pas ; le superadministrateur
+        // l'accorde à part.
+        $this->ouvrirLaComptabilite();
+
+        $this->connecte()->get(route('admin.comptabilite.balance'))->assertNotFound();
+        $this->assertStringNotContainsString('Balance de contrôle', $this->menu());
+
+        $this->entreprise->forceFill(['attributions' => ['balance']])->save();
+        $this->admin->unsetRelation('entreprise');
+
+        $this->connecte()->get(route('admin.comptabilite.balance'))->assertOk();
+        $this->assertStringContainsString('Balance de contrôle', $this->menu());
     }
 
     public function test_le_menu_reprend_ses_entrees_une_fois_ouverte(): void

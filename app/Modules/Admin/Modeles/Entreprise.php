@@ -506,8 +506,18 @@ class Entreprise extends Model
      * en dit. Un seul élément aujourd'hui ; la liste est faite pour grossir.
      */
     public const ATTRIBUTIONS = [
-        'comptabilite' => 'Comptabilité complète — plan comptable, journaux, balance, grand livre, lettrage',
+        'comptabilite' => 'Comptabilité — plan comptable, journaux, grand livre, lettrage',
+        // Propriétaire, 08/10/2026 : la balance se tient dans Comptaflow.
+        // Ouvrir la comptabilité ne la montre pas ; seul le superadministrateur
+        // l'accorde, entreprise par entreprise.
+        'balance'      => 'Balance de contrôle — accordée à part : la balance se tient dans Comptaflow',
     ];
+
+    /** La balance de contrôle est-elle accordée à cette entreprise ? */
+    public function balanceAccordee(): bool
+    {
+        return $this->aAttribution('balance');
+    }
 
     /**
      * L'entreprise voit-elle ses écrans comptables ?

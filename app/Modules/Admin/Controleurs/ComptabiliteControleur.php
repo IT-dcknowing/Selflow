@@ -592,6 +592,10 @@ class ComptabiliteControleur
     {
         $entreprise = Auth::user()->entreprise;
 
+        // La comptabilité ouverte ne suffit pas : la balance se tient dans
+        // Comptaflow, et seul le superadministrateur l'accorde (08/10/2026).
+        abort_unless(Auth::user()->estSuperAdmin() || $entreprise?->balanceAccordee(), 404);
+
         [$debut, $fin] = FiltrePeriodeService::intervalle($request);
 
         // Un identifiant de site venu de l'URL est confronté à l'entreprise

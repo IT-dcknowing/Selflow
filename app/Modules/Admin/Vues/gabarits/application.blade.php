@@ -1043,9 +1043,13 @@
             </a>
             @endif
             @if(auth()->user()->aHabilitation('comptabilite_globale'))
+            {{-- La balance se tient dans Comptaflow : elle ne paraît que si le
+                 superadministrateur l'a accordée (08/10/2026). --}}
+            @if(auth()->user()->estSuperAdmin() || $entreprise?->balanceAccordee())
             <a href="{{ route('admin.comptabilite.balance') }}" class="nav-item {{ request()->routeIs('admin.comptabilite.balance') ? 'active' : '' }}">
                 <i class="fas fa-scale-balanced"></i> Balance de contrôle
             </a>
+            @endif
             <a href="{{ route('admin.comptabilite.grand_livre') }}" class="nav-item {{ request()->routeIs('admin.comptabilite.grand_livre') ? 'active' : '' }}">
                 <i class="fas fa-book-open"></i> Grand livre
             </a>
