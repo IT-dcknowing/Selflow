@@ -17,7 +17,9 @@ class TresorerieControleur
     public function encaissements(): View
     {
         $entreprise = Auth::user()->entreprise;
-        abort_unless(Auth::user()->estSuperAdmin() || $entreprise?->encaissementsAccordes(), 404);
+        // Le caissier garde ses propres encaissements et décaissements de
+        // caisse ; c'est l'écran comptable de l'entreprise qui s'accorde.
+        abort_unless(Auth::user()->estSuperAdmin() || Auth::user()->estCaissier() || $entreprise?->encaissementsAccordes(), 404);
 
         $pointDeVenteId = Auth::user()->estCaissier()
             ? Auth::user()->point_de_vente_id
@@ -43,7 +45,9 @@ class TresorerieControleur
     public function decaissements(): View
     {
         $entreprise = Auth::user()->entreprise;
-        abort_unless(Auth::user()->estSuperAdmin() || $entreprise?->decaissementsAccordes(), 404);
+        // Le caissier garde ses propres encaissements et décaissements de
+        // caisse ; c'est l'écran comptable de l'entreprise qui s'accorde.
+        abort_unless(Auth::user()->estSuperAdmin() || Auth::user()->estCaissier() || $entreprise?->decaissementsAccordes(), 404);
         $pointDeVenteId = Auth::user()->estCaissier()
             ? Auth::user()->point_de_vente_id
             : session('point_de_vente_actif_id');

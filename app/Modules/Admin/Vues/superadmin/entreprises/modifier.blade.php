@@ -167,6 +167,7 @@
                     Par défaut, l'activation de la comptabilité n'ouvre que le socle de base (Solde &amp; journal, Codes Journaux, Créances &amp; règlements, Plan Comptable et Configuration). Cochez ici les fonctionnalités avancées que vous accordez spécifiquement à cette entreprise.
                 </p>
 
+                <input type="hidden" name="attributions_formulaire" value="1">
                 <div style="display:flex;flex-direction:column;gap:10px;">
                     @php
                         $attributionsDispos = [

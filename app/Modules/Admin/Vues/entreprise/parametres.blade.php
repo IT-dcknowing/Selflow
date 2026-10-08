@@ -884,10 +884,9 @@
                     <div style="font-size:12px;color:var(--text-3);margin-bottom:14px;line-height:1.6;">
                         Selflow établit vos ventes, vos achats, vos factures et votre stock sans
                         qu'aucun numéro de compte ne vous soit demandé. Votre comptabilité se tient
-                        dans Comptaflow. Activez cette option pour retrouver dans Selflow les numéros
-                        de compte, le plan comptable, les codes journaux et le solde &amp; journal.
-                        Les indicateurs comptables avancés (balance, grand livre) sont accordés
-                        séparément par l'administrateur de la plateforme.
+                        dans Comptaflow. Activez cette option pour retrouver dans Selflow le solde &amp;
+                        journal, les codes journaux, les créances &amp; règlements, le plan comptable et
+                        la configuration des comptes.
                     </div>
 
                     {{-- Le champ caché fait que la case est toujours postée :

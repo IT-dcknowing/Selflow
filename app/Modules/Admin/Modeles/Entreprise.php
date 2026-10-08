@@ -530,6 +530,11 @@ class Entreprise extends Model
         return $this->aAttribution('balance');
     }
 
+    /** Ce que la carte du superadministrateur coche, au-delà du socle. */
+    public const ATTRIBUTIONS_AVANCEES = [
+        'encaissements', 'decaissements', 'comptabilite_globale', 'grand_livre', 'lettrage', 'balance',
+    ];
+
     /** Les encaissements sont-ils accordés par le superadmin ? */
     public function encaissementsAccordes(): bool
     {

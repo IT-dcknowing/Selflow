@@ -320,10 +320,19 @@ class SuperadminControleur
             'modules_actifs'         => $modules,
         ]);
 
-        if ($request->has('attributions')) {
-            $attributionsChoisies = is_array($request->attributions) ? $request->attributions : [];
-            $clesAutorisees = array_keys(Entreprise::ATTRIBUTIONS);
-            $entreprise->attributions = array_values(array_intersect($attributionsChoisies, $clesAutorisees));
+        // Le formulaire ne porte que les attributions avancées. Tout décocher
+        // n'envoie rien : c'est le marqueur caché qui dit que la carte était
+        // là. Et ce qu'elle ne montre pas (l'attribution « comptabilite »,
+        // donnée depuis l'écran Attributions) est conservé, pas effacé.
+        if ($request->has('attributions_formulaire')) {
+            $cesCases = Entreprise::ATTRIBUTIONS_AVANCEES;
+            $cochees = array_intersect(is_array($request->attributions) ? $request->attributions : [], $cesCases);
+            $existantes = $entreprise->attributions;
+            if (is_string($existantes)) {
+                $existantes = json_decode($existantes, true);
+            }
+            $conservees = array_diff(is_array($existantes) ? $existantes : [], $cesCases);
+            $entreprise->attributions = array_values(array_unique(array_merge($conservees, $cochees)));
             $entreprise->save();
         }
 
