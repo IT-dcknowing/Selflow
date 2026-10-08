@@ -140,6 +140,31 @@
            habilitations laissait son titre seul, menant à rien. */
         .js-nav .nav-section.nav-section-vide { display: none; }
 
+        /* ── Modèle A (08/10/2026) : familles, sections à icône, pages en retrait ── */
+        .nav-famille {
+            font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.45); padding: 14px 10px 4px;
+        }
+        .nav-famille:first-child { padding-top: 2px; }
+        .nav-famille-vide { display: none; }
+        .js-nav .nav-section { margin: 1px 0; padding: 8px 10px; }
+        .js-nav .nav-section span {
+            font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none;
+            color: rgba(255, 255, 255, 0.88);
+        }
+        .nav-section-icone { width: 18px; text-align: center; font-size: 14px; color: rgba(255, 255, 255, 0.75); }
+        .js-nav .nav-section.contient-actif { background: rgba(255, 255, 255, 0.10); }
+        .js-nav .nav-section.contient-actif span { color: #ffffff; }
+        .js-nav .nav-groupe {
+            margin: 2px 0 6px 19px; padding-left: 10px;
+            border-left: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        .js-nav .nav-groupe .nav-item { padding: 7px 10px; font-size: 12.5px; gap: 8px; }
+        .js-nav .nav-groupe .nav-item i { width: 14px; font-size: 11.5px; opacity: .7; }
+        .js-nav .nav-groupe .nav-item.active {
+            background: rgba(255, 193, 7, 0.16); border: 0; color: #ffffff; font-weight: 700;
+        }
+
         .nav-badge {
             margin-left: auto; background: var(--danger);
             color: #fff; font-size: 10px; font-weight: 700;
@@ -763,9 +788,15 @@
         @else
             <!-- ── ADMIN SIDEBAR RESTUCTURÉ ── -->
             
+            {{-- Barre latérale, modèle A choisi par le propriétaire le 08/10/2026 :
+                 les sections se rangent par métier (Pilotage, Commerce,
+                 Opérations, Finance & fiscalité, Entreprise), chacune avec
+                 son icône ; leurs pages se déplient en retrait. --}}
+            <div class="nav-famille" aria-hidden="true">Pilotage</div>
+
             <!-- 1. Principal & Tableaux de bord -->
             @if(in_array('principal', $modulesActifs) && (auth()->user()->aHabilitation('tableau_de_bord_personnel') || auth()->user()->aHabilitation('tableau_de_bord_general')))
-            <div class="nav-section"><span>Tableau de bord</span></div>
+            <div class="nav-section"><i class="fas fa-gauge-high nav-section-icone" aria-hidden="true"></i><span>Tableau de bord</span></div>
             @if(auth()->user()->aHabilitation('tableau_de_bord_personnel'))
             <a href="{{ route('admin.tableau_de_bord') }}" class="nav-item {{ request()->routeIs('admin.tableau_de_bord') ? 'active' : '' }}">
                 <i class="fas fa-chart-pie"></i> TDB Personnel
@@ -778,9 +809,28 @@
             @endif
             @endif
 
+            <!-- 9. Rapports -->
+            @if(in_array('principal', $modulesActifs) && auth()->user()->aHabilitation('rapports_analyse'))
+            <div class="nav-section"><i class="fas fa-chart-line nav-section-icone" aria-hidden="true"></i><span>Rapports</span></div>
+            <a href="{{ route('admin.rapports.analyse_activite') }}" class="nav-item {{ request()->routeIs('admin.rapports.analyse_activite') ? 'active' : '' }}">
+                <i class="fas fa-chart-line"></i> Analyse d'activité
+            </a>
+            {{-- Venu du menu Comptabilité le 02/10/2026. La condition « plus
+                 d'un site » reste : comparer un magasin à lui-même n'apprend
+                 rien, et le lien encombrerait le menu d'un commerce qui n'en
+                 a qu'un. --}}
+            @if(($nombreDeSites ?? 0) > 1)
+            <a href="{{ route('admin.comptabilite.analytique') }}" class="nav-item {{ request()->routeIs('admin.comptabilite.analytique') ? 'active' : '' }}">
+                <i class="fas fa-store"></i> Résultat par site
+            </a>
+            @endif
+            @endif
+
+            <div class="nav-famille" aria-hidden="true">Commerce</div>
+
             <!-- 2. Ventes -->
             @if(in_array('ventes', $modulesActifs) && (auth()->user()->aHabilitation('nouvelle_vente') || auth()->user()->aHabilitation('factures_vente') || auth()->user()->aHabilitation('historique_ventes')))
-            <div class="nav-section"><span>Ventes</span></div>
+            <div class="nav-section"><i class="fas fa-cart-shopping nav-section-icone" aria-hidden="true"></i><span>Ventes</span></div>
             @if(auth()->user()->aHabilitation('nouvelle_vente'))
             <a href="{{ route('admin.ventes.nouvelle') }}" data-visite="nouvelle-vente" class="nav-item {{ request()->routeIs('admin.ventes.nouvelle') ? 'active' : '' }}">
                 <i class="fas fa-cash-register"></i> Nouvelle vente
@@ -804,7 +854,7 @@
 
             <!-- 3. Achats -->
             @if(in_array('achats', $modulesActifs) && (auth()->user()->aHabilitation('nouvel_achat') || auth()->user()->aHabilitation('factures_achat') || auth()->user()->aHabilitation('historique_achats')))
-            <div class="nav-section"><span>Achats</span></div>
+            <div class="nav-section"><i class="fas fa-bag-shopping nav-section-icone" aria-hidden="true"></i><span>Achats</span></div>
             @if(auth()->user()->aHabilitation('nouvel_achat'))
             <a href="{{ route('admin.achats.nouveau') }}" class="nav-item {{ request()->routeIs('admin.achats.nouveau') ? 'active' : '' }}">
                 <i class="fas fa-cart-plus"></i> Nouvel achat
@@ -832,9 +882,34 @@
             @endif
             @endif
 
+            <!-- 7. Produits (catalogue) -->
+            @if((in_array('ventes', $modulesActifs) || in_array('achats', $modulesActifs) || in_array('stock', $modulesActifs)) && auth()->user()->aHabilitation('catalogue_produits'))
+            <div class="nav-section"><i class="fas fa-tags nav-section-icone" aria-hidden="true"></i><span>Produits</span></div>
+            <a href="{{ route('admin.produits.index') }}" data-visite="catalogue" class="nav-item {{ request()->routeIs('admin.produits.index') ? 'active' : '' }}">
+                <i class="fas fa-barcode"></i> Catalogue produits
+            </a>
+            @endif
+
+            <!-- 8. Tiers (Clients & Fournisseurs) -->
+            @if((in_array('ventes', $modulesActifs) || in_array('achats', $modulesActifs)) && (auth()->user()->aHabilitation('tiers_clients') || auth()->user()->aHabilitation('tiers_fournisseurs')))
+            <div class="nav-section"><i class="fas fa-users nav-section-icone" aria-hidden="true"></i><span>Tiers</span></div>
+            @if(auth()->user()->aHabilitation('tiers_clients'))
+            <a href="{{ route('admin.clients.index') }}" data-visite="clients" class="nav-item {{ request()->routeIs('admin.clients.index') ? 'active' : '' }}">
+                <i class="fas fa-users"></i> Clients
+            </a>
+            @endif
+            @if(auth()->user()->aHabilitation('tiers_fournisseurs'))
+            <a href="{{ route('admin.fournisseurs.index') }}" class="nav-item {{ request()->routeIs('admin.fournisseurs.index') ? 'active' : '' }}">
+                <i class="fas fa-handshake"></i> Fournisseurs
+            </a>
+            @endif
+            @endif
+
+            <div class="nav-famille" aria-hidden="true">Opérations</div>
+
             <!-- 4. Stock -->
             @if(in_array('stock', $modulesActifs) && (auth()->user()->aHabilitation('stock_articles') || auth()->user()->aHabilitation('stock_mouvements')))
-            <div class="nav-section"><span>Stock</span></div>
+            <div class="nav-section"><i class="fas fa-boxes-stacked nav-section-icone" aria-hidden="true"></i><span>Stock</span></div>
             @if(auth()->user()->aHabilitation('stock_articles'))
             <a href="{{ route('admin.stock.index') }}" class="nav-item {{ request()->routeIs('admin.stock.index') ? 'active' : '' }}">
                 <i class="fas fa-boxes-stacked"></i> Articles & stock
@@ -857,7 +932,7 @@
                  ne voyait pas l'entree, et celui qui la voyait se faisait
                  refuser a la porte. --}}
             @if(in_array('production', $modulesActifs) && (auth()->user()->aHabilitation('production_recettes') || auth()->user()->aHabilitation('production_ordres')))
-            <div class="nav-section"><span>Production</span></div>
+            <div class="nav-section"><i class="fas fa-industry nav-section-icone" aria-hidden="true"></i><span>Production</span></div>
             @if(auth()->user()->aHabilitation('production_recettes'))
             <a href="{{ route('admin.production.fiches_techniques.index') }}" class="nav-item {{ request()->routeIs('admin.production.fiches_techniques*') ? 'active' : '' }}">
                 <i class="fas fa-flask"></i> Fiches techniques
@@ -870,13 +945,35 @@
             @endif
             @endif
 
+            <!-- 6. Points de vente (Inclus Personnel & Habilitations) -->
+            @if(in_array('points_de_vente', $modulesActifs) && (auth()->user()->aHabilitation('gestion_pdv') || auth()->user()->aHabilitation('gestion_personnel') || auth()->user()->aHabilitation('gestion_habilitations')))
+            <div class="nav-section"><i class="fas fa-store nav-section-icone" aria-hidden="true"></i><span>Points de vente</span></div>
+            @if(auth()->user()->aHabilitation('gestion_pdv'))
+            <a href="{{ route('admin.pdv.index') }}" class="nav-item {{ request()->routeIs('admin.pdv.index') ? 'active' : '' }}">
+                <i class="fas fa-store"></i> Points de vente
+            </a>
+            @endif
+            @if(auth()->user()->aHabilitation('gestion_personnel'))
+            <a href="{{ route('admin.personnel.index') }}" class="nav-item {{ request()->routeIs('admin.personnel.index') && !request('tab') ? 'active' : '' }}">
+                <i class="fas fa-users-gear"></i> Personnels &amp; accès
+            </a>
+            @endif
+            @if(auth()->user()->aHabilitation('gestion_habilitations'))
+            <a href="{{ route('admin.personnel.index') }}?tab=habilitations" class="nav-item {{ request()->routeIs('admin.personnel.index') && request('tab') === 'habilitations' ? 'active' : '' }}">
+                <i class="fas fa-shield-halved"></i> Habilitations
+            </a>
+            @endif
+            @endif
+
+            <div class="nav-famille" aria-hidden="true">Finance &amp; fiscalité</div>
+
             <!-- 6. Comptabilité (Inclus Trésorerie) -->
             @if(in_array('comptabilite', $modulesActifs) && (auth()->user()->aHabilitation('tresorerie_encaissements') || auth()->user()->aHabilitation('tresorerie_decaissements') || auth()->user()->aHabilitation('tresorerie_journal') || auth()->user()->aHabilitation('tresorerie_codes_journaux') || auth()->user()->aHabilitation('comptabilite_globale') || auth()->user()->aHabilitation('comptabilite_creances') || auth()->user()->aHabilitation('comptabilite_plan_comptable')))
             {{-- Sans la comptabilité, il ne reste sous ce titre que les
                  encaissements, les décaissements et le solde : des écrans de
                  caisse. Les appeler « Comptabilité » promettrait des livres
                  qu'on ne tient pas. --}}
-            <div class="nav-section"><span>{{ $comptabiliteOuverte ? 'Comptabilité' : 'Trésorerie' }}</span></div>
+            <div class="nav-section"><i class="fas fa-wallet nav-section-icone" aria-hidden="true"></i><span>{{ $comptabiliteOuverte ? 'Comptabilité' : 'Trésorerie' }}</span></div>
             @if(auth()->user()->aHabilitation('tresorerie_journal'))
             <a href="{{ route('admin.tresorerie.journal') }}" class="nav-item {{ request()->routeIs('admin.tresorerie.journal') ? 'active' : '' }}">
                 <i class="fas fa-wallet"></i> Solde &amp; journal
@@ -969,7 +1066,7 @@
 
             <!-- Fiscalité & DGI (Module FNE) -->
             @if(in_array('comptabilite', $modulesActifs))
-            <div class="nav-section"><span>Fiscalité &amp; DGI</span></div>
+            <div class="nav-section"><i class="fas fa-receipt nav-section-icone" aria-hidden="true"></i><span>Fiscalité &amp; DGI</span></div>
             <a href="{{ route('admin.fne.gestion') }}" data-visite="fne" class="nav-item {{ request()->routeIs('admin.fne.gestion') ? 'active' : '' }}">
                 <i class="fas fa-calculator"></i> Gestion FNE
             </a>
@@ -994,69 +1091,11 @@
                  configuration DGI dont elle relève. --}}
             @endif
 
-            <!-- 6. Points de vente (Inclus Personnel & Habilitations) -->
-            @if(in_array('points_de_vente', $modulesActifs) && (auth()->user()->aHabilitation('gestion_pdv') || auth()->user()->aHabilitation('gestion_personnel') || auth()->user()->aHabilitation('gestion_habilitations')))
-            <div class="nav-section"><span>Points de vente</span></div>
-            @if(auth()->user()->aHabilitation('gestion_pdv'))
-            <a href="{{ route('admin.pdv.index') }}" class="nav-item {{ request()->routeIs('admin.pdv.index') ? 'active' : '' }}">
-                <i class="fas fa-store"></i> Points de vente
-            </a>
-            @endif
-            @if(auth()->user()->aHabilitation('gestion_personnel'))
-            <a href="{{ route('admin.personnel.index') }}" class="nav-item {{ request()->routeIs('admin.personnel.index') && !request('tab') ? 'active' : '' }}">
-                <i class="fas fa-users-gear"></i> Personnels &amp; accès
-            </a>
-            @endif
-            @if(auth()->user()->aHabilitation('gestion_habilitations'))
-            <a href="{{ route('admin.personnel.index') }}?tab=habilitations" class="nav-item {{ request()->routeIs('admin.personnel.index') && request('tab') === 'habilitations' ? 'active' : '' }}">
-                <i class="fas fa-shield-halved"></i> Habilitations
-            </a>
-            @endif
-            @endif
-
-            <!-- 7. Produits (catalogue) -->
-            @if((in_array('ventes', $modulesActifs) || in_array('achats', $modulesActifs) || in_array('stock', $modulesActifs)) && auth()->user()->aHabilitation('catalogue_produits'))
-            <div class="nav-section"><span>Produits</span></div>
-            <a href="{{ route('admin.produits.index') }}" data-visite="catalogue" class="nav-item {{ request()->routeIs('admin.produits.index') ? 'active' : '' }}">
-                <i class="fas fa-barcode"></i> Catalogue produits
-            </a>
-            @endif
-
-            <!-- 8. Tiers (Clients & Fournisseurs) -->
-            @if((in_array('ventes', $modulesActifs) || in_array('achats', $modulesActifs)) && (auth()->user()->aHabilitation('tiers_clients') || auth()->user()->aHabilitation('tiers_fournisseurs')))
-            <div class="nav-section"><span>Tiers</span></div>
-            @if(auth()->user()->aHabilitation('tiers_clients'))
-            <a href="{{ route('admin.clients.index') }}" data-visite="clients" class="nav-item {{ request()->routeIs('admin.clients.index') ? 'active' : '' }}">
-                <i class="fas fa-users"></i> Clients
-            </a>
-            @endif
-            @if(auth()->user()->aHabilitation('tiers_fournisseurs'))
-            <a href="{{ route('admin.fournisseurs.index') }}" class="nav-item {{ request()->routeIs('admin.fournisseurs.index') ? 'active' : '' }}">
-                <i class="fas fa-handshake"></i> Fournisseurs
-            </a>
-            @endif
-            @endif
-
-            <!-- 9. Rapports -->
-            @if(in_array('principal', $modulesActifs) && auth()->user()->aHabilitation('rapports_analyse'))
-            <div class="nav-section"><span>Rapports</span></div>
-            <a href="{{ route('admin.rapports.analyse_activite') }}" class="nav-item {{ request()->routeIs('admin.rapports.analyse_activite') ? 'active' : '' }}">
-                <i class="fas fa-chart-line"></i> Analyse d'activité
-            </a>
-            {{-- Venu du menu Comptabilité le 02/10/2026. La condition « plus
-                 d'un site » reste : comparer un magasin à lui-même n'apprend
-                 rien, et le lien encombrerait le menu d'un commerce qui n'en
-                 a qu'un. --}}
-            @if(($nombreDeSites ?? 0) > 1)
-            <a href="{{ route('admin.comptabilite.analytique') }}" class="nav-item {{ request()->routeIs('admin.comptabilite.analytique') ? 'active' : '' }}">
-                <i class="fas fa-store"></i> Résultat par site
-            </a>
-            @endif
-            @endif
+            <div class="nav-famille" aria-hidden="true">Entreprise</div>
 
             <!-- 10. Paramètres entreprise (admin uniquement) -->
             @if(auth()->user()->role === 'admin')
-            <div class="nav-section"><span>Entreprise</span></div>
+            <div class="nav-section"><i class="fas fa-building nav-section-icone" aria-hidden="true"></i><span>Entreprise</span></div>
             <a href="{{ route('admin.entreprise.parametres') }}" data-visite="parametres" class="nav-item {{ request()->routeIs('admin.entreprise.parametres') ? 'active' : '' }}">
                 <i class="fas fa-gear"></i> Paramètres &amp; logos
             </a>
@@ -1116,7 +1155,7 @@
             groupe.id = 'nav-groupe-' + rang;
 
             var suivant = noeud.nextElementSibling;
-            while (suivant && !(suivant.classList && suivant.classList.contains('nav-section'))) {
+            while (suivant && !(suivant.classList && (suivant.classList.contains('nav-section') || suivant.classList.contains('nav-famille')))) {
                 var apres = suivant.nextElementSibling;
                 groupe.appendChild(suivant);
                 suivant = apres;
@@ -1163,6 +1202,17 @@
                     basculer(section);
                 }
             });
+        });
+
+        // Une famille dont aucune section ne reste visible (modules ou
+        // habilitations retirés) ne garde pas son titre seul.
+        Array.prototype.forEach.call(menu.querySelectorAll('.nav-famille'), function (famille) {
+            var suivant = famille.nextElementSibling, visible = false;
+            while (suivant && !suivant.classList.contains('nav-famille')) {
+                if (suivant.classList.contains('nav-section') && !suivant.classList.contains('nav-section-vide')) { visible = true; }
+                suivant = suivant.nextElementSibling;
+            }
+            if (!visible) { famille.classList.add('nav-famille-vide'); }
         });
 
         // Posée en dernier : tant qu'elle manque, la feuille de style laisse
