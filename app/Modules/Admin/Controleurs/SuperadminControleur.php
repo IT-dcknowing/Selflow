@@ -101,7 +101,7 @@ class SuperadminControleur
      */
     public function entreprises(): View
     {
-        $entreprises = Entreprise::orderBy('nom', 'asc')->paginate(10);
+        $entreprises = Entreprise::with('fneCredential')->orderBy('nom', 'asc')->paginate(10);
         return view('admin::superadmin.entreprises.index', compact('entreprises'));
     }
 

@@ -323,6 +323,80 @@ class Entreprise extends Model
         ];
     }
 
+    /**
+     * Les champs que le relevé du portail FNE ramène, et que Selflow reprend
+     * pour une entreprise qui a déjà un compte (propriétaire, 08/10/2026 :
+     * « tout doit être synchronisé »). Ils se grisent à l'écran : l'entreprise
+     * n'a pas à les ressaisir.
+     *
+     * Le timbre de quittance, le BAPA et le seuil d'alerte des stickers sont
+     * aussi relevés, mais ne sont **pas** recopiés : ils commandent le calcul
+     * d'une facture, et c'est le superadministrateur qui les pose.
+     */
+    public const CHAMPS_REPRIS_DU_PORTAIL_FNE = [
+        'email', 'telephone', 'adresse', 'commune', 'quartier', 'reference_cadastrale',
+        'idu', 'proprietaire_local', 'ref_bancaire', 'pied_de_page_facture', 'facture_autres_mentions',
+    ];
+
+    /**
+     * Où en est la connexion de l'entreprise à la plateforme FNE
+     * (propriétaire, 08/10/2026).
+     *
+     * | Code | Quand |
+     * |---|---|
+     * | `etablie` | la clé de production est posée et active |
+     * | `test` | la clé de test est posée |
+     * | `en_cours` | « J'ai déjà un compte », NCC et mot de passe fournis |
+     * | `creation_en_cours` | « Je n'en ai pas encore », informations fiscales complètes |
+     * | `acces_a_fournir` | « J'ai déjà un compte », NCC ou mot de passe manquant |
+     * | `informations_a_completer` | « Je n'en ai pas encore », il manque des informations |
+     * | `a_choisir` | la question n'a pas encore reçu de réponse |
+     *
+     * Les trois derniers appellent une saisie ; les quatre premiers sont des
+     * états, que l'écran affiche sans redemander quoi que ce soit.
+     *
+     * @return array{code: string, libelle: string, detail: string, couleur: string, a_saisir: bool}
+     */
+    public function etatConnexionFne(): array
+    {
+        $acces = $this->fneCredential;
+
+        $etat = function (string $code, string $libelle, string $detail, string $couleur, bool $aSaisir = false) {
+            return ['code' => $code, 'libelle' => $libelle, 'detail' => $detail, 'couleur' => $couleur, 'a_saisir' => $aSaisir];
+        };
+
+        if ($acces && $acces->statut === 'validee' && filled($acces->cle_reelle)) {
+            return $etat('etablie', 'Connexion FNE établie',
+                'Vos factures sont certifiées par la plateforme de la DGI.', 'vert');
+        }
+
+        if ($acces && filled($acces->cle_test)) {
+            return $etat('test', 'Connexion FNE en test',
+                'Vos factures passent par l\'environnement de test de la DGI, en attendant la mise en production.', 'bleu');
+        }
+
+        if ($this->possede_compte_fne === true) {
+            $accesConnu = $acces && filled($acces->ncc_associe) && $acces->acces_fourni_at;
+
+            return $accesConnu
+                ? $etat('en_cours', 'Connexion FNE en cours',
+                    'Vos accès sont reçus. La connexion de test, puis de production, est en cours de mise en place.', 'orange')
+                : $etat('acces_a_fournir', 'Accès FNE à renseigner',
+                    'Indiquez le NCC et le mot de passe de votre espace FNE.', 'orange', true);
+        }
+
+        if ($this->possede_compte_fne === false) {
+            return $this->informationsFneManquantes() === 0
+                ? $etat('creation_en_cours', 'Création du compte FNE en cours',
+                    'Vos informations fiscales sont reçues. Nous ouvrons votre compte auprès de la DGI.', 'orange')
+                : $etat('informations_a_completer', 'Informations fiscales à renseigner',
+                    'Renseignez vos informations fiscales : elles servent à ouvrir votre compte FNE.', 'orange', true);
+        }
+
+        return $etat('a_choisir', 'Compte FNE à préciser',
+            'Dites-nous si vous avez déjà un compte sur la plateforme FNE.', 'gris', true);
+    }
+
     /** Combien de ces informations manquent encore. */
     public function informationsFneManquantes(): int
     {

@@ -34,9 +34,11 @@ use Throwable;
  *
  * ## Ce qu'il ne fait pas, et c'est délibéré
  *
- * **Il n'écrit rien dans `entreprises`, ni nulle part ailleurs dans
- * l'application.** Il dépose ce qu'il a lu dans ses trois tables, et s'arrête
- * là. Trois des champs relevés — `timbre_quittance`, `bapa`,
+ * **Il ne décide d'aucun réglage fiscal.** Il dépose ce qu'il a lu dans ses
+ * trois tables ; seule exception, voulue par le propriétaire le 08/10/2026 :
+ * pour une entreprise qui a déjà un compte FNE, les coordonnées et mentions
+ * relevées sont reprises dans sa fiche (`SynchronisationPortailFneService`).
+ * Trois des champs relevés — `timbre_quittance`, `bapa`,
  * `sticker_solde_alerte` — commandent le comportement fiscal de Selflow : les
  * recopier automatiquement ferait changer une facture parce qu'un fichier a été
  * déposé dans un dossier, sans que personne ne l'ait décidé. Le rapprochement
@@ -247,7 +249,7 @@ class ImportPortailFneService
         $entreprise = $this->resoudreEntreprise($login);
 
         try {
-            return DB::transaction(function () use ($chemin, $nom, $login, $date, $type, $empreinte, $entreprise) {
+            $resultat = DB::transaction(function () use ($chemin, $nom, $login, $date, $type, $empreinte, $entreprise) {
                 $donnees = $type === PortailFneImport::TYPE_FICHE
                     ? $this->lireJson($chemin)
                     : $this->lireTableur($chemin);
@@ -304,6 +306,16 @@ class ImportPortailFneService
 
                 return $this->resultat($nom, 'importe', $message, $import->id, $lignes);
             });
+
+            // Propriétaire, 08/10/2026 : une entreprise qui a déjà un compte
+            // FNE reprend ce que son espace déclare (coordonnées, local,
+            // mentions). Hors transaction : une reprise qui échouerait ne doit
+            // pas défaire le rangement du relevé.
+            if ($entreprise && $type === PortailFneImport::TYPE_FICHE) {
+                SynchronisationPortailFneService::reprendre($entreprise->fresh());
+            }
+
+            return $resultat;
         } catch (Throwable $e) {
             // La trace du fichier fautif survit à l'échec, hors transaction :
             // sans elle, un fichier illisible se redéposerait indéfiniment sans

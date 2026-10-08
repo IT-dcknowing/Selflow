@@ -32,6 +32,7 @@
                     <th> NCC / RCCM </th>
                     <th>Abonnement &amp; Quotas</th>
                     <th>Modules activés</th>
+                    <th>Compte FNE</th>
                     <th style="text-align: center;">Actions</th>
                 </tr>
             </thead>
@@ -100,6 +101,22 @@
                             <span style="font-size: 11px; color: var(--text-3);">Aucun module actif</span>
                         @endif
                     </td>
+                    <td>
+                        {{-- L'état de la connexion FNE, le même que l'entreprise lit
+                             dans ses paramètres (propriétaire, 08/10/2026). --}}
+                        @php
+                            $etatFne = $ent->etatConnexionFne();
+                            $teinte = ['vert' => '#047857', 'bleu' => '#1d4ed8', 'orange' => '#b45309', 'gris' => '#64748b'][$etatFne['couleur']];
+                            $accesFourni = $ent->fneCredential && (filled($ent->fneCredential->ncc_associe) || $ent->fneCredential->acces_fourni_at);
+                        @endphp
+                        <div style="font-size: 11.5px; font-weight: 700; color: {{ $teinte }};" data-etat-fne="{{ $etatFne['code'] }}">{{ $etatFne['libelle'] }}</div>
+                        @if($accesFourni)
+                            <button type="button" class="btn btn-outline btn-sm" style="margin-top: 4px; padding: 3px 7px; font-size: 11px;"
+                                    onclick="ouvrirAccesFne({{ $ent->id }}, @js($ent->nom))">
+                                <i class="fas fa-key"></i> Voir les accès FNE
+                            </button>
+                        @endif
+                    </td>
                     <td style="text-align: center;">
                         <div style="display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;">
                             <button type="button" class="btn btn-outline btn-sm" onclick="ouvrirModalDetails({{ json_encode($ent) }}, {{ $ent->pointsDeVente()->count() }}, {{ $ent->utilisateurs()->count() }}, {{ $ent->produits()->count() }})" style="padding: 4px 8px; font-size: 12px;">
@@ -130,7 +147,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="7" style="text-align: center; color: var(--text-3); padding: 30px 0;">
+                    <td colspan="8" style="text-align: center; color: var(--text-3); padding: 30px 0;">
                         Aucune entreprise n'est enregistrée pour le moment.
                     </td>
                 </tr>
@@ -353,4 +370,85 @@ window.addEventListener('click', function(e) {
     to { transform: translateY(0); opacity: 1; }
 }
 </style>
+
+{{-- Les accès à l'espace FNE : derrière le mot de passe du superadministrateur,
+     servis en JSON à la demande, jamais écrits dans la page. --}}
+<div id="modalAccesFne" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:10000; align-items:center; justify-content:center;">
+    <div style="background:var(--surface); border-radius:12px; padding:22px; width:min(420px, 92vw); box-shadow:0 20px 50px rgba(0,0,0,.2);">
+        <div style="font-weight:800; font-size:15px; margin-bottom:4px;"><i class="fas fa-key" style="color:var(--primary);"></i> Accès FNE</div>
+        <div id="accesFneNom" style="font-size:12.5px; color:var(--text-3); margin-bottom:14px;"></div>
+        <div id="accesFneEtapeCode">
+            <label class="form-label" for="accesFneCode">Votre mot de passe de superadministrateur</label>
+            <input type="password" id="accesFneCode" class="form-control" autocomplete="current-password">
+            <div id="accesFneErreur" style="display:none; color:#dc2626; font-size:12px; margin-top:6px;"></div>
+            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:14px;">
+                <button type="button" class="btn btn-outline btn-sm" onclick="fermerAccesFne()">Fermer</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="revelerAccesFne()">Afficher</button>
+            </div>
+        </div>
+        <div id="accesFneEtapeVue" style="display:none;">
+            <div style="display:grid; grid-template-columns:auto 1fr; gap:8px 12px; font-size:13px;">
+                <span style="color:var(--text-3);">NCC</span><strong id="accesFneNcc" style="font-family:monospace;"></strong>
+                <span style="color:var(--text-3);">Mot de passe</span><strong id="accesFneMdp" style="font-family:monospace; word-break:break-all;"></strong>
+                <span style="color:var(--text-3);">Fourni le</span><span id="accesFneDate"></span>
+            </div>
+            <div style="display:flex; justify-content:flex-end; margin-top:14px;">
+                <button type="button" class="btn btn-primary btn-sm" onclick="fermerAccesFne()">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+const URL_ACCES_FNE = "{{ route('superadmin.fne.voir_acces', ':id') }}";
+let accesFneEntreprise = null;
+
+function ouvrirAccesFne(id, nom) {
+    accesFneEntreprise = id;
+    document.getElementById('accesFneNom').textContent = nom;
+    document.getElementById('accesFneCode').value = '';
+    document.getElementById('accesFneErreur').style.display = 'none';
+    document.getElementById('accesFneEtapeCode').style.display = 'block';
+    document.getElementById('accesFneEtapeVue').style.display = 'none';
+    document.getElementById('modalAccesFne').style.display = 'flex';
+    document.getElementById('accesFneCode').focus();
+}
+
+function fermerAccesFne() {
+    // Rien ne reste dans la page une fois la fenêtre fermée.
+    ['accesFneNcc', 'accesFneMdp', 'accesFneDate'].forEach(id => document.getElementById(id).textContent = '');
+    document.getElementById('modalAccesFne').style.display = 'none';
+    accesFneEntreprise = null;
+}
+
+async function revelerAccesFne() {
+    const code = document.getElementById('accesFneCode').value;
+    const erreur = document.getElementById('accesFneErreur');
+    if (!code) return;
+    try {
+        const res = await fetch(URL_ACCES_FNE.replace(':id', accesFneEntreprise), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json',
+                       'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+            body: JSON.stringify({ mot_de_passe: code })
+        });
+        let data = {};
+        try { data = await res.json(); } catch (e) { data = { message: res.status === 419 ? 'Session expirée : rechargez la page.' : 'Réponse illisible du serveur (' + res.status + ').' }; }
+        if (!data.success) {
+            erreur.textContent = data.message || 'Accès refusé.';
+            erreur.style.display = 'block';
+            return;
+        }
+        document.getElementById('accesFneNcc').textContent = data.ncc || '—';
+        document.getElementById('accesFneMdp').textContent = data.mot_de_passe || 'non fourni';
+        document.getElementById('accesFneDate').textContent = data.fourni_le || '—';
+        document.getElementById('accesFneEtapeCode').style.display = 'none';
+        document.getElementById('accesFneEtapeVue').style.display = 'block';
+    } catch (e) {
+        erreur.textContent = 'Erreur réseau. Réessayez.';
+        erreur.style.display = 'block';
+    }
+}
+document.getElementById('accesFneCode')?.addEventListener('keydown', e => { if (e.key === 'Enter') revelerAccesFne(); });
+</script>
+
 @endsection

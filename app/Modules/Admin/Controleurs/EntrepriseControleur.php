@@ -253,6 +253,10 @@ class EntrepriseControleur
         $entreprise->update($data);
         $this->journaliser('modification_parametres', 'Entreprise', $entreprise->id, $ancien, $data);
 
+        // Compte FNE déjà ouvert : ce que l'espace déclare l'emporte sur les
+        // champs grisés de l'écran (propriétaire, 08/10/2026).
+        \App\Modules\Admin\Services\SynchronisationPortailFneService::reprendre($entreprise->fresh());
+
         // L'enregistrement des paramètres ouvrait la liaison Comptaflow dès
         // que la clé changeait. C'est ce chemin qui permettait de se lier aux
         // livres d'une autre entreprise en collant sa clé. La liaison s'ouvre

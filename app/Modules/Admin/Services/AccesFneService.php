@@ -22,9 +22,11 @@ use App\Modules\Admin\Modeles\FneCredential;
  * - **Chiffré au repos.** La colonne porte le cast `encrypted` de la table
  *   `fne_credentials`, celle des clés : la valeur stockée est inexploitable
  *   sans `APP_KEY`, qui n'est jamais versionnée.
- * - **Jamais rendu.** Aucun écran ne l'affiche, pas même au
- *   superadministrateur — seulement la date à laquelle il a été fourni.
- *   `voirCle()` ne le sert pas.
+ * - **Rendu au seul superadministrateur, sur demande.** Décision du
+ *   propriétaire, 08/10/2026 : « Voir les accès FNE » sur la page des
+ *   entreprises, derrière son mot de passe, comme les clés
+ *   (`SuperadminFneControleur::voirAcces`). Aucun autre écran ne l'affiche, et
+ *   le modèle le cache à toute sérialisation.
  * - **Effaçable.** Une fois le paramétrage relevé, il ne sert plus.
  *   `oublier()` le retire : ce qui ne sert plus ne se garde pas.
  */

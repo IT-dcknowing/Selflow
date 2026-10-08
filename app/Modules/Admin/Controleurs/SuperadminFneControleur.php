@@ -218,6 +218,35 @@ class SuperadminFneControleur extends Controller
     }
 
     /**
+     * Révéler les accès à l'espace FNE que l'entreprise a fournis : le NCC et
+     * le mot de passe (propriétaire, 08/10/2026 — pour vérifier, ou ouvrir le
+     * compte). Même porte que les clés : le mot de passe du superadministrateur,
+     * une réponse JSON éphémère, jamais le HTML de la page, et une trace.
+     */
+    public function voirAcces(Request $request, Entreprise $entreprise): JsonResponse
+    {
+        $request->validate(['mot_de_passe' => ['required', 'string']]);
+
+        if (!Hash::check($request->mot_de_passe, Auth::user()->password)) {
+            return response()->json(['success' => false, 'message' => 'Mot de passe incorrect.'], 403);
+        }
+
+        $acces = $entreprise->fneCredential;
+        if (!$acces || (blank($acces->ncc_associe) && blank($acces->acces_mot_de_passe))) {
+            return response()->json(['success' => false, 'message' => "L'entreprise n'a fourni aucun accès FNE."], 404);
+        }
+
+        Log::warning("[FNE] Accès à l'espace FNE de l'entreprise #{$entreprise->id} consultés en clair par l'utilisateur #" . Auth::id());
+
+        return response()->json([
+            'success'      => true,
+            'ncc'          => $acces->ncc_associe,
+            'mot_de_passe' => $acces->acces_mot_de_passe,
+            'fourni_le'    => $acces->acces_fourni_at?->format('d/m/Y à H:i'),
+        ]);
+    }
+
+    /**
      * Supprimer une clé (test ou réelle). Mot de passe requis.
      */
     public function supprimerCle(Request $request, Entreprise $entreprise): RedirectResponse

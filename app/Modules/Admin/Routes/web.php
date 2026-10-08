@@ -606,6 +606,7 @@ Route::prefix('superadmin')
             Route::post('/{entreprise}/cle-test', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'ajouterCleTest'])->name('cle_test');
             Route::post('/{entreprise}/cle-reelle', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'ajouterCleReelle'])->name('cle_reelle');
             Route::post('/{entreprise}/voir-cle', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'voirCle'])->name('voir_cle');
+            Route::post('/{entreprise}/voir-acces', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'voirAcces'])->name('voir_acces');
             Route::delete('/{entreprise}/cle', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'supprimerCle'])->name('supprimer_cle');
             Route::post('/{entreprise}/notes', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'mettreAJourNotes'])->name('notes');
             // Le timbre de quittance est un réglage de la plateforme, non un

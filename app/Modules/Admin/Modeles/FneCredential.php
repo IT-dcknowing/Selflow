@@ -53,7 +53,7 @@ class FneCredential extends Model
      * Empêche toute sérialisation accidentelle des clés en clair (ex: si le
      * modèle est un jour renvoyé dans une réponse JSON par erreur).
      */
-    protected $hidden = ['cle_test', 'cle_reelle'];
+    protected $hidden = ['cle_test', 'cle_reelle', 'acces_mot_de_passe'];
 
     public function entreprise(): BelongsTo
     {
