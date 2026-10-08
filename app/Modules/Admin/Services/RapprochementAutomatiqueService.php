@@ -52,7 +52,7 @@ class RapprochementAutomatiqueService
     {
         $bilan = ['rapprochees' => 0, 'avec_ecart' => 0, 'sans_correspondance' => 0];
 
-        $candidates = PortailFneFactureRecue::where('entreprise_id', $entrepriseId)
+        $candidates = PortailFneFactureRecue::recues()->where('entreprise_id', $entrepriseId)
             ->whereNull('achat_id')
             ->where('statut_rapprochement', '!=', PortailFneFactureRecue::ECARTEE)
             ->with('lignes')

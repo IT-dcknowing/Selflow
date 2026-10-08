@@ -112,6 +112,10 @@ class EcritureFactureRecueService
             return "aucune entreprise ne porte le NCC du relevé";
         }
 
+        if ($facture->estUnAvoirEmis()) {
+            return 'avoir émis par l’entreprise à son client : sa vente porte déjà l’écriture';
+        }
+
         if ($facture->subtype === 'proforma') {
             return 'une proforma n’est pas une pièce comptable';
         }

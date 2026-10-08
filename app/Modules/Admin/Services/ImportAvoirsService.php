@@ -460,6 +460,11 @@ class ImportAvoirsService
         }
 
         // Client (destinataire de l'avoir — le bloc `company` côté émetteur)
+        // La liste d'où vient l'avoir : émis à un client, ou reçu d'un
+        // fournisseur. C'est elle qui décide s'il passe au journal des achats.
+        $liste = $donnees['listing_source'] ?? null;
+        $champs['liste_portail'] = in_array($liste, ['issued', 'received'], true) ? $liste : null;
+
         $company = $donnees['company'] ?? $donnees['clientCompany'] ?? [];
         if (is_array($company)) {
             $champs['emetteur_ncc'] = $company['ncc'] ?? $company['taxId'] ?? null;

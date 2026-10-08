@@ -522,10 +522,10 @@ class AchatControleur
         $nbEnregistrees = (clone $compteFactures)->horsBordereaux()->count();
         // Le compteur de l'onglet dit ce qu'il y a à regarder, donc sans les
         // écartées : les compter ferait un nombre qui ne baisse jamais.
-        $nbDgi = PortailFneFactureRecue::where('entreprise_id', $entreprise->id)
+        $nbDgi = PortailFneFactureRecue::recues()->where('entreprise_id', $entreprise->id)
             ->where('statut_rapprochement', '!=', PortailFneFactureRecue::ECARTEE)
             ->count();
-        $nbEcartees = PortailFneFactureRecue::where('entreprise_id', $entreprise->id)
+        $nbEcartees = PortailFneFactureRecue::recues()->where('entreprise_id', $entreprise->id)
             ->where('statut_rapprochement', PortailFneFactureRecue::ECARTEE)
             ->count();
 
@@ -572,7 +572,7 @@ class AchatControleur
              */
             $ecarteesSeules = request('statut') === 'ecartees';
 
-            $facturesPortail = PortailFneFactureRecue::where('entreprise_id', $entreprise->id)
+            $facturesPortail = PortailFneFactureRecue::recues()->where('entreprise_id', $entreprise->id)
                 ->when(
                     $ecarteesSeules,
                     fn ($q) => $q->where('statut_rapprochement', PortailFneFactureRecue::ECARTEE),

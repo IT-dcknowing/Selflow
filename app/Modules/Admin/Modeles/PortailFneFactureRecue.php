@@ -58,6 +58,7 @@ class PortailFneFactureRecue extends Model
         'fichier_pdf',
         'type',
         'subtype',
+        'liste_portail',
         'est_rne',
         'numero_rne',
         'date_facture',
@@ -324,5 +325,22 @@ class PortailFneFactureRecue extends Model
     public static function nccComparable(?string $ncc): string
     {
         return preg_replace('/[^0-9A-Z]/', '', strtoupper((string) $ncc));
+    }
+
+    /** La liste « émises » du portail : un avoir que l'entreprise a établi à son client. */
+    public const LISTE_EMISES = 'issued';
+
+    /**
+     * Les pièces reçues de fournisseurs, sans les avoirs que l'entreprise a
+     * émis à ses clients (le relevé des avoirs les range dans la même table).
+     */
+    public function scopeRecues($requete)
+    {
+        return $requete->where(fn ($q) => $q->whereNull('liste_portail')->orWhere('liste_portail', '!=', self::LISTE_EMISES));
+    }
+
+    public function estUnAvoirEmis(): bool
+    {
+        return $this->liste_portail === self::LISTE_EMISES;
     }
 }

@@ -192,6 +192,37 @@ class ReleveDesAvoirsTest extends TestCase
 
     // ------------------------------------------------------------------ helpers
 
+    public function test_un_avoir_emis_a_un_client_ne_passe_pas_au_journal_des_achats(): void
+    {
+        // Le relevé range aussi les avoirs que l'entreprise émet à ses clients,
+        // et y nomme le CLIENT comme émetteur. Sans la liste d'origine, cet
+        // avoir partait au journal des achats, le client pris pour fournisseur.
+        $entreprise = $this->creerEntreprise(self::NCC);
+
+        $avoir = fn (string $ref, string $liste) => [
+            'reference' => $ref, 'subtype' => 'refund', 'type' => 'invoice', 'listing_source' => $liste,
+            'date' => '2026-10-01T10:00:00Z', 'totalBeforeTaxes' => 10000, 'totalTaxes' => 1800,
+            'totalAfterTaxes' => 11800, 'totalDue' => 11800,
+            'company' => ['ncc' => '9999999X', 'name' => 'TIERS TEST'],
+        ];
+        file_put_contents($this->dossier . '/' . self::NCC . '_20261008.json', json_encode([
+            'login' => self::NCC, 'source' => 'test', 'factures' => [$avoir('AV-EMIS-1', 'issued'), $avoir('AV-RECU-1', 'received')],
+        ]));
+        app(ImportAvoirsService::class)->importerDossier($this->dossier);
+
+        $emis = \App\Modules\Admin\Modeles\PortailFneFactureRecue::where('reference', 'AV-EMIS-1')->sole();
+        $recu = \App\Modules\Admin\Modeles\PortailFneFactureRecue::where('reference', 'AV-RECU-1')->sole();
+        $this->assertSame('issued', $emis->liste_portail);
+        $this->assertSame('received', $recu->liste_portail);
+
+        \App\Modules\Admin\Services\EcritureFactureRecueService::pourEntreprise($entreprise->id);
+
+        $this->assertNull($emis->fresh()->operation_id, 'L\'avoir émis n\'est pas un avoir fournisseur.');
+        $this->assertNotNull(\App\Modules\Admin\Services\EcritureFactureRecueService::motifDeNePasPorter($emis->fresh()));
+        $this->assertSame(1, \App\Modules\Admin\Modeles\PortailFneFactureRecue::recues()->where('entreprise_id', $entreprise->id)->count(),
+            'La liste des factures achat DGI ne montre que l\'avoir reçu.');
+    }
+
     private function creerEntreprise(string $ncc): Entreprise
     {
         return Entreprise::create([
