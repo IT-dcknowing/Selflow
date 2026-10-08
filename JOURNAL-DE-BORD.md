@@ -7519,7 +7519,7 @@ principal, pas celui de la copie. Pour ce lot, la suite a été lancée avec un
 copie.
 
 
-### Lot 59 — le cycle vente / achat corrigé (08/10/2026)
+### Lot 60 — Le cycle vente / achat corrigé — **TERMINÉ le 08/10/2026**
 
 Accord du propriétaire le 08/10 : « corrige tout ce qui est anomalie
 révélée ». Les 32 épreuves de la recette sont devenues l'épreuve permanente
