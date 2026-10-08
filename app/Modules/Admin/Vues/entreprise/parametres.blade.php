@@ -467,21 +467,21 @@
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">Adresse physique</label>
-                            <input type="text" name="adresse" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title=\"Repris automatiquement de votre espace FNE\" @endif class="form-control"
+                            <label class="form-label">Adresse physique <span style="color:var(--danger)">*</span></label>
+                            <input type="text" name="adresse" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                 value="{{ old('adresse', $entreprise->adresse) }}"
                                 placeholder="Ex: Cocody, Abidjan, Côte d'Ivoire">
                         </div>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                             <div class="form-group" style="margin-bottom:0;">
                                 <label class="form-label">Téléphone</label>
-                                <input type="text" name="telephone" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title=\"Repris automatiquement de votre espace FNE\" @endif class="form-control"
+                                <input type="text" name="telephone" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                     value="{{ old('telephone', $entreprise->telephone) }}"
                                     placeholder="Ex: +225 07 00 00 00">
                             </div>
                             <div class="form-group" style="margin-bottom:0;">
                                 <label class="form-label">E-mail</label>
-                                <input type="email" name="email" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title=\"Repris automatiquement de votre espace FNE\" @endif class="form-control"
+                                <input type="email" name="email" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                     value="{{ old('email', $entreprise->email) }}"
                                     placeholder="Ex: contact@monentreprise.com">
                             </div>
@@ -555,7 +555,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Références bancaires</label>
-                            <textarea name="ref_bancaire" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title=\"Repris automatiquement de votre espace FNE\" @endif class="form-control" rows="3"
+                            <textarea name="ref_bancaire" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control" rows="3"
                                 placeholder="Ex: Établissement : SGBCI — N° compte : 00123456789">{{ old('ref_bancaire', $entreprise->ref_bancaire) }}</textarea>
                             <small style="color:var(--text-3);font-size:11px;">Ces informations apparaîtront en bas de vos
                                 factures.</small>
@@ -646,7 +646,7 @@
                             <label class="form-label">
                                 IDU — Identifiant Unique DGI
                             </label>
-                            <input type="text" name="idu" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title=\"Repris automatiquement de votre espace FNE\" @endif class="form-control" value="{{ old('idu', $entreprise->idu) }}"
+                            <input type="text" name="idu" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control" value="{{ old('idu', $entreprise->idu) }}"
                                 placeholder="Ex: CI-001-2025-A123456">
                             <small style="color:var(--text-3);font-size:11px;">Cet identifiant apparaît sur chaque facture
                                 normalisée FNE.</small>
@@ -655,12 +655,12 @@
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                             <div class="form-group" style="margin-bottom:0;">
                                 <label class="form-label">Commune</label>
-                                <input type="text" name="commune" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title=\"Repris automatiquement de votre espace FNE\" @endif class="form-control"
+                                <input type="text" name="commune" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                     value="{{ old('commune', $entreprise->commune) }}" placeholder="Ex: COCODY">
                             </div>
                             <div class="form-group" style="margin-bottom:0;">
                                 <label class="form-label">Quartier</label>
-                                <input type="text" name="quartier" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title=\"Repris automatiquement de votre espace FNE\" @endif class="form-control"
+                                <input type="text" name="quartier" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                     value="{{ old('quartier', $entreprise->quartier) }}"
                                     placeholder="Ex: Angré 8ème Tranche">
                             </div>
@@ -668,14 +668,14 @@
 
                         <div class="form-group">
                             <label class="form-label">Référence Cadastrale</label>
-                            <input type="text" name="reference_cadastrale" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title=\"Repris automatiquement de votre espace FNE\" @endif class="form-control"
+                            <input type="text" name="reference_cadastrale" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                 value="{{ old('reference_cadastrale', $entreprise->reference_cadastrale) }}"
                                 placeholder="Ex: Section B, Parcelle 042">
                         </div>
 
                         <div class="form-group">
                             <label class="form-label">Propriétaire du local professionnel</label>
-                            <input type="text" name="proprietaire_local" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title=\"Repris automatiquement de votre espace FNE\" @endif class="form-control"
+                            <input type="text" name="proprietaire_local" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                 value="{{ old('proprietaire_local', $entreprise->proprietaire_local) }}"
                                 placeholder="Ex: SCI IMMOBILIERE COCODY">
                         </div>
@@ -882,7 +882,10 @@
                     <input type="hidden" name="comptabilite_activee" value="0">
                     <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:13px;color:var(--text);">
                         <input type="checkbox" name="comptabilite_activee" value="1" style="margin-top:2px;"
-                               {{ $entreprise?->comptabilite_activee ? 'checked' : '' }}
+                               {{-- Accordée par la plateforme, elle se montre « cochée et
+                                    verrouillée », comme l'annonce l'écran Attributions : grisée
+                                    et vide, elle disait le contraire de l'état réel. --}}
+                               {{ ($entreprise?->comptabilite_activee || $entreprise?->aAttribution('comptabilite')) ? 'checked' : '' }}
                                {{ $entreprise?->aAttribution('comptabilite') ? 'disabled' : '' }}>
                         <span>
                             <b>Je tiens ma comptabilité</b>
@@ -1038,7 +1041,7 @@
                     <div style="display:flex;flex-direction:column;gap:14px;">
                         <div class="form-group">
                             <label class="form-label">Pied de page des factures</label>
-                            <textarea name="pied_de_page_facture" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title=\"Repris automatiquement de votre espace FNE\" @endif id="piedDePageFactureInput" class="form-control" rows="3"
+                            <textarea name="pied_de_page_facture" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif id="piedDePageFactureInput" class="form-control" rows="3"
                                 maxlength="248" oninput="majCompteurParametre('piedDePageFacture')"
                                 placeholder="Ex: Merci pour votre confiance. Paiement à 30 jours. Pénalités de retard : 1,5% / mois.">{{ old('pied_de_page_facture', $entreprise->pied_de_page_facture) }}</textarea>
                             <small style="color:var(--text-3);font-size:11px;">
@@ -1048,7 +1051,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Autres mentions légales</label>
-                            <textarea name="facture_autres_mentions" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title=\"Repris automatiquement de votre espace FNE\" @endif id="factureAutresMentionsInput" class="form-control"
+                            <textarea name="facture_autres_mentions" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif id="factureAutresMentionsInput" class="form-control"
                                 rows="3" maxlength="248" oninput="majCompteurParametre('factureAutresMentions')"
                                 placeholder="Ex: Capital social : 1 000 000 FCFA — Forme juridique : SARL">{{ old('facture_autres_mentions', $entreprise->facture_autres_mentions) }}</textarea>
                             <small style="color:var(--text-3);font-size:11px;">
@@ -1503,7 +1506,8 @@
                         <strong>Déverser tout l'historique</strong><br>
                         @if($resteADeverser['operations'] > 0)
                             <span style="color:#c2410c;">
-                                {{ $resteADeverser['operations'] }} opération(s) ne sont pas encore chez Comptaflow@if($resteADeverser['en_echec'] > 0), dont {{ $resteADeverser['en_echec'] }} en échec@endif.
+                                {{ $resteADeverser['operations'] }} opération(s) ne sont pas encore chez Comptaflow{{ $resteADeverser['en_echec'] > 0 ? ', dont ' . $resteADeverser['en_echec'] . ' en échec' : '' }}.
+                                {{-- Une directive collée à un mot n'est pas lue par Blade : « Comptaflow@if(…)…@endif » s'affichait tel quel (recette du 08/10/2026). --}}
                             </span>
                         @else
                             <span style="color:var(--text-3);">Tout est déversé.</span>
@@ -1713,14 +1717,14 @@
  */
 function lancerLeDeversementComptaflow() {
     var avertissement =
-        "Avant de lancer le deversement, verifiez la configuration de votre dossier Comptaflow :\n\n"
-        + "  \u2022 le modele de plan comptable ;\n"
-        + "  \u2022 le modele de tiers ;\n"
-        + "  \u2022 le modele de journaux.\n\n"
-        + "C'est cette configuration qui sera utilisee pour numeroter vos comptes, "
-        + "vos journaux et vos tiers. La changer apres coup ne renumerotera pas "
-        + "ce qui aura deja ete depose.\n\n"
-        + "Lancer le deversement maintenant ?";
+        "Avant de lancer le déversement, vérifiez la configuration de votre dossier Comptaflow :\n\n"
+        + "  \u2022 le modèle de plan comptable ;\n"
+        + "  \u2022 le modèle de tiers ;\n"
+        + "  \u2022 le modèle de journaux.\n\n"
+        + "C'est cette configuration qui sera utilisée pour numéroter vos comptes, "
+        + "vos journaux et vos tiers. La changer après coup ne renumérotera pas "
+        + "ce qui aura déjà été déposé.\n\n"
+        + "Lancer le déversement maintenant ?";
 
     if (!window.confirm(avertissement)) return;
 
@@ -1742,18 +1746,18 @@ function lancerLeDeversementComptaflow() {
         retour.style.background = res.d.success ? '#f0fdf4' : '#fef2f2';
         retour.style.border = '1px solid ' + (res.d.success ? '#86efac' : '#fca5a5');
         retour.style.color = res.d.success ? '#15803d' : '#991b1b';
-        retour.textContent = res.d.message || 'Reponse illisible du serveur.';
+        retour.textContent = res.d.message || 'Réponse illisible du serveur.';
     })
     .catch(function () {
         retour.style.display = 'block';
         retour.style.background = '#fef2f2';
         retour.style.border = '1px solid #fca5a5';
         retour.style.color = '#991b1b';
-        retour.textContent = 'Le serveur n\'a pas repondu. Reessayez.';
+        retour.textContent = 'Le serveur n\'a pas répondu. Réessayez.';
     })
     .finally(function () {
         bouton.disabled = false;
-        bouton.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Lancer le deversement';
+        bouton.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Lancer le déversement';
     });
 }
 </script>
