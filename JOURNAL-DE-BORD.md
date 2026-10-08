@@ -7481,6 +7481,43 @@ refusé par un arrondi flottant.
 Les rapports complets sont dans la réponse du 08/10 ; les corrections attendent
 l'accord du propriétaire (certaines changent ce qui part à la DGI).
 
+**Production — corrigé au lot 59** (« corrige tout ce qui est anomalie
+révélée », propriétaire, 08/10/2026). Aucun de ces défauts ne touchait le
+périmètre FNE.
+
+### Lot 59 — Le module Production après la recette — **TERMINÉ le 08/10/2026**
+
+Branche `correction-module-production`. Les 32 épreuves de la recette passent
+et restent dans `tests/Feature/ProductionRecetteTest.php`, avec quinze de plus
+pour ce que la correction a posé.
+
+| Défaut | Correction |
+|---|---|
+| Unité de la recette jamais convertie | `ConversionUnitesService` : g ↔ kg, ml ↔ l (et cl, mg, tonne) vers l'unité de stock ; « Unité » vaut l'unité d'un article compté ; tout le reste est refusé. Le formulaire ne propose que les unités compatibles avec l'ingrédient choisi. |
+| Un ordre « Annulé » se valide ; pas d'annulation | Seul un brouillon se valide. Route `ordres.annuler` : brouillon → Annulé sans mouvement ; terminé → chaque mouvement contre-passé **à son coût d'origine** (stock et écritures reviennent au centime), refusé si le produit fini a quitté le stock. |
+| 500 sous la précision du stock | Besoin arrondi à `Stock::DECIMALES` ; un besoin nul est refusé par un message (et signalé dès la création de l'ordre). `quantite_cible` : trois décimales. La recette garde ses quatre décimales : elle se rédige pour **une** unité, et 0,4 g de levure par pain est légitime. |
+| 500 sur un ingrédient en double | Règle `distinct`. |
+| Stock exact refusé par l'arrondi flottant | Comparaison en millièmes entiers, sur des besoins arrondis. |
+| Types non contrôlés | Ingrédients `matiere_premiere` ; produit fabriqué `produit_fini` actif ; il n'entre pas dans sa propre recette ; un ordre exige une recette. |
+| La saisie libre reprend n'importe quel article | Elle ne reprend qu'un produit fini (casse ignorée), sinon crée l'article : rayon choisi ou rayon habituel des produits finis (d'où la référence), fiche de stock par site, et `361000` / `736100` si les matières s'imputent — sans quoi le garde-fou d'imputation bloquait sa première fabrication. |
+| Double validation simultanée | `lockForUpdate` sur l'ordre dans la transaction, statut relu, stock relu sous le verrou de chaque fiche. |
+| Ni détail ni document | Routes `ordres.voir` et `ordres.imprimer` (bon de fabrication) ; colonne Coût ; le coût est posé sur l'ordre (`cout_total`, `cout_unitaire`). |
+| La liste arrondit les quantités | `OrdreProduction::quantiteLisible()` : trois décimales au plus, sans zéros inutiles. |
+| L'ordre d'un autre site disparaît | La liste montre tous les sites, avec un filtre par site ; le caissier ne voit — et ne lance — que le sien. Le formulaire présélectionne le site actif sans le verrouiller : l'épreuve « le stock d'un autre site ne sert pas » exige qu'un ordre pour un autre site puisse se créer. |
+| Vignette par `asset('storage/…')` | `photo_url`. |
+| Points mineurs | L'ordre fige la recette à sa création (`ordre_production_lignes`, migration `2026_10_08_000002`, additive ; un ordre antérieur se valide sur la recette en place, convertie de même) ; une recette attendue par un brouillon ne se supprime pas ; filtre « Annulé » ; « Nouvel ordre », confirmation avant « Produire & Valider », « Aucun ordre de production » ; besoins à trois décimales, dans l'unité de stock. |
+
+Habilitation `production_ordres` pour les trois routes nouvelles. Une seule
+assertion existante a changé : le libellé « Lancer une Production ».
+
+**À savoir pour les copies isolées.** Le `vendor` d'une copie isolée est un
+lien vers celui du dépôt principal : son chargeur résout `App\` **et la racine
+du projet** (`Application::inferBasePath()`) vers `/home/user/Selflow`. Une
+suite lancée telle quelle dans la copie éprouve donc le code du dépôt
+principal, pas celui de la copie. Pour ce lot, la suite a été lancée avec un
+`auto_prepend_file` qui pose `APP_BASE_PATH` et réoriente le chargeur vers la
+copie.
+
 
 ## 5 bis. La numérotation des comptes — tranché
 
