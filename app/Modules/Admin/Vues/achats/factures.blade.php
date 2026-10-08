@@ -61,6 +61,10 @@
     $sections = ['enregistrees' => ['Factures enregistrées', 'fa-file-invoice', $nbEnregistrees]];
     if ($entreprise->bapa) {
         $sections['bapa'] = ['Factures BAPA', 'fa-file-signature', $nbBapa];
+    } elseif ($nbBapa > 0) {
+        // L'option est décochée, mais des bordereaux existent : ils restent
+        // consultables, comme des archives.
+        $sections['bapa'] = ['BAPA (archives)', 'fa-box-archive', $nbBapa];
     }
     $sections['dgi'] = ['Factures achat DGI', 'fa-cloud-arrow-down', $nbDgi];
 @endphp

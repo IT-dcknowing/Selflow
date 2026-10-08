@@ -126,7 +126,7 @@
 </div>
 
 {{-- ── Achats normalisés + CA HT/TTC ── --}}
-<div class="section-titre"><i class="fas fa-arrow-up" style="color:#ef4444;"></i> Sorties — Achats normalisés (BAPA inclus)</div>
+<div class="section-titre"><i class="fas fa-arrow-up" style="color:#ef4444;"></i> Sorties — Achats normalisés{{ auth()->user()->entreprise?->bapa ? ' (BAPA inclus)' : '' }}</div>
 <div class="kpi-grid">
     <div class="kpi-card"><div class="lbl">Factures reçues</div><div class="val" id="k-a-factures-n">0</div><div class="sub" id="k-a-factures-m">0 F</div></div>
     <div class="kpi-card"><div class="lbl">Avoirs fournisseurs</div><div class="val" id="k-a-avoirs-n">0</div><div class="sub" id="k-a-avoirs-m">0 F</div></div>

@@ -54,7 +54,9 @@
 </div>
 <div class="categorie-tabs" id="onglets-achats" style="display:none;">
     <button class="active" data-cat="recu" onclick="changerCategorie('recu')">Factures reçues</button>
+    @if(auth()->user()->entreprise?->bapa)
     <button data-cat="emis" onclick="changerCategorie('emis')">BAPA (émis par nous)</button>
+    @endif
     <button data-cat="avoir_fournisseur" onclick="changerCategorie('avoir_fournisseur')">Avoirs fournisseurs</button>
 </div>
 

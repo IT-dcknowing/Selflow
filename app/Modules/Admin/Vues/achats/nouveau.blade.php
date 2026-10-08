@@ -56,7 +56,7 @@
         <strong>Tout achat enregistré ici passe en écriture comptable.</strong>
         Les factures normalisées de vos fournisseurs arrivent d'elles-mêmes depuis la DGI
         et sont déjà passées en écriture : <strong>ne les saisissez pas ici</strong>, elles compteraient deux fois.
-        Réservez cet écran aux charges qu'aucun fournisseur ne normalise, et aux bordereaux d'achat (BAPA).
+        Réservez cet écran aux charges qu'aucun fournisseur ne normalise{{ auth()->user()->entreprise?->bapa ? ", et aux bordereaux d'achat (BAPA)" : '' }}.
     </div>
 </div>
 @endif
@@ -101,18 +101,18 @@
                             <i class="fas fa-file-invoice" id="iconBapa"></i>
                             <span id="labelBapa">BAPA (DGI)</span>
                         </button>
-                        @else
-                        {{-- BAPA non disponible : expliquer sans bloquer --}}
-                        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:11.5px;color:#92400e;">
-                            <i class="fas fa-lock" style="font-size:12px;"></i>
-                            <span>BAPA non activé sur votre espace FNE</span>
-                        </div>
                         @endif
+                        {{-- BAPA décoché sur l'espace FNE : rien du bordereau ne paraît
+                             (propriétaire, 08/10/2026). --}}
                     </div>
                     <small style="color:var(--text-3); font-size:11px;" id="aideNatureAchat">
                         Sans choix, l'achat reste une demande de prix ou un bon de commande.
+                        @if(auth()->user()->entreprise?->bapa)
                         <strong>Seul le bordereau (BAPA) se normalise auprès de la DGI</strong> :
                         une facture fournisseur est certifiée par son émetteur, pas par vous.
+                        @else
+                        Une facture fournisseur est certifiée par son émetteur, pas par vous.
+                        @endif
                     </small>
                 </div>
 

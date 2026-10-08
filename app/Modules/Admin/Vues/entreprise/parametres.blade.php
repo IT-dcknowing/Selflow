@@ -977,6 +977,14 @@
                                     <span
                                         style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#92400e;background:#fef3c7;border-radius:4px;padding:1px 6px;margin-left:6px;">Repris de votre espace FNE</span>
                                 </div>
+                                @if(!$entreprise->timbre_quittance)
+                                <div style="font-size:12.5px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin-top:6px;line-height:1.6;">
+                                    <i class="fas fa-triangle-exclamation"></i>
+                                    <strong>Le timbre de quittance est décoché sur votre espace FNE</strong> : il n'est pas
+                                    appliqué aux montants encaissés en caisse. Il est nécessaire de garder cette case
+                                    cochée sur votre espace FNE.
+                                </div>
+                                @endif
                                 @if($entreprise->timbre_quittance)
                                 <div style="font-size:12.5px;color:#065f46;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:8px 10px;margin-top:6px;line-height:1.6;">
                                     <i class="fas fa-circle-info"></i>

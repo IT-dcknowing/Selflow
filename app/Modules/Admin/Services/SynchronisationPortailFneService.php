@@ -45,7 +45,12 @@ class SynchronisationPortailFneService
         foreach (array_merge(Entreprise::CHAMPS_REPRIS_DU_PORTAIL_FNE, Entreprise::OPTIONS_REPRISES_DU_PORTAIL_FNE) as $champ) {
             $portail = $fiche->{$champ};
 
-            if ($portail === null || trim((string) $portail) === '') {
+            // Une valeur que le portail n'a pas rendue n'efface rien. Une case
+            // DÉCOCHÉE, elle, est une valeur : `false` doit décocher aussi
+            // (propriétaire, 08/10/2026 — « si c'est décoché dans la FNE, cela
+            // doit être décoché »). `(string) false` vaut '' : sans ce test,
+            // un décochage n'aurait jamais été repris.
+            if ($portail === null || (!is_bool($portail) && trim((string) $portail) === '')) {
                 continue;
             }
 

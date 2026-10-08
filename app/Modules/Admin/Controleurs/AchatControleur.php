@@ -85,6 +85,14 @@ class AchatControleur
 
         $isBapa = $request->input('type_facture') === 'bapa';
 
+        // L'option BAPA suit l'espace FNE : décochée, le bordereau n'existe
+        // pas dans Selflow (propriétaire, 08/10/2026).
+        if ($isBapa && !Auth::user()->entreprise?->bapa) {
+            return back()->withInput()->withErrors([
+                'type_facture' => "Le bordereau d'achat (BAPA) n'est pas activé sur votre espace FNE.",
+            ]);
+        }
+
         $request->validate([
             'fournisseur_id'             => $isBapa ? ['nullable'] : ['required', 'integer', Appartenance::a('fournisseurs', 'id')],
             'fournisseur_nom_bapa'        => $isBapa ? ['required', 'string', 'max:255'] : ['nullable'],

@@ -35,7 +35,7 @@ class ConnexionFneEtatTest extends TestCase
         $this->entreprise = Entreprise::create([
             'nom' => 'DC-KNOWING CGA', 'regime_imposition' => 'RNI', 'adresse' => 'Riviera II',
             'rccm' => 'CI-ABJ-2018-B-31734', 'ncc' => '1864699A', 'gerant_fonction' => 'Gérant',
-            'secteur_activite' => ['Commerce'], 'modules_actifs' => ['principal', 'points_de_vente'],
+            'secteur_activite' => ['Commerce'], 'modules_actifs' => ['principal', 'points_de_vente', 'achats'],
         ]);
         $this->site = PointDeVente::create(['entreprise_id' => $this->entreprise->id, 'nom' => 'PDV-marcory', 'ville' => 'Abidjan', 'commune' => 'Marcory']);
         $this->admin = Utilisateur::create([
@@ -201,7 +201,7 @@ class ConnexionFneEtatTest extends TestCase
         $this->assertStringContainsString('Option BAPA de votre espace FNE : <strong>cochée</strong>', $page);
     }
 
-    public function test_un_timbre_decoche_sur_le_portail_n_est_pas_force(): void
+    public function test_un_releve_muet_sur_le_timbre_ne_change_rien(): void
     {
         // Un relevé qui ne rend pas l'option ne prouve rien : rien ne change.
         $this->entreprise->update(['possede_compte_fne' => true, 'timbre_quittance' => true]);
@@ -210,6 +210,34 @@ class ConnexionFneEtatTest extends TestCase
         SynchronisationPortailFneService::reprendre($this->entreprise->fresh());
 
         $this->assertTrue((bool) $this->entreprise->fresh()->timbre_quittance);
+    }
+
+    public function test_decoche_sur_le_portail_decoche_dans_selflow_et_l_ecran_previent(): void
+    {
+        // Propriétaire, 08/10/2026 : coché → coché, décoché → décoché.
+        $this->entreprise->update(['possede_compte_fne' => true, 'timbre_quittance' => true, 'bapa' => true]);
+        $this->releve(['timbre_quittance' => false, 'bapa' => false]);
+
+        SynchronisationPortailFneService::reprendre($this->entreprise->fresh());
+
+        $e = $this->entreprise->fresh();
+        $this->assertFalse((bool) $e->timbre_quittance);
+        $this->assertFalse((bool) $e->bapa);
+
+        $this->admin->unsetRelation('entreprise');
+        $page = $this->parametres();
+        $this->assertStringContainsString('Le timbre de quittance est décoché sur votre espace FNE', $page);
+        $this->assertStringContainsString('Il est nécessaire de garder cette case', $page);
+
+        // Rien du BAPA dans l'écran d'achat, et le serveur le refuse.
+        $nouvelAchat = $this->actingAs($this->admin)->withSession(['point_de_vente_actif_id' => $this->site->id])
+            ->get(route('admin.achats.nouveau'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('id="btnBapa"', $nouvelAchat);
+        $this->assertStringNotContainsString('BAPA non activé', $nouvelAchat);
+
+        $this->actingAs($this->admin)->withSession(['point_de_vente_actif_id' => $this->site->id])
+            ->post(route('admin.achats.enregistrer'), ['type_facture' => 'bapa', 'fournisseur_nom_bapa' => 'Planteur'])
+            ->assertSessionHasErrors('type_facture');
     }
 
     public function test_sans_compte_le_releve_ne_touche_a_rien(): void
