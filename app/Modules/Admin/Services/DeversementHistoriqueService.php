@@ -131,7 +131,12 @@ class DeversementHistoriqueService
         $requete->where('date_operation', '>=', now()->startOfYear()->toDateString());
 
         foreach (DemandeExercicesAnterieurs::anneesAccordees($entreprise->id) as $annee) {
-            $requete->orWhereBetween('date_operation', ["{$annee}-01-01", "{$annee}-12-31"]);
+            // Borne haute exclusive : `date_operation` porte une heure, et
+            // « entre le 1er janvier et le 31 décembre » laissait dehors tout le
+            // 31 décembre passé minuit.
+            $requete->orWhere(fn ($q) => $q
+                ->where('date_operation', '>=', "{$annee}-01-01")
+                ->where('date_operation', '<', ($annee + 1) . '-01-01'));
         }
     }
 

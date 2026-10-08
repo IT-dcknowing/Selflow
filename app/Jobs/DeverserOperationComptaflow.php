@@ -62,7 +62,14 @@ class DeverserOperationComptaflow implements ShouldQueue
 
     public function handle(): void
     {
-        $operation = Operation::with(['ecritures.pointDeVente'])->find($this->operationId);
+        // Les lignes sans le filtre de période de la session. Exécutée dans la
+        // requête (file `sync`), la tâche ne voyait que les écritures de
+        // l'exercice affiché : une opération d'un exercice antérieur accordé
+        // n'avait plus de lignes, et repartait sans rien envoyer ni rien dire.
+        $operation = Operation::with(['ecritures' => fn ($q) => $q
+            ->withoutGlobalScope(\App\Modules\Admin\Scopes\PeriodeScope::class)
+            ->with('pointDeVente'),
+        ])->find($this->operationId);
 
         if (!$operation) {
             return;
@@ -142,6 +149,9 @@ class DeverserOperationComptaflow implements ShouldQueue
                     ]
                 );
 
+            // Les mises à jour de statut, elles aussi, hors filtre de période :
+            // sous ce filtre, une ligne d'un exercice antérieur partait chez
+            // Comptaflow mais restait « à déverser », et repartait sans fin.
             $ids = $lignes->pluck('id')->all();
 
             if ($reponse->successful() && ($reponse->json('success') ?? false)) {
@@ -150,7 +160,7 @@ class DeverserOperationComptaflow implements ShouldQueue
                 // `failed`, et la reprise des cinq minutes les repassera.
                 $refus = $reponse->json('refus') ?? [];
 
-                EcritureComptable::whereIn('id', $ids)->update([
+                EcritureComptable::withoutGlobalScope(\App\Modules\Admin\Scopes\PeriodeScope::class)->whereIn('id', $ids)->update([
                     'comptaflow_sync_status' => empty($refus) ? 'synced' : 'failed',
                 ]);
 
@@ -164,7 +174,7 @@ class DeverserOperationComptaflow implements ShouldQueue
                 return;
             }
 
-            EcritureComptable::whereIn('id', $ids)->update(['comptaflow_sync_status' => 'failed']);
+            EcritureComptable::withoutGlobalScope(\App\Modules\Admin\Scopes\PeriodeScope::class)->whereIn('id', $ids)->update(['comptaflow_sync_status' => 'failed']);
 
             Log::warning('Opération refusée par Comptaflow', [
                 'operation_id' => $operation->id,
@@ -172,7 +182,7 @@ class DeverserOperationComptaflow implements ShouldQueue
                 'corps'        => mb_substr($reponse->body(), 0, 500),
             ]);
         } catch (\Throwable $e) {
-            EcritureComptable::whereIn('id', $lignes->pluck('id')->all())
+            EcritureComptable::withoutGlobalScope(\App\Modules\Admin\Scopes\PeriodeScope::class)->whereIn('id', $lignes->pluck('id')->all())
                 ->update(['comptaflow_sync_status' => 'failed']);
 
             Log::error('Déversement de l\'opération impossible', [
