@@ -109,8 +109,14 @@ $pasAvoirs = max(1, min(60, (int) config('selflow.portail_fne.scraper.avoirs_min
  * Décalée de deux minutes sur le relevé, pour laisser au scraper le temps
  * de déposer son fichier complet.
  */
+// Le relevé des avoirs part une demi-période après celui des achats (voir
+// plus bas) : les deux ouvraient chacun un navigateur à la même minute. Son
+// import suit de deux minutes, comme pour les achats.
+$decalageAvoirs = $pasAvoirs >= 2 ? intdiv($pasAvoirs, 2) : 0;
+$importAvoirs = ($decalageAvoirs + 2) % max(1, $pasAvoirs);
+
 Schedule::command('portail-fne:importer-avoirs')
-    ->cron("2-59/{$pasAvoirs} * * * *")
+    ->cron("{$importAvoirs}-59/{$pasAvoirs} * * * *")
     ->withoutOverlapping()
     ->appendOutputTo($sortiesPortail);
 
@@ -245,8 +251,11 @@ if (config('selflow.portail_fne.scraper.actif')) {
         $scraperAvoirs = ProcessUtils::escapeArgument(config('selflow.portail_fne.scraper.node'))
             . ' ' . ProcessUtils::escapeArgument(config('selflow.portail_fne.scraper.script_avoirs'));
 
+        // Décalé d'une demi-période : le relevé des achats et celui des
+        // avoirs ouvraient deux navigateurs à la même minute, ce qui pesait
+        // sur le serveur toutes les cinq minutes (constaté le 08/10/2026).
         Schedule::exec($scraperAvoirs . ' --tous')
-            ->cron("*/{$pasAvoirs} * * * *")
+            ->cron("{$decalageAvoirs}-59/{$pasAvoirs} * * * *")
             ->withoutOverlapping($pasAvoirs * 2)
             ->runInBackground()
             ->appendOutputTo($sortiesPortail);
