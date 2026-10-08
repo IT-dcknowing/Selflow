@@ -370,6 +370,10 @@ class DevisOpposableTest extends TestCase
 
     public function test_un_bon_de_commande_ne_produit_qu_une_facture(): void
     {
+        // La facture d'une commande fait sortir la marchandise (recette du
+        // 08/10/2026) : elle ne s'établit plus sur un stock vide.
+        \App\Modules\Admin\Modeles\Stock::create(['produit_id' => $this->ciment->id, 'point_de_vente_id' => $this->magasin->id, 'quantite_disponible' => 100]);
+
         // Deux factures pour une commande, c'est un client facture deux fois.
         $devis = $this->devis();
         $this->post(route('admin.ventes.convertir.commande', $devis));
@@ -438,6 +442,10 @@ class DevisOpposableTest extends TestCase
 
     public function test_la_facture_est_datee_du_jour_de_sa_creation(): void
     {
+        // La facture d'une commande fait sortir la marchandise (recette du
+        // 08/10/2026) : elle ne s'établit plus sur un stock vide.
+        \App\Modules\Admin\Modeles\Stock::create(['produit_id' => $this->ciment->id, 'point_de_vente_id' => $this->magasin->id, 'quantite_disponible' => 100]);
+
         $devis = $this->devis(['date_vente' => now()->subDays(40)->toDateString()]);
         $this->post(route('admin.ventes.convertir.commande', $devis));
 
