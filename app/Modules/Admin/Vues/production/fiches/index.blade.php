@@ -71,7 +71,7 @@
                             <td style="font-weight:600;">
                                 <div style="display:flex; align-items:center; gap:8px;">
                                     @if($fiche->produitFini->photo)
-                                        <img src="{{ asset('storage/' . $fiche->produitFini->photo) }}" style="width:28px; height:28px; border-radius:4px; object-fit:cover;">
+                                        <img src="{{ $fiche->produitFini->photo_url }}" style="width:28px; height:28px; border-radius:4px; object-fit:cover;">
                                     @else
                                         <div style="width:28px; height:28px; border-radius:4px; background:var(--bg3); display:flex; align-items:center; justify-content:center; color:var(--text-3); font-size:11px;">
                                             <i class="fas fa-image"></i>

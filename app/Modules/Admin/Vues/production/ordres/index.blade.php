@@ -9,7 +9,7 @@
         <p>Suivez et validez le flux de fabrication industrielle de vos produits.</p>
     </div>
     <a href="{{ route('admin.production.ordres.creer') }}" class="btn btn-primary">
-        <i class="fas fa-plus"></i> Lancer une Production
+        <i class="fas fa-plus"></i> Nouvel ordre
     </a>
 </div>
 
@@ -51,14 +51,25 @@
             <div style="flex:1; min-width:200px;">
                 <select name="statut" class="form-control" style="height:40px;">
                     <option value="">Tous les statuts...</option>
-                    <option value="Brouillon" {{ request('statut') === 'Brouillon' ? 'selected' : '' }}>Brouillon</option>
-                    <option value="Terminé" {{ request('statut') === 'Terminé' ? 'selected' : '' }}>Terminé</option>
+                    @foreach(\App\Modules\Admin\Modeles\OrdreProduction::STATUTS as $s)
+                        <option value="{{ $s }}" {{ request('statut') === $s ? 'selected' : '' }}>{{ $s }}</option>
+                    @endforeach
                 </select>
             </div>
+            @unless(auth()->user()->estCaissier())
+                <div style="flex:1; min-width:200px;">
+                    <select name="site" class="form-control" style="height:40px;">
+                        <option value="">Tous les sites...</option>
+                        @foreach($pdvs as $pdv)
+                            <option value="{{ $pdv->id }}" {{ (int) $siteId === $pdv->id ? 'selected' : '' }}>{{ $pdv->nom }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endunless
             <button type="submit" class="btn btn-outline" style="height:40px;">
                 <i class="fas fa-filter"></i> Filtrer
             </button>
-            @if(request('statut'))
+            @if(request('statut') || request('site'))
                 <a href="{{ route('admin.production.ordres.index') }}" class="btn btn-outline" style="height:40px; color:var(--danger); border-color:var(--danger);">
                     Effacer
                 </a>
@@ -73,51 +84,70 @@
         @if($ordres->isEmpty())
             <div style="padding:60px; text-align:center; color:var(--text-3);">
                 <i class="fas fa-industry" style="font-size:48px; display:block; margin-bottom:16px; opacity:.3;"></i>
-                Aucun ordre de production en cours.<br>
-                Cliquez sur <strong>Lancer une Production</strong> pour démarrer.
+                Aucun ordre de production.<br>
+                Cliquez sur <strong>Nouvel ordre</strong> pour démarrer.
             </div>
         @else
             <table>
                 <thead>
                     <tr>
-                        <th style="width: 15%;">Code OP</th>
-                        <th style="width: 25%;">Produit Fini</th>
-                        <th style="width: 15%;">Point de Vente / Site</th>
-                        <th style="width: 15%; text-align: center;">Qté à produire</th>
-                        <th style="width: 12%;">Date Fab.</th>
-                        <th style="width: 10%; text-align: center;">Statut</th>
-                        <th style="width: 13%; text-align: right;">Action</th>
+                        <th style="width: 12%;">Code OP</th>
+                        <th style="width: 20%;">Produit Fini</th>
+                        <th style="width: 13%;">Point de Vente / Site</th>
+                        <th style="width: 12%; text-align: center;">Qté à produire</th>
+                        <th style="width: 10%;">Date Fab.</th>
+                        <th style="width: 11%; text-align: right;">Coût</th>
+                        <th style="width: 8%; text-align: center;">Statut</th>
+                        <th style="width: 14%; text-align: right;">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($ordres as $ordre)
                         <tr>
-                            <td style="font-weight:700; color:var(--primary);">{{ $ordre->code_ordre }}</td>
+                            <td style="font-weight:700;"><a href="{{ route('admin.production.ordres.voir', $ordre) }}" style="color:var(--primary);">{{ $ordre->code_ordre }}</a></td>
                             <td style="font-weight:600;">{{ $ordre->produitFini->nom }}</td>
                             <td style="color:var(--text-2);">{{ $ordre->pointDeVente->nom }}</td>
                             <td style="text-align: center; font-weight:700;">
-                                {{ number_format($ordre->quantite_cible, 0, ',', ' ') }} {{ $ordre->produitFini->unite ?? 'Unité' }}
+                                {{ \App\Modules\Admin\Modeles\OrdreProduction::quantiteLisible($ordre->quantite_cible) }} {{ $ordre->produitFini->unite ?? 'Unité' }}
                             </td>
                             <td>{{ $ordre->date_production->format('d/m/Y') }}</td>
+                            @php $cout = $ordre->coutDeRevient(); @endphp
+                            <td style="text-align: right; font-variant-numeric: tabular-nums;" title="{{ $cout !== null ? 'Coût unitaire : ' . number_format((float) $ordre->coutUnitaireDeRevient(), 2, ',', ' ') . ' F' : '' }}">
+                                {{ $cout !== null ? number_format($cout, 0, ',', ' ') . ' F' : '—' }}
+                            </td>
                             <td style="text-align: center;">
                                 @if($ordre->statut === 'Brouillon')
                                     <span class="badge" style="background:#fffbeb; color:#d97706; padding:4px 10px; border-radius:20px; font-weight:700;">Brouillon</span>
                                 @elseif($ordre->statut === 'Terminé')
                                     <span class="badge" style="background:#e6fdf5; color:#059669; padding:4px 10px; border-radius:20px; font-weight:700;">Terminé</span>
+                                @elseif($ordre->statut === 'Annulé')
+                                    <span class="badge" style="background:#fef2f2; color:#b91c1c; padding:4px 10px; border-radius:20px; font-weight:700;">Annulé</span>
                                 @else
                                     <span class="badge badge-gray">{{ $ordre->statut }}</span>
                                 @endif
                             </td>
-                            <td style="text-align: right;">
+                            <td style="text-align: right; white-space:nowrap;">
+                                <a href="{{ route('admin.production.ordres.voir', $ordre) }}" class="btn btn-outline btn-sm" style="padding:4px 8px;" title="Voir l'ordre"><i class="fas fa-eye"></i></a>
+                                <a href="{{ route('admin.production.ordres.imprimer', $ordre) }}" target="_blank" class="btn btn-outline btn-sm" style="padding:4px 8px;" title="Imprimer le bon de fabrication"><i class="fas fa-print"></i></a>
                                 @if($ordre->statut === 'Brouillon')
-                                    <form method="POST" action="{{ route('admin.production.ordres.valider', $ordre) }}" style="display:inline;">
+                                    <form method="POST" action="{{ route('admin.production.ordres.valider', $ordre) }}" style="display:inline;"
+                                          onsubmit="return confirm('Fabriquer {{ \App\Modules\Admin\Modeles\OrdreProduction::quantiteLisible($ordre->quantite_cible) }} {{ addslashes($ordre->produitFini->nom) }} ? Les matières sortiront du stock et le produit fini y entrera.')">
                                         @csrf
                                         <button type="submit" class="btn btn-success btn-sm" style="font-weight:700; font-size:11px; padding:4px 10px;">
                                             <i class="fas fa-check-circle"></i> Produire & Valider
                                         </button>
                                     </form>
-                                @else
+                                @elseif($ordre->statut === 'Terminé')
                                     <span style="font-size:11px; color:var(--success); font-weight:700;"><i class="fas fa-check"></i> Complété</span>
+                                @endif
+                                @if(in_array($ordre->statut, ['Brouillon', 'Terminé'], true))
+                                    <form method="POST" action="{{ route('admin.production.ordres.annuler', $ordre) }}" style="display:inline;"
+                                          onsubmit="return confirm('{{ $ordre->statut === 'Terminé' ? 'Annuler cet ordre terminé ? La fabrication sera contre-passée : le produit fini sortira du stock et les matières y reviendront.' : 'Annuler cet ordre ? Rien ne sera fabriqué.' }}')">
+                                        @csrf
+                                        <button type="submit" class="btn btn-outline btn-sm" style="padding:4px 8px; color:var(--danger); border-color:var(--danger);" title="Annuler l'ordre">
+                                            <i class="fas fa-ban"></i>
+                                        </button>
+                                    </form>
                                 @endif
                             </td>
                         </tr>
