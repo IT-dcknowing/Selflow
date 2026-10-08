@@ -101,6 +101,19 @@ Schedule::command('portail-fne:importer-achats')
     ->withoutOverlapping()
     ->appendOutputTo($sortiesPortail);
 
+$pasAvoirs = max(1, min(60, (int) config('selflow.portail_fne.scraper.avoirs_minutes', 5)));
+
+/*
+ * Les factures d'avoir, relevées par `avoirs.js` dans le sous-dossier avoirs/.
+ *
+ * Décalée de deux minutes sur le relevé, pour laisser au scraper le temps
+ * de déposer son fichier complet.
+ */
+Schedule::command('portail-fne:importer-avoirs')
+    ->cron("2-59/{$pasAvoirs} * * * *")
+    ->withoutOverlapping()
+    ->appendOutputTo($sortiesPortail);
+
 /*
  * Rapprochement des rejets FNE avec les relevés du portail.
  *
@@ -221,6 +234,20 @@ if (config('selflow.portail_fne.scraper.actif')) {
         Schedule::exec($scraperAchats . ' --tous')
             ->cron("*/{$pasAchats} * * * *")
             ->withoutOverlapping($pasAchats * 2)
+            ->runInBackground()
+            ->appendOutputTo($sortiesPortail);
+    }
+
+    /*
+     * Le relevé des factures d'AVOIR (notes de crédit), à son propre rythme.
+     */
+    if (config('selflow.portail_fne.scraper.avoirs_actif')) {
+        $scraperAvoirs = ProcessUtils::escapeArgument(config('selflow.portail_fne.scraper.node'))
+            . ' ' . ProcessUtils::escapeArgument(config('selflow.portail_fne.scraper.script_avoirs'));
+
+        Schedule::exec($scraperAvoirs . ' --tous')
+            ->cron("*/{$pasAvoirs} * * * *")
+            ->withoutOverlapping($pasAvoirs * 2)
             ->runInBackground()
             ->appendOutputTo($sortiesPortail);
     }

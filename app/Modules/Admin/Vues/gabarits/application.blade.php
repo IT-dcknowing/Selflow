@@ -1786,7 +1786,7 @@ window.__csrf = '{{ csrf_token() }}';
         .then(function (r) { return r.json(); })
         .then(function (data) {
             if (!data.pret) {
-                if (tentatives < maxTentatives) { setTimeout(interroger, intervalle); }
+                if (tentatives < maxTentatives) { setTimeout(interroger, intervalle); } else { abandonner(); }
                 return;
             }
 
@@ -1805,8 +1805,18 @@ window.__csrf = '{{ csrf_token() }}';
             }
         })
         .catch(function () {
-            if (tentatives < maxTentatives) { setTimeout(interroger, intervalle); }
+            if (tentatives < maxTentatives) { setTimeout(interroger, intervalle); } else { abandonner(); }
         });
+    }
+
+    // Deux minutes sans relevé : le pop-up ne doit plus afficher « en cours ».
+    // En ligne, le 15/09/2026, il le disait pour toujours d'un scraper qui ne
+    // tournait pas.
+    function abandonner() {
+        if (zone) { zone.innerHTML = ''; }
+        afficherToast('erreur', 'Relevé non reçu',
+            "Les points de vente du portail FNE ne sont pas arrivés après deux minutes. "
+            + "Le scraper ne tourne peut-être pas sur ce serveur : consultez l'écran des rejets FNE.");
     }
 
     function afficherToast(type, titre, message) {

@@ -7389,6 +7389,66 @@ l'information. Elle reste disponible sur l'autre branche.
 - `tests/Feature/CorrectifsReportesTest.php` — 6 épreuves, **toutes tombent** sans le correctif
 - `AmortissementTest` ouvre désormais la comptabilité de son entreprise
 
+### Lot 56 — En ligne, le pop-up du refus attendait pour toujours — **CORRIGÉ CÔTÉ CODE le 15/09/2026, SERVEUR À ARMER**
+
+*Numéroté 30 sur la branche `suite-scrapping`, puis 41 le 06/10/2026 ; renuméroté 56 le 07/10/2026 à l'intégration de `main`, qui portait déjà les lots 41 à 55.*
+
+Signalé par le propriétaire du projet le 15/09/2026, capture à l'appui : *« en
+ligne le scraping ne se comporte pas comme celui du local où il se connecte et
+renvoie la liste des PDV »*. Le pop-up restait sur « Récupération des points de
+vente sur le portail en cours... », bouton « Voir les rejets FNE ».
+
+Ce pop-up est la branche de repli de `VenteControleur::normaliser()` : la DGI a
+refusé `pointOfSale` **et aucun relevé du portail n'est encore rangé**. En local
+le relevé existe déjà — la liste sort directement de la redirection. En ligne,
+tout reposait sur le polling, et il ne pouvait pas aboutir, pour deux raisons
+indépendantes.
+
+#### 1. La route interrogée par le pop-up rendait 500 — depuis `6ee578f`
+
+`RejetFneControleur::statutScraping()` réclame `PointsDeVentePortailService`
+en paramètre **sans l'importer** : Laravel cherchait
+`App\Modules\Admin\Controleurs\PointsDeVentePortailService`, qui n'existe pas.
+Chaque appel rendait 500, le `catch` du JavaScript réessayait en silence quinze
+fois, puis s'arrêtait — le pop-up gardait « en cours ». **Aucune épreuve ne
+couvrait la route** ; trouvé en écrivant la première.
+
+La liste des points n'est donc jamais arrivée par le polling, nulle part. Ce qui
+marchait en local, c'est la redirection, parce que le relevé y était déjà.
+
+#### 2. Le scraper ne tourne pas sur le serveur
+
+Constat par le code, **le serveur n'a pas été vu** : le lancement est détaché et
+son échec n'arrive jamais à l'écran. Tout ce qui suit manque à un serveur
+déployé par `deploy-production.sh`, et un seul suffit à ne rien relever :
+
+| Condition | Pourquoi elle manque en ligne |
+|---|---|
+| `PORTAIL_FNE_SCRAPER_ACTIF=true` | faux par défaut, et le déploiement **recopie `.env.production` sur `.env`** : posé à la main dans `.env`, il disparaît à la livraison suivante |
+| `PORTAIL_FNE_NODE` absolu | PHP-FPM n'a pas le PATH d'un terminal |
+| `SCRAPER-PORTAIL-FNE/node_modules` | le `npm ci` du déploiement tourne à la racine ; le scraper a son propre `package.json` |
+| Chromium et ses bibliothèques | installé par utilisateur — il faut celui de **www-data** |
+| `SCRAPER-PORTAIL-FNE/.env` (`FNE_URL`) et `identifiants.json` | ignorés par git, jamais déployés |
+
+#### Ce qui est livré
+
+| Pièce | Rôle |
+|---|---|
+| `use PointsDeVentePortailService` | la route répond |
+| `statutScraping()` | scraper éteint et aucun relevé : le dit **aussitôt** au lieu de faire attendre deux minutes |
+| Polling du gabarit | au bout des quinze essais, remplace « en cours » par « relevé non reçu » |
+| `php artisan portail-fne:verifier-scraper` | passe chaque condition en revue sur le serveur, dit le remède, affiche les dernières sorties de Node. `--lancer=<NCC>` fait un vrai relevé au premier plan. Ne montre jamais un mot de passe |
+| `deploy-production.sh`, point 5 ter | `npm ci` du scraper, `install-deps` en root, Chromium sous www-data |
+
+Éprouvée sur ce poste, la commande rend tout vert — hors six NCC de test sans
+mot de passe, signalés « à voir ».
+
+**Reste à faire sur le serveur**, dans l'ordre : poser l'interrupteur et
+`PORTAIL_FNE_NODE` dans `.env.production` ; recopier `.env` et
+`identifiants.json` du scraper hors git ; redéployer ; lancer
+`sudo -u www-data php artisan portail-fne:verifier-scraper` jusqu'à ce qu'il ne
+reste rien de bloquant, puis `--lancer=1864699A`.
+
 ### Lot 57 — La caisse en un geste — **TERMINÉ le 06/10/2026 (5 chantiers sur 11)**
 
 *Numéroté 42 dans sa session, section 17 du plan ; renuméroté 57 et section 20 le 07/10/2026 à l'intégration de `main`, qui portait déjà les lots 41 à 55 et les sections 17 à 19.*

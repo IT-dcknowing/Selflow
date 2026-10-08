@@ -42,10 +42,21 @@ class ScraperPortailFneService
      */
     public const VERROU_ACHATS = 'portail_fne_releve_achats_';
 
+    /**
+     * Le préfixe du verrou du relevé des avoirs.
+     */
+    public const VERROU_AVOIRS = 'portail_fne_releve_avoirs_';
+
     /** La clé du verrou pour ce login, ou pour le passage complet. */
     public static function verrouAchats(?string $login = null): string
     {
         return self::VERROU_ACHATS . (trim((string) $login) ?: 'tous');
+    }
+
+    /** La clé du verrou des avoirs pour ce login, ou pour le passage complet. */
+    public static function verrouAvoirs(?string $login = null): string
+    {
+        return self::VERROU_AVOIRS . (trim((string) $login) ?: 'tous');
     }
 
     /**
@@ -327,6 +338,65 @@ class ScraperPortailFneService
             return true;
         } catch (\Throwable $e) {
             self::tracer('error', "achats[{$cible}] : lancement impossible — " . $e->getMessage(), [
+                'node'   => $node,
+                'script' => $script,
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * Relever les factures d'AVOIR (notes de crédit), à la demande, sans attendre le planificateur.
+     *
+     * C'est `avoirs.js` qui part : il ouvre une session sur le portail FNE,
+     * interroge `/ws/invoices` pour les pièces portant `subtype=refund`
+     * (avoirs clients émis et avoirs fournisseurs reçus), dépose son fichier
+     * dans `storage/app/portail-fne/avoirs/` et rend la main.
+     *
+     * @return bool vrai si le lancement a été tenté, faux s'il a été écarté ou a échoué.
+     */
+    public static function lancerAvoirs(?string $login = null): bool
+    {
+        $login = trim((string) $login);
+        $cible = $login ?: 'tous les logins';
+
+        if (!config('selflow.portail_fne.scraper.actif')) {
+            self::tracer('notice', "avoirs[{$cible}] : rien lancé — le scraper est éteint (PORTAIL_FNE_SCRAPER_ACTIF).");
+
+            return false;
+        }
+
+        if (!config('selflow.portail_fne.scraper.avoirs_actif', true)) {
+            self::tracer('notice', "avoirs[{$cible}] : rien lancé — le relevé des avoirs est éteint (PORTAIL_FNE_SCRAPER_AVOIRS_ACTIF).");
+
+            return false;
+        }
+
+        $minutes = max(1, (int) config('selflow.portail_fne.scraper.avoirs_minutes', 5));
+
+        if (!Cache::add(self::verrouAvoirs($login), true, now()->addMinutes($minutes))) {
+            self::tracer('info', "avoirs[{$cible}] : rien lancé — un relevé est déjà en route (verrou de {$minutes} min).");
+
+            return false;
+        }
+
+        $node   = (string) config('selflow.portail_fne.scraper.node');
+        $script = (string) config('selflow.portail_fne.scraper.script_avoirs', base_path('SCRAPER-PORTAIL-FNE/avoirs.js'));
+
+        try {
+            self::detacher([$node, $script, $login ?: '--tous'], self::sorties());
+
+            self::tracer('info', "avoirs[{$cible}] : relevé lancé en arrière-plan.", [
+                'node'           => $node,
+                'script'         => $script,
+                'argument'       => $login ?: '--tous',
+                'verrou_minutes' => $minutes,
+            ]);
+
+            return true;
+        } catch (\Throwable $e) {
+            self::tracer('error', "avoirs[{$cible}] : lancement impossible — " . $e->getMessage(), [
                 'node'   => $node,
                 'script' => $script,
             ]);
