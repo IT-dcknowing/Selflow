@@ -231,6 +231,27 @@ class CycleVenteAchatRecetteTest extends TestCase
         $this->get(route('admin.ventes.factures', ['etape' => 'Facture']))->assertOk()->assertSee($facture->numero_facture);
     }
 
+    public function test_un_devis_en_especes_sans_acompte_n_est_ni_paye_ni_encaisse(): void
+    {
+        // Recette du 08/10/2026 : le mode « Espèces » par défaut faisait d'un
+        // devis une pièce « Payé », avec un acompte de tout le montant en caisse.
+        $devis = $this->devis(['mode_paiement' => 'Espèces']);
+
+        $this->assertSame('Brouillon', $devis->statut);
+        $this->assertSame(0, \App\Modules\Admin\Modeles\TresorerieJournal::where('reference_document', $devis->numero_facture)->count());
+
+        $bc = $this->commandeDepuis($devis);
+        $this->assertNotSame('Payé', $bc->statut);
+    }
+
+    public function test_un_acompte_saisi_sur_un_devis_est_encaisse_tel_quel(): void
+    {
+        $devis = $this->devis(['mode_paiement' => 'Espèces', 'montant_paye' => 5000]);
+
+        $this->assertSame('Avance', $devis->statut);
+        $this->assertEqualsWithDelta(5000, (float) \App\Modules\Admin\Modeles\TresorerieJournal::where('reference_document', $devis->numero_facture)->sum('montant_entree'), 0.01);
+    }
+
     public function test_un_devis_ne_se_convertit_pas_deux_fois(): void
     {
         $devis = $this->devis();

@@ -247,7 +247,13 @@ class VenteControleur
                 // une caisse qui reçoit 10 000 F pour une pièce de 6 500 F doit
                 // rendre 3 500 F, et n'a encaissé que 6 500 F. Le plafonnement
                 // se fait plus bas, sur le net réel — timbre compris.
-                $montantTendu = $request->filled('montant_paye') ? floatval($request->montant_paye) : $netAPayer;
+                // Sur une facture, rien de saisi veut dire « tout payé ». Sur un
+                // devis ou une commande, rien de saisi veut dire « aucun
+                // acompte » : le défaut inverse marquait le devis « Payé » et
+                // portait en caisse un acompte de tout le montant, sans
+                // qu'aucun franc n'ait été reçu (recette du 08/10/2026).
+                $parDefaut = $etape === 'Facture' ? $netAPayer : 0.0;
+                $montantTendu = $request->filled('montant_paye') ? floatval($request->montant_paye) : $parDefaut;
                 $montantPaye = $montantTendu;
                 if ($montantPaye <= 0) {
                     $statutVente = 'Crédit';
@@ -257,6 +263,12 @@ class VenteControleur
                 } else {
                     $statutVente = 'Avance';
                 }
+            }
+
+            // Un devis ou une commande sans acompte n'est ni payé ni à crédit :
+            // c'est une offre ou un engagement, rien n'est encore dû.
+            if ($etape !== 'Facture' && $montantPaye <= 0) {
+                $statutVente = 'Brouillon';
             }
 
             $vente = Vente::create([

@@ -101,6 +101,15 @@ class RecetteNouvelleEntrepriseTest extends TestCase
         // L'attribut était écrit `title=\"…\"` : du HTML cassé, dont le
         // navigateur faisait six attributs. L'adresse exigée porte son astérisque.
         $this->entreprise->update(['possede_compte_fne' => true]);
+        // Les champs ne se grisent qu'une fois le portail relevé.
+        $import = \App\Modules\Admin\Modeles\PortailFneImport::create([
+            'entreprise_id' => $this->entreprise->id, 'login' => 'X', 'date_scraping' => now()->toDateString(),
+            'type' => \App\Modules\Admin\Modeles\PortailFneImport::TYPE_FICHE, 'fichier_nom' => 'X_20261008.json',
+            'fichier_empreinte' => hash('sha256', uniqid('', true)), 'statut' => \App\Modules\Admin\Modeles\PortailFneImport::STATUT_IMPORTE,
+        ]);
+        \App\Modules\Admin\Modeles\PortailFneFiche::create([
+            'import_id' => $import->id, 'entreprise_id' => $this->entreprise->id, 'login' => 'X', 'date_scraping' => now()->toDateString(),
+        ]);
 
         $page = $this->parametres();
 

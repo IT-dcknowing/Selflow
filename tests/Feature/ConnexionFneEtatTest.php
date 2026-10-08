@@ -150,6 +150,13 @@ class ConnexionFneEtatTest extends TestCase
         $this->entreprise->update(['possede_compte_fne' => true]);
         $this->admin->unsetRelation('entreprise');
 
+        // Pas encore de relevé : rien ne se grise, sinon l'adresse exigée pour
+        // vendre resterait vide et verrouillée (recette du 08/10/2026).
+        $avant = $this->parametres();
+        $this->assertDoesNotMatchRegularExpression('/name="adresse" data-champ-portail\s+readonly/', $avant);
+        $this->assertStringContainsString("Votre espace FNE n'a pas encore été relevé", $avant);
+
+        $this->releve(['email' => 'portail@dck.ci']);
         $page = $this->parametres();
         foreach (Entreprise::CHAMPS_REPRIS_DU_PORTAIL_FNE as $champ) {
             $this->assertMatchesRegularExpression('/name="' . $champ . '" data-champ-portail\s+readonly/', $page, "« {$champ} » n'est pas grisé.");

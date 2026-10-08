@@ -309,6 +309,13 @@
                      lit le même. --}}
                 @php
                     $etatFne = $entreprise->etatConnexionFne();
+                    // Un champ ne se grise que lorsque le portail a été relevé :
+                    // avant, il resterait vide et verrouillé, et l'adresse,
+                    // exigée pour vendre, bloquerait toute l'activité (recette
+                    // du 08/10/2026). Saisi en attendant, il sera remplacé par
+                    // la valeur de l'espace FNE au premier relevé.
+                    $releveFneDisponible = \App\Modules\Admin\Modeles\PortailFneFiche::where('entreprise_id', $entreprise->id)->exists();
+                    $champsPortailVerrouilles = $entreprise->possede_compte_fne === true && $releveFneDisponible;
                     $aCompteFne = $entreprise->possede_compte_fne;
                     $infosFne = $entreprise->informationsFne();
                     $manquants = $entreprise->informationsFneManquantes();
@@ -334,7 +341,14 @@
                         <div>
                             <div style="font-weight:700;font-size:14px;color:{{ $couleursEtat[2] }};">{{ $etatFne['libelle'] }}</div>
                             <div style="font-size:12.5px;color:var(--text-2);line-height:1.6;margin-top:2px;">{{ $etatFne['detail'] }}</div>
-                            @if(!$etatFne['a_saisir'] && $aCompteFne === true)
+                            @if($aCompteFne === true && !$releveFneDisponible)
+                                <div style="font-size:12px;color:#92400e;line-height:1.6;margin-top:6px;">
+                                    <i class="fas fa-hourglass-half"></i> Votre espace FNE n'a pas encore été relevé :
+                                    renseignez vos coordonnées en attendant. Elles seront remplacées automatiquement
+                                    par les informations exactes de votre espace FNE.
+                                </div>
+                            @endif
+                            @if(!$etatFne['a_saisir'] && $aCompteFne === true && $releveFneDisponible)
                                 <div style="font-size:12px;color:var(--text-3);line-height:1.6;margin-top:6px;">
                                     <i class="fas fa-rotate"></i> L'enregistrement des champs grisés se fait automatiquement,
                                     avec les informations exactes de votre espace FNE. Veuillez bien remplir ce qui reste.
@@ -468,20 +482,20 @@
 
                         <div class="form-group">
                             <label class="form-label">Adresse physique <span style="color:var(--danger)">*</span></label>
-                            <input type="text" name="adresse" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
+                            <input type="text" name="adresse" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                 value="{{ old('adresse', $entreprise->adresse) }}"
                                 placeholder="Ex: Cocody, Abidjan, Côte d'Ivoire">
                         </div>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                             <div class="form-group" style="margin-bottom:0;">
                                 <label class="form-label">Téléphone</label>
-                                <input type="text" name="telephone" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
+                                <input type="text" name="telephone" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                     value="{{ old('telephone', $entreprise->telephone) }}"
                                     placeholder="Ex: +225 07 00 00 00">
                             </div>
                             <div class="form-group" style="margin-bottom:0;">
                                 <label class="form-label">E-mail</label>
-                                <input type="email" name="email" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
+                                <input type="email" name="email" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                     value="{{ old('email', $entreprise->email) }}"
                                     placeholder="Ex: contact@monentreprise.com">
                             </div>
@@ -555,7 +569,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Références bancaires</label>
-                            <textarea name="ref_bancaire" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control" rows="3"
+                            <textarea name="ref_bancaire" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control" rows="3"
                                 placeholder="Ex: Établissement : SGBCI — N° compte : 00123456789">{{ old('ref_bancaire', $entreprise->ref_bancaire) }}</textarea>
                             <small style="color:var(--text-3);font-size:11px;">Ces informations apparaîtront en bas de vos
                                 factures.</small>
@@ -646,7 +660,7 @@
                             <label class="form-label">
                                 IDU — Identifiant Unique DGI
                             </label>
-                            <input type="text" name="idu" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control" value="{{ old('idu', $entreprise->idu) }}"
+                            <input type="text" name="idu" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control" value="{{ old('idu', $entreprise->idu) }}"
                                 placeholder="Ex: CI-001-2025-A123456">
                             <small style="color:var(--text-3);font-size:11px;">Cet identifiant apparaît sur chaque facture
                                 normalisée FNE.</small>
@@ -655,12 +669,12 @@
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                             <div class="form-group" style="margin-bottom:0;">
                                 <label class="form-label">Commune</label>
-                                <input type="text" name="commune" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
+                                <input type="text" name="commune" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                     value="{{ old('commune', $entreprise->commune) }}" placeholder="Ex: COCODY">
                             </div>
                             <div class="form-group" style="margin-bottom:0;">
                                 <label class="form-label">Quartier</label>
-                                <input type="text" name="quartier" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
+                                <input type="text" name="quartier" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                     value="{{ old('quartier', $entreprise->quartier) }}"
                                     placeholder="Ex: Angré 8ème Tranche">
                             </div>
@@ -668,14 +682,14 @@
 
                         <div class="form-group">
                             <label class="form-label">Référence Cadastrale</label>
-                            <input type="text" name="reference_cadastrale" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
+                            <input type="text" name="reference_cadastrale" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                 value="{{ old('reference_cadastrale', $entreprise->reference_cadastrale) }}"
                                 placeholder="Ex: Section B, Parcelle 042">
                         </div>
 
                         <div class="form-group">
                             <label class="form-label">Propriétaire du local professionnel</label>
-                            <input type="text" name="proprietaire_local" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
+                            <input type="text" name="proprietaire_local" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                 value="{{ old('proprietaire_local', $entreprise->proprietaire_local) }}"
                                 placeholder="Ex: SCI IMMOBILIERE COCODY">
                         </div>
@@ -685,7 +699,7 @@
                                 Seuil d'alerte stickers <span style="color:#E53E3E">*</span>
                             </label>
                             <div style="display:flex;align-items:center;gap:10px;">
-                                <input type="number" name="sticker_solde_alerte" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title=\"Repris automatiquement de votre espace FNE\" @endif class="form-control"
+                                <input type="number" name="sticker_solde_alerte" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                     value="{{ old('sticker_solde_alerte', $entreprise->sticker_solde_alerte ?? 5) }}"
                                     min="1" max="9999" style="max-width:120px;">
                                 <small style="color:var(--text-3);font-size:12px;">sticker(s) restants → notification
@@ -1048,7 +1062,7 @@
                     <div style="display:flex;flex-direction:column;gap:14px;">
                         <div class="form-group">
                             <label class="form-label">Pied de page des factures</label>
-                            <textarea name="pied_de_page_facture" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif id="piedDePageFactureInput" class="form-control" rows="3"
+                            <textarea name="pied_de_page_facture" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif id="piedDePageFactureInput" class="form-control" rows="3"
                                 maxlength="248" oninput="majCompteurParametre('piedDePageFacture')"
                                 placeholder="Ex: Merci pour votre confiance. Paiement à 30 jours. Pénalités de retard : 1,5% / mois.">{{ old('pied_de_page_facture', $entreprise->pied_de_page_facture) }}</textarea>
                             <small style="color:var(--text-3);font-size:11px;">
@@ -1058,7 +1072,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Autres mentions légales</label>
-                            <textarea name="facture_autres_mentions" data-champ-portail @if($entreprise->possede_compte_fne === true) readonly title="Repris automatiquement de votre espace FNE" @endif id="factureAutresMentionsInput" class="form-control"
+                            <textarea name="facture_autres_mentions" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif id="factureAutresMentionsInput" class="form-control"
                                 rows="3" maxlength="248" oninput="majCompteurParametre('factureAutresMentions')"
                                 placeholder="Ex: Capital social : 1 000 000 FCFA — Forme juridique : SARL">{{ old('facture_autres_mentions', $entreprise->facture_autres_mentions) }}</textarea>
                             <small style="color:var(--text-3);font-size:11px;">
@@ -1777,13 +1791,15 @@ function lancerLeDeversementComptaflow() {
     var bloc = document.querySelector('[data-bloc-compte-fne]');
     if (!bloc) return;
     var champs = document.querySelectorAll('[data-champ-portail]');
+    // Sans relevé du portail, rien ne se grise : les champs resteraient vides.
+    var releve = @json($releveFneDisponible ?? false);
 
     function appliquer(choix) {
         bloc.querySelectorAll('[data-volet-fne]').forEach(function (v) {
             v.style.display = v.dataset.voletFne === choix ? 'block' : 'none';
         });
         champs.forEach(function (c) {
-            if (choix === 'oui') {
+            if (choix === 'oui' && releve) {
                 c.setAttribute('readonly', 'readonly');
                 c.title = 'Repris automatiquement de votre espace FNE';
             } else {
