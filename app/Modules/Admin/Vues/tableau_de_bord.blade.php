@@ -75,11 +75,13 @@
         <span style="font-size:20px; color:#D97706; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><i class="fas fa-triangle-exclamation"></i></span>
         <div>
             <h4 style="font-weight:700; font-size:14px; margin-bottom:2px;">Finalisation de l'inscription requise</h4>
-            <p style="font-size:13px; color:#B45309; line-height:1.4;">Finaliser l'inscription complète pour pouvoir exécuter des actions concrètes et profiter au mieux de l'application.</p>
+            {{-- La bannière disait « Finaliser l'inscription complète » sans dire quoi :
+                 la liste existe (`elementsInscriptionManquants`), elle est reprise ici. --}}
+            <p style="font-size:13px; color:#B45309; line-height:1.4;">Ventes et achats restent bloqués tant que manquent : {{ collect(Auth::user()->entreprise->elementsInscriptionManquants())->pluck('libelle')->map(fn ($l) => \Illuminate\Support\Str::before($l, ' —'))->implode(' · ') }}.</p>
         </div>
     </div>
     <a href="{{ route('admin.entreprise.parametres') }}" style="white-space:nowrap; background:#D97706; color:#ffffff; border:none; padding:8px 14px; border-radius:8px; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-size:12.5px; transition: background .15s;" onmouseover="this.style.background='#B45309'" onmouseout="this.style.background='#D97706'">
-        <i class="fas fa-pen-to-square"></i> Compléter l'inscription complète
+        <i class="fas fa-pen-to-square"></i> Compléter l'inscription
     </a>
 </div>
 @endif

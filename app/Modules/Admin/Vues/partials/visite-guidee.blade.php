@@ -19,7 +19,7 @@
         [
             'cible'  => null,
             'titre'  => 'Bienvenue dans Selflow',
-            'texte'  => 'Prenez une minute : je vous montre les quatre endroits qui comptent. '
+            'texte'  => 'Prenez une minute : je vous montre les endroits qui comptent. '
                       . 'Vous pourrez revoir cette visite à tout moment depuis votre profil.',
         ],
         $aConfigurer ? [
@@ -156,6 +156,15 @@
         return el && (el.closest('.nav-groupe') || el.getClientRects().length > 0);
     });
     if (!visibles.length) return;
+
+    // Il ne reste parfois que l'accueil (un caissier, le superadministrateur) :
+    // annoncer « les endroits qui comptent » sur une visite d'une seule étape
+    // promettait une suite qui ne venait pas (recette du 08/10/2026).
+    if (visibles.length === 1 && !visibles[0].cible) {
+        visibles[0] = Object.assign({}, visibles[0], {
+            texte: 'Votre espace est prêt. Vous pourrez revoir cette visite à tout moment depuis votre profil.'
+        });
+    }
 
     // Sur téléphone, la barre latérale est hors écran : la visite l'ouvre
     // pour désigner une entrée du menu, puis la referme — sans quoi la main
