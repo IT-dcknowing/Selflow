@@ -78,7 +78,11 @@ class PointsDeVentePortailService
             'a_creer'   => count(array_filter($points, fn ($p) => $p['point_de_vente'] === null)),
             // Ce que Selflow porte et que le portail ne déclare pas : c'est de
             // là que viennent les refus sur `pointOfSale`.
-            'inconnus_du_portail' => $siens
+            //
+            // Sans relevé, on ne sait pas ce que le portail déclare : dire de
+            // chaque site qu'il lui est « inconnu » affirmait ce que personne
+            // n'a vérifié (recette du 08/10/2026).
+            'inconnus_du_portail' => count($declares) === 0 ? [] : $siens
                 ->reject(fn (PointDeVente $pdv) => in_array($pdv->id, $apparies, true))
                 ->values()
                 ->all(),

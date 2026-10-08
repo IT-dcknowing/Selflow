@@ -112,7 +112,7 @@
                         <div style="font-size: 11.5px; font-weight: 700; color: {{ $teinte }};" data-etat-fne="{{ $etatFne['code'] }}">{{ $etatFne['libelle'] }}</div>
                         @if($accesFourni)
                             <button type="button" class="btn btn-outline btn-sm" style="margin-top: 4px; padding: 3px 7px; font-size: 11px;"
-                                    onclick="ouvrirAccesFne({{ $ent->id }}, @js($ent->nom))">
+                                    onclick="ouvrirAccesFne(@js($ent->getRouteKey()), @js($ent->nom))">
                                 <i class="fas fa-key"></i> Voir les accès FNE
                             </button>
                         @endif

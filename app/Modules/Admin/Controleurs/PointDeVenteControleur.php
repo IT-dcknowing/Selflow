@@ -152,13 +152,13 @@ class PointDeVenteControleur
                 'lance'   => $lance,
                 'message' => $lance
                     ? 'Relevé du portail en cours.'
-                    : "Le scraper du portail est éteint sur ce serveur, ou l'entreprise n'a pas de NCC.",
+                    : "Le relevé automatique du portail est éteint sur ce serveur, ou l'entreprise n'a pas de NCC. Chargez un relevé exporté du portail.",
             ], $lance ? 200 : 409);
         }
 
         if (!$lance) {
             return back()->with('avertissement',
-                "Le relevé n'a pas pu être lancé : le scraper du portail est éteint sur ce "
+                "Le relevé n'a pas pu être lancé : le relevé automatique du portail est éteint sur ce "
                 . "serveur, ou l'entreprise n'a pas de NCC. Le passage nocturne reste en place."
             );
         }
