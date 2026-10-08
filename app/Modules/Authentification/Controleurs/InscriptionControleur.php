@@ -34,6 +34,18 @@ class InscriptionControleur
         // oublié pour autant : `estInscriptionComplete()` le signale, et le
         // garde `inscription.complete` retient ventes et achats tant que la
         // situation fiscale manque.
+        //
+        // Le NCC se met en majuscules **avant** la règle. Le champ s'affiche
+        // en majuscules (text-transform) : qui tapait « 2603210a » voyait
+        // « 2603210A » à l'écran, et se faisait refuser au motif que ce n'était
+        // pas « 7 chiffres ou lettres suivis d'une lettre ». Les paramètres le
+        // faisaient déjà ; l'inscription l'avait oublié (recette du 08/10/2026).
+        foreach (['ncc', 'fne_ncc'] as $champNcc) {
+            if ($request->filled($champNcc)) {
+                $request->merge([$champNcc => strtoupper(preg_replace('/\s+/', '', (string) $request->input($champNcc)))]);
+            }
+        }
+
         $request->validate([
             'nom_entreprise'      => ['required', 'string', 'max:150'],
             // La liste vivait ici, et n'était pas celle des autres écrans :

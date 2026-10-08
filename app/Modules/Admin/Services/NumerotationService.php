@@ -98,7 +98,12 @@ class NumerotationService
         $jjmmaa = now()->format('dmy');
         $debut = $prefixe . '-' . $jjmmaa . '-';
 
-        $compte = $modelClass::where('numero_facture', 'LIKE', $debut . '%')
+        // Sans le filtre de période de la session : il ne laissait compter que
+        // les pièces datées dans l'exercice affiché. Un achat saisi aujourd'hui
+        // mais daté de l'an dernier recevait ACH-jjmmaa-002, et la facture
+        // suivante du jour… ACH-jjmmaa-002 aussi (recette du 08/10/2026).
+        $compte = $modelClass::withoutGlobalScope(\App\Modules\Admin\Scopes\PeriodeScope::class)
+            ->where('numero_facture', 'LIKE', $debut . '%')
             ->whereHas('pointDeVente', function ($query) use ($entrepriseId) {
                 $query->where('entreprise_id', $entrepriseId);
             })
@@ -117,7 +122,8 @@ class NumerotationService
     {
         $annee = now()->year;
 
-        $compte = $modelClass::whereYear('created_at', $annee)
+        $compte = $modelClass::withoutGlobalScope(\App\Modules\Admin\Scopes\PeriodeScope::class)
+            ->whereYear('created_at', $annee)
             ->whereHas('pointDeVente', function ($query) use ($entrepriseId) {
                 $query->where('entreprise_id', $entrepriseId);
             })

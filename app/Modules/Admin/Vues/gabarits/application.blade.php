@@ -768,23 +768,36 @@
             @endif
         @elseif(request()->routeIs('caissier.*'))
             <!-- ── CAISSIER SIDEBAR ── -->
+            {{-- Chaque lien suit l'habilitation qu'exige sa route : un lien qui
+                 mène à « Accès refusé » n'a rien à faire dans la barre. --}}
+            @php $ouvre = fn (string $route) => \App\Modules\Authentification\Regles\Habilitations::ouvre(auth()->user(), $route); @endphp
+            @if($ouvre('caissier.ventes.nouvelle') || $ouvre('caissier.ventes.factures'))
             <div class="nav-section"><span>Caisse</span></div>
+            @endif
+            @if($ouvre('caissier.ventes.nouvelle'))
             <a href="{{ route('caissier.ventes.nouvelle') }}" class="nav-item {{ request()->routeIs('caissier.ventes.nouvelle') ? 'active' : '' }}">
                 <i class="fas fa-cash-register"></i> Nouvelle vente
             </a>
+            @endif
+            @if($ouvre('caissier.ventes.factures'))
             <a href="{{ route('caissier.ventes.factures') }}" class="nav-item {{ request()->routeIs('caissier.ventes.factures') ? 'active' : '' }}">
                 <i class="fas fa-file-invoice"></i> Mes factures
             </a>
+            @endif
 
+            @if($ouvre('caissier.stock.index'))
             <div class="nav-section"><span>Stock</span></div>
             <a href="{{ route('caissier.stock.index') }}" class="nav-item {{ request()->routeIs('caissier.stock.index') ? 'active' : '' }}">
                 <i class="fas fa-boxes-stacked"></i> Consulter stock
             </a>
+            @endif
 
+            @if($ouvre('caissier.tresorerie.encaissements'))
             <div class="nav-section"><span>Trésorerie</span></div>
             <a href="{{ route('caissier.tresorerie.encaissements') }}" class="nav-item {{ request()->routeIs('caissier.tresorerie.encaissements') ? 'active' : '' }}">
                 <i class="fas fa-arrow-down" style="color:#10b981;"></i> Mes encaissements
             </a>
+            @endif
         @else
             <!-- ── ADMIN SIDEBAR RESTUCTURÉ ── -->
             
@@ -1276,15 +1289,23 @@
                         </div>
                     </div>
                 </div>
+                {{-- Ces trois liens mènent à des écrans réservés aux
+                     administrateurs (`role:admin`) : un caissier n'y trouvait
+                     qu'« Accès refusé ». « Facturation » ouvrait d'ailleurs la
+                     même page que « Paramètres ». --}}
+                @php
+                    $espaceAdmin = in_array(auth()->user()->role, array_merge(['admin', 'superadmin'], \App\Modules\Authentification\Modeles\Utilisateur::ROLES_DELEGUES), true);
+                @endphp
+                @if($espaceAdmin && \App\Modules\Authentification\Regles\Habilitations::ouvre(auth()->user(), 'admin.mon_profil'))
                 <a href="{{ route('admin.mon_profil') }}" style="display:flex; align-items:center; gap:8px; padding:8px 14px; font-size:12.5px; color:var(--text); text-decoration:none; transition:background 0.15s;" onmouseover="this.style.background='#F1F5F9'" onmouseout="this.style.background='none'">
                     <i class="far fa-user" style="width:14px; color:var(--text-2);"></i> Mon profil
                 </a>
+                @endif
+                @if($espaceAdmin && \App\Modules\Authentification\Regles\Habilitations::ouvre(auth()->user(), 'admin.entreprise.parametres'))
                 <a href="{{ route('admin.entreprise.parametres') }}" style="display:flex; align-items:center; gap:8px; padding:8px 14px; font-size:12.5px; color:var(--text); text-decoration:none; transition:background 0.15s;" onmouseover="this.style.background='#F1F5F9'" onmouseout="this.style.background='none'">
                     <i class="fas fa-gear" style="width:14px; color:var(--text-2);"></i> Paramètres
                 </a>
-                <a href="{{ route('admin.entreprise.parametres') }}" style="display:flex; align-items:center; gap:8px; padding:8px 14px; font-size:12.5px; color:var(--text); text-decoration:none; transition:background 0.15s;" onmouseover="this.style.background='#F1F5F9'" onmouseout="this.style.background='none'">
-                    <i class="far fa-credit-card" style="width:14px; color:var(--text-2);"></i> Facturation
-                </a>
+                @endif
                 {{-- Revoir la visite guidée : un formulaire, pas un script, pour
                      qu'elle se relance même quand le JavaScript a échoué. --}}
                 <form method="POST" action="{{ route('admin.visite.rejouer') }}" style="margin:0;">
@@ -1422,12 +1443,12 @@
                 <span style="font-size:22px; line-height:1;">&#128640;</span>
                 <div style="flex:1; min-width:260px;">
                     <div style="font-weight:700; font-size:14px; color:#1E3A8A; margin-bottom:3px;">
-                        Configurez votre metier en cinq minutes
+                        Configurez votre métier en cinq minutes
                     </div>
                     <div style="font-size:13px; color:#1D4ED8; line-height:1.55;">
                         Selflow remplira votre catalogue, votre plan comptable et vos journaux
-                        a partir de votre activite. Il vous restera a saisir vos prix &mdash;
-                        eux seuls varient selon la zone et la periode, nous ne pouvons pas les deviner.
+                        à partir de votre activité. Il vous restera à saisir vos prix &mdash;
+                        eux seuls varient selon la zone et la période, nous ne pouvons pas les deviner.
                     </div>
                 </div>
                 <a href="{{ route('admin.souscription.index') }}"

@@ -537,6 +537,33 @@ class Habilitations
     }
 
     /**
+     * Cet utilisateur peut-il ouvrir cette route ?
+     *
+     * La même réponse que `VerifierHabilitationRoute`, pour les menus : la
+     * barre du caissier proposait « Mes factures », « Consulter stock » et
+     * « Mes encaissements » à qui n'en avait pas l'habilitation, et chaque
+     * clic finissait sur une page « Accès refusé » (recette du 08/10/2026).
+     */
+    public static function ouvre(?\App\Modules\Authentification\Modeles\Utilisateur $utilisateur, string $nomRoute): bool
+    {
+        if (!$utilisateur) {
+            return false;
+        }
+
+        if ($utilisateur->estSuperAdmin() || $utilisateur->estAdmin()) {
+            return true;
+        }
+
+        if (!self::estClassee($nomRoute)) {
+            return false;
+        }
+
+        $cle = self::pour($nomRoute);
+
+        return $cle === null || $utilisateur->aHabilitation($cle);
+    }
+
+    /**
      * La route est-elle classée, d'une façon ou d'une autre ?
      */
     public static function estClassee(string $nomRoute): bool

@@ -187,7 +187,7 @@
                     <i class="fas {{ $icone }}" style="font-size: 13px; color: #6C5CE7;"></i>
                 </div>
                 <div style="flex: 1;">
-                    <div style="font-size: 13px; font-weight: 700; color: var(--text-1); text-transform: capitalize;">{{ $module }}</div>
+                    <div style="font-size: 13px; font-weight: 700; color: var(--text-1); ">{{ \App\Modules\Admin\Modeles\Entreprise::libelleModule($module) }}</div>
                     <div style="font-size: 11px; color: var(--text-3);">{{ $count }} entreprise{{ $count > 1 ? 's' : '' }}</div>
                 </div>
                 <span style="background: var(--bg3); color: var(--primary); font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 20px;">{{ $count }}</span>
@@ -274,7 +274,7 @@
                         <div style="display: flex; gap: 3px; flex-wrap: wrap; max-width: 220px;">
                             @if($ent->modules_actifs)
                                 @foreach($ent->modules_actifs as $mod)
-                                    <span style="font-size: 10px; background: rgba(0,43,92,0.06); border: 1px solid rgba(0,43,92,0.12); color: var(--primary); padding: 2px 5px; border-radius: 4px; font-weight: 600; text-transform: uppercase;">{{ $mod }}</span>
+                                    <span style="font-size: 10px; background: rgba(0,43,92,0.06); border: 1px solid rgba(0,43,92,0.12); color: var(--primary); padding: 2px 5px; border-radius: 4px; font-weight: 600;">{{ \App\Modules\Admin\Modeles\Entreprise::libelleModule($mod) }}</span>
                                 @endforeach
                             @else
                                 <span style="font-size: 11px; color: var(--text-3);">—</span>

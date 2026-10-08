@@ -131,7 +131,7 @@ class VisiteGuideeTest extends TestCase
         $this->actingAs($this->admin)
             ->get(route('admin.tableau_de_bord'))
             ->assertOk()
-            ->assertSee('Configurez votre metier en cinq minutes')
+            ->assertSee('Configurez votre métier en cinq minutes')
             ->assertSee('saisir vos prix');
     }
 

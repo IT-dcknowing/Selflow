@@ -7575,6 +7575,48 @@ bouton « Livré » mène à la modale signée au lieu de poster un formulaire v
 `/home/user/Selflow`, `php artisan test` charge le code de Selflow ; lancer
 `php vendor/bin/phpunit`.
 
+---
+
+### Lot 61 — Recette « nouvelle entreprise de zéro » — **TERMINÉ le 08/10/2026**
+
+Parcours par l'interface sur une base neuve : inscription (les deux branches
+du compte FNE), souscription du métier, paramètres, points de vente,
+personnel, catalogue et import, stock, ventes / achats / production (refaits
+sur le code des lots 59-60), comptabilité, demandes Comptaflow et exercices
+antérieurs, écrans du superadministrateur. Corrigé :
+
+| Défaut | Correction |
+|---|---|
+| NCC tapé en minuscules refusé à l'inscription (affiché en majuscules) | mis en majuscules avant la règle |
+| « Comptaflow@if(…)…@endif » affiché en clair dans les paramètres | expression au lieu d'une directive collée |
+| `title=\"…\"` : HTML cassé sur les onze champs du portail ; adresse exigée sans astérisque | attribut réparé, astérisque |
+| Comptabilité accordée par la plateforme : case grisée mais **décochée** | cochée et verrouillée, comme l'annonce l'écran Attributions |
+| Caissier : « Mes factures », « Consulter stock », « Mes encaissements », « Mon profil », « Paramètres », « Facturation » menaient à « Accès refusé » | liens selon l'habilitation (`Habilitations::ouvre`) |
+| Bannière du tableau de bord : « Compléter l'inscription complète », sans dire quoi | liste ce qui manque |
+| Bannière de souscription et dialogue de déversement sans accents | accentués |
+| Visite d'une seule étape (caissier, superadmin) annonçant « les quatre endroits qui comptent » | texte adapté |
+| « Voir les accès FNE » : 404 (le numéro au lieu de l'uuid) | uuid |
+| Tableau de bord superadmin : « Comptabilite », « Points_de_vente » | libellés des modules |
+| Import xlsx : aperçu « [object Object] » (texte enrichi) | texte brut |
+| Import : produit fini sans prix d'achat, matière première sans prix de vente refusés (acceptés à l'écran) | acceptés ; la marchandise garde son prix d'achat obligatoire |
+| **Deux factures d'achat au même numéro** (`ACH-081026-002`) : le comptage subissait le filtre de période | comptage hors filtre de période |
+| Exercice antérieur accordé : rien ne partait quand la tâche tourne dans la requête, et une ligne partie restait « à déverser » | tâche et mises à jour hors filtre de période ; borne du 31 décembre |
+| Points de vente « inconnus du portail » sans aucun relevé ; « scraper » à l'écran | rien n'est affirmé sans relevé ; libellé |
+
+Laissé au propriétaire, faute d'être simple ou parce que d'autres y
+travaillent : **« J'ai déjà un compte FNE » grise l'adresse vide, que
+l'inscription exige — sans relevé du portail (scraper éteint par défaut),
+l'entreprise ne peut ni vendre ni acheter** (`ConnexionFneEtatTest` fixe le
+grisage) ; catégorie créée depuis la fiche article sans compte → aucune
+écriture de stock pour ses articles ; NCC d'un client B2G effacé sans mot ;
+listes de régimes des tiers fausses ; devis converti gardant « Payé » ; achat
+antidaté dont l'entrée en stock est datée du jour ; déversement d'un exercice
+antérieur annoncé avec les bornes de l'exercice actif ; `db:seed` qui tombe sur
+`DonneesInitialesSeeder` (comptes en double) après avoir tout vidé.
+
+- `tests/Feature/RecetteNouvelleEntrepriseTest.php` — 13 épreuves
+- Suite : 1 625 épreuves, 1 620 passantes, 5 sautées ; `verifier:variables` propre.
+
 
 ## 5 bis. La numérotation des comptes — tranché
 
