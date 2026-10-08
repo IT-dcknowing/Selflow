@@ -344,7 +344,17 @@ class ImportControleur
                     $cellIterator->setIterateOnlyExistingCells(false);
                     $rowData = [];
                     foreach ($cellIterator as $cell) {
-                        $rowData[] = $cell->getValue();
+                        $valeur = $cell->getValue();
+
+                        // Une cellule mise en forme (texte enrichi, ou chaîne
+                        // « en ligne » d'un fichier produit hors d'Excel) se
+                        // lit en objet : l'aperçu l'affichait « [object Object] »
+                        // dans chaque colonne de texte.
+                        if ($valeur instanceof \PhpOffice\PhpSpreadsheet\RichText\RichText) {
+                            $valeur = $valeur->getPlainText();
+                        }
+
+                        $rowData[] = $valeur;
                     }
                     if (count(array_filter($rowData, fn($v) => !is_null($v) && trim((string)$v) !== '')) > 0) {
                         $rows[] = $rowData;
@@ -674,13 +684,25 @@ class ImportControleur
         // un cabinet comptable, dont tous les articles sont des missions, ne
         // pouvait importer aucune ligne. La fiche article, elle, l'accepte
         // depuis toujours.
-        $estService = $type === 'service';
+        //
+        // **Un produit fini n'a pas de prix d'achat** : son coût vient de la
+        // production (journal, § coût de revient : « presque toujours nul »).
+        // **Une matière première ou un consommable ne se revend pas** : son
+        // prix de vente peut rester à zéro. La fiche article accepte les deux
+        // depuis toujours ; l'import les refusait, et le catalogue d'une
+        // boulangerie (farine, levure, baguette) ne passait pas
+        // (recette du 08/10/2026). La marchandise garde son prix d'achat
+        // obligatoire : il sert de premier coût au stock.
+        $sansPrixAchat = in_array($type, ['service', 'produit_fini'], true);
+        $sansPrixVente = in_array($type, ['matiere_premiere', 'consommable_stockable', 'consommable_non_stockable'], true);
 
-        if (!$estService && $prixAchat <= 0) {
+        if ($prixAchat < 0 || (!$sansPrixAchat && $prixAchat <= 0)) {
             return "Ligne {$num} : prix_achat doit être > 0 pour un article de type « {$type} ».";
         }
 
-        if ($prixVente <= 0) return "Ligne {$num} : prix_vente doit être > 0.";
+        if ($prixVente < 0 || (!$sansPrixVente && $prixVente <= 0)) {
+            return "Ligne {$num} : prix_vente doit être > 0 pour un article de type « {$type} ».";
+        }
 
         // **La famille et la sous-famille, par leur nom.**
         //
