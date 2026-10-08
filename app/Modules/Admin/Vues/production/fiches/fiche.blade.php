@@ -81,79 +81,56 @@
                             $details = old('ingredients', $fiche->details ?? []);
                         @endphp
 
-                        @if(count($details) > 0)
-                            @foreach($details as $index => $detail)
-                                @php
-                                    $detailObj = is_array($detail) ? (object)$detail : $detail;
-                                @endphp
-                                <div class="ingredient-row" id="row-{{ $index }}">
-                                    <div>
-                                        <label class="form-label" style="font-size:10px;">Ingrédient / Matière Première</label>
-                                        <select name="ingredients[{{ $index }}][ingredient_id]" class="form-control" required>
-                                            <option value="">Sélectionner un ingrédient...</option>
-                                            @foreach($ingredients as $ing)
-                                                <option value="{{ $ing->id }}" {{ $ing->id == $detailObj->ingredient_id ? 'selected' : '' }}>
-                                                    {{ $ing->nom }} ({{ $ing->reference }}) — Stock : {{ $ing->stock_actuel }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="form-label" style="font-size:10px;">Quantité requise</label>
-                                        <input type="number" step="0.0001" min="0.0001" name="ingredients[{{ $index }}][quantite]" value="{{ $detailObj->quantite }}" placeholder="Ex: 0.350" class="form-control" required>
-                                    </div>
-                                    <div>
-                                        <label class="form-label" style="font-size:10px;">Unité</label>
-                                        <select name="ingredients[{{ $index }}][unite]" class="form-control" required>
-                                            <option value="kg" {{ $detailObj->unite == 'kg' ? 'selected' : '' }}>kg</option>
-                                            <option value="g" {{ $detailObj->unite == 'g' ? 'selected' : '' }}>g</option>
-                                            <option value="l" {{ $detailObj->unite == 'l' ? 'selected' : '' }}>l</option>
-                                            <option value="ml" {{ $detailObj->unite == 'ml' ? 'selected' : '' }}>ml</option>
-                                            <option value="Unité" {{ $detailObj->unite == 'Unité' ? 'selected' : '' }}>Unité</option>
-                                        </select>
-                                    </div>
-                                    <div style="padding-top:20px;">
-                                        <button type="button" onclick="supprimerLigne({{ $index }})" class="btn-delete-row" title="Supprimer cet ingrédient">
-                                            <i class="fas fa-trash-alt"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            @endforeach
-                        @else
-                            {{-- Ligne par défaut pour démarrage --}}
-                            <div class="ingredient-row" id="row-0">
+                        @php
+                            // Une ligne vide pour démarrer une recette.
+                            if (count($details) === 0) {
+                                $details = [['ingredient_id' => null, 'quantite' => null, 'unite' => null]];
+                            }
+                            $parId = $ingredients->keyBy('id');
+                        @endphp
+
+                        @foreach($details as $index => $detail)
+                            @php
+                                $detailObj = is_array($detail) ? (object) $detail : $detail;
+                                $choisi = $parId->get((int) ($detailObj->ingredient_id ?? 0));
+                                // Seules les unités qui se convertissent dans l'unité de
+                                // stock de l'ingrédient : 200 g d'une farine stockée en kg,
+                                // jamais des litres.
+                                $unites = $choisi ? $choisi->unites_compatibles : [];
+                            @endphp
+                            <div class="ingredient-row" id="row-{{ $index }}">
                                 <div>
                                     <label class="form-label" style="font-size:10px;">Ingrédient / Matière Première</label>
-                                    <select name="ingredients[0][ingredient_id]" class="form-control" required>
+                                    <select name="ingredients[{{ $index }}][ingredient_id]" class="form-control" required onchange="majUnites(this)">
                                         <option value="">Sélectionner un ingrédient...</option>
                                         @foreach($ingredients as $ing)
-                                            <option value="{{ $ing->id }}">
-                                                {{ $ing->nom }} ({{ $ing->reference }}) — Stock : {{ $ing->stock_actuel }}
+                                            <option value="{{ $ing->id }}" data-unites='@json($ing->unites_compatibles)' {{ $ing->id == $detailObj->ingredient_id ? 'selected' : '' }}>
+                                                {{ $ing->nom }} ({{ $ing->reference }}) — Stock : {{ $ing->stock_actuel }} {{ $ing->unite }}
                                             </option>
                                         @endforeach
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="form-label" style="font-size:10px;">Quantité requise</label>
-                                    <input type="number" step="0.0001" min="0.0001" name="ingredients[0][quantite]" placeholder="Ex: 0.350" class="form-control" required>
+                                    <label class="form-label" style="font-size:10px;">Quantité requise (pour 1 unité produite)</label>
+                                    <input type="number" step="0.0001" min="0.0001" name="ingredients[{{ $index }}][quantite]" value="{{ $detailObj->quantite }}" placeholder="Ex: 0.350" class="form-control" required>
                                 </div>
                                 <div>
                                     <label class="form-label" style="font-size:10px;">Unité</label>
-                                    <select name="ingredients[0][unite]" class="form-control" required>
-                                        <option value="kg">kg</option>
-                                        <option value="g">g</option>
-                                        <option value="l">l</option>
-                                        <option value="ml">ml</option>
-                                        <option value="Unité" selected>Unité</option>
+                                    <select name="ingredients[{{ $index }}][unite]" class="form-control unite-select" required>
+                                        @forelse($unites as $u)
+                                            <option value="{{ $u }}" {{ $detailObj->unite == $u ? 'selected' : '' }}>{{ $u }}</option>
+                                        @empty
+                                            <option value="">—</option>
+                                        @endforelse
                                     </select>
                                 </div>
                                 <div style="padding-top:20px;">
-                                    <button type="button" onclick="supprimerLigne(0)" class="btn-delete-row" title="Supprimer cet ingrédient">
+                                    <button type="button" onclick="supprimerLigne({{ $index }})" class="btn-delete-row" title="Supprimer cet ingrédient">
                                         <i class="fas fa-trash-alt"></i>
                                     </button>
                                 </div>
                             </div>
-                        @endif
+                        @endforeach
                     </div>
 
                     <button type="button" onclick="ajouterLigne()" class="btn btn-outline" style="margin-top:8px;">
@@ -191,7 +168,16 @@
                                 </select>
                             </div>
                             <div id="inputProduitContainer" style="display:none;">
-                                <input type="text" name="nouveau_produit_fini_nom" id="nouveauProduitInput" class="form-control" placeholder="Nom du nouveau produit fini à créer...">
+                                <input type="text" name="nouveau_produit_fini_nom" id="nouveauProduitInput" class="form-control" placeholder="Nom du nouveau produit fini à créer..." value="{{ old('nouveau_produit_fini_nom') }}">
+                                <select name="nouveau_produit_fini_categorie_id" class="form-control" style="margin-top:8px;" title="Le rayon donne au produit sa référence et ses comptes">
+                                    <option value="">Rayon : celui des produits finis existants</option>
+                                    @foreach($categories ?? [] as $cat)
+                                        <option value="{{ $cat->id }}" {{ old('nouveau_produit_fini_categorie_id') == $cat->id ? 'selected' : '' }}>Rayon : {{ $cat->nom }}</option>
+                                    @endforeach
+                                </select>
+                                <div style="font-size:11px; color:var(--text-3); margin-top:6px;">
+                                    Si un produit fini porte déjà ce nom, la recette lui est rattachée ; sinon il est créé.
+                                </div>
                             </div>
                         @else
                             <input type="text" class="form-control" value="{{ $fiche->produitFini->nom }} ({{ $fiche->produitFini->reference }})" disabled>
@@ -223,7 +209,8 @@
         
         let selectOptions = '<option value="">Sélectionner un ingrédient...</option>';
         ingredientsData.forEach(ing => {
-            selectOptions += `<option value="${ing.id}">${ing.nom} (${ing.reference}) — Stock : ${ing.stock_actuel}</option>`;
+            const unites = JSON.stringify(ing.unites_compatibles || []).replace(/'/g, '&#39;');
+            selectOptions += `<option value="${ing.id}" data-unites='${unites}'>${ing.nom} (${ing.reference}) — Stock : ${ing.stock_actuel} ${ing.unite || ''}</option>`;
         });
 
         const newRow = document.createElement('div');
@@ -232,22 +219,18 @@
         newRow.innerHTML = `
             <div>
                 <label class="form-label" style="font-size:10px;">Ingrédient / Matière Première</label>
-                <select name="ingredients[${rowIndex}][ingredient_id]" class="form-control" required>
+                <select name="ingredients[${rowIndex}][ingredient_id]" class="form-control" required onchange="majUnites(this)">
                     ${selectOptions}
                 </select>
             </div>
             <div>
-                <label class="form-label" style="font-size:10px;">Quantité requise</label>
+                <label class="form-label" style="font-size:10px;">Quantité requise (pour 1 unité produite)</label>
                 <input type="number" step="0.0001" min="0.0001" name="ingredients[${rowIndex}][quantite]" placeholder="Ex: 0.350" class="form-control" required>
             </div>
             <div>
                 <label class="form-label" style="font-size:10px;">Unité</label>
-                <select name="ingredients[${rowIndex}][unite]" class="form-control" required>
-                    <option value="kg">kg</option>
-                    <option value="g">g</option>
-                    <option value="l">l</option>
-                    <option value="ml">ml</option>
-                    <option value="Unité" selected>Unité</option>
+                <select name="ingredients[${rowIndex}][unite]" class="form-control unite-select" required>
+                    <option value="">—</option>
                 </select>
             </div>
             <div style="padding-top:20px;">
@@ -259,6 +242,24 @@
 
         container.appendChild(newRow);
         rowIndex++;
+    }
+
+    // Les unités proposées suivent l'ingrédient choisi : son unité de stock
+    // et ses équivalentes, rien d'autre.
+    function majUnites(select) {
+        const row = select.closest('.ingredient-row');
+        const uniteSelect = row ? row.querySelector('.unite-select') : null;
+        if (!uniteSelect) return;
+        const option = select.options[select.selectedIndex];
+        let unites = [];
+        try { unites = JSON.parse(option && option.dataset.unites ? option.dataset.unites : '[]'); } catch (e) { unites = []; }
+        const actuelle = uniteSelect.value;
+        uniteSelect.innerHTML = '';
+        if (unites.length === 0) {
+            uniteSelect.add(new Option('—', ''));
+            return;
+        }
+        unites.forEach(u => uniteSelect.add(new Option(u, u, false, u === actuelle)));
     }
 
     function supprimerLigne(index) {

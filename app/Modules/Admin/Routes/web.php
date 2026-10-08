@@ -403,7 +403,10 @@ Route::prefix('admin')
                 Route::get('/', [ProductionControleur::class, 'indexOrdres'])->name('index');
                 Route::get('/creer', [ProductionControleur::class, 'creerOrdre'])->name('creer');
                 Route::post('/creer', [ProductionControleur::class, 'enregistrerOrdre'])->name('enregistrer');
+                Route::get('/{ordre}', [ProductionControleur::class, 'voirOrdre'])->name('voir');
+                Route::get('/{ordre}/imprimer', [ProductionControleur::class, 'imprimerOrdre'])->name('imprimer');
                 Route::post('/{ordre}/valider', [ProductionControleur::class, 'validerOrdre'])->name('valider');
+                Route::post('/{ordre}/annuler', [ProductionControleur::class, 'annulerOrdre'])->name('annuler');
             });
         });
 

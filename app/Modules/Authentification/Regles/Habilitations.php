@@ -402,6 +402,10 @@ class Habilitations
         'admin.production.ordres.creer'                          => 'production_ordres',
         'admin.production.ordres.enregistrer'                    => 'production_ordres',
         'admin.production.ordres.valider'                        => 'production_ordres',
+        // L'annulation défait ce que la validation a fait : même habilitation.
+        'admin.production.ordres.annuler'                        => 'production_ordres',
+        'admin.production.ordres.voir'                           => 'production_ordres',
+        'admin.production.ordres.imprimer'                       => 'production_ordres',
 
         // ── B2B ──
         'admin.b2b.negociations.client'      => 'nouvel_achat',

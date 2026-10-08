@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
-@section('titre', 'Lancer une Production')
-@section('topbar_titre', 'Production — Lancer')
+@section('titre', 'Nouvel ordre de production')
+@section('topbar_titre', 'Production — Nouvel ordre')
 
 @section('styles')
 <style>
@@ -36,13 +36,23 @@
 @section('contenu')
 <div class="page-header">
     <div>
-        <h1><i class="fas fa-industry" style="color:var(--primary); margin-right:8px;"></i> Lancer un Ordre de Production</h1>
+        <h1><i class="fas fa-industry" style="color:var(--primary); margin-right:8px;"></i> Nouvel ordre de production</h1>
         <p>Déterminez la quantité à fabriquer et vérifiez la disponibilité des composants en temps réel.</p>
     </div>
     <a href="{{ route('admin.production.ordres.index') }}" class="btn btn-outline">
         <i class="fas fa-arrow-left"></i> Retour
     </a>
 </div>
+
+@if($errors->any())
+    <div class="alert alert-danger" style="margin-bottom:20px;">
+        <ul style="margin:0; padding-left:20px;">
+            @foreach($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
 
 <form method="POST" action="{{ route('admin.production.ordres.enregistrer') }}" id="production-form">
     @csrf
@@ -62,7 +72,7 @@
                             <select name="produit_fini_id" id="produit_fini_id" class="form-control" required onchange="mettreAJourBesoins()">
                                 <option value="">Choisir un produit fini...</option>
                                 @foreach($produitsFini as $pf)
-                                    <option value="{{ $pf->id }}">
+                                    <option value="{{ $pf->id }}" {{ old('produit_fini_id') == $pf->id ? 'selected' : '' }}>
                                         {{ $pf->nom }} ({{ $pf->reference }})
                                     </option>
                                 @endforeach
@@ -74,7 +84,7 @@
                             <select name="point_de_vente_id" id="point_de_vente_id" class="form-control" required onchange="mettreAJourBesoins()">
                                 <option value="">Choisir le site...</option>
                                 @foreach($pdvs as $pdv)
-                                    <option value="{{ $pdv->id }}" {{ session('point_de_vente_actif_id') == $pdv->id ? 'selected' : '' }}>
+                                    <option value="{{ $pdv->id }}" {{ (int) old('point_de_vente_id', $siteActif) === $pdv->id ? 'selected' : '' }}>
                                         {{ $pdv->nom }}
                                     </option>
                                 @endforeach
@@ -85,12 +95,12 @@
                     <div class="form-grid-2" style="margin-top:16px;">
                         <div class="form-group">
                             <label class="form-label">Quantité cible</label>
-                            <input type="number" step="0.0001" min="0.0001" name="quantite_cible" id="quantite_cible" placeholder="Quantité à produire" class="form-control" required oninput="mettreAJourBesoins()">
+                            <input type="number" step="0.001" min="0.001" name="quantite_cible" id="quantite_cible" value="{{ old('quantite_cible') }}" placeholder="Quantité à produire" class="form-control" required oninput="mettreAJourBesoins()">
                         </div>
 
                         <div class="form-group">
                             <label class="form-label">Date de Production</label>
-                            <input type="date" name="date_production" value="{{ now()->toDateString() }}" class="form-control" required>
+                            <input type="date" name="date_production" value="{{ old('date_production', now()->toDateString()) }}" class="form-control" required>
                         </div>
                     </div>
 
@@ -122,6 +132,7 @@
 
 <script>
     const produitsFini = @json($produitsFini);
+    document.addEventListener('DOMContentLoaded', mettreAJourBesoins);
 
     function mettreAJourBesoins() {
         const pfId = document.getElementById('produit_fini_id').value;
@@ -152,7 +163,16 @@
         let stockOk = true;
 
         details.forEach(d => {
-            const besoinTotal = d.quantite * qteCible;
+            // Le besoin se compte dans l'unité de stock de l'ingrédient, à la
+            // précision du stock (3 décimales) — comme à la validation.
+            const facteur = d.facteur_stock;
+            const uniteStock = d.unite_stock;
+            if (facteur === null || facteur === undefined) {
+                stockOk = false;
+                listDiv.innerHTML += `<div class="besoin-card" style="border-left: 4px solid var(--danger);"><div><strong style="font-size:12.5px;">${d.ingredient ? d.ingredient.nom : '?'}</strong><div style="font-size:11px; color:var(--danger);">L'unité « ${d.unite} » de la recette ne se convertit pas en ${uniteStock}.</div></div></div>`;
+                return;
+            }
+            const besoinTotal = Math.round(parseFloat(d.quantite) * facteur * qteCible * 1000) / 1000;
             
             // Retrouver le stock de l'ingrédient sur le point de vente
             let dispo = 0;
@@ -164,7 +184,7 @@
                 }
             }
 
-            const isInsuffisant = dispo < besoinTotal;
+            const isInsuffisant = Math.round(dispo * 1000) < Math.round(besoinTotal * 1000);
             if (isInsuffisant) {
                 stockOk = false;
             }
@@ -174,7 +194,7 @@
                     <div>
                         <strong style="font-size:12.5px; color:var(--text);">${ingredient.nom}</strong>
                         <div style="font-size:11px; color:var(--text-2); margin-top:2px;">
-                            Besoin : <strong>${besoinTotal.toFixed(2)} ${d.unite}</strong> · Stock : ${dispo.toFixed(2)} ${d.unite}
+                            Besoin : <strong>${besoinTotal.toFixed(3)} ${uniteStock}</strong> · Stock : ${dispo.toFixed(3)} ${uniteStock}
                         </div>
                     </div>
                     <div>
