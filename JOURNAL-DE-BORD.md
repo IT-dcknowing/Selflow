@@ -7411,6 +7411,77 @@ qui se font au déploiement, et la suite du 10.4, qui attend le propriétaire.
 
 ---
 
+### Lot 57 — Migration du transport : les lignes orphelines — **TERMINÉ le 07/10/2026**
+
+Sur la base du propriétaire (MySQL de Laragon), la migration du 07/10 tombait
+en 1452 : changer le type des quantités fait reconstruire la table, et MySQL
+revérifie alors toutes les clés — une ligne de bon pointait vers un produit
+disparu. Le changement de type se fait clés suspendues ; les lignes ne sont
+pas touchées. Vérifié sur MariaDB et MySQL 8.0 (premier passage, relance après
+échec, retour arrière).
+
+---
+
+### Lot 58 — Retours du propriétaire du 08/10/2026 — **TERMINÉ le 08/10/2026**
+
+| Demande | Ce qui est fait |
+|---|---|
+| Note de l'écran « Nouvel achat » | ne paraît que comptabilité ouverte |
+| « Je tiens ma comptabilité dans Selflow… Refermer ne supprime rien » | « Je tiens ma comptabilité » ; le texte dit que la comptabilité se tient dans Comptaflow |
+| Le mot API dans les textes fiscaux | remplacé par clé de connexion / système de la DGI |
+| Numérotation des tiers | masquée comptabilité fermée (numéro par défaut) ; le texte ne prétend plus dicter un réglage à Comptaflow |
+| Configuration des comptes | déjà masquée comptabilité fermée (route sous `comptabilite`, lien et champs du produit sous condition) |
+| Logo | logo officiel partout (barre, pages d'entrée, vitrine) et icône du navigateur |
+
+**Compte FNE** — `Entreprise::etatConnexionFne()` : établie (clé de production),
+en test (clé de test), en cours (accès reçus), création du compte en cours
+(informations fiscales complètes), ou ce qui reste à saisir. Une question réglée
+à l'inscription ne se repose plus dans les paramètres : la carte n'affiche que
+l'état. « J'ai déjà un compte » grise les onze champs que le relevé du portail
+ramène ; `SynchronisationPortailFneService` les reprend après chaque relevé et
+chaque enregistrement (timbre, BAPA, seuil des stickers exclus : ils restent au
+superadmin). Superadmin : colonne « Compte FNE » et bouton « Voir les accès FNE »
+derrière son mot de passe. **Défaut évité** : la page des entreprises encode
+chaque entreprise en JSON ; le mot de passe FNE est désormais caché à toute
+sérialisation (épreuve vérifiée au retrait).
+
+**Exercices antérieurs** — l'entreprise demande, exercice par exercice ; le
+superadmin accorde une sélection parmi les années demandées, ou refuse. Le
+déversement de l'historique n'envoie que l'exercice en cours et les exercices
+accordés. **Défaut corrigé en chemin** : les écritures portent un filtre par
+période, et « Déverser tout l'historique » ne voyait que la période affichée.
+
+- `ConnexionFneEtatTest` (11), `ExercicesAnterieursTest` (5), `LogoSelflowTest` (3)
+- Suite : 1 529 épreuves, 1 524 passantes, 5 sautées ; `verifier:variables` propre.
+
+---
+
+### Recette du 08/10/2026 — constats, rien corrigé
+
+Demandée par le propriétaire : « fais des tests et reviens-moi ». Les épreuves
+écrites décrivent le comportement attendu ; elles ne sont pas versées dans la
+suite (elles échouent par construction tant que le défaut vit).
+
+**Cycle vente / achat** — 32 épreuves, 7 passent. Les plus graves :
+« Valider & Facturer » sur un BC déjà livré ressort tout le stock ; un BC
+facturé par son BL se refacture (3 factures possibles) ; la file du stock passe
+un BC en « Facture / Payé » sans facture ni écriture ; un avoir s'établit sur un
+devis ou un BC ; facturer après une réception partielle fait entrer le stock
+deux fois ; la facture d'un BL ignore la remise globale ; facturer un BL
+partiel encaisse le TTC du BC entier ; le ticket lit un BL d'une autre
+entreprise. Le chemin nominal liste → BL → facture est juste.
+
+**Production** — 32 épreuves, 17 passent. Le cas nominal (recette, ordre,
+stock, coût de revient, écritures) est juste. Les plus graves : l'unité de la
+recette n'est jamais convertie (200 g lus 200 kg) ; un ordre « Annulé » se
+valide et l'annulation n'existe pas ; deux erreurs 500 (besoin sous la
+précision du stock, ingrédient en double) ; un stock exactement suffisant est
+refusé par un arrondi flottant.
+
+Les rapports complets sont dans la réponse du 08/10 ; les corrections attendent
+l'accord du propriétaire (certaines changent ce qui part à la DGI).
+
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
