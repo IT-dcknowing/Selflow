@@ -179,6 +179,7 @@ class StockControleur
             'ventes'      => MouvementStock::LIVRAISON,
             'transferts'  => MouvementStock::TRANSFERT,
             'rebuts'      => MouvementStock::REBUT,
+            'entrees'     => MouvementStock::ENTREE_DIVERSE,
         ];
 
         if (isset($motifs[$section])) {
@@ -318,6 +319,119 @@ class StockControleur
         return PointDeVente::where('id', $demande)
             ->where('entreprise_id', Auth::user()->entreprise_id)
             ->value('id');
+    }
+
+    /**
+     * L'écran d'entrée de stock : réapprovisionner sans achat saisi.
+     *
+     * Jusqu'ici, de la marchandise arrivée sans facture d'achat n'avait que
+     * l'inventaire physique pour entrer : un « écart » qui n'en était pas un,
+     * valorisé au coût moyen du moment et non à ce qu'elle a coûté. Ici, elle
+     * entre avec sa raison et son coût réel, et le CUMP (Coût Unitaire Moyen
+     * Pondéré) se recalcule comme pour une réception.
+     */
+    public function entree(Request $request): View
+    {
+        $entreprise = Auth::user()->entreprise;
+        $pointDeVenteId = $this->siteDeTravail($request);
+
+        $produits = Produit::where('entreprise_id', $entreprise->id)
+            ->whereIn('type', Produit::TYPES_STOCKABLES)
+            ->visiblesEnStock()
+            ->with(['stocks' => fn ($q) => $pointDeVenteId
+                ? $q->where('point_de_vente_id', $pointDeVenteId)
+                : $q->whereRaw('1 = 0')])
+            ->orderBy('nom')
+            ->get();
+
+        $pointsDeVente = $entreprise->pointsDeVente()->orderBy('nom')->get();
+
+        $dernieres = MouvementStock::with(['produit', 'pointDeVente', 'utilisateur'])
+            ->where('sous_type', MouvementStock::ENTREE_DIVERSE)
+            ->whereHas('pointDeVente', fn ($q) => $q->where('entreprise_id', $entreprise->id))
+            ->latest('id')
+            ->limit(20)
+            ->get();
+
+        return view('admin::stock.entree', compact('produits', 'pointDeVenteId', 'pointsDeVente', 'dernieres'));
+    }
+
+    /**
+     * Enregistrer une entrée de stock : une ou plusieurs lignes, une raison.
+     *
+     * Le coût est exigé et strictement positif. Un coût oublié — zéro — ferait
+     * chuter le coût moyen de tout le stock en place, et la marge de chaque
+     * vente suivante serait fausse sans que rien ne le montre. Un don se porte
+     * à sa valeur estimée.
+     */
+    public function enregistrerEntree(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $donnees = $request->validate([
+            'point_de_vente_id'      => ['required', 'integer', Appartenance::a('points_de_vente', 'id')],
+            'raison_entree'          => ['required', 'string', 'in:' . implode(',', array_keys(MouvementStock::RAISONS_ENTREE))],
+            'commentaire'            => ['nullable', 'string', 'max:255', 'required_if:raison_entree,autre'],
+            'lignes'                 => ['required', 'array', 'min:1'],
+            'lignes.*.produit_id'    => ['required', 'integer', Appartenance::a('produits', 'id')],
+            'lignes.*.quantite'      => Quantite::physique(),
+            'lignes.*.cout_unitaire' => ['required', 'numeric', 'gt:0', 'max:999999999'],
+        ], [
+            'commentaire.required_if'        => 'Précisez la raison de l\'entrée quand vous choisissez « Autre ».',
+            'lignes.required'                => 'Ajoutez au moins un article.',
+            'lignes.*.produit_id.required'   => 'Choisissez l\'article de chaque ligne.',
+            'lignes.*.cout_unitaire.required' => 'Indiquez le coût unitaire de chaque ligne.',
+            'lignes.*.cout_unitaire.gt'      => 'Le coût unitaire doit être supérieur à zéro (pour un don, sa valeur estimée).',
+        ]);
+
+        $entreprise = Auth::user()->entreprise;
+
+        $site = PointDeVente::where('id', $donnees['point_de_vente_id'])
+            ->where('entreprise_id', $entreprise->id)
+            ->firstOrFail();
+
+        $produits = Produit::where('entreprise_id', $entreprise->id)
+            ->whereIn('id', collect($donnees['lignes'])->pluck('produit_id'))
+            ->get()
+            ->keyBy('id');
+
+        $reference = 'ENT-' . now()->format('YmdHis');
+        $entrees = 0;
+
+        DB::transaction(function () use ($donnees, $produits, $site, $reference, &$entrees) {
+            foreach ($donnees['lignes'] as $ligne) {
+                $produit = $produits->get((int) $ligne['produit_id']);
+
+                // Une prestation n'a pas de stock : le service ne la
+                // mouvemente pas, et l'annoncer entrée serait faux.
+                if (!$produit || !$produit->estStockable()) {
+                    continue;
+                }
+
+                $mouvement = StockService::entree(
+                    $produit,
+                    (int) $site->id,
+                    round((float) $ligne['quantite'], Stock::DECIMALES),
+                    MouvementStock::ENTREE_DIVERSE,
+                    [
+                        'reference'     => $reference,
+                        'cout_unitaire' => (float) $ligne['cout_unitaire'],
+                        'raison_entree' => $donnees['raison_entree'],
+                        'commentaire'   => $donnees['commentaire'] ?? null,
+                    ]
+                );
+
+                $entrees += $mouvement ? 1 : 0;
+            }
+        });
+
+        if ($entrees === 0) {
+            return back()->withInput()->with('erreur', 'Aucun article stockable dans cette entrée : rien n\'a été enregistré.');
+        }
+
+        $this->journaliser('entree_stock', 'PointDeVente', $site->id);
+
+        return redirect()
+            ->route('admin.stock.entree', ['point_de_vente_id' => $site->id])
+            ->with('succes', "Entrée {$reference} enregistrée : {$entrees} article(s) sur « {$site->nom} ». Le coût moyen est recalculé.");
     }
 
     /**

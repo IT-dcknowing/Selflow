@@ -41,7 +41,7 @@ class StockService
      * Faire entrer de la marchandise.
      *
      * @param  string  $motif  une des constantes de `MouvementStock`
-     * @param  array{piece?: Model, reference?: string, fournisseur_id?: int, client_id?: int, contrepartie_id?: int, utilisateur_id?: int, contrepasse_id?: int}  $contexte
+     * @param  array{piece?: Model, reference?: string, fournisseur_id?: int, client_id?: int, contrepartie_id?: int, utilisateur_id?: int, contrepasse_id?: int, cout_unitaire?: float, raison_entree?: string, commentaire?: string}  $contexte
      */
     public static function entree(
         Produit $produit,
@@ -288,6 +288,8 @@ class StockService
                 'piece_type'                     => $piece?->getMorphClass(),
                 'piece_id'                       => $piece?->getKey(),
                 'contrepasse_id'                 => $contexte['contrepasse_id'] ?? null,
+                'raison_entree'                  => $contexte['raison_entree'] ?? null,
+                'commentaire'                    => $contexte['commentaire'] ?? null,
             ]);
 
             // L'inventaire permanent, c'est cela : le stock se met a jour en

@@ -56,12 +56,34 @@ class MouvementStock extends Model
      */
     public const STOCK_INITIAL          = 'stock_initial';
 
+    /**
+     * Marchandise qui arrive sans achat saisi : achat sans facture, retour,
+     * don. Elle entre à son coût réel, et la raison est dans `raison_entree`.
+     */
+    public const ENTREE_DIVERSE         = 'entree_diverse';
+
+    /**
+     * Les raisons d'une entrée de stock, et leur libellé.
+     *
+     * Le retour d'un client sur une facture passe par l'avoir, qui remet la
+     * marchandise en stock tout seul : celui-ci est le retour sans pièce — un
+     * dépôt rendu, un prêt revenu.
+     *
+     * @var array<string, string>
+     */
+    public const RAISONS_ENTREE = [
+        'achat_sans_facture' => 'Achat sans facture',
+        'retour'             => 'Retour de marchandise',
+        'don'                => 'Don reçu',
+        'autre'              => 'Autre',
+    ];
+
     /** @var array<int, string> */
     public const MOTIFS = [
         self::RECEPTION, self::RETOUR_CLIENT, self::RETOUR_FOURNISSEUR,
         self::LIVRAISON, self::TRANSFERT, self::REBUT,
         self::INVENTAIRE, self::PRODUCTION_ENTREE, self::PRODUCTION_CONSOMMATION,
-        self::CONTREPASSATION, self::STOCK_INITIAL,
+        self::CONTREPASSATION, self::STOCK_INITIAL, self::ENTREE_DIVERSE,
     ];
 
     protected $fillable = [
@@ -69,6 +91,7 @@ class MouvementStock extends Model
         'point_de_vente_id',
         'type_mouvement',
         'sous_type',
+        'raison_entree',
         'point_de_vente_contrepartie_id',
         'utilisateur_id',
         'fournisseur_id',
@@ -79,6 +102,7 @@ class MouvementStock extends Model
         'cout_unitaire',
         'cump_apres',
         'reference_document',
+        'commentaire',
         'piece_type',
         'piece_id',
         'contrepasse_id',
@@ -111,7 +135,7 @@ class MouvementStock extends Model
     private const IMMUABLES = [
         'produit_id', 'point_de_vente_id', 'type_mouvement', 'sous_type',
         'quantite', 'stock_avant', 'stock_apres', 'piece_type', 'piece_id',
-        'cout_unitaire', 'cump_apres',
+        'cout_unitaire', 'cump_apres', 'raison_entree',
     ];
 
     protected static function booted(): void

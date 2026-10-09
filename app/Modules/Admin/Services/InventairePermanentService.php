@@ -151,9 +151,17 @@ class InventairePermanentService
             MouvementStock::PRODUCTION_ENTREE      => 'Entrée de production',
             MouvementStock::PRODUCTION_CONSOMMATION => 'Consommation de production',
             MouvementStock::CONTREPASSATION        => 'Contre-passation',
+            MouvementStock::STOCK_INITIAL          => 'Stock d\'ouverture',
+            MouvementStock::ENTREE_DIVERSE         => 'Entrée de stock',
         ];
 
         $motif = $motifs[$mouvement->sous_type] ?? 'Mouvement de stock';
+
+        // L'entrée diverse dit sa raison au grand livre : un don et un achat
+        // sans facture n'appellent pas la même régularisation.
+        if ($mouvement->raison_entree && isset(MouvementStock::RAISONS_ENTREE[$mouvement->raison_entree])) {
+            $motif .= ' (' . mb_strtolower(MouvementStock::RAISONS_ENTREE[$mouvement->raison_entree]) . ')';
+        }
 
         return mb_substr("{$motif} — {$nomProduit}", 0, 190);
     }

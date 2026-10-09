@@ -145,6 +145,10 @@ Route::prefix('admin')
             Route::post('/inventaire', [StockControleur::class, 'enregistrerInventaire'])->name('inventaire.enregistrer');
             Route::post('/rebut', [StockControleur::class, 'retirerRebut'])->name('rebut.retirer');
 
+            // Entrée de stock sans achat saisi : achat sans facture, retour, don.
+            Route::get('/entree', [StockControleur::class, 'entree'])->name('entree');
+            Route::post('/entree', [StockControleur::class, 'enregistrerEntree'])->name('entree.enregistrer');
+
             // Réceptions (Achats)
             Route::get('/receptions', [StockControleur::class, 'receptions'])->name('receptions');
             Route::get('/receptions/{achat}', [StockControleur::class, 'ficheReception'])->name('receptions.fiche');

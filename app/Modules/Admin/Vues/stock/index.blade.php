@@ -9,6 +9,9 @@
         <p>{{ $produits->count() }} produit(s) au catalogue</p>
     </div>
     <div style="display:flex; gap:10px;">
+        <a href="{{ route('admin.stock.entree') }}" class="btn btn-primary">
+            <i class="fas fa-dolly"></i> Entrée de stock
+        </a>
         <a href="{{ route('admin.stock.rebut') }}" class="btn btn-outline" style="color:var(--danger); border-color:var(--danger);">
             <i class="fas fa-trash-can"></i> Page Rebut
         </a>

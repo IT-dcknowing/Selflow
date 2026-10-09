@@ -22,6 +22,7 @@
             'achats'      => ['label' => 'Réceptions (Achats)', 'icon' => 'fa-truck-loading'],
             'ventes'      => ['label' => 'Livraisons (Ventes)', 'icon' => 'fa-dolly'],
             'transferts'  => ['label' => 'Transferts Internes',  'icon' => 'fa-exchange-alt'],
+            'entrees'     => ['label' => 'Entrées de stock',     'icon' => 'fa-dolly'],
             'rebuts'      => ['label' => 'Rebuts & Pertes',     'icon' => 'fa-trash-can'],
         ];
     @endphp
@@ -74,6 +75,8 @@
                                 Mvt::PRODUCTION_ENTREE       => ['bg' => '#f5f3ff', 'color' => '#6d28d9', 'label' => 'Production'],
                                 Mvt::PRODUCTION_CONSOMMATION => ['bg' => '#f5f3ff', 'color' => '#6d28d9', 'label' => 'Consommation'],
                                 Mvt::CONTREPASSATION         => ['bg' => '#fffbeb', 'color' => '#92400e', 'label' => 'Contre-passation'],
+                                Mvt::STOCK_INITIAL           => ['bg' => '#ecfdf5', 'color' => '#047857', 'label' => 'Stock d\'ouverture'],
+                                Mvt::ENTREE_DIVERSE          => ['bg' => '#ecfdf5', 'color' => '#047857', 'label' => 'Entrée de stock'],
                             ];
                             $sc = $subColors[$m->sous_type] ?? ['bg' => '#f3f4f6', 'color' => '#374151', 'label' => $m->type_mouvement];
                         @endphp
@@ -111,6 +114,8 @@
                             @else
                                 <i class="fas fa-arrow-right-from-bracket" style="color:var(--danger); font-size:11px;"></i> Vers: <strong>{{ $m->pointDeVenteContrepartie->nom ?? 'Autre site' }}</strong>
                             @endif
+                        @elseif($m->sous_type === Mvt::ENTREE_DIVERSE)
+                            {{ Mvt::RAISONS_ENTREE[$m->raison_entree] ?? 'Entrée de stock' }}@if($m->commentaire) — {{ $m->commentaire }}@endif
                         @elseif($m->sous_type === Mvt::REBUT)
                             <span style="color:var(--danger); font-style:italic;"><i class="fas fa-trash-can"></i> Mis au rebut</span>
                         @else

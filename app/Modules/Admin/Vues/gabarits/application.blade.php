@@ -936,6 +936,11 @@
                 <i class="fas fa-clipboard-check"></i> Inventaire physique
             </a>
             @endif
+            @if(auth()->user()->aHabilitation('stock_articles'))
+            <a href="{{ route('admin.stock.entree') }}" class="nav-item {{ request()->routeIs('admin.stock.entree*') ? 'active' : '' }}">
+                <i class="fas fa-dolly"></i> Entrée de stock
+            </a>
+            @endif
             @endif
             <!-- 5. Production -->
             {{-- Le menu gardait la production sur `catalogue_produits` et
