@@ -751,7 +751,7 @@ class AchatControleur
      *
      * Côté achat, la pièce change d'étape sur place — elle reste la même
      * opération chez le même fournisseur. Elle gardait pourtant son numéro
-     * `DP-` jusqu'à la facture. Le numéro suit désormais l'étape (`BC-`, puis
+     * `DP-` jusqu'à la facture. Le numéro suit désormais l'étape (`BCF-`, puis
      * `ACH-` ou `BA-`), et la négociation B2B qui portait l'ancien numéro le
      * suit aussi.
      */

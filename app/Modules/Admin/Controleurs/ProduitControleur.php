@@ -104,31 +104,7 @@ class ProduitControleur
             $reference = trim($request->input('reference'));
         }
 
-        $categorieId = $request->input('categorie_id');
-        if ($categorieId === 'nouvelle' && $request->filled('nouvelle_categorie')) {
-            $prefixe = strtoupper(trim($request->input('prefixe_categorie')));
-            if (empty($prefixe)) {
-                $prefixe = strtoupper(substr(preg_replace('/[^a-zA-Z]/', '', trim($request->input('nouvelle_categorie'))), 0, 4));
-            }
-            if (empty($prefixe)) {
-                $prefixe = 'PROD';
-            }
-            
-            // Unicité du préfixe
-            $prefixeOriginal = $prefixe;
-            $compteur = 1;
-            while (\App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)->where('prefixe', $prefixe)->exists()) {
-                $prefixe = substr($prefixeOriginal, 0, 3) . $compteur;
-                $compteur++;
-            }
-
-            $categorie = \App\Modules\Admin\Modeles\Categorie::create([
-                'entreprise_id' => $entreprise->id,
-                'nom'           => trim($request->input('nouvelle_categorie')),
-                'prefixe'       => $prefixe,
-            ]);
-            $categorieId = $categorie->id;
-        }
+        $categorieId = self::categorieDeLaFiche($request, $entreprise);
 
         $sousCategorieId = $request->input('sous_categorie_id');
         if ($sousCategorieId === 'nouvelle' && $request->filled('nouvelle_sous_categorie') && $categorieId) {
@@ -217,7 +193,7 @@ class ProduitControleur
             );
         }
 
-        return back()->with('succes', 'Produit ajouté au catalogue avec succès. Référence générée : ' . $produit->reference);
+        return back()->with(['succes' => 'Produit ajouté au catalogue avec succès. Référence générée : ' . $produit->reference] + self::avertissementInventaire($produit, $entreprise));
     }
 
     /**
@@ -410,31 +386,7 @@ class ProduitControleur
             'preavis_peremption.max' => 'Un préavis de péremption se compte en jours, dix ans au plus.',
         ]);
 
-        $categorieId = $request->input('categorie_id');
-        if ($categorieId === 'nouvelle' && $request->filled('nouvelle_categorie')) {
-            $prefixe = strtoupper(trim($request->input('prefixe_categorie')));
-            if (empty($prefixe)) {
-                $prefixe = strtoupper(substr(preg_replace('/[^a-zA-Z]/', '', trim($request->input('nouvelle_categorie'))), 0, 4));
-            }
-            if (empty($prefixe)) {
-                $prefixe = 'PROD';
-            }
-            
-            // Unicité du préfixe
-            $prefixeOriginal = $prefixe;
-            $compteur = 1;
-            while (\App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)->where('prefixe', $prefixe)->exists()) {
-                $prefixe = substr($prefixeOriginal, 0, 3) . $compteur;
-                $compteur++;
-            }
-
-            $categorie = \App\Modules\Admin\Modeles\Categorie::create([
-                'entreprise_id' => $entreprise->id,
-                'nom'           => trim($request->input('nouvelle_categorie')),
-                'prefixe'       => $prefixe,
-            ]);
-            $categorieId = $categorie->id;
-        }
+        $categorieId = self::categorieDeLaFiche($request, $entreprise);
 
         $sousCategorieId = $request->input('sous_categorie_id');
         if ($sousCategorieId === 'nouvelle' && $request->filled('nouvelle_sous_categorie') && $categorieId) {
@@ -517,7 +469,7 @@ class ProduitControleur
             ]);
         }
 
-        return back()->with('succes', 'Produit mis à jour avec succès.');
+        return back()->with(['succes' => 'Produit mis à jour avec succès.'] + self::avertissementInventaire($produit, $entreprise));
     }
 
     /**
@@ -622,6 +574,75 @@ class ProduitControleur
      *
      * @return array{compte_vente: string, compte_achat: string}
      */
+    /**
+     * La catégorie choisie sur la fiche, ou celle qu'on y crée à la volée.
+     *
+     * Créée ici, elle reçoit les comptes de stock et de variation du type de
+     * l'article (recette du 08/10/2026) : sans eux, aucun de ses articles
+     * n'écrivait à l'inventaire permanent, et rien ne le disait. Les comptes
+     * de vente et d'achat, eux, restent à l'héritage — configuration globale
+     * puis défaut —, comme pour toute catégorie.
+     */
+    private static function categorieDeLaFiche(Request $request, $entreprise)
+    {
+        $categorieId = $request->input('categorie_id');
+
+        if ($categorieId !== 'nouvelle' || !$request->filled('nouvelle_categorie')) {
+            return $categorieId;
+        }
+
+        $prefixe = strtoupper(trim((string) $request->input('prefixe_categorie')));
+        if (empty($prefixe)) {
+            $prefixe = strtoupper(substr(preg_replace('/[^a-zA-Z]/', '', trim($request->input('nouvelle_categorie'))), 0, 4));
+        }
+        if (empty($prefixe)) {
+            $prefixe = 'PROD';
+        }
+
+        // Unicité du préfixe
+        $prefixeOriginal = $prefixe;
+        $compteur = 1;
+        while (\App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)->where('prefixe', $prefixe)->exists()) {
+            $prefixe = substr($prefixeOriginal, 0, 3) . $compteur;
+            $compteur++;
+        }
+
+        return \App\Modules\Admin\Modeles\Categorie::create([
+            'entreprise_id' => $entreprise->id,
+            'nom'           => trim($request->input('nouvelle_categorie')),
+            'prefixe'       => $prefixe,
+            ...\App\Modules\Admin\Modeles\Categorie::comptesDeStockPourType($request->input('type')),
+        ])->id;
+    }
+
+    /**
+     * Ce qu'il faut dire d'un article qui se stocke sans pouvoir écrire à
+     * l'inventaire permanent — sa catégorie n'a pas de compte de stock ou de
+     * variation. Rien, si la comptabilité est éteinte ou si tout est en ordre.
+     *
+     * @return array<string, mixed>
+     */
+    private static function avertissementInventaire(Produit $produit, $entreprise): array
+    {
+        $produit = $produit->fresh('categorieRelation');
+
+        if (!$entreprise->comptabiliteOuverte()
+            || !$produit->estStockable()
+            || \App\Modules\Admin\Services\ImputationService::peutTenirLInventairePermanent($produit)) {
+            return [];
+        }
+
+        $famille = $produit->categorieRelation?->nom;
+
+        return [
+            'avertissement' => 'Les mouvements de stock de « ' . $produit->nom . ' » ne passeront pas en comptabilité : '
+                . ($famille
+                    ? 'sa catégorie « ' . $famille . ' » n\'a pas de compte de stock et de variation. Renseignez-les dans la configuration des comptes.'
+                    : 'sans catégorie, il n\'a pas de compte de stock et de variation. Rangez-le dans une catégorie qui les porte.'),
+            'avertissement_action' => ['url' => route('admin.comptabilite.configuration'), 'label' => 'Configuration des comptes'],
+        ];
+    }
+
     private static function comptesDeLArticle(Request $request, $entreprise, ?Produit $existant, $categorieId): array
     {
         if ($entreprise->comptabiliteOuverte()) {

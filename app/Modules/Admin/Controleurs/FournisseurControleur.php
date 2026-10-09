@@ -54,6 +54,7 @@ class FournisseurControleur
         $entreprise = Auth::user()->entreprise;
         // Normaliser le NCC : suppression des espaces et mise en majuscule
         $request->merge(['ncc' => $request->has('ncc') ? strtoupper(preg_replace('/\s+/', '', $request->input('ncc'))) : null]);
+        $request->merge(['regime_imposition' => Entreprise::normaliserRegime($request->input('regime_imposition'))]);
 
         $request->validate([
             'nom'               => ['required', 'string', 'max:150'],
@@ -64,7 +65,7 @@ class FournisseurControleur
             'secteur'           => ['nullable', 'string', 'max:100'],
             'ncc'               => ['required_if:type_facturation,B2B', 'nullable', 'string', 'size:8', 'regex:/^[A-Z0-9]{7}[A-Z]$/'],
             'rccm'              => ['nullable', 'string', 'max:100'],
-            'regime_imposition' => ['nullable', 'string', 'max:100'],
+            'regime_imposition' => ['nullable', 'string', \Illuminate\Validation\Rule::in(Entreprise::regimesAcceptesPourTiers())],
             // Comptabilité éteinte, le champ n'est plus à l'écran : il n'est
             // plus exigé, et ce qui serait posté est ignoré (chantier 3.1).
             'compte_comptable'  => $entreprise->comptabiliteOuverte() ? [
@@ -78,6 +79,7 @@ class FournisseurControleur
             'ncc.required_if' => 'Le NCC est obligatoire pour un fournisseur de type B2B (Entreprise à Entreprise).',
             'ncc.size' => 'Le NCC doit contenir exactement 8 caractères.',
             'ncc.regex' => 'Le NCC doit comporter 8 caractères et se terminer par une lettre majuscule.',
+            'regime_imposition.in' => Entreprise::REGIME_TIERS_INCONNU,
         ]);
 
         $request->merge(['compte_comptable' => \App\Modules\Admin\Services\ImputationService::compteDeTiers(
@@ -112,6 +114,7 @@ class FournisseurControleur
         if ($fournisseur->source === 'comptaflow') {
             // Normaliser le NCC en entrée
             $request->merge(['ncc' => $request->has('ncc') ? strtoupper(preg_replace('/\s+/', '', $request->input('ncc'))) : null]);
+            $request->merge(['regime_imposition' => Entreprise::normaliserRegime($request->input('regime_imposition'))]);
             $request->validate([
                 'type_facturation'  => ['nullable', 'in:B2B,B2C,B2G,B2F'],
                 'telephone'         => ['nullable', 'string', 'max:30'],
@@ -120,11 +123,12 @@ class FournisseurControleur
                 'secteur'           => ['nullable', 'string', 'max:100'],
                 'ncc'               => ['required_if:type_facturation,B2B', 'nullable', 'string', 'size:8', 'regex:/^[A-Z0-9]{7}[A-Z]$/'],
                 'rccm'              => ['nullable', 'string', 'max:100'],
-                'regime_imposition' => ['nullable', 'string', 'max:100'],
+                'regime_imposition' => ['nullable', 'string', \Illuminate\Validation\Rule::in(Entreprise::regimesAcceptesPourTiers($fournisseur->regime_imposition))],
             ], [
                 'ncc.required_if' => 'Le NCC est obligatoire pour un fournisseur de type B2B.',
                 'ncc.size' => 'Le NCC doit contenir exactement 8 caractères.',
                 'ncc.regex' => 'Le NCC doit comporter 8 caractères et se terminer par une lettre majuscule.',
+                'regime_imposition.in' => Entreprise::REGIME_TIERS_INCONNU,
             ]);
 
             $fournisseur->update(array_merge(
@@ -134,6 +138,7 @@ class FournisseurControleur
         } else {
             // Normaliser le NCC en entrée
             $request->merge(['ncc' => $request->has('ncc') ? strtoupper(preg_replace('/\s+/', '', $request->input('ncc'))) : null]);
+            $request->merge(['regime_imposition' => Entreprise::normaliserRegime($request->input('regime_imposition'))]);
 
             $request->validate([
                 'nom'               => ['required', 'string', 'max:150'],
@@ -144,7 +149,7 @@ class FournisseurControleur
                 'secteur'           => ['nullable', 'string', 'max:100'],
                 'ncc'               => ['required_if:type_facturation,B2B', 'nullable', 'string', 'size:8', 'regex:/^[A-Z0-9]{7}[A-Z]$/'],
                 'rccm'              => ['nullable', 'string', 'max:100'],
-                'regime_imposition' => ['nullable', 'string', 'max:100'],
+                'regime_imposition' => ['nullable', 'string', \Illuminate\Validation\Rule::in(Entreprise::regimesAcceptesPourTiers($fournisseur->regime_imposition))],
                 'compte_comptable'  => $entreprise->comptabiliteOuverte() ? [
                     'required',
                     'string',
@@ -156,6 +161,7 @@ class FournisseurControleur
                 'ncc.required_if' => 'Le NCC est obligatoire pour un fournisseur de type B2B.',
                 'ncc.size' => 'Le NCC doit contenir exactement 8 caractères.',
                 'ncc.regex' => 'Le NCC doit comporter 8 caractères et se terminer par une lettre majuscule.',
+                'regime_imposition.in' => Entreprise::REGIME_TIERS_INCONNU,
             ]);
 
             $fournisseur->update(array_merge(

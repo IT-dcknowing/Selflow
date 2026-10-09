@@ -269,6 +269,77 @@ class Entreprise extends Model
     }
 
     /**
+     * Les intitulés que les fiches des tiers ont portés, et le régime qu'ils
+     * désignaient (recette du 08/10/2026).
+     *
+     * Les formulaires clients et fournisseurs avaient leur propre liste :
+     * « TEE (Taxe sur l'Entreprise Employeuse) », « RS (Régime Simplifié) »,
+     * « Exonéré »… Le TEE y était mal nommé, TCE et RME manquaient, et « RS »
+     * ou « Exonéré » ne sont pas des régimes. Les tiers lisent désormais
+     * `REGIMES_IMPOSITION`, comme l'entreprise. « Exonéré » n'a pas
+     * d'équivalent : une fiche qui le porte le garde, voir
+     * `regimesAcceptesPourTiers()`.
+     */
+    public const REGIME_TIERS_INCONNU = "Ce régime d'imposition n'est pas reconnu : choisissez l'un des régimes de la liste, ou laissez le champ vide.";
+
+    public const REGIMES_ANCIENS = [
+        'RS'               => 'RSI',
+        'RÉEL SIMPLIFIÉ'   => 'RSI',
+        'REEL SIMPLIFIE'   => 'RSI',
+        'RÉEL NORMAL'      => 'RNI',
+        'REEL NORMAL'      => 'RNI',
+        'MICRO-ENTREPRISE' => 'RME',
+        'MICROENTREPRISE'  => 'RME',
+    ];
+
+    /**
+     * Le code d'un régime saisi ou importé : « rsi », « RS », « RSI — Régime
+     * Simplifié d'Imposition » donnent RSI. Ce qui ne se reconnaît pas est
+     * rendu tel quel, pour que la validation le refuse et le dise.
+     */
+    public static function normaliserRegime(?string $saisi): ?string
+    {
+        $saisi = trim((string) $saisi);
+
+        if ($saisi === '') {
+            return null;
+        }
+
+        $majuscules = mb_strtoupper($saisi);
+
+        if (isset(self::REGIMES_IMPOSITION[$majuscules])) {
+            return $majuscules;
+        }
+
+        if (isset(self::REGIMES_ANCIENS[$majuscules])) {
+            return self::REGIMES_ANCIENS[$majuscules];
+        }
+
+        // Le libellé complet de la liste : « RSI — Régime Simplifié… ».
+        $sigle = mb_strtoupper(trim((string) preg_split('/[\s—\-(]/u', $saisi, 2)[0]));
+
+        return isset(self::REGIMES_IMPOSITION[$sigle]) ? $sigle : $saisi;
+    }
+
+    /**
+     * Les régimes qu'une fiche de tiers peut porter : ceux du référentiel,
+     * plus celui qu'elle porte déjà — une fiche enregistrée « Exonéré » doit
+     * rester modifiable sans qu'on touche à son régime.
+     *
+     * @return array<int, string>
+     */
+    public static function regimesAcceptesPourTiers(?string $actuel = null): array
+    {
+        $codes = array_keys(self::REGIMES_IMPOSITION);
+
+        if (filled($actuel)) {
+            $codes[] = $actuel;
+        }
+
+        return array_values(array_unique($codes));
+    }
+
+    /**
      * Les informations que la plateforme FNE exige de l'entreprise.
      *
      * **C'est tout ce que l'entreprise a à fournir.** Les clés d'API et la

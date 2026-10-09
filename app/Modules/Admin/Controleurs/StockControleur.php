@@ -637,7 +637,7 @@ class StockControleur
 
             // Seul le sort logistique de la commande change. Recevoir n'est
             // pas facturer : la file passait le bon en « Facture / Payé »,
-            // sans écriture ni décaissement, sous son numéro `BC-` — une
+            // sans écriture ni décaissement, sous son numéro `BCF-` — une
             // commande à crédit se retrouvait payée. La facture se valide par
             // « Valider & Facturer », qui n'entre plus que ce qui reste à
             // recevoir.
