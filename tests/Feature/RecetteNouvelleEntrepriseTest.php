@@ -458,4 +458,16 @@ class RecetteNouvelleEntrepriseTest extends TestCase
         ])->assertSessionHasNoErrors();
         $this->assertNull($mairie->fresh()->ncc);
     }
+
+    public function test_un_bon_de_commande_d_achat_ne_reprend_pas_le_numero_d_une_vente(): void
+    {
+        $vente = NumerotationService::genererNumeroVente($this->entreprise->id, 'Bon de commande');
+        $achat = NumerotationService::genererNumeroAchat($this->entreprise->id, 'Bon de commande');
+
+        // Les deux étaient BC-jj-mm-aaaa-0001.
+        $this->assertNotSame($vente, $achat);
+        // `BC-` reste celui de la vente : la trésorerie et l'API l'y rattachent.
+        $this->assertStringStartsWith('BC-', $vente);
+        $this->assertStringStartsWith('BCF-', $achat);
+    }
 }

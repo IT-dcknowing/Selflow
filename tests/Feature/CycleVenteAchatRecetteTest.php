@@ -708,12 +708,12 @@ class CycleVenteAchatRecetteTest extends TestCase
 
     // ═════════════════════════ ACHATS — les règles du cycle ═════════════════════════
 
-    /** Le numéro d'une pièce d'achat suit son étape : DP-, puis BC-, puis ACH-. */
+    /** Le numéro d'une pièce d'achat suit son étape : DP-, puis BCF-, puis ACH-. */
     public function test_la_facture_d_achat_porte_un_numero_ach(): void
     {
         $dp = $this->achat('Demande de prix');
         $this->post(route('admin.achats.confirmer', $dp));
-        $this->assertStringStartsWith('BC-', $dp->fresh()->numero_facture, 'Le BC garde le numéro DP-.');
+        $this->assertStringStartsWith('BCF-', $dp->fresh()->numero_facture, 'Le BC garde le numéro DP-.');
 
         $this->post(route('admin.achats.facturer', $dp->fresh()));
         $this->assertStringStartsWith('ACH-', $dp->fresh()->numero_facture, 'La facture garde le numéro DP-.');

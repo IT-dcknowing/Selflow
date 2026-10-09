@@ -10,13 +10,24 @@ use App\Modules\Admin\Modeles\EcritureComptable;
 class NumerotationService
 {
     /**
+     * **Le bon de commande fournisseur se numérote `BCF-`** (recette du
+     * 08/10/2026). Il partageait `BC-` avec le bon de commande client, et les
+     * deux séquences se comptaient chacune dans sa table : la première
+     * commande du jour, en vente comme en achat, recevait le même numéro.
+     * `BC-` reste celui de la vente — c'est lui que la trésorerie, l'API et
+     * la reprise des écritures rattachent aux ventes. Les numéros déjà
+     * attribués ne changent pas.
+     */
+    public const PREFIXE_BC_ACHAT = 'BCF-';
+
+    /**
      * Génère un numéro de document unique et séquentiel scoppé à l'entreprise pour les achats.
      *
      * Convention (validée le 22/07/2026) :
      *   - Facture d'achat définitive : ACH-jjmmaa-xxx   (ex: ACH-220726-001)
      *   - Avoir fournisseur          : AVO-ACH-jjmmaa-xxx
      *   - Demande de prix, Bon de commande, Bapa : conservent l'ancien format
-     *     (DP-/BC-/BA- + dd-mm-yyyy), non concernés par ce changement — ce
+     *     (DP-/BCF-/BA- + dd-mm-yyyy), non concernés par ce changement — ce
      *     sont des documents pré-comptables, pas encore des pièces journalisées.
      */
     public static function genererNumeroAchat(int $entrepriseId, string $etape, ?string $typeFacture = null): string
@@ -25,7 +36,7 @@ class NumerotationService
             return self::genererAncienneConvention($entrepriseId, 'DP-', Achat::class);
         }
         if ($etape === 'Bon de commande') {
-            return self::genererAncienneConvention($entrepriseId, 'BC-', Achat::class);
+            return self::genererAncienneConvention($entrepriseId, self::PREFIXE_BC_ACHAT, Achat::class);
         }
         if ($typeFacture === 'bapa') {
             return self::genererAncienneConvention($entrepriseId, 'BA-', Achat::class);
