@@ -54,6 +54,7 @@ class ClientControleur
         $entreprise = Auth::user()->entreprise;
         // Normaliser le NCC : suppression des espaces et mise en majuscule
         $request->merge(['ncc' => $request->has('ncc') ? strtoupper(preg_replace('/\s+/', '', $request->input('ncc'))) : null]);
+        $request->merge(['regime_imposition' => Entreprise::normaliserRegime($request->input('regime_imposition'))]);
 
         $request->validate([
             'nom'               => ['required', 'string', 'max:150'],
@@ -63,7 +64,7 @@ class ClientControleur
             'adresse'           => ['nullable', 'string', 'max:255'],
             'ncc'               => ['required_if:type_facturation,B2B', 'nullable', 'string', 'size:8', 'regex:/^[A-Z0-9]{7}[A-Z]$/'],
             'rccm'              => ['nullable', 'string', 'max:100'],
-            'regime_imposition' => ['nullable', 'string', 'max:100'],
+            'regime_imposition' => ['nullable', 'string', \Illuminate\Validation\Rule::in(Entreprise::regimesAcceptesPourTiers())],
             // Comptabilité éteinte, le champ n'est plus à l'écran : il n'est
             // plus exigé, et ce qui serait posté est ignoré (chantier 3.1).
             'compte_comptable'  => $entreprise->comptabiliteOuverte() ? [
@@ -77,6 +78,7 @@ class ClientControleur
             'ncc.required_if' => 'Le NCC est obligatoire pour un client de type B2B (Entreprise à Entreprise).',
             'ncc.size' => 'Le NCC doit contenir exactement 8 caractères.',
             'ncc.regex' => 'Le NCC doit comporter 8 caractères et se terminer par une lettre majuscule.',
+            'regime_imposition.in' => Entreprise::REGIME_TIERS_INCONNU,
         ]);
 
         $request->merge(['compte_comptable' => \App\Modules\Admin\Services\ImputationService::compteDeTiers(
@@ -99,8 +101,8 @@ class ClientControleur
             [
                 'entreprise_id' => $entreprise->id,
                 'numero_tiers'  => $numeroTiers,
-                // Si pas B2B, vider le NCC pour cohérence
-                'ncc'           => ($request->input('type_facturation') === 'B2B') ? $request->input('ncc') : null,
+                // Le NCC d'une entreprise ou d'une administration se garde.
+                'ncc'           => Client::nccRetenu($request->input('type_facturation'), $request->input('ncc')),
             ]
         ));
 
@@ -116,6 +118,7 @@ class ClientControleur
             // Uniquement les champs spécifiques à Selflow
             // Normaliser le NCC en entrée
             $request->merge(['ncc' => $request->has('ncc') ? strtoupper(preg_replace('/\s+/', '', $request->input('ncc'))) : null]);
+            $request->merge(['regime_imposition' => Entreprise::normaliserRegime($request->input('regime_imposition'))]);
             $request->validate([
                 'type_facturation'  => ['nullable', 'in:B2B,B2C,B2G,B2F'],
                 'telephone'         => ['nullable', 'string', 'max:30'],
@@ -123,21 +126,23 @@ class ClientControleur
                 'adresse'           => ['nullable', 'string', 'max:255'],
 'ncc'               => ['required_if:type_facturation,B2B', 'nullable', 'string', 'size:8', 'regex:/^[A-Z0-9]{7}[A-Z]$/'],
             'rccm'              => ['nullable', 'string', 'max:100'],
-            'regime_imposition' => ['nullable', 'string', 'max:100'],
+            'regime_imposition' => ['nullable', 'string', \Illuminate\Validation\Rule::in(Entreprise::regimesAcceptesPourTiers($client->regime_imposition))],
                 ], [
                 'ncc.required_if' => 'Le NCC est obligatoire pour un client de type B2B.',
                 'ncc.size' => 'Le NCC doit contenir exactement 8 caractères.',
                 'ncc.regex' => 'Le NCC doit comporter 8 caractères et se terminer par une lettre majuscule.',
+                'regime_imposition.in' => Entreprise::REGIME_TIERS_INCONNU,
             ]);
 
             $client->update(array_merge(
                 $request->only(['type_facturation', 'telephone', 'email', 'adresse', 'rccm', 'regime_imposition']),
-                ['ncc' => ($request->input('type_facturation') === 'B2B') ? $request->input('ncc') : null]
+                ['ncc' => Client::nccRetenu($request->input('type_facturation'), $request->input('ncc'))]
             ));
         } else {
             // Tous les champs
             // Normaliser le NCC en entrée
             $request->merge(['ncc' => $request->has('ncc') ? strtoupper(preg_replace('/\s+/', '', $request->input('ncc'))) : null]);
+            $request->merge(['regime_imposition' => Entreprise::normaliserRegime($request->input('regime_imposition'))]);
             $request->validate([
                 'nom'               => ['required', 'string', 'max:150'],
                 'type_facturation'  => ['nullable', 'in:B2B,B2C,B2G,B2F'],
@@ -146,7 +151,7 @@ class ClientControleur
                 'adresse'           => ['nullable', 'string', 'max:255'],
                 'ncc'               => ['required_if:type_facturation,B2B', 'nullable', 'string', 'size:8', 'regex:/^[A-Z0-9]{7}[A-Z]$/'],
                 'rccm'              => ['nullable', 'string', 'max:100'],
-                'regime_imposition' => ['nullable', 'string', 'max:100'],
+                'regime_imposition' => ['nullable', 'string', \Illuminate\Validation\Rule::in(Entreprise::regimesAcceptesPourTiers($client->regime_imposition))],
                 'compte_comptable'  => $entreprise->comptabiliteOuverte() ? [
                     'required',
                     'string',
@@ -158,11 +163,12 @@ class ClientControleur
                 'ncc.required_if' => 'Le NCC est obligatoire pour un client de type B2B.',
                 'ncc.size' => 'Le NCC doit contenir exactement 8 caractères.',
                 'ncc.regex' => 'Le NCC doit comporter 8 caractères et se terminer par une lettre majuscule.',
+                'regime_imposition.in' => Entreprise::REGIME_TIERS_INCONNU,
             ]);
 
             $client->update(array_merge(
                 $request->only(array_merge(['nom', 'type_facturation', 'telephone', 'email', 'adresse', 'rccm', 'regime_imposition'], $entreprise->comptabiliteOuverte() ? ['compte_comptable'] : [])),
-                ['ncc' => ($request->input('type_facturation') === 'B2B') ? $request->input('ncc') : null]
+                ['ncc' => Client::nccRetenu($request->input('type_facturation'), $request->input('ncc'))]
             ));
         }
 

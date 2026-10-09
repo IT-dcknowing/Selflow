@@ -28,6 +28,7 @@ class ClientApiControleur
         $entreprise = Auth::user()->entreprise;
         // Normaliser le NCC : suppression des espaces et mise en majuscule
         $request->merge(['ncc' => $request->has('ncc') ? strtoupper(preg_replace('/\s+/', '', $request->input('ncc'))) : null]);
+        $request->merge(['regime_imposition' => \App\Modules\Admin\Modeles\Entreprise::normaliserRegime($request->input('regime_imposition'))]);
 
         $request->validate([
             'nom'               => ['required', 'string', 'max:150'],
@@ -36,7 +37,7 @@ class ClientApiControleur
             'email'             => ['nullable', 'email', 'max:150'],
             'adresse'           => ['nullable', 'string', 'max:255'],
             'ncc'               => ['required_if:type_facturation,B2B', 'nullable', 'string', 'size:8', 'regex:/^[A-Z0-9]{7}[A-Z]$/'],
-            'regime_imposition' => ['nullable', 'string', 'max:100'],
+            'regime_imposition' => ['nullable', 'string', \Illuminate\Validation\Rule::in(\App\Modules\Admin\Modeles\Entreprise::regimesAcceptesPourTiers())],
         ]);
 
         $client = Client::create(array_merge(

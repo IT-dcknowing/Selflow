@@ -364,11 +364,12 @@
                             <label class="form-label">Régime d'imposition</label>
                             <select name="regime_imposition" class="form-control">
                                 <option value="">— Non renseigné —</option>
-                                <option value="TEE">TEE (Taxe sur l'Entreprise Employeuse)</option>
-                                <option value="RS">RS (Régime Simplifié)</option>
-                                <option value="RSI">RSI (Régime Simplifié d'Imposition)</option>
-                                <option value="RNI">RNI (Régime Normal d'Imposition)</option>
-                                <option value="Exonéré">Exonéré</option>
+                                {{-- La liste de l'entreprise, et non une copie : « TEE
+                                     (Taxe sur l'Entreprise Employeuse) », « RS » et
+                                     « Exonéré » ne désignaient aucun régime. --}}
+                                @foreach(\App\Modules\Admin\Modeles\Entreprise::REGIMES_IMPOSITION as $code => $libelle)
+                                    <option value="{{ $code }}">{{ $libelle }}</option>
+                                @endforeach
                             </select>
                         </div>
                         @if($comptaOuverte)
@@ -475,11 +476,12 @@
                             <label class="form-label">Régime d'imposition</label>
                             <select name="regime_imposition" id="edit_regime_imposition" class="form-control">
                                 <option value="">— Non renseigné —</option>
-                                <option value="TEE">TEE (Taxe sur l'Entreprise Employeuse)</option>
-                                <option value="RS">RS (Régime Simplifié)</option>
-                                <option value="RSI">RSI (Régime Simplifié d'Imposition)</option>
-                                <option value="RNI">RNI (Régime Normal d'Imposition)</option>
-                                <option value="Exonéré">Exonéré</option>
+                                {{-- La liste de l'entreprise, et non une copie : « TEE
+                                     (Taxe sur l'Entreprise Employeuse) », « RS » et
+                                     « Exonéré » ne désignaient aucun régime. --}}
+                                @foreach(\App\Modules\Admin\Modeles\Entreprise::REGIMES_IMPOSITION as $code => $libelle)
+                                    <option value="{{ $code }}">{{ $libelle }}</option>
+                                @endforeach
                             </select>
                         </div>
                         @if($comptaOuverte)
@@ -601,7 +603,18 @@ document.querySelectorAll('.btn-modifier-fournisseur').forEach(function(btn) {
         if (selectType) { selectType.value = data.type || ''; toggleNccFournisseur('fedit'); }
 
         const selectRegime = document.getElementById('edit_regime_imposition');
-        if (selectRegime) selectRegime.value = data.regime || '';
+        if (selectRegime) {
+            selectRegime.querySelectorAll('option[data-ancien]').forEach(function (o) { o.remove(); });
+            const regime = data.regime || '';
+            if (regime && !Array.from(selectRegime.options).some(function (o) { return o.value === regime; })) {
+                const option = document.createElement('option');
+                option.value = regime;
+                option.textContent = regime + ' (ancien intitulé)';
+                option.dataset.ancien = '1';
+                selectRegime.appendChild(option);
+            }
+            selectRegime.value = regime;
+        }
 
         const selectCompte = document.getElementById('edit_compte_comptable');
         if (selectCompte) selectCompte.value = data.compte || '401000';

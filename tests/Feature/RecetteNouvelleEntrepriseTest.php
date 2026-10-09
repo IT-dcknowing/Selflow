@@ -383,4 +383,79 @@ class RecetteNouvelleEntrepriseTest extends TestCase
             'stock_actuel' => 0, 'stock_minimum' => 2,
         ])->assertSessionHasNoErrors()->assertSessionHas('avertissement');
     }
+
+    public function test_les_regimes_des_tiers_sont_ceux_de_l_entreprise(): void
+    {
+        $page = $this->enAdmin()->get(route('admin.clients.index'))->assertOk()->getContent();
+
+        $this->assertStringNotContainsString("Taxe sur l'Entreprise Employeuse", html_entity_decode($page, ENT_QUOTES));
+        $this->assertStringNotContainsString('value="RS"', $page);
+        $this->assertStringNotContainsString('value="Exonéré"', $page);
+        foreach (array_keys(Entreprise::REGIMES_IMPOSITION) as $code) {
+            $this->assertStringContainsString('value="' . $code . '"', $page);
+        }
+
+        // La validation suit la liste : un intitulé qui n'est pas un régime
+        // est refusé, un ancien sigle se range sous son code.
+        $this->enAdmin()->post(route('admin.clients.creer'), [
+            'nom' => 'Société fictive', 'type_facturation' => 'B2C', 'regime_imposition' => 'Bénéfice forfaitaire',
+        ])->assertSessionHasErrors('regime_imposition');
+
+        $this->enAdmin()->post(route('admin.fournisseurs.creer'), [
+            'nom' => 'Grossiste du Nord', 'type_facturation' => 'B2C', 'regime_imposition' => 'RS',
+        ])->assertSessionHasNoErrors();
+        $this->assertSame('RSI', Fournisseur::where('nom', 'Grossiste du Nord')->value('regime_imposition'));
+    }
+
+    public function test_une_fiche_de_tiers_a_l_ancien_regime_reste_modifiable(): void
+    {
+        $client = \App\Modules\Admin\Modeles\Client::create([
+            'entreprise_id' => $this->entreprise->id, 'nom' => 'Coopérative', 'type_facturation' => 'B2B',
+            'ncc' => '1904455B', 'regime_imposition' => 'Exonéré',
+        ]);
+
+        $this->enAdmin()->put(route('admin.clients.modifier', $client), [
+            'nom' => 'Coopérative agricole', 'type_facturation' => 'B2B', 'ncc' => '1904455B', 'regime_imposition' => 'Exonéré',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('Coopérative agricole', $client->fresh()->nom);
+    }
+
+    public function test_les_anciens_regimes_des_tiers_se_rangent_sous_leur_code(): void
+    {
+        $fiche = fn (string $nom, string $regime) => \App\Modules\Admin\Modeles\Client::create([
+            'entreprise_id' => $this->entreprise->id, 'nom' => $nom, 'type_facturation' => 'B2C', 'regime_imposition' => $regime,
+        ]);
+        $simplifie = $fiche('Ancien RS', 'RS');
+        $minuscule = $fiche('Ancien rni', 'rni');
+        $exonere   = $fiche('Ancien exonéré', 'Exonéré');
+
+        (require base_path('app/Modules/Admin/Migrations/2026_10_09_000001_les_regimes_des_tiers.php'))->up();
+
+        $this->assertSame('RSI', $simplifie->fresh()->regime_imposition);
+        $this->assertSame('RNI', $minuscule->fresh()->regime_imposition);
+        // Sans équivalent : gardé tel quel, et toléré par le formulaire.
+        $this->assertSame('Exonéré', $exonere->fresh()->regime_imposition);
+    }
+
+    public function test_un_client_b2g_garde_son_ncc(): void
+    {
+        $this->enAdmin()->post(route('admin.clients.creer'), [
+            'nom' => 'Mairie de Cocody', 'type_facturation' => 'B2G', 'ncc' => '0102030a',
+        ])->assertSessionHasNoErrors();
+
+        $mairie = \App\Modules\Admin\Modeles\Client::where('nom', 'Mairie de Cocody')->firstOrFail();
+        $this->assertSame('0102030A', $mairie->ncc);
+
+        $this->enAdmin()->put(route('admin.clients.modifier', $mairie), [
+            'nom' => 'Mairie de Cocody', 'type_facturation' => 'B2G', 'ncc' => '0102030A', 'telephone' => '0707070707',
+        ])->assertSessionHasNoErrors();
+        $this->assertSame('0102030A', $mairie->fresh()->ncc);
+
+        // Un particulier, lui, n'en garde pas.
+        $this->enAdmin()->put(route('admin.clients.modifier', $mairie), [
+            'nom' => 'Mairie de Cocody', 'type_facturation' => 'B2C', 'ncc' => '0102030A',
+        ])->assertSessionHasNoErrors();
+        $this->assertNull($mairie->fresh()->ncc);
+    }
 }

@@ -443,6 +443,14 @@ class ImportControleur
             return "Ligne {$num} : NCC invalide pour le client {$nom}. Il doit contenir 8 caractères et se terminer par une lettre majuscule.";
         }
 
+        // Les régimes des tiers sont ceux de l'entreprise (recette du
+        // 08/10/2026) : « RS » ou « rsi » se lisent RSI, l'inconnu se refuse.
+        $regime = \App\Modules\Admin\Modeles\Entreprise::normaliserRegime($d['regime_imposition'] ?? null);
+        if ($regime !== null && !in_array($regime, \App\Modules\Admin\Modeles\Entreprise::regimesAcceptesPourTiers(), true)) {
+            return "Ligne {$num} : régime d'imposition « {$regime} » inconnu pour le client {$nom}. "
+                . 'Régimes reconnus : ' . implode(', ', array_keys(\App\Modules\Admin\Modeles\Entreprise::REGIMES_IMPOSITION)) . '.';
+        }
+
         // Le compte collectif ne vient plus du fichier (chantier 11.2) : même
         // règle qu'à l'écran, celle de `ImputationService::compteDeTiers()`.
         $compteGeneral = \App\Modules\Admin\Services\ImputationService::compteDeTiers($entreprise, 'client');
@@ -454,8 +462,8 @@ class ImportControleur
                 'telephone'        => trim($d['telephone'] ?? ''),
                 'email'            => trim($d['email'] ?? '') ?: null,
                 'adresse'          => trim($d['adresse'] ?? ''),
-                'ncc'              => $type === 'B2B' ? $ncc : null,
-                'regime_imposition'=> trim($d['regime_imposition'] ?? ''),
+                'ncc'              => Client::nccRetenu($type, $ncc ?: null),
+                'regime_imposition'=> $regime,
                 'rccm'             => trim($d['rccm'] ?? ''),
                 'compte_comptable' => $compteGeneral,
                 'numero_tiers'     => $this->numeroTiersImporte(
@@ -527,6 +535,14 @@ class ImportControleur
             return "Ligne {$num} : NCC invalide pour le fournisseur {$nom}. Il doit contenir 8 caractères et se terminer par une lettre majuscule.";
         }
 
+        // Les régimes des tiers sont ceux de l'entreprise (recette du
+        // 08/10/2026) : « RS » ou « rsi » se lisent RSI, l'inconnu se refuse.
+        $regime = \App\Modules\Admin\Modeles\Entreprise::normaliserRegime($d['regime_imposition'] ?? null);
+        if ($regime !== null && !in_array($regime, \App\Modules\Admin\Modeles\Entreprise::regimesAcceptesPourTiers(), true)) {
+            return "Ligne {$num} : régime d'imposition « {$regime} » inconnu pour le fournisseur {$nom}. "
+                . 'Régimes reconnus : ' . implode(', ', array_keys(\App\Modules\Admin\Modeles\Entreprise::REGIMES_IMPOSITION)) . '.';
+        }
+
         // Le compte collectif ne vient plus du fichier (chantier 11.2) : même
         // règle qu'à l'écran, celle de `ImputationService::compteDeTiers()`.
         $compteGeneral = \App\Modules\Admin\Services\ImputationService::compteDeTiers($entreprise, 'fournisseur');
@@ -540,7 +556,7 @@ class ImportControleur
                 'secteur'          => trim($d['secteur'] ?? ''),
                 'adresse'          => trim($d['adresse'] ?? ''),
                 'ncc'              => $type === 'B2B' ? $ncc : null,
-                'regime_imposition'=> trim($d['regime_imposition'] ?? ''),
+                'regime_imposition'=> $regime,
                 'rccm'             => trim($d['rccm'] ?? ''),
                 'compte_comptable' => $compteGeneral,
                 'numero_tiers'     => $this->numeroTiersImporte(
