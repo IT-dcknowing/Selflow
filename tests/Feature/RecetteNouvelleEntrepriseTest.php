@@ -343,4 +343,44 @@ class RecetteNouvelleEntrepriseTest extends TestCase
 
         $this->assertStringNotContainsString('inconnu(s) du portail', $page);
     }
+
+    // ── Défauts laissés au lot 61, corrigés ensuite ──
+
+    private function articleDansUneNouvelleCategorie(string $type, string $nom, string $categorie): Produit
+    {
+        $this->enAdmin()->post(route('admin.produits.creer'), [
+            'nom' => $nom, 'type' => $type,
+            'categorie_id' => 'nouvelle', 'nouvelle_categorie' => $categorie,
+            'prix_achat' => 400, 'prix_vente' => 700, 'taux_tva' => 18,
+            'stock_actuel' => 10, 'stock_minimum' => 2,
+        ])->assertSessionHasNoErrors();
+
+        return Produit::where('nom', $nom)->firstOrFail();
+    }
+
+    public function test_une_categorie_creee_depuis_la_fiche_article_recoit_ses_comptes_de_stock(): void
+    {
+        $farine = $this->articleDansUneNouvelleCategorie('matiere_premiere', 'Farine T55', 'Farines');
+        $pain   = $this->articleDansUneNouvelleCategorie('produit_fini', 'Pain de mie', 'Boulangerie');
+
+        $this->assertSame(['320000', '603200'], [$farine->categorieRelation->compte_stock, $farine->categorieRelation->compte_variation]);
+        $this->assertSame(['360000', '736000'], [$pain->categorieRelation->compte_stock, $pain->categorieRelation->compte_variation]);
+
+        // Le stock de départ passe donc en comptabilité : sans compte, il
+        // n'écrivait rien, et rien ne le disait.
+        $this->assertSame(1, EcritureComptable::withoutGlobalScopes()->where('compte_debit', '320000')
+            ->where('reference_document', $farine->reference)->count());
+    }
+
+    public function test_un_article_sans_compte_de_stock_le_dit_a_l_enregistrement(): void
+    {
+        $this->entreprise->forceFill(['comptabilite_activee' => true])->save();
+        $vieux = Categorie::create(['entreprise_id' => $this->entreprise->id, 'nom' => 'Rayon sans compte', 'prefixe' => 'RSC']);
+
+        $this->enAdmin()->post(route('admin.produits.creer'), [
+            'nom' => 'Sucre en morceaux', 'type' => 'marchandise', 'categorie_id' => (string) $vieux->id,
+            'prix_achat' => 400, 'prix_vente' => 700, 'taux_tva' => 18,
+            'stock_actuel' => 0, 'stock_minimum' => 2,
+        ])->assertSessionHasNoErrors()->assertSessionHas('avertissement');
+    }
 }
