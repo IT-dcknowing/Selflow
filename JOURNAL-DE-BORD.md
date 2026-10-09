@@ -7705,6 +7705,31 @@ Comptaflow réelle à vérifier (7.5) ; résumé de la logique de Selflow ;
 défauts restants de la recette de zéro (20.17).
 
 
+---
+
+### Lot 63 — Quatre défauts laissés par la recette de zéro — **TERMINÉ le 09/10/2026**
+
+Branche `corrections-recette-de-zero`. Aucun fichier du périmètre gelé touché.
+
+| Défaut | Cause | Correction |
+|---|---|---|
+| Catégorie créée depuis la fiche article : aucune écriture de stock pour ses articles | `ProduitControleur` créait le rayon avec son nom et son préfixe seulement (deux copies, création et modification) ; `ImputationService` ne trouvait ni compte de stock ni de variation | une seule méthode `categorieDeLaFiche()` ; le rayon reçoit les comptes du type d'article du référentiel (`Categorie::comptesDeStockPourType()` : 31/6031, 32/6032, 33/6033, 36/736, repli codé si le référentiel n'est pas chargé). Comptabilité ouverte, un article stockable qui ne peut toujours pas écrire le dit (toast « Attention » avec lien vers la configuration des comptes) |
+| Régimes des tiers faux | les formulaires clients / fournisseurs gardaient leur propre liste (« TEE — Taxe sur l'Entreprise Employeuse », « RS », « Exonéré ») et la validation acceptait toute chaîne | les quatre listes lisent `Entreprise::REGIMES_IMPOSITION` ; validation `Rule::in` (écrans, API mobile, import), avec lecture tolérante (`normaliserRegime()` : « RS » → RSI, minuscules, libellé complet) et l'ancienne valeur d'une fiche acceptée (`regimesAcceptesPourTiers()`). Migration `2026_10_09_000001` : RS → RSI, réel normal → RNI, micro-entreprise → RME ; « Exonéré », sans équivalent, est gardé |
+| NCC d'un client B2G effacé | `ClientControleur` (trois endroits) et l'import ne gardaient le NCC qu'en B2B | `Client::nccRetenu()` : B2B et B2G le gardent, B2C et B2F non |
+| Même numéro de BC en vente et en achat | les deux côtés numérotaient `BC-jj-mm-aaaa-nnnn`, chacun dans sa table | le BC fournisseur passe en `BCF-` (`NumerotationService::PREFIXE_BC_ACHAT`) ; `BC-` reste à la vente, que la trésorerie, l'API et la reprise rattachent aux ventes. Les numéros attribués ne changent pas |
+
+- `RecetteNouvelleEntrepriseTest` : 7 épreuves de plus ; `CycleVenteAchatRecetteTest` attend `BCF-`.
+- Vérification au retrait : comptes du rayon, avertissement, liste et validation des régimes, NCC B2G, préfixe BCF.
+
+Points ouverts : la liste de l'entreprise elle-même porte `RNE — Régime du
+Négoce et de l'Exportation`, régime que le CGI ivoirien ne connaît pas (le
+sigle est celui du reçu normalisé) — à trancher par le propriétaire ; le NCC
+d'un **fournisseur** B2G reste effacé, car le garder ferait sortir ses achats
+du bordereau (BAPA), ce qui touche à ce que la FNE reçoit ; un client B2G
+transmet désormais son NCC dans `clientNcc` (facultatif hors B2B dans le
+référentiel, `FneService` inchangé).
+
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
