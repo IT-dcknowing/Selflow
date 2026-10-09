@@ -68,7 +68,7 @@ class InventairePermanentService
         $estEntree       = $mouvement->type_mouvement === MouvementStock::ENTREE;
 
         $entrepriseId = $produit->entreprise_id;
-        $date = ($mouvement->created_at ?? now())->toDateString();
+        $date = self::dateComptable($mouvement);
 
         // Les mouvements de stock relèvent des opérations diverses : ils ne
         // sont ni une vente, ni un achat, ni un encaissement. Le journal OD est
@@ -132,6 +132,52 @@ class InventairePermanentService
         $operation->cloturerEquilibre();
 
         return $ligneDebit;
+    }
+
+    /**
+     * La date de l'écriture : celle de la pièce, et non celle de la saisie.
+     *
+     * Un achat antidaté — la facture du 2 octobre saisie le 8 — passait son
+     * écriture d'achat au 2 et son entrée en stock au 8 : les deux moitiés
+     * d'une même opération tombaient à des dates, parfois à des mois,
+     * différents, et la variation de stock du mois ne répondait plus à ses
+     * achats. La pièce fait foi quand elle porte une date ; sinon, le jour du
+     * mouvement.
+     */
+    private static function dateComptable(MouvementStock $mouvement): string
+    {
+        $parDefaut = ($mouvement->created_at ?? now())->toDateString();
+
+        $colonnes = [
+            \App\Modules\Admin\Modeles\Achat::class => 'date_achat',
+            \App\Modules\Admin\Modeles\Vente::class => 'date_vente',
+        ];
+
+        $classe = $mouvement->piece_type
+            ? \Illuminate\Database\Eloquent\Relations\Relation::getMorphedModel($mouvement->piece_type) ?? $mouvement->piece_type
+            : null;
+
+        if (!$classe || !isset($colonnes[$classe]) || !$mouvement->piece_id) {
+            return $parDefaut;
+        }
+
+        // Hors filtre de période : la pièce d'un exercice clos se lit aussi.
+        $piece = $classe::withoutGlobalScopes()->whereKey($mouvement->piece_id)
+            ->first([$colonnes[$classe] . ' as date_piece', 'created_at']);
+
+        $date = $piece?->date_piece;
+
+        // La date de la pièce ne vaut que pour le stock qui bouge au moment où
+        // la pièce est saisie. Une commande du 2 réceptionnée le 8 entre bien
+        // le 8 : c'est le jour où la marchandise arrive, pas celui de l'ordre.
+        if (!$date || !$piece->created_at || $piece->created_at->toDateString() !== $parDefaut) {
+            return $parDefaut;
+        }
+
+        $date = \Illuminate\Support\Carbon::parse($date)->toDateString();
+
+        // Une pièce datée dans le futur ne déplace pas le stock dans le futur.
+        return $date <= $parDefaut ? $date : $parDefaut;
     }
 
     /**

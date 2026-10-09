@@ -288,4 +288,66 @@ class InventairePermanentTest extends TestCase
             0.01
         );
     }
+
+    public function test_l_entree_d_un_achat_antidate_prend_la_date_de_l_achat(): void
+    {
+        // La facture du 2 saisie le 8 : l'écriture d'achat partait au 2,
+        // l'entrée en stock au 8. Les deux moitiés d'une même opération
+        // doivent tomber le même jour.
+        $fournisseur = \App\Modules\Admin\Modeles\Fournisseur::create([
+            'entreprise_id' => $this->entreprise->id, 'nom' => 'Grossiste du port',
+        ]);
+
+        $achat = \App\Modules\Admin\Modeles\Achat::create([
+            'point_de_vente_id' => $this->magasin->id,
+            'fournisseur_id'    => $fournisseur->id,
+            'numero_facture'    => 'ACH-TEST-001',
+            'date_achat'        => now()->subDays(6)->toDateString(),
+            'etape'             => 'Facture',
+            'montant_ttc'       => 120000,
+            'montant_ht'        => 120000,
+            'montant_tva'       => 0,
+            'mode_paiement'     => 'Espèces',
+        ]);
+
+        StockService::entree($this->riz, $this->magasin->id, 10, MouvementStock::RECEPTION, [
+            'cout_unitaire' => 12000, 'piece' => $achat,
+        ]);
+
+        $ecriture = EcritureComptable::withoutGlobalScopes()->where('compte_debit', '311000')->firstOrFail();
+
+        $this->assertSame(now()->subDays(6)->toDateString(), \Illuminate\Support\Carbon::parse($ecriture->date_ecriture)->toDateString());
+    }
+
+    public function test_la_reception_tardive_d_une_commande_garde_le_jour_de_la_reception(): void
+    {
+        // La commande du 3, réceptionnée aujourd'hui : la marchandise entre
+        // aujourd'hui. Seule la pièce saisie en même temps que le mouvement
+        // lui donne sa date.
+        $fournisseur = \App\Modules\Admin\Modeles\Fournisseur::create([
+            'entreprise_id' => $this->entreprise->id, 'nom' => 'Grossiste du port',
+        ]);
+
+        $this->travelTo(now()->subDays(6));
+        $commande = \App\Modules\Admin\Modeles\Achat::create([
+            'point_de_vente_id' => $this->magasin->id,
+            'fournisseur_id'    => $fournisseur->id,
+            'numero_facture'    => 'BC-TEST-001',
+            'date_achat'        => now()->toDateString(),
+            'etape'             => 'Bon de commande',
+            'montant_ttc'       => 120000,
+            'montant_ht'        => 120000,
+            'montant_tva'       => 0,
+            'mode_paiement'     => 'Espèces',
+        ]);
+        $this->travelBack();
+
+        StockService::entree($this->riz, $this->magasin->id, 10, MouvementStock::RECEPTION, [
+            'cout_unitaire' => 12000, 'piece' => $commande,
+        ]);
+
+        $ecriture = EcritureComptable::withoutGlobalScopes()->where('compte_debit', '311000')->firstOrFail();
+
+        $this->assertSame(now()->toDateString(), \Illuminate\Support\Carbon::parse($ecriture->date_ecriture)->toDateString());
+    }
 }
