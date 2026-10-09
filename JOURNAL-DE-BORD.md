@@ -7707,9 +7707,15 @@ défauts restants de la recette de zéro (20.17).
 
 ---
 
-### Lot 63 — Quatre défauts laissés par la recette de zéro — **TERMINÉ le 09/10/2026**
+### Lot 63 — Entrée de stock, et les défauts laissés par la recette de zéro — **TERMINÉ le 09/10/2026**
 
-Branche `corrections-recette-de-zero`. Aucun fichier du périmètre gelé touché.
+Branche `entree-de-stock-et-defauts-recette` (qui fusionne `corrections-recette-de-zero`). Aucun fichier du périmètre gelé touché.
+
+**Entrée de stock (plan 20.14, accordée par le propriétaire le 09/10).** Page `Stock › Entrée de stock` : site, raison (`achat sans facture`, `retour de marchandise`, `don reçu`, `autre` — commentaire alors exigé), lignes article / quantité / coût unitaire. Motif `MouvementStock::ENTREE_DIVERSE`, colonnes `raison_entree` et `commentaire` (migration `2026_10_09_000001_l_entree_de_stock_dit_sa_raison`). La marchandise entre au coût saisi par `StockService::entree`, le CUMP se recalcule ; l'écriture 3x / 603x porte la raison au libellé. Coût nul refusé (il ferait chuter le coût moyen du stock en place). Onglet « Entrées de stock » aux mouvements, bouton sur l'écran du stock, habilitation `stock_articles`. `EntreeDeStockTest` (7) ; vérification au retrait du coût nul.
+
+**Achat antidaté (20.17).** L'écriture de stock prend la date de la pièce (achat, vente) quand le stock bouge au moment où la pièce est saisie ; une commande réceptionnée plus tard garde le jour de la réception (`InventairePermanentService::dateComptable`). Deux épreuves dans `InventairePermanentTest`, vérification au retrait.
+
+**Les quatre défauts suivants** ont été corrigés par un agent sur `corrections-recette-de-zero`, relus puis fusionnés.
 
 | Défaut | Cause | Correction |
 |---|---|---|
@@ -7728,6 +7734,10 @@ d'un **fournisseur** B2G reste effacé, car le garder ferait sortir ses achats
 du bordereau (BAPA), ce qui touche à ce que la FNE reçoit ; un client B2G
 transmet désormais son NCC dans `clientNcc` (facultatif hors B2B dans le
 référentiel, `FneService` inchangé).
+
+Reste de 20.17 : libellés FNE incohérents (non repris : ils touchent les écrans du périmètre gelé, à lister avant toute retouche).
+
+- Suite : 1 665 épreuves, 1 660 passantes, 5 sautées ; `verifier:variables` propre.
 
 
 ## 5 bis. La numérotation des comptes — tranché

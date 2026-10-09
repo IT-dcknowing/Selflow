@@ -1,0 +1,79 @@
+PASSATION DU 09/10/2026 — SELFLOW
+=================================
+
+À lire avec CLAUDE.md, JOURNAL-DE-BORD.md (lot 63) et
+PLAN-CORRECTION-SELFLOW.xlsx (section 20).
+
+
+1. OÙ NOUS EN SOMMES
+--------------------
+Branche de référence : main, poussée sur les deux dépôts
+(IT-dcknowing/Selflow et meledjeabrahamagnimel-lgtm/Selflow).
+Plan : 104 chantiers, 91 terminés, 8 sans objet, 5 à faire.
+
+
+2. FAIT LE 09/10/2026 (lot 63)
+------------------------------
+- Page « Entrée de stock » (Stock › Entrée de stock) : réapprovisionner
+  sans achat saisi, au coût réel, avec sa raison ; CUMP recalculé.
+- Achat antidaté : l'écriture de stock prend la date de l'achat.
+- Catégorie créée depuis la fiche article : reçoit ses comptes de stock.
+- Régimes des tiers : la liste de l'entreprise, validée partout.
+- NCC d'un client B2G : gardé.
+- Bon de commande fournisseur numéroté BCF- (BC- reste à la vente).
+
+
+3. À TRANCHER PAR LE PROPRIÉTAIRE
+---------------------------------
+- « RNE — Régime du Négoce et de l'Exportation » dans la liste des
+  régimes : inconnu du CGI, et RNE est le sigle du reçu normalisé.
+- Un client B2G transmet désormais son NCC à la FNE (champ clientNcc,
+  facultatif hors B2B). FneService n'a pas changé.
+- NCC d'un fournisseur B2G : toujours effacé (le garder ferait sortir
+  ses achats du bordereau BAPA).
+
+
+4. DÉPLOIEMENT SUR LE SERVEUR (Linux)
+-------------------------------------
+  cd /chemin/de/selflow
+  git fetch origin && git checkout main && git pull origin main
+  composer install --no-dev --optimize-autoloader
+  php artisan migrate --force
+     (2026_10_09_000001 l'entrée de stock, 2026_10_09_000001 les régimes
+      des tiers : additives / correction de données)
+  php artisan config:cache && php artisan route:cache && php artisan view:cache
+  php artisan queue:restart
+  php artisan selflow:ecritures-factures-recues
+  php artisan selflow:regrouper-comptaflow
+  php artisan selflow:verifier-stocks        (lecture seule)
+  cd SCRAPER-PORTAIL-FNE && npm install && cd ..
+     (seulement si package.json a changé ; Chromium est déjà installé)
+  sudo -u <utilisateur web> php artisan portail-fne:verifier-scraper
+
+
+5. LE SCRAPER EN LOCAL (poste Windows)
+--------------------------------------
+  cd C:\chemin\de\selflow
+  git pull origin main
+  composer install
+  php artisan migrate
+  php artisan optimize:clear
+  cd SCRAPER-PORTAIL-FNE
+  npm install
+  npx playwright install chromium
+  copy .env.exemple .env          (puis renseigner FNE_URL)
+  cd ..
+  Dans le .env de Selflow : PORTAIL_FNE_SCRAPER_ACTIF=true
+  php artisan config:clear
+  php artisan portail-fne:verifier-scraper
+  php artisan portail-fne:verifier-scraper --lancer=<NCC>
+  Planificateur : tâche Windows « Selflow - planificateur » (schedule:run
+  chaque minute) ; file : php artisan queue:work
+
+
+6. CE QUI RESTE
+---------------
+- 20.15 / 7.5 Liaison Comptaflow réelle et déversement à vérifier.
+- 20.16 Résumé de la logique de Selflow.
+- Libellés FNE incohérents (écrans du périmètre gelé : à lister d'abord).
+- 17.5, 18.2 : à lancer au déploiement.
