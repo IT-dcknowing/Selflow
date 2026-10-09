@@ -7727,13 +7727,33 @@ Branche `entree-de-stock-et-defauts-recette` (qui fusionne `corrections-recette-
 - `RecetteNouvelleEntrepriseTest` : 7 épreuves de plus ; `CycleVenteAchatRecetteTest` attend `BCF-`.
 - Vérification au retrait : comptes du rayon, avertissement, liste et validation des régimes, NCC B2G, préfixe BCF.
 
-Points ouverts : la liste de l'entreprise elle-même porte `RNE — Régime du
-Négoce et de l'Exportation`, régime que le CGI ivoirien ne connaît pas (le
-sigle est celui du reçu normalisé) — à trancher par le propriétaire ; le NCC
+Points ouverts : le régime `RNE — Régime du Négoce et de l'Exportation` —
+**tranché le 09/10 : il reste** (voir plus bas) ; le NCC
 d'un **fournisseur** B2G reste effacé, car le garder ferait sortir ses achats
 du bordereau (BAPA), ce qui touche à ce que la FNE reçoit ; un client B2G
 transmet désormais son NCC dans `clientNcc` (facultatif hors B2B dans le
 référentiel, `FneService` inchangé).
+
+Réponses du propriétaire, 09/10/2026 :
+
+- **RNE reste.** Le régime « RNE — Régime du Négoce et de l'Exportation » et
+  le reçu normalisé RNE (`isRne` / `numero_rne` de la FNE) sont deux choses
+  distinctes ; le propriétaire garde le régime. Rappel : un article à 0 % d'une
+  entreprise RNE part en TVAC, seuls TEE, TCE et RME donnent TVAD.
+- **NCC du client B2G** : il figure désormais sur la facture certifiée
+  (`clientNcc`), là où il partait vide parce que Selflow l'effaçait. Expliqué ;
+  à surveiller sur la première facture B2G certifiée.
+- **NCC du fournisseur B2G** (plan 20.19) : effacé par la règle recopiée des
+  clients. Sans NCC, un achat part en bordereau BAPA. Recommandé de le garder ;
+  attend l'accord du propriétaire.
+- **Taux du portail** (plan 20.18) : le menu du portail montre « TVA exo
+  export », la Taxe sur les Opérations Bancaires 5 % et 10 %, la Taxe pour le
+  Développement Touristique. Selflow a les codes A (TVA 18), B (TVAB 9),
+  C (TVAC 0, exonération conventionnelle), D (TVAD 0, exonération légale) ;
+  TOB et Taxe touristique se saisissent en « autres taxes » (`customTaxes`,
+  nom et taux libres). L'export n'a aucun code dans la procédure
+  d'interfaçage : rien n'est ajouté sans la nouvelle version du référentiel ou
+  une pièce certifiée qui le porte (périmètre gelé).
 
 Reste de 20.17 : libellés FNE incohérents (non repris : ils touchent les écrans du périmètre gelé, à lister avant toute retouche).
 

@@ -9,7 +9,7 @@ PLAN-CORRECTION-SELFLOW.xlsx (section 20).
 --------------------
 Branche de référence : main, poussée sur les deux dépôts
 (IT-dcknowing/Selflow et meledjeabrahamagnimel-lgtm/Selflow).
-Plan : 104 chantiers, 91 terminés, 8 sans objet, 5 à faire.
+Plan : 107 chantiers, 92 terminés, 8 sans objet, 5 à faire, 2 à trancher.
 
 
 2. FAIT LE 09/10/2026 (lot 63)
@@ -23,14 +23,17 @@ Plan : 104 chantiers, 91 terminés, 8 sans objet, 5 à faire.
 - Bon de commande fournisseur numéroté BCF- (BC- reste à la vente).
 
 
-3. À TRANCHER PAR LE PROPRIÉTAIRE
----------------------------------
-- « RNE — Régime du Négoce et de l'Exportation » dans la liste des
-  régimes : inconnu du CGI, et RNE est le sigle du reçu normalisé.
-- Un client B2G transmet désormais son NCC à la FNE (champ clientNcc,
-  facultatif hors B2B). FneService n'a pas changé.
-- NCC d'un fournisseur B2G : toujours effacé (le garder ferait sortir
-  ses achats du bordereau BAPA).
+3. TRANCHÉ ET À TRANCHER
+------------------------
+- RNE (régime) reste dans la liste : tranché par le propriétaire le 09/10
+  (ce n'est pas le reçu normalisé RNE).
+- Un client B2G transmet désormais son NCC à la FNE (clientNcc) : expliqué,
+  à surveiller sur la première facture B2G certifiée.
+- 20.19 NCC d'un fournisseur B2G : effacé ; le garder sortirait ses achats
+  du BAPA (recommandé). Accord attendu.
+- 20.18 Taux du portail : « TVA exo export » sans code dans la procédure
+  d'interfaçage (périmètre gelé) ; TOB 5 %/10 % et Taxe touristique en
+  « autres taxes » (préréglages possibles si le propriétaire le veut).
 
 
 4. DÉPLOIEMENT SUR LE SERVEUR (Linux)
