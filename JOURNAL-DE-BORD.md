@@ -7977,6 +7977,25 @@ Superadmin › Vitrine. Vérifié dans Chromium à 1 600 et 1 024 px.
 
 ---
 
+### Lot 74 — L'étape 1 du pas à pas refaite, le retour arrière du parcours, un plan à part — **TERMINÉ le 14/10/2026**
+
+Branche `retouches-pas-a-pas-et-plan`. **Courriel vérifié en production** le
+14/10 par le propriétaire : `selflow:verifier-courriel` → SMTP
+`mail.dc-knowing.com:465`, expéditeur `infos@dc-knowing.com`, message d'essai
+remis.
+
+| Retour | Correction |
+|---|---|
+| Revenu de l'étape 2 à l'étape 1 du parcours par le bouton « Retour » du navigateur, le clic sur le domaine ne menait plus nulle part | la page restaurée par le navigateur gardait le drapeau « déjà envoyé » posé au départ : il est effacé à chaque affichage (`pageshow`) |
+| « Le pas à pas, j'aime bien, mais l'étape 1 ne doit pas rester comme l'autre » | étape 1 refaite en **liste pleine largeur** : une ligne par article (vignette, nom, catégorie, stock, prix, compteur − / +, « Ajouter »), ligne surlignée quand elle est au panier ; **plus de panier latéral** à cette étape, remplacé par une **barre fixe en bas** (nombre d'articles, net à payer, saisie libre, « Client et document »). La présentation « Caisse » ne change pas. Vérifié dans Chromium |
+| (trouvé) une pastille de catégorie vide | « Sans catégorie » |
+| « Le plan ne doit pas être mélangé aux autres » | la section 21 quitte `PLAN-CORRECTION-SELFLOW.xlsx` (rendu à son état du 09/10) ; **`PLAN-RETOURS-PRODUCTION.xlsx`**, même modèle et mêmes couleurs : 9 sections, 34 chantiers, 27 terminés, 4 à faire (B2B), 3 à trancher ou attendus |
+
+- `VentePasAPasTest` : deux épreuves de plus.
+- Suite : 1 724 épreuves, 1 719 passantes, 5 sautées ; `verifier:variables` propre.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

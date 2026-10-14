@@ -22,7 +22,11 @@ deux dépôts une fois la suite verte.
 | 70 B2B approfondi | **Validé, à programmer** (étude ci-dessous) | — |
 | 71 Erreur 500 de la fiche article, mot de passe, recherches, import du stock | **Terminé** | `3b6d3ac` |
 | 72 Plan comptable modifiable, Gestion FNE | **Terminé** | `1376c21` |
-| 73 Page d'accueil | **Terminé en partie** (textes des applications attendus) | — |
+| 73 Page d'accueil | **Terminé en partie** (textes des applications attendus) | `0ed7302` |
+| 74 Étape 1 du pas à pas refaite, retour arrière du parcours, plan Excel à part | **Terminé** | — |
+
+**Le plan chiffré vit dans `PLAN-RETOURS-PRODUCTION.xlsx`**, à part du plan de
+correction (même modèle, mêmes couleurs).
 
 Poussé sur les deux dépôts (`IT-dcknowing/Selflow`, `meledjeabrahamagnimel-lgtm/Selflow`).
 
