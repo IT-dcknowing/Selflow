@@ -1390,6 +1390,42 @@ class VenteControleur
     /**
      * Générer un avoir sur une facture de vente
      */
+    /**
+     * Le remboursement en espèces d'un avoir : sortie de caisse **et**
+     * écriture. Seule la sortie de caisse était posée, et du TTC seulement —
+     * la comptabilité ne voyait pas l'argent rendu, et le client gardait les
+     * taxes parafiscales d'une vente annulée (le timbre, lui, reste dû).
+     */
+    private static function rembourserLAvoirEnEspeces(Vente $avoir, Vente $facture): void
+    {
+        $mode = strtolower((string) $facture->mode_paiement);
+        if (! str_contains($mode, 'espèces') && ! str_contains($mode, 'especes') && ! str_contains($mode, 'caisse')) {
+            return;
+        }
+
+        $montant = \App\Modules\Admin\Services\ComptabiliteService::montantsDeLAvoirVente($avoir)['net'];
+        if ($montant <= 0) {
+            return;
+        }
+
+        $soldeActuel = TresorerieJournal::where('point_de_vente_id', $facture->point_de_vente_id)
+            ->orderByDesc('created_at')->value('solde_resultat') ?? 0;
+
+        TresorerieJournal::create([
+            'point_de_vente_id' => $facture->point_de_vente_id,
+            'date_operation' => now()->toDateString(),
+            'type_operation' => 'Décaissement',
+            'libelle' => 'Remboursement Avoir client ' . $avoir->numero_facture,
+            'mode_paiement' => $facture->mode_paiement,
+            'montant_entree' => 0,
+            'montant_sortie' => $montant,
+            'solde_resultat' => $soldeActuel - $montant,
+            'reference_document' => $avoir->numero_facture,
+        ]);
+
+        \App\Modules\Admin\Services\ComptabiliteService::genererEcritureRemboursementAvoirVente($avoir, $montant, (string) $facture->mode_paiement);
+    }
+
     public function creerAvoir(Request $request, Vente $vente): RedirectResponse
     {
         abort_unless($vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
@@ -1487,6 +1523,7 @@ class VenteControleur
                         (float) $detail->quantite,
                         MouvementStock::RETOUR_CLIENT,
                         ['piece' => $avoir, 'reference' => $numAvoir, 'client_id' => $vente->client_id]
+                            + self::coutDeLaSortieDOrigine($vente, $detail->produit)
                     );
                 }
             }
@@ -1494,23 +1531,9 @@ class VenteControleur
             // 3. Écritures comptables
             \App\Modules\Admin\Services\ComptabiliteService::genererEcritureAvoirVente($avoir);
 
-            // 4. Si la facture d'origine était déjà payée en espèces, on simule la sortie de caisse du remboursement
-            if (str_contains(strtolower($vente->mode_paiement), 'espèces') || str_contains(strtolower($vente->mode_paiement), 'caisse')) {
-                $soldeActuel = TresorerieJournal::where('point_de_vente_id', $vente->point_de_vente_id)
-                    ->orderByDesc('created_at')->value('solde_resultat') ?? 0;
-
-                TresorerieJournal::create([
-                    'point_de_vente_id' => $vente->point_de_vente_id,
-                    'date_operation' => now()->toDateString(),
-                    'type_operation' => 'Décaissement', // Remboursement client
-                    'libelle' => 'Remboursement Avoir client ' . $numAvoir,
-                    'mode_paiement' => $vente->mode_paiement,
-                    'montant_entree' => 0,
-                    'montant_sortie' => $vente->montant_ttc,
-                    'solde_resultat' => $soldeActuel - $vente->montant_ttc,
-                    'reference_document' => $numAvoir,
-                ]);
-            }
+            // 4. Facture payée en espèces : le client est remboursé de ce que
+            // l'avoir lui rend, taxes parafiscales comprises.
+            self::rembourserLAvoirEnEspeces($avoir, $vente);
 
             $avoirId = $avoir->id;
         });
@@ -1986,6 +2009,37 @@ class VenteControleur
     }
 
     /**
+     * Le coût auquel la marchandise est sortie pour cette facture.
+     *
+     * Le retour entrait au CUMP (Coût Unitaire Moyen Pondéré) du jour : si
+     * des achats l'avaient fait bouger depuis la vente, le coût des ventes
+     * (603x) ne revenait pas à zéro — l'avoir annulait la vente mais pas
+     * exactement son coût. Sans sortie retrouvée, le CUMP du jour reste.
+     *
+     * @return array{cout_unitaire?: float}
+     */
+    private static function coutDeLaSortieDOrigine(Vente $facture, Produit $produit): array
+    {
+        $sorties = MouvementStock::where('produit_id', $produit->id)
+            ->where('point_de_vente_id', $facture->point_de_vente_id)
+            ->where('type_mouvement', MouvementStock::SORTIE)
+            ->where(function ($q) use ($facture) {
+                $q->where(fn ($w) => $w->where('piece_type', $facture->getMorphClass())->where('piece_id', $facture->id))
+                  ->orWhere('reference_document', $facture->numero_facture);
+            })
+            ->get(['quantite', 'cout_unitaire']);
+
+        $quantite = (float) $sorties->sum('quantite');
+        if ($quantite <= 0) {
+            return [];
+        }
+
+        $valeur = $sorties->sum(fn ($m) => (float) $m->quantite * (float) $m->cout_unitaire);
+
+        return ['cout_unitaire' => $valeur / $quantite];
+    }
+
+    /**
      * Le sort de la marchandise rendue, choisi ligne par ligne sur l'avoir.
      *
      * Trois cas, et trois seulement :
@@ -2022,7 +2076,7 @@ class VenteControleur
             'piece' => $avoir,
             'reference' => $numAvoir,
             'client_id' => $venteOrigine->client_id,
-        ];
+        ] + self::coutDeLaSortieDOrigine($venteOrigine, $produit);
 
         $pointDeVenteId = (int) $venteOrigine->point_de_vente_id;
 
@@ -2316,23 +2370,8 @@ class VenteControleur
             // 3. Écritures comptables
             \App\Modules\Admin\Services\ComptabiliteService::genererEcritureAvoirVente($avoir);
 
-            // 4. Sortie de trésorerie si remboursement caisse
-            if (str_contains(strtolower($parent->mode_paiement), 'espèces') || str_contains(strtolower($parent->mode_paiement), 'caisse')) {
-                $soldeActuel = TresorerieJournal::where('point_de_vente_id', $parent->point_de_vente_id)
-                    ->orderByDesc('created_at')->value('solde_resultat') ?? 0;
-
-                TresorerieJournal::create([
-                    'point_de_vente_id' => $parent->point_de_vente_id,
-                    'date_operation' => now()->toDateString(),
-                    'type_operation' => 'Décaissement',
-                    'libelle' => 'Remboursement Avoir client ' . $numAvoir,
-                    'mode_paiement' => $parent->mode_paiement,
-                    'montant_entree' => 0,
-                    'montant_sortie' => $totalTtc,
-                    'solde_resultat' => $soldeActuel - $totalTtc,
-                    'reference_document' => $numAvoir,
-                ]);
-            }
+            // 4. Facture payée en espèces : le client est remboursé.
+            self::rembourserLAvoirEnEspeces($avoir, $parent);
 
             $avoirId = $avoir->id;
         });
