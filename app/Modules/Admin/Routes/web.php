@@ -274,6 +274,15 @@ Route::prefix('admin')
             });
         });
 
+        // ── Stickers : DC-Knowing les achète pour l'entreprise (retest d'octobre
+        // 2026). Hors du module comptable : toute entreprise qui certifie en
+        // consomme.
+        Route::prefix('stickers')->name('stickers.')->group(function () {
+            Route::get('/', [\App\Modules\Admin\Controleurs\DemandeStickerControleur::class, 'index'])->name('index');
+            Route::post('/', [\App\Modules\Admin\Controleurs\DemandeStickerControleur::class, 'enregistrer'])->name('enregistrer');
+            Route::post('/{demande}/annuler', [\App\Modules\Admin\Controleurs\DemandeStickerControleur::class, 'annuler'])->name('annuler');
+        });
+
         // ── Module Fiscalité & DGI (Gestion FNE) ──
         Route::prefix('fne')->name('fne.')->middleware('modules:comptabilite')->group(function () {
             Route::get('/gestion', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'gestion'])->name('gestion');
@@ -617,6 +626,12 @@ Route::prefix('superadmin')
         });
 
         // ── Gestion des clés FNE (DGI) ──
+        // Les demandes de stickers que DC-Knowing achète pour ses clients.
+        Route::prefix('stickers')->name('stickers.')->group(function () {
+            Route::get('/', [\App\Modules\Admin\Controleurs\DemandeStickerControleur::class, 'superadminIndex'])->name('index');
+            Route::put('/{demande}', [\App\Modules\Admin\Controleurs\DemandeStickerControleur::class, 'superadminMettreAJour'])->name('mettre_a_jour');
+        });
+
         Route::prefix('fne')->name('fne.')->group(function () {
             Route::get('/', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'index'])->name('index');
             Route::post('/{entreprise}/cle-test', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'ajouterCleTest'])->name('cle_test');

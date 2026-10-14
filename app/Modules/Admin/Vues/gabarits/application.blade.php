@@ -750,6 +750,11 @@
             <a href="{{ route('superadmin.fne.index') }}" class="nav-item {{ request()->routeIs('superadmin.fne*') ? 'active' : '' }}">
                 <i class="fas fa-key"></i> Gestion FNE
             </a>
+            @php $__stickersOuverts = \App\Modules\Admin\Modeles\DemandeSticker::whereIn('statut', ['recue', 'en_cours', 'achetee'])->count(); @endphp
+            <a href="{{ route('superadmin.stickers.index') }}" class="nav-item {{ request()->routeIs('superadmin.stickers*') ? 'active' : '' }}">
+                <i class="fas fa-ticket"></i> Demandes de stickers
+                @if($__stickersOuverts)<span style="margin-left:auto; background:#ef4444; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700;">{{ $__stickersOuverts }}</span>@endif
+            </a>
 
             @if(auth()->user()->aHabilitation('gestion_secteurs_modules'))
             <div class="nav-section"><span>CONFIGURATION</span></div>
@@ -855,6 +860,11 @@
             </a>
             <a href="{{ route('admin.ventes.factures', ['type' => 'avoir']) }}" class="nav-item {{ request()->routeIs('admin.ventes.factures') && request('type') === 'avoir' ? 'active' : '' }}">
                 <i class="fas fa-file-circle-minus" style="color:#e17055;"></i> Avoirs clients
+            </a>
+            {{-- Les stickers certifient les factures : la demande vit avec elles.
+                 DC-Knowing les achète pour l'entreprise (retest d'octobre 2026). --}}
+            <a href="{{ route('admin.stickers.index') }}" class="nav-item {{ request()->routeIs('admin.stickers.*') ? 'active' : '' }}">
+                <i class="fas fa-ticket"></i> Commander des stickers
             </a>
             @endif
 
@@ -1459,7 +1469,9 @@
                     @endif
                     <br>
                     Rechargez votre solde depuis votre espace FNE
-                    (<em>Gestion des stickers</em>). Le solde affiché ici est celui
+                    (<em>Gestion des stickers</em>), ou
+                    <a href="{{ route('admin.stickers.index') }}" style="color:inherit; font-weight:700;">confiez l'achat à DC-Knowing</a>.
+                    Le solde affiché ici est celui
                     renvoyé lors de la dernière certification : il se met à jour à la
                     suivante.
                 </div>

@@ -7866,6 +7866,32 @@ réponse, l'achat s'écrit comme avant ; l'achat B2B non plus (lot 70).
 
 ---
 
+### Lot 68 — Les stickers, achetés par DC-Knowing — **TERMINÉ le 14/10/2026**
+
+Branche `demande-de-stickers`. `AlerteStickersService` (gelé) n'est pas touché :
+seul le texte de l'alerte, dans le gabarit, gagne un lien.
+
+L'écran retiré au lot 40 laissait croire que Selflow vendait les vignettes.
+Il revient sous la forme demandée : **l'entreprise choisit, DC-Knowing achète
+pour elle** sur la plateforme FNE.
+
+| Où | Quoi |
+|---|---|
+| Ventes › Commander des stickers (`admin.stickers.*`, habilitation `factures_vente`, hors module comptable) | quantité (au moins 50, raccourcis 100 / 500 / 1 000 / 5 000), site, urgence, téléphone, commentaire ; montant estimé au tarif de `selflow.sticker_prix_unitaire` ; historique et statut ; annulation tant que DC-Knowing n'a pas commencé |
+| Courriel | à DC-Knowing (`SELFLOW_ADRESSE_STICKERS`, plusieurs adresses séparées par des virgules ; défaut : les deux adresses des alertes de production), et accusé de réception au demandeur |
+| Superadmin › Demandes de stickers (`superadmin.stickers.*`, habilitation `gestion_fne`) | toutes les demandes, ouvertes et urgentes d'abord, compteur au menu ; statut (reçue, achat en cours, achetée, livrée, annulée) et note visibles par l'entreprise |
+| Liens | l'alerte de solde bas et la page « Gestion FNE » mènent à l'écran |
+
+Table `demandes_stickers` (migration `2026_10_14_000002`).
+
+- `DemandeStickersTest` (6)
+- Suite : 1 702 épreuves, 1 697 passantes, 5 sautées ; `verifier:variables` propre.
+
+**Au déploiement** : renseigner `SELFLOW_ADRESSE_STICKERS` si les demandes
+doivent partir ailleurs que vers les deux adresses par défaut.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
