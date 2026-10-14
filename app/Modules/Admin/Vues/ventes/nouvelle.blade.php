@@ -163,6 +163,38 @@
         from { transform: translateX(-100%); opacity: 0; }
         to { transform: translateX(0); opacity: 1; }
     }
+
+    /* ── Présentation « Pas à pas » (retest d'octobre 2026) ─────────────
+       Le même formulaire, découpé : chaque bloc dit à quelle(s) étape(s) il
+       appartient (`data-pas`), le formulaire porte l'étape courante. En
+       présentation « Caisse », rien de tout cela ne s'applique. */
+    .bascule-vue-vente { display:inline-flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--bg2); }
+    .bascule-vue-vente button { border:none; background:transparent; padding:8px 14px; font-size:12.5px; font-weight:600; color:var(--text-2); cursor:pointer; display:inline-flex; gap:6px; align-items:center; font-family:inherit; }
+    .bascule-vue-vente button.actif { background:var(--primary); color:#fff; }
+
+    .fil-etapes, .nav-etapes { display:none; }
+    .vente-pas-a-pas .fil-etapes { display:flex; list-style:none; gap:8px; margin:0 0 18px; padding:0; flex-wrap:wrap; }
+    .fil-etapes li { flex:1; min-width:140px; display:flex; align-items:center; gap:8px; padding:10px 12px; border-radius:10px; background:var(--bg2); border:1px solid var(--border); font-size:12.5px; font-weight:600; color:var(--text-3); cursor:pointer; }
+    .fil-etapes li span { width:24px; height:24px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background:var(--bg3); font-weight:800; font-size:12px; }
+    .fil-etapes li.fait { color:var(--success); }
+    .fil-etapes li.fait span { background:#d1fae5; color:#047857; }
+    .fil-etapes li.courant { color:var(--primary); border-color:var(--primary); box-shadow:0 0 0 3px rgba(0,43,92,.08); }
+    .fil-etapes li.courant span { background:var(--primary); color:#fff; }
+    .vente-pas-a-pas .nav-etapes { display:flex; gap:10px; justify-content:space-between; margin-top:16px; }
+    .vente-pas-a-pas .nav-etapes .btn { flex:1; justify-content:center; }
+
+    .vente-pas-a-pas[data-pas-courant="1"] [data-pas]:not([data-pas~="1"]),
+    .vente-pas-a-pas[data-pas-courant="2"] [data-pas]:not([data-pas~="2"]),
+    .vente-pas-a-pas[data-pas-courant="3"] [data-pas]:not([data-pas~="3"]),
+    .vente-pas-a-pas[data-pas-courant="4"] [data-pas]:not([data-pas~="4"]) { display:none !important; }
+    /* Hors de la première étape, le catalogue s'efface : une seule colonne. */
+    .vente-pas-a-pas:not([data-pas-courant="1"]) .pos-grid { grid-template-columns:minmax(0, 680px); justify-content:center; }
+    .vente-pas-a-pas .pos-grid > div > .card { position:static !important; }
+    .recap-vente { display:none; }
+    .vente-pas-a-pas .recap-vente { display:block; margin-top:14px; border:1px solid var(--border); border-radius:10px; padding:12px 14px; background:var(--bg3); font-size:13px; }
+    .recap-vente .ligne { display:flex; justify-content:space-between; gap:12px; padding:5px 0; border-bottom:1px dashed var(--border); }
+    .recap-vente .ligne:last-child { border-bottom:none; }
+    .recap-vente .ligne a { font-size:11.5px; font-weight:600; }
 </style>
 @endsection
 
@@ -176,17 +208,37 @@
         $routeHistorique = request()->routeIs('caissier.*') ? route('caissier.ventes.factures') : route('admin.ventes.factures');
         $routeEnregistrer = request()->routeIs('caissier.*') ? route('caissier.ventes.enregistrer') : route('admin.ventes.enregistrer');
     @endphp
-    <a href="{{ $routeHistorique }}" class="btn btn-outline">
-        <i class="fas fa-list"></i> Voir les ventes
-    </a>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        {{-- Deux présentations d'un même formulaire, comme la bascule du
+             catalogue : la caisse d'un seul tenant, ou la vente en étapes
+             (retest d'octobre 2026). Le choix est retenu par le navigateur. --}}
+        <div class="bascule-vue-vente" role="group" aria-label="Présentation de la vente">
+            <button type="button" id="btn-vue-caisse" onclick="choisirVueVente('caisse')" title="Tout sur un écran">
+                <i class="fas fa-cash-register"></i> Caisse
+            </button>
+            <button type="button" id="btn-vue-etapes" onclick="choisirVueVente('etapes')" title="Une étape après l'autre, jusqu'à la facturation">
+                <i class="fas fa-list-ol"></i> Pas à pas
+            </button>
+        </div>
+        <a href="{{ $routeHistorique }}" class="btn btn-outline">
+            <i class="fas fa-list"></i> Voir les ventes
+        </a>
+    </div>
 </div>
 
-<form method="POST" action="{{ $routeEnregistrer }}" id="formVente">
+<form method="POST" action="{{ $routeEnregistrer }}" id="formVente" data-pas-courant="1">
 @csrf
+{{-- Le fil des étapes : il ne paraît qu'en présentation « Pas à pas ». --}}
+<ol class="fil-etapes" id="filEtapes">
+    <li data-fil="1"><span>1</span> Articles</li>
+    <li data-fil="2"><span>2</span> Client et document</li>
+    <li data-fil="3"><span>3</span> Règlement</li>
+    <li data-fil="4"><span>4</span> Valider et facturer</li>
+</ol>
 <div class="pos-grid">
 
     {{-- ── COLONNE GAUCHE : Catalogue produits ── --}}
-    <div>
+    <div data-pas="1">
         <div class="card">
             <div class="card-header">
                 <h2><i class="fas fa-barcode"></i> Catalogue produits</h2>
@@ -252,13 +304,14 @@
     {{-- ── COLONNE DROITE : Panier ── --}}
     <div>
         <div class="card" style="position: sticky; top: calc(var(--topbar-h) + 16px);">
-            <div class="card-header">
+            <div class="card-header" data-pas="1 4">
                 <h2><i class="fas fa-shopping-cart"></i> Panier</h2>
                 <span id="nbArticles" style="color:var(--text-3); font-size:12px;">0 article(s)</span>
             </div>
             <div class="card-body">
 
                 {{-- Articles du panier --}}
+                <div data-pas="1 4">
                 <div id="panierVide" style="text-align:center; padding:24px 0; color:var(--text-3);">
                     <i class="fas fa-cart-plus" style="font-size:28px; display:block; margin-bottom:8px; opacity:.3;"></i>
                     Cliquez sur un produit pour l'ajouter
@@ -269,9 +322,10 @@
                 <button type="button" class="btn btn-outline btn-sm" onclick="ouvrirSaisieLibre()" style="width:100%; justify-content:center; margin-top:10px; margin-bottom:15px; border-style:dashed;">
                     <i class="fas fa-plus"></i> Saisie libre / Service
                 </button>
+                </div>
 
                 {{-- Totaux --}}
-                <div class="total-box">
+                <div class="total-box" data-pas="1 3 4">
                     <div class="total-row"><span>Total HT</span><span id="totalHt">0 F</span></div>
                     <div class="total-row" style="align-items:center;">
                         <span>Remise (%)</span>
@@ -298,7 +352,7 @@
                 </div>
 
                 {{-- Taxes sur total TTC (champ `customTaxes` de la FNE) --}}
-                <div style="margin-top:14px; border:1px solid var(--border); border-radius:10px; padding:12px;">
+                <div data-pas="3" style="margin-top:14px; border:1px solid var(--border); border-radius:10px; padding:12px;">
                     <div style="font-size:12px; font-weight:700; color:var(--text-2); margin-bottom:8px;">
                         <i class="fas fa-percent" style="color:var(--primary);"></i> Taxes sur total TTC
                     </div>
@@ -318,7 +372,7 @@
                          certifiée — voir `factures/ticket.blade.php`. --}}
                     @php $entrepriseCourante = Auth::user()->entreprise; @endphp
 
-                    <div class="form-group">
+                    <div class="form-group" data-pas="2">
                         <label class="form-label">Client (optionnel)</label>
                         <select name="client_id" class="form-control">
                             <option value="">— Client de passage —</option>
@@ -330,7 +384,7 @@
 
                     {{-- Lot G : Sélecteur du type de document --}}
                     <input type="hidden" name="etape" id="etapeInput" value="Facture">
-                    <div class="form-group">
+                    <div class="form-group" data-pas="2">
                         <label class="form-label">Type de document</label>
                         <input type="hidden" name="type_piece" id="typePieceInput" value="facture">
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:4px;">
@@ -404,7 +458,7 @@
                     <input type="hidden" name="taux_change" id="tauxChangeInput" value="">
 
                     {{-- Bloc Paiement : visible uniquement à l'étape Facture --}}
-                    <div id="blocPaiementVente">
+                    <div data-pas="3"><div id="blocPaiementVente">
                         <div class="form-group">
                             <label class="form-label">Mode de paiement <span style="color:var(--danger)">*</span></label>
                             <div style="display:flex; gap:8px; margin-bottom:12px;">
@@ -512,10 +566,23 @@
                             </small>
                         </div>
 
-                    </div>
+                    </div></div>
                 </div>
 
-                <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+                {{-- Le récapitulatif de la dernière étape, rempli à l'arrivée. --}}
+                <div id="recapVente" class="recap-vente" data-pas="4"></div>
+
+                {{-- Précédent / Suivant : présentation « Pas à pas » seulement. --}}
+                <div class="nav-etapes" id="navEtapes">
+                    <button type="button" class="btn btn-outline" id="btnEtapePrecedente" onclick="allerEtape(etapeCourante - 1)">
+                        <i class="fas fa-arrow-left"></i> Précédent
+                    </button>
+                    <button type="button" class="btn btn-primary" id="btnEtapeSuivante" onclick="etapeSuivante()">
+                        Suivant <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+
+                <div data-pas="4" style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
                     <button type="submit" class="btn btn-success" id="btnValider" style="width:100%; justify-content:center;" disabled>
                         <i class="fas fa-check-circle"></i> <span id="labelBtnValiderVente">Valider et facturer</span>
                     </button>
@@ -1690,6 +1757,140 @@ document.getElementById('formVente').addEventListener('submit', function(e) {
     }
 });
 
+</script>
+
+
+<script>
+/* ── Vente pas à pas ──────────────────────────────────────────────────────
+   Même formulaire, même envoi : la présentation seule change. */
+let etapeCourante = 1;
+const ETAPES = 4;
+
+function enModeEtapes() {
+    return document.getElementById('formVente').classList.contains('vente-pas-a-pas');
+}
+
+function choisirVueVente(vue) {
+    const form = document.getElementById('formVente');
+    form.classList.toggle('vente-pas-a-pas', vue === 'etapes');
+    document.getElementById('btn-vue-caisse').classList.toggle('actif', vue !== 'etapes');
+    document.getElementById('btn-vue-etapes').classList.toggle('actif', vue === 'etapes');
+    try { localStorage.setItem('selflow_vente_vue', vue); } catch (e) {}
+    if (vue === 'etapes') { allerEtape(etapeCourante); }
+}
+
+/** Ce qui empêche de quitter une étape, dit à l'écran — jamais en silence. */
+function etapeValide(n) {
+    if (n === 1 && Object.keys(panier).length === 0) {
+        alert('Ajoutez au moins un article au panier avant de continuer.');
+        return false;
+    }
+    const champs = document.querySelectorAll('#formVente [data-pas~="' + n + '"] input, #formVente [data-pas~="' + n + '"] select, #formVente [data-pas~="' + n + '"] textarea');
+    for (const champ of champs) {
+        if (champ.offsetParent !== null && !champ.checkValidity()) {
+            champ.reportValidity();
+            return false;
+        }
+    }
+    if (n === 3 && document.getElementById('etapeInput').value === 'Facture'
+        && document.getElementById('modePaiementInput').value !== 'Crédit') {
+        const montant = parseFloat(document.getElementById('montantPayeInput').value);
+        if (isNaN(montant) || montant <= 0) {
+            alert('Saisissez le montant reçu (ou choisissez « Crédit »).');
+            document.getElementById('montantPayeInput').focus();
+            return false;
+        }
+    }
+    return true;
+}
+
+function etapeSuivante() {
+    if (etapeValide(etapeCourante)) { allerEtape(etapeCourante + 1); }
+}
+
+function allerEtape(n) {
+    n = Math.max(1, Math.min(ETAPES, n));
+    // On revient en arrière librement ; on n'avance qu'étape par étape validée.
+    for (let i = etapeCourante; i < n; i++) {
+        if (!etapeValide(i)) { n = i; break; }
+    }
+    etapeCourante = n;
+    document.getElementById('formVente').dataset.pasCourant = String(n);
+    document.querySelectorAll('#filEtapes [data-fil]').forEach(function (li) {
+        const k = parseInt(li.dataset.fil, 10);
+        li.classList.toggle('courant', k === n);
+        li.classList.toggle('fait', k < n);
+    });
+    document.getElementById('btnEtapePrecedente').style.visibility = n > 1 ? 'visible' : 'hidden';
+    document.getElementById('btnEtapeSuivante').style.display = n < ETAPES ? '' : 'none';
+    if (n === ETAPES) { remplirRecap(); }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function remplirRecap() {
+    const client = document.querySelector('#formVente select[name="client_id"]');
+    const etape = document.getElementById('etapeInput').value;
+    const mode = document.getElementById('modePaiementInput').value;
+    const montant = parseFloat(document.getElementById('montantPayeInput').value) || 0;
+    const lignes = [
+        ['Articles', document.getElementById('nbArticles').textContent, 1],
+        ['Client', client ? client.options[client.selectedIndex].text : '—', 2],
+        ['Document', etape === 'Facture' ? 'Facture + reçu' : etape, 2],
+    ];
+    if (etape === 'Facture') {
+        lignes.push(['Règlement', mode + (mode !== 'Crédit' ? ' — ' + formatFcfa(montant) + ' reçus' : ''), 3]);
+    }
+    lignes.push(['Net à payer', document.getElementById('netAPayer').textContent, 0]);
+
+    const recap = document.getElementById('recapVente');
+    recap.textContent = '';
+    lignes.forEach(function (l) {
+        const div = document.createElement('div'); div.className = 'ligne';
+        const g = document.createElement('span'); g.textContent = l[0];
+        const d = document.createElement('strong'); d.textContent = l[1] + ' ';
+        if (l[2]) {
+            const a = document.createElement('a'); a.href = '#'; a.textContent = 'modifier';
+            a.addEventListener('click', function (e) { e.preventDefault(); allerEtape(l[2]); });
+            d.appendChild(a);
+        }
+        div.appendChild(g); div.appendChild(d); recap.appendChild(div);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('#filEtapes [data-fil]').forEach(function (li) {
+        li.addEventListener('click', function () { allerEtape(parseInt(li.dataset.fil, 10)); });
+    });
+
+    const form = document.getElementById('formVente');
+
+    // Entrée dans un champ ne facture pas avant la dernière étape : elle avance.
+    form.addEventListener('submit', function (e) {
+        if (enModeEtapes() && etapeCourante < ETAPES) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            etapeSuivante();
+        }
+    }, true);
+
+    // Un champ obligatoire resté invalide sur une étape masquée bloquait
+    // l'envoi sans un mot : on y retourne et on le montre.
+    form.addEventListener('invalid', function (e) {
+        if (!enModeEtapes()) return;
+        const bloc = e.target.closest('[data-pas]');
+        if (!bloc) return;
+        const etape = parseInt(bloc.dataset.pas.split(' ')[0], 10);
+        if (etape !== etapeCourante) {
+            etapeCourante = etape;
+            allerEtape(etape);
+            setTimeout(function () { e.target.reportValidity(); }, 50);
+        }
+    }, true);
+
+    let vue = 'caisse';
+    try { vue = localStorage.getItem('selflow_vente_vue') || 'caisse'; } catch (e) {}
+    choisirVueVente(vue);
+});
 </script>
 
 {{-- Bornage immediat de tout taux saisi : aucune remise ni taxe ne peut sortir
