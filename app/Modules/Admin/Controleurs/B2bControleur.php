@@ -425,7 +425,7 @@ class B2bControleur extends Controller
                 'montant_tva'          => $vente->montant_tva,
                 'montant_ttc'          => $vente->montant_ttc,
                 'statut'               => 'En attente B2B',
-                'etape'                => 'Bon de Commande',
+                'etape'                => 'Bon de commande',
                 'b2b_negotiation_id'   => $negociation->id,
             ]);
 

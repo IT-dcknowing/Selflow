@@ -278,6 +278,21 @@ class ComptabiliteService
         // `genererEcritureReglementAchat()`, qui porte seul le décaissement.
         $codeJournalAchat = self::codeJournal($entrepriseId, 'Achat', 'ACH');
 
+        // La facture que le fournisseur déclarera revient par le relevé du
+        // portail, et c'est elle qui passe en écriture (règle du propriétaire,
+        // retest d'octobre 2026). La saisie reste une information ; seul
+        // l'argent réellement sorti s'écrit, au compte du fournisseur.
+        if ($achat->estInformative()) {
+            if ($montantPaye > 0) {
+                self::genererEcritureReglementAchat(
+                    $achat, $montantPaye, $modePaiement, $date, $moyenBancaire, $referencePaiement,
+                    'Règlement d\'une facture déclarée par le fournisseur'
+                );
+            }
+
+            return;
+        }
+
         $ventilation = self::ventilationAchat($achat);
 
         $jetons = self::jetonsAchat($achat, $refDoc, $codeJournalAchat, $date, $ventilation);

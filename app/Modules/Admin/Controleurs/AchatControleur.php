@@ -103,6 +103,7 @@ class AchatControleur
             // au dû. Voir `Achat::monnaieRendue()`.
             'montant_paye'               => ['nullable', 'numeric', 'min:0'],
             'type_facture'               => ['nullable', 'string', 'in:normale,bapa'],
+            'declaree_par_fournisseur'   => ['nullable', 'boolean'],
             'articles'                   => ['required', 'array', 'min:1'],
             'articles.*.produit_id'      => ['nullable', 'integer', Appartenance::a('produits', 'id')],
             'articles.*.libelle_virtuel' => ['nullable', 'string', 'max:255'],
@@ -238,6 +239,10 @@ class AchatControleur
                 'statut'                     => $statutInitial,
                 'etape'                      => $etape,
                 'type_facture'               => $request->input('type_facture', 'normale'),
+                // La question ne vaut que pour une facture fournisseur : un
+                // bordereau est émis par nous, une commande ne s'écrit pas.
+                'declaree_par_fournisseur'   => !$isBapa && $request->input('etape', 'Facture') === 'Facture' && $request->filled('declaree_par_fournisseur')
+                    ? $request->boolean('declaree_par_fournisseur') : null,
                 'est_rne'                    => $request->boolean('est_rne'),
                 'numero_rne'                 => $request->boolean('est_rne') ? trim($request->input('numero_rne')) : null,
             ]);
@@ -811,6 +816,7 @@ class AchatControleur
             'banque_id'          => ['required_if:mode_paiement,Banque', 'nullable', 'integer', Appartenance::a('codes_journaux', 'id')],
             'moyen_bancaire'     => ['required_if:mode_paiement,Banque', 'nullable', 'string', 'in:carte,virement,cheque'],
             'reference_paiement' => ['required_if:mode_paiement,Banque', 'nullable', 'string', 'max:255'],
+            'declaree_par_fournisseur' => ['nullable', 'boolean'],
         ]);
 
         $mode = $request->input('mode_paiement') ?: 'Crédit';
@@ -828,6 +834,8 @@ class AchatControleur
                 'mode_paiement'      => $modeFinal,
                 'moyen_bancaire'     => $estBanque ? $request->moyen_bancaire : null,
                 'reference_paiement' => $estBanque ? $request->reference_paiement : null,
+                'declaree_par_fournisseur' => $achat->type_facture !== 'bapa' && $request->filled('declaree_par_fournisseur')
+                    ? $request->boolean('declaree_par_fournisseur') : null,
             ]);
             $achat->refresh();
 
@@ -899,7 +907,16 @@ class AchatControleur
             NormaliserAchatBapaJob::dispatch($achat);
         }
 
-        return back()->with('succes', 'Facture d\'achat ' . $achat->numero_facture . ' validée, stock mis à jour et écritures générées.');
+        // Une facture que le fournisseur déclarera, et dont le relevé du
+        // portail est déjà rattaché, passe en écriture tout de suite.
+        foreach (\App\Modules\Admin\Modeles\PortailFneFactureRecue::where('achat_id', $achat->id)->get() as $recue) {
+            \App\Modules\Admin\Services\EcritureFactureRecueService::synchroniser($recue);
+        }
+
+        return back()->with('succes', 'Facture d\'achat ' . $achat->numero_facture . ' validée, stock mis à jour '
+            . ($achat->estInformative()
+                ? '— facture déclarée par le fournisseur : l\'écriture sera passée à la réception de la facture certifiée.'
+                : 'et écritures générées.'));
     }
 
 

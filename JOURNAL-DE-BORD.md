@@ -7840,6 +7840,32 @@ certifie que l'avoir du vendeur) ; sa méthode n'est pas changée.
 
 ---
 
+### Lot 66 — Le cycle d'achat avance d'un geste, et la facture déclarée ne s'écrit qu'une fois — **TERMINÉ le 14/10/2026**
+
+Branche `cycle-achat-actions`. Aucun fichier gelé touché (dans
+`factures/achat.blade.php`, seule la barre d'actions bouge).
+
+| Retour | Correction |
+|---|---|
+| Demande de prix : « Passer en bon de réception » **et** « Confirmer la commande » | un geste par étape : DP → Confirmer la commande ; BC → Bon de réception et Valider & Facturer |
+| Liste : colonne Action vide pour les DP et les BC | DP : « Confirmer la commande » ; BC : « Facturer » (ouvre la page avec la modale de règlement) ; facture informative signalée |
+| À la facturation, demander si le fournisseur déclarera la facture | question obligatoire à l'écran (modale du BC et saisie directe d'une facture), colonne `achats.declaree_par_fournisseur` (migration `2026_10_14_000001`, additive). **Oui** → la saisie est informative : pas d'écriture de facture, seul le règlement s'écrit ; la facture reçue de la DGI rattachée à l'achat passe en écriture (`EcritureFactureRecueService` ne l'écarte plus). **Non** → écriture comme avant. Un BAPA n'est jamais « déclaré par le fournisseur » |
+| (trouvé) l'achat créé par la négociation B2B s'écrivait « Bon de Commande » (C majuscule) et échappait aux contrôles | écrit « Bon de commande » ; la migration corrige les lignes existantes |
+
+**Nuance de la règle du lot 42** : « rattachée à un achat, c'est l'achat qui
+porte » reste vrai pour un achat non déclaré (ou antérieur : colonne nulle).
+Pour un achat déclaré, c'est la facture certifiée qui porte. Si le relevé du
+portail ne tourne pas, l'achat déclaré reste sans écriture de facture : l'écran
+le dit (« saisie informative »).
+
+Non repris : l'API mobile (`AchatApiControleur`) ne pose pas la question — sans
+réponse, l'achat s'écrit comme avant ; l'achat B2B non plus (lot 70).
+
+- `AchatDeclareParLeFournisseurTest` (9)
+- Suite : 1 696 épreuves, 1 691 passantes, 5 sautées ; `verifier:variables` propre.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

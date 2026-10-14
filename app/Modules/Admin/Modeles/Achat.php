@@ -56,6 +56,7 @@ class Achat extends Model
         'fne_timbre_fiscal',
         'fne_certifie_at',
         'type_facture',
+        'declaree_par_fournisseur',
         'archived',
         'parent_id',
         'raison_avoir',
@@ -118,7 +119,20 @@ class Achat extends Model
             'fne_timbre_fiscal'   => 'decimal:2',
             'fne_certifie_at'     => 'datetime',
             'archived'    => 'boolean',
+            'declaree_par_fournisseur' => 'boolean',
         ];
+    }
+
+    /**
+     * La facture sera déclarée par le fournisseur sur la plateforme FNE :
+     * cette saisie n'est qu'une information. L'écriture de la facture est
+     * portée par la facture reçue de la DGI (relevé du portail), et non par
+     * l'achat — sans quoi elle passerait deux fois. Un bordereau (BAPA) est
+     * émis par nous : il n'est jamais déclaré par le fournisseur.
+     */
+    public function estInformative(): bool
+    {
+        return (bool) $this->declaree_par_fournisseur && $this->type_facture !== 'bapa';
     }
 
     public function pointDeVente(): BelongsTo

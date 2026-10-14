@@ -8,7 +8,9 @@
     pièce part à crédit.
 
     Paramètres : $idModale, $action, $titre, $montant (proposé), $modeDefaut
-    ('Caisse', 'Banque' ou 'Crédit'), $banques (journaux de banque), $libelleMontant.
+    ('Caisse', 'Banque' ou 'Crédit'), $banques (journaux de banque), $libelleMontant,
+    $questionDeclaration (achat seulement : « le fournisseur déclarera-t-il cette
+    facture sur la plateforme FNE ? » — si oui, la saisie reste informative).
 --}}
 @php
     $modeDefaut = in_array($modeDefaut ?? 'Crédit', ['Caisse', 'Banque', 'Crédit'], true) ? $modeDefaut : 'Crédit';
@@ -66,6 +68,10 @@
                 <input type="number" step="any" min="0" name="montant_paye" value="{{ round((float) $montant) }}" {{ $modeDefaut === 'Crédit' ? 'disabled' : '' }}
                     style="width:100%; padding:10px 14px; border:1px solid #cbd5e1; border-radius:8px; font-size:14px; font-weight:700;">
             </div>
+
+            @if(!empty($questionDeclaration))
+                @include('admin::achats.partials.question_declaration')
+            @endif
 
             <div style="display:flex; gap:10px; justify-content:flex-end;">
                 <button type="button" onclick="document.getElementById('{{ $idModale }}').style.display='none'"

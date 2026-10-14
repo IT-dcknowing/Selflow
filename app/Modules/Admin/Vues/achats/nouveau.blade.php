@@ -174,6 +174,10 @@
                             <input type="text" name="numero_facture_fournisseur" id="numeroFactureFournisseur" class="form-control" 
                                    placeholder="Ex: F2025-00142" style="font-family:monospace;" value="{{ old('numero_facture_fournisseur') }}">
                         </div>
+                        {{-- Facture fournisseur seulement : un bordereau est émis par nous. --}}
+                        <div id="blocDeclaration" style="display:none;">
+                            @include('admin::achats.partials.question_declaration')
+                        </div>
                         {{-- Mode de paiement --}}
                         <input type="hidden" name="mode_paiement" id="modePaiementInput" value="Caisse">
                         <input type="hidden" name="mobile_money_operateur" id="mobileMoneyOperateurInput" value="">
@@ -692,6 +696,7 @@ function toggleFacturePhysique() {
         document.getElementById('typeFactureInput').value = 'normale';
         document.getElementById('labelBtnValider').textContent = 'Enregistrer la facture';
         document.getElementById('numeroFactureFournisseur').closest('.form-group').style.display = 'block';
+        afficherQuestionDeclaration(true);
     } else {
         marquerNature(null);
         restaurerEtapeParDefaut();
@@ -726,6 +731,7 @@ function toggleBapa() {
         document.getElementById('etapeInput').value = 'Facture';
         document.getElementById('typeFactureInput').value = 'bapa';
         document.getElementById('labelBtnValider').textContent = 'Enregistrer le BAPA (DGI)';
+        afficherQuestionDeclaration(false);
         document.getElementById('numeroFactureFournisseur').closest('.form-group').style.display = 'none';
         document.getElementById('numeroFactureFournisseur').value = '';
     } else {
@@ -781,7 +787,24 @@ function calculerRenduMonnaie() {
     champ.value = Math.round(rendu).toLocaleString('fr-FR') + ' F';
 }
 
+/**
+ * « Cette facture sera-t-elle déclarée par le fournisseur ? » — posée pour une
+ * facture fournisseur seulement, et alors obligatoire.
+ */
+function afficherQuestionDeclaration(visible) {
+    var bloc = document.getElementById('blocDeclaration');
+    if (!bloc) return;
+    bloc.style.display = visible ? 'block' : 'none';
+    bloc.querySelectorAll('input[name="declaree_par_fournisseur"]').forEach(function (r) {
+        r.required = visible;
+        r.disabled = !visible;
+        if (!visible) r.checked = false;
+    });
+}
+document.addEventListener('DOMContentLoaded', function () { afficherQuestionDeclaration(false); });
+
 function restaurerEtapeParDefaut() {
+    afficherQuestionDeclaration(false);
     document.getElementById('typeFactureInput').value = 'normale';
     const activeEtapeBtn = document.querySelector('[data-etape].active');
     if (activeEtapeBtn) {

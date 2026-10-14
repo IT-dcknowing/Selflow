@@ -124,7 +124,10 @@ class EcritureFactureRecueService
             return 'écartée par un utilisateur';
         }
 
-        if ($facture->achat_id) {
+        // Rattachée à un achat saisi : c'est l'achat qui porte l'écriture —
+        // sauf si sa saisie a été déclarée informative (« le fournisseur la
+        // déclarera ») : la facture certifiée porte alors seule.
+        if ($facture->achat_id && !\App\Modules\Admin\Modeles\Achat::whereKey($facture->achat_id)->where('declaree_par_fournisseur', true)->exists()) {
             return 'rattachée à un achat, qui porte déjà l’écriture';
         }
 
