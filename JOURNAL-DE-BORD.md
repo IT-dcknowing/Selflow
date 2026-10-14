@@ -7892,6 +7892,31 @@ doivent partir ailleurs que vers les deux adresses par défaut.
 
 ---
 
+### Lot 69 — La vente pas à pas — **TERMINÉ le 14/10/2026**
+
+Branche `vente-pas-a-pas`. Rien ne change côté serveur ni FNE : c'est le même
+formulaire, découpé.
+
+Une bascule **« Caisse / Pas à pas »** en tête de « Nouvelle vente » (retenue
+par le navigateur, comme celle du catalogue) ouvre une présentation en quatre
+étapes : **1 Articles** (catalogue et panier) → **2 Client et document** →
+**3 Règlement** (mode, montant, taxes sur TTC) → **4 Valider et facturer**
+(panier, totaux, récapitulatif avec « modifier » par ligne, bouton
+d'envoi). Chaque bloc porte l'étape où il paraît (`data-pas`), le
+formulaire porte l'étape courante ; « Suivant » refuse en le disant (panier
+vide, montant manquant, champ obligatoire), Entrée n'envoie qu'à la
+dernière étape, et un champ invalide resté sur une étape masquée y ramène au
+lieu de bloquer l'envoi en silence. Le caissier a la même page.
+
+**Vérifié dans Chromium** (parcours complet jusqu'à la facture, refus de
+chaque étape, message de 3 s, panier vidé, aucune erreur JavaScript), ainsi
+que le domaine en un clic (lot 65) et la demande de stickers (lot 68).
+
+- `VentePasAPasTest` (3)
+- Suite : 1 705 épreuves, 1 700 passantes, 5 sautées ; `verifier:variables` propre.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
