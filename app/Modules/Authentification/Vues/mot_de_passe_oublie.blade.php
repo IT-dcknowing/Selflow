@@ -305,7 +305,7 @@
                 @endif
 
                 {{-- Mode de démo/local : affiche l'URL générée --}}
-                @if (session('lien_developpement'))
+                @if (app()->environment('local') && session('lien_developpement'))
                     <div class="demo-box">
                         <strong><i class="fa-brands fa-laravel"></i> Mode Développement :</strong><br>
                         Le lien ci-dessous a été généré pour ce test local. Vous pouvez cliquer directement dessus :<br><br>

@@ -7760,6 +7760,35 @@ Reste de 20.17 : libellés FNE incohérents (non repris : ils touchent les écra
 - Suite : 1 665 épreuves, 1 660 passantes, 5 sautées ; `verifier:variables` propre.
 
 
+### Retours de la mise en production — 14/10/2026
+
+Plan : `PLAN-RETOURS-PRODUCTION-14-10-2026.md` (lots 64 à 70). Le second
+document du propriétaire (« des corrections à revoir ») n'est pas parvenu.
+
+### Lot 64 — Le lien de réinitialisation ne s'affiche plus, les courriels partent — **TERMINÉ le 14/10/2026**
+
+Branche `correctifs-mot-de-passe-et-courriels`. Aucun fichier gelé touché.
+
+| Défaut | Correction |
+|---|---|
+| **Faille** : « Mot de passe oublié » affichait le lien de réinitialisation à l'écran, en production, à quiconque tapait une adresse — prise de n'importe quel compte | lien affiché en environnement `local` seulement (contrôleur et vue) |
+| Aucun courriel reçu : `MAIL_MAILER` absent → transport `log`, et l'écran disait « envoyé » ; l'échec SMTP était avalé | `App\Mail\EnvoiCourriel` : envoi immédiat (sans file), un échec ou un transport `log` hors local rend faux et l'écran le dit |
+| La page disait quelles adresses ont un compte (`exists`) | même réponse que l'adresse existe ou non |
+| Le formulaire s'ouvrait pour n'importe quel jeton | jeton vérifié avant l'affichage, sinon retour à la demande |
+| Aucun courriel à la création d'un compte | `CompteSelflowOuvert` : inscription, employé (écran et API mobile), responsable créé par le superadmin, admin interne. Ni mot de passe ni clé ; l'écran du créateur dit si l'avis n'est pas parti |
+
+`php artisan selflow:verifier-courriel [adresse]` affiche la configuration
+(MAIL_*, adresse d'expédition, APP_URL), signale ce qui empêche l'envoi et
+envoie un message d'essai. **Au déploiement** : renseigner dans le `.env`
+`MAIL_MAILER=smtp`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`,
+`MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`, et
+`APP_URL=https://selflow.dc-knowing.com`, puis lancer la commande.
+
+- `CourrielsDeCompteTest` (9)
+- Suite : 1 674 épreuves, 1 669 passantes, 5 sautées ; `verifier:variables` propre.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

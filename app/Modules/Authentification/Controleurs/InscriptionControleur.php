@@ -167,6 +167,10 @@ class InscriptionControleur
 
             DB::commit();
 
+            // Le courriel d'accueil ne bloque pas l'inscription : il est
+            // envoyé après la validation, et son échec est seulement journalisé.
+            \App\Mail\EnvoiCourriel::annoncerCompte($utilisateur, false);
+
             // 3. Connecter directement
             Auth::login($utilisateur);
             $request->session()->regenerate();
