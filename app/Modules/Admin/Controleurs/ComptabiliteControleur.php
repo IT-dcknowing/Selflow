@@ -884,6 +884,59 @@ class ComptabiliteControleur
     }
 
     /**
+     * Modifier un compte créé par l'entreprise. Le libellé change toujours ;
+     * le numéro seulement si le compte ne sert encore nulle part.
+     */
+    public function modifierCompteComptable(Request $request, \App\Modules\Admin\Modeles\PlanComptable $compte): RedirectResponse
+    {
+        $entreprise = Auth::user()->entreprise;
+        abort_unless($compte->entreprise_id === $entreprise->id, 404);
+
+        if (!$compte->estCreeParLEntreprise()) {
+            return back()->with('erreur', 'Seuls les comptes que vous avez créés se modifient : le plan SYSCOHADA livré et les comptes de Comptaflow restent tels quels.');
+        }
+
+        $donnees = $request->validate([
+            'numero'  => ['required', 'string', 'max:20',
+                \Illuminate\Validation\Rule::unique('plan_comptable', 'numero')->where('entreprise_id', $entreprise->id)->ignore($compte->id)],
+            'libelle' => ['required', 'string', 'max:255'],
+        ], [
+            'numero.unique' => 'Ce numéro de compte existe déjà pour votre entreprise.',
+        ]);
+
+        if ($donnees['numero'] !== $compte->numero && ($usages = $compte->usages())) {
+            return back()->with('erreur', "Le numéro du compte {$compte->numero} ne peut pas changer : il est employé par "
+                . implode(', ', $usages) . '. Son libellé, lui, peut être modifié.');
+        }
+
+        $compte->update($donnees);
+
+        return back()->with('succes', "Compte {$compte->numero} modifié.");
+    }
+
+    /**
+     * Supprimer un compte créé par l'entreprise, s'il ne sert nulle part.
+     */
+    public function supprimerCompteComptable(\App\Modules\Admin\Modeles\PlanComptable $compte): RedirectResponse
+    {
+        abort_unless($compte->entreprise_id === Auth::user()->entreprise_id, 404);
+
+        if (!$compte->estCreeParLEntreprise()) {
+            return back()->with('erreur', 'Seuls les comptes que vous avez créés se suppriment.');
+        }
+
+        if ($usages = $compte->usages()) {
+            return back()->with('erreur', "Le compte {$compte->numero} ne peut pas être supprimé : il est employé par "
+                . implode(', ', $usages) . '.');
+        }
+
+        $numero = $compte->numero;
+        $compte->delete();
+
+        return back()->with('succes', "Compte {$numero} supprimé.");
+    }
+
+    /**
      * Enregistrer une écriture comptable manuelle (OD), avec un nombre de
      * lignes illimité (N débits / N crédits). Remplace l'ancienne saisie
      * limitée à un seul compte au débit et un seul au crédit.

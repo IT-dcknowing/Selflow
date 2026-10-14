@@ -249,6 +249,8 @@ Route::prefix('admin')
                 Route::put('/configuration-des-comptes', [\App\Modules\Admin\Controleurs\ConfigurationComptesControleur::class, 'enregistrer'])->name('configuration.enregistrer');
                 Route::get('/plan-comptable', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'planComptable'])->name('plan_comptable');
                 Route::post('/plan-comptable', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'creerCompteComptable'])->name('creer_compte_comptable');
+                Route::put('/plan-comptable/{compte}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'modifierCompteComptable'])->name('modifier_compte_comptable');
+                Route::delete('/plan-comptable/{compte}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'supprimerCompteComptable'])->name('supprimer_compte_comptable');
                 Route::post('/plan-comptable/poser-le-defaut', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'poserLePlanParDefaut'])->name('poser_plan_defaut');
                 Route::post('/ecritures/manuelle', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'creerEcritureManuelle'])->name('ecriture_manuelle');
 

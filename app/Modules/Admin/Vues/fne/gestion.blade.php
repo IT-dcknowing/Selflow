@@ -64,6 +64,14 @@
     'apres'    => 'admin::fne.partials.badge-config-fiscale',
 ])
 
+{{-- D'où viennent les chiffres. Timbre, solde et stickers ne sont connus que
+     par les réponses de la DGI à chaque certification : sans pièce certifiée,
+     la page est vide, et elle le dit (retest d'octobre 2026). --}}
+<div id="bandeau-certification" style="display:none; margin-bottom:16px; padding:14px 16px; border-radius:10px; background:#fffbeb; border:1px solid #fcd34d; color:#92400e; font-size:13px; line-height:1.6;">
+    <i class="fas fa-circle-info"></i> <span id="bandeau-certification-texte"></span>
+    <a href="{{ route('admin.ventes.factures') }}" style="color:#92400e; font-weight:700; margin-left:6px;">Voir les factures</a>
+</div>
+
 {{-- ── Cartes Stickers & Timbres (récupérées en temps réel depuis la base / API) ── --}}
 <div class="section-titre" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
     <span><i class="fas fa-stamp"></i> Stickers &amp; Timbres (plateforme DGI)</span>
@@ -87,7 +95,10 @@
     <div class="kpi-card"><div class="lbl">Factures</div><div class="val" id="k-v-factures-n">0</div><div class="sub" id="k-v-factures-m">0 F</div></div>
     <div class="kpi-card"><div class="lbl">Reçus</div><div class="val" id="k-v-recus-n">0</div><div class="sub" id="k-v-recus-m">0 F</div></div>
     <div class="kpi-card"><div class="lbl">Avoirs clients</div><div class="val" id="k-v-avoirs-n">0</div><div class="sub" id="k-v-avoirs-m">0 F</div></div>
-    <div class="kpi-card"><div class="lbl">Proforma</div><div class="val" id="k-v-proforma-n">0</div><div class="sub" id="k-v-proforma-m">0 F</div></div>
+    {{-- Devis et commandes ne sont pas transmis à la DGI : ils figurent ici pour
+         mémoire, et la carte le dit, sans quoi ils passaient pour des pièces
+         normalisées. --}}
+    <div class="kpi-card" style="background:var(--bg3);"><div class="lbl">Proforma <span style="font-weight:500; text-transform:none;">(devis et commandes — non transmis)</span></div><div class="val" id="k-v-proforma-n">0</div><div class="sub" id="k-v-proforma-m">0 F</div></div>
 </div>
 <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
     <div class="kpi-card">
@@ -322,6 +333,19 @@ function appliquerKpis(d) {
     document.getElementById('k-v-recus-m').textContent = formatF(d.ventes.recus.montant);
     document.getElementById('k-v-avoirs-n').textContent = d.ventes.avoirs.nombre;
     document.getElementById('k-v-avoirs-m').textContent = formatF(d.ventes.avoirs.montant);
+    const bandeau = document.getElementById('bandeau-certification');
+    if (d.factures_certifiees_total === 0 || d.factures_non_certifiees > 0) {
+        bandeau.style.display = 'block';
+        document.getElementById('bandeau-certification-texte').textContent =
+            (d.factures_certifiees_total === 0
+                ? "Aucune pièce n'a encore été certifiée par la DGI : le timbre, le solde et les stickers n'apparaissent qu'avec les réponses de la plateforme, à chaque certification. "
+                : '')
+            + (d.factures_non_certifiees > 0
+                ? d.factures_non_certifiees + ' facture(s) de la période ne sont pas encore normalisées.'
+                : '');
+    } else {
+        bandeau.style.display = 'none';
+    }
     document.getElementById('k-v-proforma-n').textContent = d.ventes.proforma.nombre;
     document.getElementById('k-v-proforma-m').textContent = formatF(d.ventes.proforma.montant);
 
