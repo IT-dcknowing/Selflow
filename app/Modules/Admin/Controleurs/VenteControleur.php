@@ -167,6 +167,11 @@ class VenteControleur
             }
         }
 
+        // Les refus levés sous le verrou du stock (une vente concurrente a pris
+        // la marchandise entre la pré-vérification et ici, un lot non
+        // servable) tombaient en page « Panne » : la vente semblait ne pas
+        // passer, sans un mot. La transaction est annulée ; on le dit.
+        try {
         DB::transaction(function () use ($request, $pointDeVenteId, &$venteId, $entreprise) {
             $montantHt = 0;
             $remiseTaux = self::tauxBorne($request->input('remise_taux', 0));
@@ -452,6 +457,9 @@ class VenteControleur
 
             $venteId = $vente->id;
         }); // fin DB::transaction
+        } catch (\InvalidArgumentException|\DomainException $e) {
+            return back()->withInput()->with('erreur', 'La vente n\'a pas été enregistrée : ' . $e->getMessage());
+        }
 
         // ── Envoi B2B automatique pour "Bon de commande" ───────────────────────
         // Si le client a un NCC qui correspond à une entreprise enregistrée dans
@@ -470,8 +478,16 @@ class VenteControleur
 
         $routeRetour = request()->routeIs('caissier.*') ? 'caissier.ventes.factures' : 'admin.ventes.factures';
         $etape = $request->input('etape', 'Facture');
+        $libelles = ['Facture' => 'Facture', 'Devis' => 'Devis', 'Bon de commande' => 'Bon de commande'];
+        $piece = ($libelles[$etape] ?? $etape) . ($venteCreee ? ' ' . $venteCreee->numero_facture : '');
+
+        // Le retest de production : « il n'y a pas de message pour confirmer
+        // la validation de l'enregistrement ». Le message nomme la pièce et
+        // disparaît en trois secondes.
         return redirect()->route($routeRetour, ['etape' => $etape])
-            ->with('succes', $etape . ' enregistré(e) avec succès.');
+            ->with('succes', $piece . ' enregistré(e) avec succès.')
+            ->with('succes_duree', 3000)
+            ->with('vente_enregistree', true);
     }
 
     /**
