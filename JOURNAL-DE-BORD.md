@@ -7938,6 +7938,21 @@ directement**, sans demande de prix (lot 70).
 
 ---
 
+### Lot 72 — Plan comptable modifiable, et « Gestion FNE » qui dit d'où viennent ses chiffres — **TERMINÉ le 14/10/2026**
+
+Branche `fiscalite-et-plan-comptable`. Aucun fichier gelé touché.
+
+| Retour | Correction |
+|---|---|
+| Plan comptable : modifier et supprimer les comptes créés | `PlanComptable::estCreeParLEntreprise()` (ni référentiel SYSCOHADA livré, ni Comptaflow) : boutons Modifier / Supprimer sur ces comptes seulement, marqués « Créé par vous ». Le libellé change toujours ; **le numéro ne change pas et le compte ne se supprime pas s'il est employé** (`usages()` : écritures, journal, catégorie, article, configuration des comptes, tiers, immobilisation) — le message dit où |
+| « Vérifie si les données du timbre sont récupérées » | elles le sont, mais **seulement par les réponses de la DGI à chaque certification** : timbre, solde et stickers restent vides tant qu'aucune pièce n'est certifiée — c'était le cas de l'entreprise de la capture (0 facture normalisée). La page le dit désormais, avec le nombre de factures de la période non encore normalisées |
+| Affichage de « Fiscalité & DGI » | les proformas (devis et commandes, jamais transmis) paraissaient sous « Ventes normalisées » : la carte dit « non transmis ». **Le reste de la demande est à préciser** (quels sous-modules, quel défaut d'affichage) |
+
+- `FiscaliteEtPlanComptableTest` (5)
+- Suite : 1 721 épreuves, 1 716 passantes, 5 sautées ; `verifier:variables` propre.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

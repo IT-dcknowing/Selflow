@@ -69,6 +69,7 @@
                         <th>Libellé du compte</th>
                         <th style="width: 120px;">Classe</th>
                         <th style="width: 140px;">Origine</th>
+                        <th style="width: 110px; text-align:right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -95,14 +96,32 @@
                                 </span>
                             @else
                                 <span style="display:inline-flex; align-items:center; gap:5px; background:#f1f5f9; color:#64748b; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700;">
-                                    <i class="fas fa-database" style="font-size:9px;"></i> Local
+                                    <i class="fas fa-database" style="font-size:9px;"></i> {{ $compte->estCreeParLEntreprise() ? 'Créé par vous' : 'Local' }}
                                 </span>
+                            @endif
+                        </td>
+                        <td style="text-align:right; white-space:nowrap;">
+                            {{-- Les comptes que l'entreprise a créés se modifient et se
+                                 suppriment ; le plan SYSCOHADA livré reste la référence. --}}
+                            @if($compte->estCreeParLEntreprise())
+                                <button type="button" class="btn btn-outline btn-sm" title="Modifier" style="padding:4px 8px;"
+                                        data-modifier-compte="{{ route('admin.comptabilite.modifier_compte_comptable', $compte) }}"
+                                        data-numero="{{ $compte->numero }}" data-libelle="{{ $compte->libelle }}">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <form method="POST" action="{{ route('admin.comptabilite.supprimer_compte_comptable', $compte) }}" style="display:inline; margin:0;"
+                                      onsubmit="return confirm('Supprimer le compte {{ $compte->numero }} ? Il ne doit être employé nulle part.');">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn btn-outline btn-sm" title="Supprimer" style="padding:4px 8px; color:var(--danger); border-color:#fecaca;">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
                             @endif
                         </td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="4" style="text-align: center; color: var(--text-3); padding: 32px;">
+                        <td colspan="5" style="text-align: center; color: var(--text-3); padding: 32px;">
                             Aucun compte trouvé correspondant aux critères.
                         </td>
                     </tr>
@@ -196,6 +215,42 @@
         @endif
     @endif
 </div>
+
+{{-- Modal Modifier un compte créé par l'entreprise --}}
+<div class="modal-overlay" id="modalModifierCompte">
+    <div class="modal" style="max-width: 480px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-pen"></i> Modifier le compte</h3>
+            <button class="modal-close" data-modal-close>✕</button>
+        </div>
+        <form method="POST" id="formModifierCompte">
+            @csrf @method('PUT')
+            <div class="form-group">
+                <label class="form-label">Numéro de compte <span style="color: var(--danger)">*</span></label>
+                <input type="text" name="numero" id="modifierNumero" class="form-control" required>
+                <small style="color:var(--text-3); font-size:11px;">Il ne change pas si le compte est déjà employé (écritures, journal, article…).</small>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Libellé du compte <span style="color: var(--danger)">*</span></label>
+                <input type="text" name="libelle" id="modifierLibelle" class="form-control" required>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button type="button" class="btn btn-outline" data-modal-close>Annuler</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Enregistrer</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+document.addEventListener('click', function (e) {
+    var bouton = e.target.closest('[data-modifier-compte]');
+    if (!bouton) return;
+    document.getElementById('formModifierCompte').action = bouton.dataset.modifierCompte;
+    document.getElementById('modifierNumero').value = bouton.dataset.numero;
+    document.getElementById('modifierLibelle').value = bouton.dataset.libelle;
+    document.getElementById('modalModifierCompte').classList.add('open');
+});
+</script>
 
 {{-- Modal Nouveau Compte --}}
 <div class="modal-overlay" id="modalNouveauCompte">

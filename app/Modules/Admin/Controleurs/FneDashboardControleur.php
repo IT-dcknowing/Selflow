@@ -201,8 +201,20 @@ class FneDashboardControleur
         $totalTtcVente = (clone $ventesQuery)->where('type_facture', '!=', 'avoir')->sum('montant_ttc');
         $totalRemiseVente = (clone $ventesQuery)->where('type_facture', '!=', 'avoir')->sum('remise');
 
+        // Les factures de la période qui ne sont pas (encore) certifiées.
+        // Tout ce que la page montre — timbre, solde, stickers — vient des
+        // réponses de certification : sans pièce certifiée, tout est vide, et
+        // la page ne disait pas pourquoi (retest d'octobre 2026).
+        $nonCertifiees = Vente::whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entrepriseId))
+            ->where('etape', 'Facture')
+            ->where(fn ($q) => $q->where('normalise', false)->orWhereNull('normalise'));
+        $this->filtrerPeriode($nonCertifiees, 'date_vente', $request);
+        if ($pdvId && $pdvId !== 'tous') $nonCertifiees->where('point_de_vente_id', $pdvId);
+
         return [
             'periode' => ['debut' => $debut->toDateString(), 'fin' => $fin->toDateString(), 'libelle' => FiltrePeriodeService::libelle($request)],
+            'factures_non_certifiees' => (clone $nonCertifiees)->count(),
+            'factures_certifiees_total' => $totalVentesNormalisees + $totalAchatsNormalises,
 
             // Indicateurs propres à la plateforme DGI
             'mode_facturation'  => $mode_facturation,
