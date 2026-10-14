@@ -87,6 +87,13 @@ return [
     */
     'sticker_seuil_alerte_defaut' => env('SELFLOW_STICKER_SEUIL', 5),
 
+    /*
+    | Où DC-Knowing reçoit les demandes de stickers qu'elle achète pour ses
+    | clients (plusieurs adresses séparées par des virgules). Par défaut, les
+    | deux adresses qui reçoivent déjà les alertes de production.
+    */
+    'adresse_demandes_stickers' => env('SELFLOW_ADRESSE_STICKERS', 'it.dcknowin@gmail.com,meledjeagnimel17@gmail.com'),
+
     'plan_comptable_defaut' => [
         'client_collectif'      => '411000', // Clients
         'fournisseur_collectif' => '401000', // Fournisseurs
