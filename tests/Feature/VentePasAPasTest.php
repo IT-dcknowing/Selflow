@@ -68,4 +68,26 @@ class VentePasAPasTest extends TestCase
         // Le formulaire est le même : même adresse d'envoi.
         $this->assertStringContainsString('action="' . route('admin.ventes.enregistrer') . '" id="formVente"', $html);
     }
+
+    public function test_l_etape_1_est_une_liste_avec_compteurs_et_une_barre_en_bas(): void
+    {
+        $html = $this->page();
+
+        // Le panier latéral s'efface à l'étape 1 : la barre du bas le résume.
+        $this->assertStringContainsString('<div class="colonne-panier">', $html);
+        $this->assertStringContainsString('id="barrePas"', $html);
+        $this->assertStringContainsString('id="barrePasNet"', $html);
+        $this->assertStringContainsString('.vente-pas-a-pas[data-pas-courant="1"] .colonne-panier { display: none; }', $html);
+        $this->assertStringContainsString('renderPanier = function () { renderPanierCaisse(); majSelectionPasAPas(); };', $html);
+    }
+
+    public function test_revenir_en_arriere_dans_le_parcours_garde_le_clic_sur_le_domaine(): void
+    {
+        $this->seed(\Database\Seeders\ReferentielSeeder::class);
+        $this->page();
+
+        $html = $this->get(route('admin.souscription.index', ['etape' => 1]))->assertOk()->getContent();
+        $this->assertStringContainsString("window.addEventListener('pageshow'", $html);
+        $this->assertStringContainsString('delete form.dataset.envoye', $html);
+    }
 }

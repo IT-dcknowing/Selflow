@@ -164,6 +164,50 @@
         to { transform: translateX(0); opacity: 1; }
     }
 
+
+    /* ── Étape 1 « Articles », refaite pour le pas à pas (retest du 14/10) ──
+       Plus de tuiles ni de panier latéral : une liste pleine largeur, une
+       ligne par article avec son compteur, et une barre fixe en bas qui dit
+       ce qui est choisi. */
+    .ligne-pas, .barre-pas { display: none; }
+    .vente-pas-a-pas[data-pas-courant="1"] .pos-grid { grid-template-columns: minmax(0, 1fr); }
+    .vente-pas-a-pas[data-pas-courant="1"] .colonne-panier { display: none; }
+    .vente-pas-a-pas .search-produit { font-size: 15px; padding: 12px 16px; }
+    .vente-pas-a-pas .produit-grid { display: flex; flex-direction: column; gap: 8px; }
+    .vente-pas-a-pas .produit-card {
+        display: grid; grid-template-columns: minmax(0, 1fr) 150px 130px 170px;
+        grid-template-areas: "nom stock prix action" "cat stock prix action";
+        align-items: center; column-gap: 16px; row-gap: 2px;
+        min-height: 0; padding: 12px 16px; text-align: left; border-width: 1px;
+        contain-intrinsic-size: auto 66px;
+    }
+    .vente-pas-a-pas .produit-card .produit-nom { grid-area: nom; font-size: 14px; margin: 0; }
+    .vente-pas-a-pas .produit-card .produit-cat { grid-area: cat; margin: 0; }
+    .vente-pas-a-pas .produit-card .produit-stock { grid-area: stock; margin: 0; font-size: 12px; }
+    .vente-pas-a-pas .produit-card .produit-prix { grid-area: prix; text-align: right; }
+    .vente-pas-a-pas .produit-card .ligne-pas { grid-area: action; display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
+    .vente-pas-a-pas .produit-card.avec-photo { padding-left: 76px; }
+    .vente-pas-a-pas .produit-card.avec-photo::before { inset: auto; left: 14px; top: 50%; transform: translateY(-50%); width: 48px; height: 48px; border-radius: 8px; }
+    .vente-pas-a-pas .produit-card.avec-photo::after { display: none; }
+    .vente-pas-a-pas .produit-card.dans-panier { border-color: var(--primary); background: #eff6ff; box-shadow: inset 4px 0 0 var(--primary); }
+    .ligne-pas button { border: 1px solid var(--border); background: var(--bg2); border-radius: 8px; cursor: pointer; font-family: inherit; }
+    .ligne-pas .ligne-moins, .ligne-pas .ligne-plus { width: 32px; height: 32px; font-size: 16px; font-weight: 700; color: var(--primary); }
+    .ligne-pas .ligne-qte { min-width: 30px; text-align: center; font-weight: 800; font-size: 15px; }
+    .ligne-pas .ligne-ajouter { padding: 7px 14px; font-size: 12.5px; font-weight: 700; color: var(--primary); }
+    .produit-card:not(.dans-panier) .ligne-moins, .produit-card:not(.dans-panier) .ligne-qte, .produit-card:not(.dans-panier) .ligne-plus { display: none; }
+    .produit-card.dans-panier .ligne-ajouter { display: none; }
+    .vente-pas-a-pas[data-pas-courant="1"] .barre-pas {
+        display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+        position: sticky; bottom: 0; z-index: 20; margin-top: 16px;
+        background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+        padding: 12px 18px; box-shadow: 0 -8px 24px rgba(0,0,0,.08);
+    }
+    .barre-pas-resume { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-2); }
+    .barre-pas-resume strong { color: var(--text); }
+    .barre-pas-sep { color: var(--text-3); }
+    @media (max-width: 760px) {
+        .vente-pas-a-pas .produit-card { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nom prix" "cat action" "stock action"; }
+    }
     /* ── Présentation « Pas à pas » (retest d'octobre 2026) ─────────────
        Le même formulaire, découpé : chaque bloc dit à quelle(s) étape(s) il
        appartient (`data-pas`), le formulaire porte l'étape courante. En
@@ -249,7 +293,7 @@
                 <div class="categorie-filter">
                     <button type="button" class="cat-btn active" data-cat="all">Tous</button>
                     @foreach($categories as $cat)
-                    <button type="button" class="cat-btn" data-cat="{{ $cat }}">{{ $cat }}</button>
+                    <button type="button" class="cat-btn" data-cat="{{ $cat }}">{{ $cat !== null && $cat !== '' ? $cat : 'Sans catégorie' }}</button>
                     @endforeach
                 </div>
 
@@ -294,6 +338,13 @@
                                 Stock : {{ $stockCarte }} {{ $produit->unite ?? 'unités' }}
                             @endif
                         </div>
+                        {{-- Le compteur de la ligne, en présentation « Pas à pas ». --}}
+                        <div class="ligne-pas" onclick="event.stopPropagation()">
+                            <button type="button" class="ligne-moins" onclick="changerQte({{ $produit->id }}, -1)" aria-label="Retirer un">−</button>
+                            <span class="ligne-qte">0</span>
+                            <button type="button" class="ligne-plus" onclick="ajouterAuPanier(this.closest('.produit-card'))" aria-label="Ajouter un">+</button>
+                            <button type="button" class="ligne-ajouter" onclick="ajouterAuPanier(this.closest('.produit-card'))"><i class="fas fa-plus"></i> Ajouter</button>
+                        </div>
                     </div>
                     @endforeach
                 </div>
@@ -302,7 +353,7 @@
     </div>
 
     {{-- ── COLONNE DROITE : Panier ── --}}
-    <div>
+    <div class="colonne-panier">
         <div class="card" style="position: sticky; top: calc(var(--topbar-h) + 16px);">
             <div class="card-header" data-pas="1 4">
                 <h2><i class="fas fa-shopping-cart"></i> Panier</h2>
@@ -590,6 +641,21 @@
 
             </div>
         </div>
+    </div>
+</div>
+
+{{-- La barre de l'étape 1, en présentation « Pas à pas » : ce qui est choisi,
+     ce que cela fait, et la suite. Le panier détaillé revient à l'étape 4. --}}
+<div class="barre-pas" id="barrePas">
+    <div class="barre-pas-resume">
+        <i class="fas fa-shopping-cart"></i>
+        <strong id="barrePasNb">0 article</strong>
+        <span class="barre-pas-sep">·</span>
+        <span>Net à payer <strong id="barrePasNet">0 F</strong></span>
+    </div>
+    <div style="display:flex; gap:8px;">
+        <button type="button" class="btn btn-outline" onclick="ouvrirSaisieLibre()"><i class="fas fa-plus"></i> Saisie libre</button>
+        <button type="button" class="btn btn-primary" onclick="etapeSuivante()">Client et document <i class="fas fa-arrow-right"></i></button>
     </div>
 </div>
 </form>
@@ -1761,6 +1827,28 @@ document.getElementById('formVente').addEventListener('submit', function(e) {
 
 
 <script>
+
+/* Étape 1 en liste : chaque ligne dit combien elle est dans le panier, et la
+   barre du bas reprend le nombre d'articles et le net à payer. */
+function majSelectionPasAPas() {
+    let nb = 0;
+    document.querySelectorAll('#grilleProduits .produit-card').forEach(function (card) {
+        const item = panier[card.dataset.id];
+        card.classList.toggle('dans-panier', !!item);
+        const qte = card.querySelector('.ligne-qte');
+        if (qte) qte.textContent = item ? item.qte : 0;
+    });
+    Object.keys(panier).forEach(function (k) { nb += 1; });
+    const nbEl = document.getElementById('barrePasNb');
+    if (nbEl) nbEl.textContent = nb + (nb > 1 ? ' articles' : ' article');
+    const net = document.getElementById('barrePasNet');
+    if (net) net.textContent = document.getElementById('netAPayer').textContent;
+}
+const renderPanierCaisse = renderPanier;
+renderPanier = function () { renderPanierCaisse(); majSelectionPasAPas(); };
+const calculerTotauxCaisse = calculerTotaux;
+calculerTotaux = function () { calculerTotauxCaisse(); majSelectionPasAPas(); };
+document.addEventListener('DOMContentLoaded', majSelectionPasAPas);
 /* ── Vente pas à pas ──────────────────────────────────────────────────────
    Même formulaire, même envoi : la présentation seule change. */
 let etapeCourante = 1;

@@ -10,8 +10,11 @@ PLAN-RETOURS-PRODUCTION-14-10-2026.md et PLAN-CORRECTION-SELFLOW.xlsx
 --------------------
 Branche de référence : main, poussée sur les deux dépôts
 (IT-dcknowing/Selflow et meledjeabrahamagnimel-lgtm/Selflow).
-Plan : 125 chantiers, 107 terminés, 8 sans objet, 7 à faire, 3 à trancher.
-Suite : 1 722 épreuves, 1 717 passantes, 5 sautées.
+Plan des retours : PLAN-RETOURS-PRODUCTION.xlsx — 34 chantiers, 27 terminés,
+4 à faire (B2B), 3 à trancher ou attendus. Le plan de correction
+(PLAN-CORRECTION-SELFLOW.xlsx) reste celui du 09/10.
+Suite : 1 724 épreuves, 1 719 passantes, 5 sautées.
+Courriel vérifié en production le 14/10 (selflow:verifier-courriel).
 Aucun fichier du périmètre FNE gelé n'a été modifié.
 
 
@@ -41,16 +44,20 @@ Aucun fichier du périmètre FNE gelé n'a été modifié.
   certifications ; proformas « non transmis ».
 - Lot 73 — Page d'accueil : menu court, liens Selflow et Comptaflow,
   contraste du haut de page.
+- Lot 74 — Étape 1 du pas à pas en liste avec barre en bas ; retour arrière
+  du parcours de configuration réparé ; plan Excel des retours à part.
 
 
 3. TRANCHÉ ET À TRANCHER
 ------------------------
-- 21.10 Timbre d'une facture annulée : NON remboursé (propriétaire, 14/10).
-- 21.11 B2B approfondi (70a à 70d) : validé ; commande directe autorisée
-  (propriétaire, 14/10). À programmer.
-- 21.17 Fiscalité & DGI : préciser le défaut d'affichage des sous-modules.
-- 21.18 Vitrine : textes et adresses de RHFlow, LegalFlow, Agent-AI,
-  CGA-Connect ; section « Le cabinet » à compléter ou à masquer.
+(numéros du classeur PLAN-RETOURS-PRODUCTION.xlsx)
+- 5.2 Timbre d'une facture annulée : NON remboursé (propriétaire, 14/10).
+- 9.1 à 9.4 B2B approfondi (70a à 70d) : validé ; commande directe
+  autorisée (propriétaire, 14/10). À programmer.
+- 6.3 Fiscalité & DGI : préciser le défaut d'affichage des sous-modules.
+- 8.2 Vitrine : textes et adresses de RHFlow, LegalFlow, Agent-AI,
+  CGA-Connect.
+- 8.3 Section « Le cabinet » : à compléter ou à masquer.
 - 20.18 et 20.19 restent ouverts (voir passation du 09/10).
 
 

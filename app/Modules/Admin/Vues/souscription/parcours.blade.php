@@ -466,5 +466,14 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
         form.submit();
     });
 });
+
+// Le bouton « Retour » du navigateur restaure la page telle qu'on l'a
+// quittée, drapeau « déjà envoyé » compris : revenu à l'étape 1, le clic sur
+// le domaine ne menait plus nulle part (retest du 14/10/2026). La page
+// rendue par le cache repart de zéro.
+window.addEventListener('pageshow', function () {
+    var form = document.getElementById('form-souscription');
+    if (form) { delete form.dataset.envoye; }
+});
 </script>
 @endsection
