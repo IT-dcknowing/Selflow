@@ -183,6 +183,8 @@ class VitrineSeeder extends Seeder
                     . "normalisée transmise à la DGI. Selflow déverse ses écritures dans Comptaflow : "
                     . "une vente saisie ici arrive là-bas, avec son compte, son journal et son tiers.",
                 'icone' => 'fas fa-cart-shopping',
+                'lien_libelle' => 'Ouvrir Selflow',
+                'lien_url'     => 'https://selflow.dc-knowing.com/',
             ],
             [
                 'titre' => 'Comptaflow',
@@ -191,6 +193,8 @@ class VitrineSeeder extends Seeder
                     . "les états financiers. Il reçoit les écritures de Selflow et garde la main sur "
                     . "sa propre configuration — c'est lui qui fait foi en comptabilité.",
                 'icone' => 'fas fa-book',
+                'lien_libelle' => 'Ouvrir Comptaflow',
+                'lien_url'     => 'https://comptaflow.dc-knowing.com/',
             ],
             [
                 'titre' => 'RHFlow',

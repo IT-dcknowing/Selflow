@@ -19,7 +19,10 @@ deux dépôts une fois la suite verte.
 | 66 Cycle d'achat | **Terminé** | `cbd50f2` |
 | 68 Stickers par DC-Knowing | **Terminé** | `641d6fc` |
 | 69 Vente pas à pas | **Terminé** | `91f052b` |
-| 70 B2B approfondi | **À valider** (étude ci-dessous) | — |
+| 70 B2B approfondi | **Validé, à programmer** (étude ci-dessous) | — |
+| 71 Erreur 500 de la fiche article, mot de passe, recherches, import du stock | **Terminé** | `3b6d3ac` |
+| 72 Plan comptable modifiable, Gestion FNE | **Terminé** | `1376c21` |
+| 73 Page d'accueil | **Terminé en partie** (textes des applications attendus) | — |
 
 Poussé sur les deux dépôts (`IT-dcknowing/Selflow`, `meledjeabrahamagnimel-lgtm/Selflow`).
 
@@ -81,6 +84,25 @@ l'achat du client).
 | **70c** Livrer, facturer, réceptionner | le fournisseur livre (BL existant) puis facture (sa facture, certifiée FNE comme toute vente) ; chez le client l'achat passe « Livré — à réceptionner » ; le client clique « Réceptionné » → stock entré, facture d'achat **informative** (défaut 3), l'écriture venant de la facture DGI |
 | **70d** Notifications | courriel et compteur au menu à chaque changement d'état |
 
-**Point à trancher par le propriétaire** : le client peut-il commander
-directement sans demande de prix (commande « catalogue »), ou toute commande
-B2B part-elle d'une demande de prix ?
+**Tranché par le propriétaire le 14/10/2026** : un client B2B **peut
+commander directement**, sans demande de prix. 70b ouvre donc deux portes :
+« Commander » depuis une réponse à une demande de prix, et une commande
+directe au fournisseur.
+
+**Timbre d'une facture annulée** (21.10) : tranché le 14/10/2026 — **il n'est
+pas remboursé** ; la règle du lot 67 est la bonne.
+
+## Second retest (« des corrections à revoir pour selflow.docx ») — 14/10/2026
+
+| Image | Retour | Fait |
+|---|---|---|
+| — | Erreur 500 en ligne à la création d'un article | lot 71 : catégorie « nouvelle » sans nom refusée par un message (MySQL refusait la chaîne en base) |
+| 1 | Le menu de l'accueil n'est pas bon | lot 73 |
+| 2 | La section « Le cabinet » est-elle nécessaire ? | **à décider** : la compléter, ou la masquer depuis Superadmin › Vitrine |
+| 3 | Descriptions nettes et liens des applications | lot 73 pour Selflow et Comptaflow ; **textes et adresses des quatre autres attendus** |
+| 4 | Préciser les caractères du mot de passe | lot 71 |
+| 5-6 | Mot de passe oublié : lien affiché, aucun courriel, page 429 | lots 64 et 71 ; **le courriel part dès que le `.env` du serveur est renseigné** |
+| 7 | La recherche recharge à chaque caractère | lot 71 (neuf écrans et le catalogue) |
+| 8 | Import de l'inventaire : référence refusée | lot 71 : modèle rempli des articles de l'entreprise |
+| 9 | Fiscalité & DGI : affichage, données du timbre | lot 72 ; **le défaut d'affichage des sous-modules est à préciser** |
+| 10 | Modifier et supprimer les comptes créés | lot 72 |

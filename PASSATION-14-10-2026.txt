@@ -10,8 +10,8 @@ PLAN-RETOURS-PRODUCTION-14-10-2026.md et PLAN-CORRECTION-SELFLOW.xlsx
 --------------------
 Branche de référence : main, poussée sur les deux dépôts
 (IT-dcknowing/Selflow et meledjeabrahamagnimel-lgtm/Selflow).
-Plan : 119 chantiers, 101 terminés, 8 sans objet, 7 à faire, 3 à trancher.
-Suite : 1 705 épreuves, 1 700 passantes, 5 sautées.
+Plan : 125 chantiers, 107 terminés, 8 sans objet, 7 à faire, 3 à trancher.
+Suite : 1 722 épreuves, 1 717 passantes, 5 sautées.
 Aucun fichier du périmètre FNE gelé n'a été modifié.
 
 
@@ -32,15 +32,25 @@ Aucun fichier du périmètre FNE gelé n'a été modifié.
 - Lot 68 — Stickers : demande d'achat confiée à DC-Knowing (courriel +
   page superadmin).
 - Lot 69 — Vente pas à pas (bascule Caisse / Pas à pas).
+- Lot 71 — ERREUR 500 EN LIGNE corrigée (création d'un article avec
+  « nouvelle catégorie » sans nom). Mot de passe : plus de page 429 brute,
+  règles de saisie affichées. Recherches sans rechargement à chaque frappe.
+  Modèle d'inventaire rempli des articles de l'entreprise.
+- Lot 72 — Plan comptable : modifier / supprimer les comptes créés.
+  Gestion FNE : explique que timbre, solde et stickers viennent des
+  certifications ; proformas « non transmis ».
+- Lot 73 — Page d'accueil : menu court, liens Selflow et Comptaflow,
+  contraste du haut de page.
 
 
-3. À TRANCHER
--------------
-- 21.10 Le timbre d'une facture annulée est-il remboursé au client ?
-  (aujourd'hui : non, il reste dû à l'État).
-- 21.11 Communication B2B approfondie (lots 70a à 70d) : étude de
-  faisabilité dans PLAN-RETOURS-PRODUCTION-14-10-2026.md. Une question :
-  commande B2B directe autorisée, ou toujours après une demande de prix ?
+3. TRANCHÉ ET À TRANCHER
+------------------------
+- 21.10 Timbre d'une facture annulée : NON remboursé (propriétaire, 14/10).
+- 21.11 B2B approfondi (70a à 70d) : validé ; commande directe autorisée
+  (propriétaire, 14/10). À programmer.
+- 21.17 Fiscalité & DGI : préciser le défaut d'affichage des sous-modules.
+- 21.18 Vitrine : textes et adresses de RHFlow, LegalFlow, Agent-AI,
+  CGA-Connect ; section « Le cabinet » à compléter ou à masquer.
 - 20.18 et 20.19 restent ouverts (voir passation du 09/10).
 
 
@@ -51,7 +61,8 @@ Aucun fichier du périmètre FNE gelé n'a été modifié.
   composer install --no-dev --optimize-autoloader
   php artisan migrate --force
      (2026_10_14_000001 achats.declaree_par_fournisseur + « Bon de Commande »
-      corrigé ; 2026_10_14_000002 table demandes_stickers : additives)
+      corrigé ; 2026_10_14_000002 table demandes_stickers ; 2026_10_14_000003
+      liens des applications sur la vitrine : additives)
 
   LE COURRIEL — sans ces lignes dans le .env, AUCUN courriel ne part :
      MAIL_MAILER=smtp
@@ -71,7 +82,6 @@ Aucun fichier du périmètre FNE gelé n'a été modifié.
 
 5. CE QUI RESTE
 ---------------
-- « Des corrections à revoir pour Selflow.docx » : non parvenu le 14/10.
 - 20.15 / 7.5 Liaison Comptaflow réelle et déversement à vérifier.
 - 20.16 Résumé de la logique de Selflow.
 - Plan-de-travail-Selflow.pdf : non régénéré (sa source HTML est hors dépôt) ;

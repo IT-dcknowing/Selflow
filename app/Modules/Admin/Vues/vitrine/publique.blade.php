@@ -94,8 +94,9 @@
 
         .menu { display: flex; align-items: center; gap: 4px; }
         .menu a {
-            padding: 8px 13px; border-radius: 8px; text-decoration: none;
+            padding: 8px 12px; border-radius: 8px; text-decoration: none;
             color: var(--text-2); font-size: 13.5px; font-weight: 500;
+            white-space: nowrap;
         }
         .menu a:hover { background: var(--bg); color: var(--primary); }
 
@@ -155,6 +156,12 @@
             padding: 6px 13px; border-radius: 100px; margin-bottom: 14px;
         }
         .fond-sombre .surtitre { color: #fff; background: rgba(255,255,255,.13); }
+        /* Le bandeau d'ouverture est sombre lui aussi : la pastille « Conforme à
+           la FNE » y restait bleue sur bleu nuit, et le bouton principal se
+           fondait dans le fond (retest d'octobre 2026). */
+        .bandeau .surtitre { color: #fff; background: rgba(255,255,255,.13); }
+        .bandeau .btn-principal { background: var(--primary-l); border-color: rgba(255,255,255,.35); box-shadow: 0 8px 22px rgba(0,0,0,.25); }
+        .bandeau .btn-principal:hover { background: #1458a8; }
 
         /* ══════════ Le bandeau d'ouverture ══════════ */
         .bandeau {
@@ -361,15 +368,9 @@
         .pied .liens-pied { display: flex; flex-wrap: wrap; gap: 18px; }
 
         /* ══════════ Petits écrans ══════════ */
-        @media (max-width: 940px) {
-            .bandeau .dedans, .media-bloc { grid-template-columns: 1fr; gap: 38px; }
-            .grille.col-3, .grille.col-4 { grid-template-columns: repeat(2, 1fr); }
-        }
-        @media (max-width: 700px) {
-            .section { padding: 58px 18px; }
-            .bandeau { padding: 62px 18px 74px; }
-            .grille.col-2, .grille.col-3, .grille.col-4 { grid-template-columns: 1fr; }
-            .liste .carte { flex-direction: column; gap: 12px; }
+        /* Le menu passe derrière le bouton « burger » dès qu'il ne tient plus
+           sur une ligne : il s'empilait avant, entrée par entrée. */
+        @media (max-width: 1100px) {
             .menu {
                 display: none; position: absolute; top: 100%; left: 0; right: 0;
                 flex-direction: column; align-items: stretch; gap: 2px;
@@ -380,6 +381,16 @@
             .menu a { padding: 11px 12px; }
             .burger { display: block; }
             .entete .dedans { position: relative; flex-wrap: wrap; }
+        }
+        @media (max-width: 940px) {
+            .bandeau .dedans, .media-bloc { grid-template-columns: 1fr; gap: 38px; }
+            .grille.col-3, .grille.col-4 { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 700px) {
+            .section { padding: 58px 18px; }
+            .bandeau { padding: 62px 18px 74px; }
+            .grille.col-2, .grille.col-3, .grille.col-4 { grid-template-columns: 1fr; }
+            .liste .carte { flex-direction: column; gap: 12px; }
             .pied .dedans { flex-direction: column; align-items: flex-start; }
         }
     </style>
@@ -389,6 +400,19 @@
 @php
     /** Les sections qui méritent une entrée au menu : celles qui portent un titre. */
     $ancres = $sections->filter(fn ($s) => $s->gabaritSur() !== 'bandeau')->take(6);
+
+    /*
+     * Le menu prenait le titre entier de chaque section — « Ce que la
+     * normalisation change pour vous » — et chaque entrée s'empilait sur
+     * trois lignes (retest d'octobre 2026). Un mot ou deux suffisent : le
+     * titre reste dans la section.
+     */
+    $libellesMenu = [
+        'conformite' => 'Conformité FNE', 'parcours' => 'Comptabilité', 'produits' => 'Applications',
+        'equipe' => 'Équipe', 'cabinet' => 'DC-Knowing', 'documentation' => 'Documentation',
+    ];
+    $libelleMenu = fn ($s) => $libellesMenu[$s->cle]
+        ?? (mb_strlen($s->titre) <= 18 ? $s->titre : \Illuminate\Support\Str::limit($s->titre, 18));
 @endphp
 
 <header class="entete" id="entete">
@@ -408,7 +432,7 @@
 
         <nav class="menu" id="menu">
             @foreach($ancres as $ancre)
-                <a href="#{{ $ancre->cle }}">{{ $ancre->titre }}</a>
+                <a href="#{{ $ancre->cle }}" title="{{ $ancre->titre }}">{{ $libelleMenu($ancre) }}</a>
             @endforeach
             <a href="{{ route('connexion') }}" class="btn">Se connecter</a>
             <a href="{{ route('inscription') }}" class="btn btn-principal">
