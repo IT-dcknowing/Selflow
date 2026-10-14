@@ -39,10 +39,10 @@
         <div style="flex:1; min-width:200px; position:relative;">
             <i class="fas fa-search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-3);"></i>
             <input type="search" name="q" id="recherche-produit" placeholder="Rechercher un produit (nom ou référence)..."
-                value="{{ $filtres['q'] }}" autocomplete="off"
-                style="width:100%; padding:8px 12px 8px 36px; border:1px solid var(--border); border-radius:8px; background:var(--bg2); color:var(--text-1); font-size:13px;"
-                oninput="filtrerProduits()">
+                value="{{ $filtres['q'] }}" autocomplete="off" title="Appuyez sur Entrée pour lancer la recherche"
+                style="width:100%; padding:8px 12px 8px 36px; border:1px solid var(--border); border-radius:8px; background:var(--bg2); color:var(--text-1); font-size:13px;">
         </div>
+        <button type="submit" class="btn btn-primary" style="font-size:12.5px;"><i class="fas fa-search"></i> Rechercher</button>
         <select name="categorie" id="filtre-categorie" onchange="this.form.submit()"
             style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg2); color:var(--text-1); font-size:13px;">
             <option value="">Toutes les catégories</option>
@@ -783,22 +783,14 @@ function setVue(mode) {
     localStorage.setItem('selflow_produits_vue', mode);
 }
 
-// ─── Recherche : envoyée au serveur après une courte pause de frappe ─────────
-// Elle porte sur tout le catalogue ; filtrer la page affichée laissait
-// introuvable tout article des pages suivantes.
-
-let minuterieRecherche = null;
-// Après l'envoi, la page revient : le curseur reprend sa place dans le champ.
+// ─── Recherche : envoyée au serveur par Entrée ou par le bouton ─────────────
+// Elle porte sur tout le catalogue. Elle partait seule une demi-seconde après
+// la dernière frappe : la page se rechargeait au milieu du mot (retest).
+// Après l'envoi, le curseur reprend sa place dans le champ.
 document.addEventListener('DOMContentLoaded', function () {
     const champ = document.getElementById('recherche-produit');
     if (champ && champ.value) { champ.focus(); champ.setSelectionRange(champ.value.length, champ.value.length); }
 });
-function filtrerProduits() {
-    clearTimeout(minuterieRecherche);
-    minuterieRecherche = setTimeout(function () {
-        document.getElementById('form-filtres-produits').submit();
-    }, 500);
-}
 
 // ─── Upload photo (AJAX) ─────────────────────────────────────────────────────
 

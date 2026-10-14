@@ -43,7 +43,7 @@
 <form method="GET" action="{{ route('admin.fournisseurs.index') }}" style="margin-bottom:16px;" id="formRechercheFournisseurs">
     <div style="display:flex; gap:10px; align-items:center; max-width:450px;">
         <input type="text" name="search" value="{{ $search ?? '' }}" placeholder="Rechercher par nom, secteur, tél., n° tiers..." class="form-control" style="flex:1;"
-               oninput="clearTimeout(window._rechercheFournisseursTimer); window._rechercheFournisseursTimer = setTimeout(() => document.getElementById('formRechercheFournisseurs').submit(), 500);">
+               title="Appuyez sur Entrée pour lancer la recherche" onkeydown="if (event.key === 'Enter') { event.preventDefault(); document.getElementById('formRechercheFournisseurs').submit(); }">
         <button type="submit" class="btn btn-primary" style="white-space:nowrap;" title="Rechercher maintenant"><i class="fas fa-search"></i></button>
         @if(!empty($search))
             <a href="{{ route('admin.fournisseurs.index') }}" class="btn btn-outline" style="white-space:nowrap;"><i class="fas fa-times"></i></a>

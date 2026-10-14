@@ -111,12 +111,14 @@ class ImportControleur
         // articles pose celui des fiches qu'il crée ; celui-ci sert quand les
         // articles existent déjà — après un premier import, ou site par site.
         'stock-initial' => [
-            'headers'  => ['reference', 'point_de_vente', 'quantite', 'cout_unitaire', 'stock_minimum',
+            'headers'  => ['reference', 'designation', 'point_de_vente', 'quantite', 'cout_unitaire', 'stock_minimum',
                            'numero_lot', 'date_peremption'],
+            // Ce modèle-ci n'est qu'un repli : le fichier téléchargé est
+            // rempli des articles de l'entreprise (`modeleDuStockInitial`).
             'exemple'  => [
-                ['STYL-BLU-001', 'Agence Cocody', '240', '150', '20', '', ''],
-                ['MED-PARA-500', 'Agence Cocody', '300', '400', '50', 'L-2026-03', '31/12/2027'],
-                ['MED-PARA-500', 'Agence Plateau', '120', '410', '30', 'L-2026-07', '30/06/2028'],
+                ['STYL-BLU-001', 'Stylo bleu', 'Agence Cocody', '240', '150', '20', '', ''],
+                ['MED-PARA-500', 'Paracétamol 500 mg', 'Agence Cocody', '300', '400', '50', 'L-2026-03', '31/12/2027'],
+                ['MED-PARA-500', 'Paracétamol 500 mg', 'Agence Plateau', '120', '410', '30', 'L-2026-07', '30/06/2028'],
             ],
         ],
 
@@ -144,12 +146,51 @@ class ImportControleur
     // GET — Télécharger le fichier CSV d'exemple
     // ─────────────────────────────────────────────────────────────
 
+    /** Ce qu'une ligne rend quand elle est laissée de côté sans être fautive. */
+    private const LIGNE_IGNOREE = '__ligne_ignoree__';
+
+    /**
+     * Le modèle du stock d'ouverture, rempli des articles de l'entreprise.
+     *
+     * Le modèle portait des références d'exemple (STYL-BLU-001…) : rempli tel
+     * quel, chaque ligne était refusée — « aucun article ne porte la
+     * référence » — et l'utilisateur ne savait pas lesquelles mettre (retest
+     * de production). Il liste désormais les articles stockables, site par
+     * site, avec leur coût ; il ne reste qu'à saisir les quantités.
+     *
+     * @return array<int, array<int, string>>
+     */
+    private function modeleDuStockInitial(array $config): array
+    {
+        $entreprise = Auth::user()?->entreprise;
+        if (!$entreprise) {
+            return $config['exemple'];
+        }
+
+        $articles = Produit::where('entreprise_id', $entreprise->id)->actifs()->stockables()->orderBy('nom')->get();
+        $sites = PointDeVente::where('entreprise_id', $entreprise->id)->orderBy('nom')->pluck('nom');
+
+        if ($articles->isEmpty() || $sites->isEmpty()) {
+            return $config['exemple'];
+        }
+
+        $lignes = [];
+        foreach ($sites as $site) {
+            foreach ($articles as $article) {
+                $lignes[] = [(string) $article->reference, (string) $article->nom, (string) $site, '',
+                    (string) (float) $article->prix_achat, '', '', ''];
+            }
+        }
+
+        return $lignes;
+    }
+
     public function telechargerExemple(string $type): Response
     {
         $config = self::COLONNES[$type] ?? null;
         abort_if(!$config, 404, "Module d'import inconnu : {$type}");
 
-        $rows = [$config['headers'], ...$config['exemple']];
+        $rows = [$config['headers'], ...($type === 'stock-initial' ? $this->modeleDuStockInitial($config) : $config['exemple'])];
 
         if (request('format') === 'excel') {
             $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
@@ -241,6 +282,7 @@ class ImportControleur
                 'message' => 'La première ligne du fichier doit porter les noms de colonnes.']);
         }
         $importes  = 0;
+        $ignorees  = 0;
         $erreurs   = [];
 
         DB::beginTransaction();
@@ -261,7 +303,9 @@ class ImportControleur
                 );
 
                 $erreur = $this->traiterLigne($type, $data, $entreprise, $num);
-                if ($erreur) {
+                if ($erreur === self::LIGNE_IGNOREE) {
+                    $ignorees++;
+                } elseif ($erreur) {
                     $erreurs[] = $erreur;
                 } else {
                     $importes++;
@@ -274,12 +318,15 @@ class ImportControleur
             return response()->json(['success' => false, 'message' => 'Erreur critique : ' . $e->getMessage()]);
         }
 
+        // « 0 ligne importée avec succès », sur fond vert, quand tout était
+        // refusé : le rapport disait le contraire de ce qui s'était passé.
         return response()->json([
-            'success'  => true,
+            'success'  => $importes > 0 || count($erreurs) === 0,
             'importes' => $importes,
             'erreurs'  => $erreurs,
-            'message'  => "{$importes} ligne(s) importée(s) avec succès." .
-                          (count($erreurs) ? ' ' . count($erreurs) . ' erreur(s) ignorée(s).' : ''),
+            'message'  => ($importes > 0 ? "{$importes} ligne(s) importée(s) avec succès." : 'Aucune ligne importée.') .
+                          (count($erreurs) ? ' ' . count($erreurs) . ' ligne(s) refusée(s) : voir le détail.' : '') .
+                          ($ignorees ? " {$ignorees} ligne(s) sans quantité laissée(s) de côté." : ''),
         ]);
     }
 
@@ -907,16 +954,31 @@ class ImportControleur
     private function importerStockInitial(array $d, $entreprise, int $num): ?string
     {
         $reference = trim($d['reference'] ?? '');
+        $designation = trim($d['designation'] ?? '');
 
-        if (!$reference) return "Ligne {$num} : 'reference' obligatoire.";
+        // Le modèle téléchargé liste tous les articles : une ligne laissée
+        // sans quantité n'est pas une erreur, c'est un article qu'on ne compte
+        // pas aujourd'hui.
+        if (trim((string) ($d['quantite'] ?? '')) === '' || self::nombre($d['quantite']) == 0) {
+            return self::LIGNE_IGNOREE;
+        }
 
-        $produit = Produit::where('entreprise_id', $entreprise->id)
-            ->where('reference', $reference)
-            ->first();
+        if (!$reference && !$designation) return "Ligne {$num} : 'reference' obligatoire.";
+
+        // La casse et les espaces ne distinguent pas deux références : « styl-blu-01 »
+        // et « STYL-BLU-01 » sont le même article. À défaut de référence connue,
+        // la désignation exacte suffit.
+        $produit = $reference !== ''
+            ? Produit::where('entreprise_id', $entreprise->id)->whereRaw('UPPER(TRIM(reference)) = ?', [mb_strtoupper($reference)])->first()
+            : null;
+        if (!$produit && $designation !== '') {
+            $produit = Produit::where('entreprise_id', $entreprise->id)->whereRaw('LOWER(TRIM(nom)) = ?', [mb_strtolower($designation)])->first();
+        }
 
         if (!$produit) {
-            return "Ligne {$num} : aucun article ne porte la référence « {$reference} ». "
-                . 'Importez d\'abord le catalogue.';
+            return "Ligne {$num} : aucun article ne porte la référence « {$reference} »"
+                . ($designation !== '' ? " ni la désignation « {$designation} »" : '') . '. '
+                . 'Téléchargez le modèle : il est rempli des références de votre catalogue.';
         }
 
         if (!$produit->estStockable()) {

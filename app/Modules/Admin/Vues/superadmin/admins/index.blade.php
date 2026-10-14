@@ -34,7 +34,7 @@
 <div class="card" style="padding: 20px; margin-bottom: 20px; background: var(--bg2); border: 1px solid var(--border);">
     <form method="GET" action="{{ route('superadmin.admins.index') }}" style="display: flex; gap: 12px; align-items: center; max-width: 500px;" id="formRechercheAdmins">
         <input type="text" name="search" value="{{ request('search') }}" class="form-control" placeholder="Rechercher par nom, prénom ou e-mail..." style="border-radius: 8px; flex: 1;"
-               oninput="clearTimeout(window._rechercheAdminsTimer); window._rechercheAdminsTimer = setTimeout(() => document.getElementById('formRechercheAdmins').submit(), 500);">
+               title="Appuyez sur Entrée pour lancer la recherche" onkeydown="if (event.key === 'Enter') { event.preventDefault(); document.getElementById('formRechercheAdmins').submit(); }">
         <button type="submit" class="btn btn-primary" style="padding: 10px 16px; font-weight: 600; border-radius: 8px;">
             <i class="fas fa-search"></i>
         </button>

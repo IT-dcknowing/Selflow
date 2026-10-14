@@ -291,6 +291,7 @@
                         </div>
                         <span class="force-label" id="force-texte">Faible</span>
                     </div>
+                    @include('authentification::partials.regles_mot_de_passe')
                 </div>
                 <div class="champ">
                     <label for="password_confirmation">Confirmer le mot de passe <span class="req">*</span></label>

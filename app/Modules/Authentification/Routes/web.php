@@ -84,7 +84,7 @@ Route::middleware('guest')->group(function () {
 
     // Le jeton de réinitialisation est une chaîne : sans borne, il s'éprouve.
     Route::post('/mot-de-passe/reinitialiser', [\App\Modules\Authentification\Controleurs\PasswordResetControleur::class, 'reinitialiser'])
-        ->middleware('throttle:mot-de-passe')
+        ->middleware('throttle:reinitialisation')
         ->name('password.update');
 });
 

@@ -138,7 +138,7 @@
     <div class="form-group" style="margin-bottom:0; flex:1; min-width:200px;">
         <label class="form-label" style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-3); margin-bottom:4px; display:block;">Recherche</label>
         <input type="text" name="recherche" value="{{ request('recherche') }}" class="form-control" placeholder="N° facture, N° FNE, client..."
-               oninput="clearTimeout(window._filtreVentesTimer); window._filtreVentesTimer = setTimeout(() => document.getElementById('formFiltreVentes').submit(), 500);">
+               title="Appuyez sur Entrée pour lancer la recherche" onkeydown="if (event.key === 'Enter') { event.preventDefault(); document.getElementById('formFiltreVentes').submit(); }">
     </div>
     @if($etapeActive === 'Facture')
     <div class="form-group" style="margin-bottom:0;">

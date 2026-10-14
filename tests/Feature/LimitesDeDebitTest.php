@@ -46,7 +46,7 @@ class LimitesDeDebitTest extends TestCase
      */
     public static function lesLimiteurs(): array
     {
-        return [['api'], ['mot-de-passe'], ['import'], ['plateforme'], ['externe'], ['web']];
+        return [['api'], ['mot-de-passe'], ['reinitialisation'], ['import'], ['plateforme'], ['externe'], ['web']];
     }
 
     // ══════════════ Les limiteurs existent ══════════════

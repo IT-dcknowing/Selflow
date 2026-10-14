@@ -256,6 +256,7 @@
                         <label for="password">Nouveau mot de passe</label>
                         <input type="password" id="password" name="password" placeholder="Minimum 8 caractères"
                             autocomplete="new-password" required autofocus>
+                        @include('authentification::partials.regles_mot_de_passe')
                     </div>
 
                     {{-- Confirmation --}}

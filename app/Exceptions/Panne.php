@@ -82,5 +82,9 @@ class Panne
         ValidationException::class,       // retour au formulaire, avec les erreurs
         TokenMismatchException::class,    // 419, jeton CSRF périmé
         ModelNotFoundException::class,    // 404
+        // Une réponse déjà écrite, rendue telle quelle : la borne de la
+        // demande de lien renvoie la page avec un message (statut 429). La
+        // compter comme une panne la transformait en page d'erreur 500.
+        \Illuminate\Http\Exceptions\HttpResponseException::class,
     ];
 }
