@@ -6,11 +6,11 @@ et ce fichier. Tout ce qui a été décidé, tout ce qui a été écarté et pou
 tout ce qui reste à faire doit donc figurer ici — et y être tenu à jour à chaque
 lot terminé.
 
-Dernière mise à jour : 6 octobre 2026 — lots 41 à 52 : la lenteur mesurée et
-corrigée (dont l'écran de stock qui écrivait en base), les factures d'achat
-reçues de la DGI passées en écriture, le déversement Comptaflow regroupé par
-opération, les avoirs plafonnés, la comptabilité éteinte sans compte à l'écran,
-la configuration globale des comptes.
+Dernière mise à jour : 14 octobre 2026 — lots 64 à 69, retours de la mise en
+production : la faille du mot de passe oublié et les courriels, les écrans du
+retest, les écritures d'avoir, le cycle d'achat et la facture déclarée par le
+fournisseur, les stickers achetés par DC-Knowing, la vente pas à pas. Plan :
+`PLAN-RETOURS-PRODUCTION-14-10-2026.md` ; B2B approfondi (lot 70) à valider.
 
 ---
 
