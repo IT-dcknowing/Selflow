@@ -79,9 +79,12 @@ class PersonnelApiControleur
             'habilitations'      => $request->habilitations ?? [],
         ]);
 
+        $avisParti = \App\Mail\EnvoiCourriel::annoncerCompte($personnel, true);
+
         return response()->json([
             'statut' => 'succes',
-            'message' => 'Membre du personnel créé avec succès.',
+            'message' => 'Membre du personnel créé avec succès.' . ($avisParti ? '' : \App\Mail\EnvoiCourriel::AVIS_NON_PARTI),
+            'avis_envoye' => $avisParti,
             'personnel' => [
                 'id' => $personnel->id,
                 'uuid' => $personnel->uuid,

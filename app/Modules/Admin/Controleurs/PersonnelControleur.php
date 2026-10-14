@@ -68,7 +68,9 @@ class PersonnelControleur
 
         $this->journaliser('creation_personnel', 'Utilisateur', $personnel->id, null, $personnel->toArray());
 
-        return redirect()->route('admin.personnel.index')->with('succes', 'Membre du personnel créé avec succès.');
+        $avis = \App\Mail\EnvoiCourriel::annoncerCompte($personnel, true) ? '' : \App\Mail\EnvoiCourriel::AVIS_NON_PARTI;
+
+        return redirect()->route('admin.personnel.index')->with('succes', 'Membre du personnel créé avec succès.' . $avis);
     }
 
     public function details(Utilisateur $personnel): View
