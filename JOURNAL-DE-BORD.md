@@ -7789,6 +7789,25 @@ envoie un message d'essai. **Au déploiement** : renseigner dans le `.env`
 
 ---
 
+### Lot 65 — Les écrans du retest — **TERMINÉ le 14/10/2026**
+
+Branche `correctifs-ecrans-retest`. Aucun fichier gelé touché.
+
+| Retour | Cause | Correction |
+|---|---|---|
+| « L'enregistrement de la facture ne passe pas, sans message » | les refus « stock insuffisant » et « lot périmé » partaient sous la clé `error`, que le gabarit n'affiche pas (treize contrôleurs l'emploient) : la page se rechargeait muette. Le second contrôle de stock, sous verrou, tombait en page « Panne » | le gabarit lit `error` ; les refus levés dans la transaction reviennent en message |
+| Message de confirmation qui disparaît en 3 s | — | « Facture VTE-… enregistrée » ; durée réglable par le contrôleur (`succes_duree`) |
+| (trouvé) | le panier de la caisse, gardé dans le navigateur, n'était jamais vidé | vidé après une vente enregistrée |
+| Recherche du catalogue limitée à la page | filtre côté navigateur sur les 24 articles affichés | recherche, catégorie et type envoyés au serveur (nom ou référence), pagination qui garde les filtres |
+| Domaine : cliquer puis « Continuer » | — | le clic sur la tuile mène à l'étape suivante |
+| Image cassée sans photo de profil | photo Google refusée par la politique de sécurité (`img-src 'self'`), fichier effacé en 404, initiale accentuée coupée par `substr` | initiales si la photo n'est pas affichable, repli `onerror`, `mb_substr` et échappement |
+| Fusée de la bannière | — | retirée |
+
+- `RetestEcransTest` (9)
+- Suite : 1 683 épreuves, 1 678 passantes, 5 sautées ; `verifier:variables` propre.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

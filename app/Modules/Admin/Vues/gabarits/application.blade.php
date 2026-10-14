@@ -1294,7 +1294,7 @@
         {{-- Bouton Profil et Menu Déroulant (Images 2 et 3) --}}
         <div class="user-dropdown" style="position:relative; display:inline-block;">
             <button class="user-dropdown-btn" onclick="toggleUserDropdown()" style="display:flex; align-items:center; gap:8px; background:#ffffff; border:1px solid var(--border); border-radius:30px; padding:4px 14px 4px 4px; cursor:pointer; font-family:inherit; transition: all 0.15s; outline:none;">
-                <img src="{{ auth()->user()->avatar_url }}" alt="Avatar" style="width:30px; height:30px; border-radius:50%; object-fit:cover; border:1px solid var(--border);">
+                <img src="{{ auth()->user()->avatar_url }}" alt="" onerror="this.onerror=null; this.src='{{ auth()->user()->avatar_repli }}';" style="width:30px; height:30px; border-radius:50%; object-fit:cover; border:1px solid var(--border);">
                 <span style="font-size:12.5px; font-weight:600; color:var(--primary); max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                     {{ auth()->user()->prenom }} {{ auth()->user()->nom }}
                 </span>
@@ -1303,7 +1303,7 @@
             
             <div class="user-dropdown-menu" id="userDropdownMenu" style="display:none; position:absolute; right:0; top:calc(100% + 8px); width:230px; background:#ffffff; border:1px solid var(--border); border-radius:12px; box-shadow:0 10px 25px rgba(0,0,0,0.08); z-index:1000; padding:6px 0;">
                 <div style="padding:10px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px;">
-                    <img src="{{ auth()->user()->avatar_url }}" alt="Avatar" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:1px solid var(--border);">
+                    <img src="{{ auth()->user()->avatar_url }}" alt="" onerror="this.onerror=null; this.src='{{ auth()->user()->avatar_repli }}';" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:1px solid var(--border);">
                     <div style="overflow:hidden;">
                         <div style="font-weight:700; font-size:12.5px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ auth()->user()->prenom }} {{ auth()->user()->nom }}</div>
                         <div style="font-size:11px; font-weight:600; color:var(--text-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-transform:capitalize;">
@@ -1363,10 +1363,21 @@
                 'succes'        => 'Succès',
                 'avertissement' => 'Attention',
                 'erreur'        => 'Erreur',
+                // Treize contrôleurs posent `error` (dont les refus de la
+                // vente : stock insuffisant, lot périmé) : la page se
+                // rechargeait sans rien dire. Lu ici comme une erreur.
+                'error'         => 'Erreur',
                 'info'          => 'Information',
             ] as $__cle => $__titre) {
                 if (session()->has($__cle)) {
-                    $__f = ['type' => $__cle, 'titre' => $__titre, 'message' => (string) session($__cle)];
+                    $__f = ['type' => $__cle === 'error' ? 'erreur' : $__cle, 'titre' => $__titre, 'message' => (string) session($__cle)];
+
+                    // Durée d'affichage choisie par le contrôleur, en
+                    // millisecondes (« {cle}_duree ») : la facture enregistrée
+                    // s'annonce trois secondes, puis laisse la place.
+                    if (is_numeric(session($__cle . '_duree'))) {
+                        $__f['duree'] = (int) session($__cle . '_duree');
+                    }
 
                     // Une ou plusieurs actions facultatives — des boutons qui
                     // mènent où agir —, posées par le contrôleur sous
@@ -1400,6 +1411,11 @@
         @endphp
         @if($__flashs)
         <script>window.__flashs = (window.__flashs || []).concat(@json($__flashs));</script>
+        @endif
+        {{-- Le panier de la caisse vit dans le navigateur : sans ceci, la vente
+             enregistrée revenait au panier de la vente suivante. --}}
+        @if(session('vente_enregistree'))
+        <script>try { localStorage.removeItem('selflow_vente_panier'); } catch (e) {}</script>
         @endif
 
         {{-- Alerte de stickers. Placee ici plutot que dans chaque vue : le
@@ -1462,7 +1478,6 @@
                  style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;
                         background:#EFF6FF; border:1px solid #BFDBFE; border-radius:12px;
                         padding:16px 20px; margin-bottom:20px;">
-                <span style="font-size:22px; line-height:1;">&#128640;</span>
                 <div style="flex:1; min-width:260px;">
                     <div style="font-weight:700; font-size:14px; color:#1E3A8A; margin-bottom:3px;">
                         Configurez votre métier en cinq minutes
@@ -1863,7 +1878,8 @@ window.__csrf = '{{ csrf_token() }}';
         x.addEventListener('click', fermer);
         zone.appendChild(el);
 
-        if (!persistants[f.type]) { setTimeout(fermer, 6000); }
+        if (f.duree > 0) { setTimeout(fermer, f.duree); }
+        else if (!persistants[f.type]) { setTimeout(fermer, 6000); }
     }
 })();
 </script>

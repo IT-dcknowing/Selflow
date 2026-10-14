@@ -123,7 +123,7 @@
     </div>
 @endif
 
-<form method="POST" action="{{ route('admin.souscription.enregistrer', $etape) }}">
+<form method="POST" action="{{ route('admin.souscription.enregistrer', $etape) }}" id="form-souscription">
     @csrf
 
     {{-- ══ 1. Le domaine ══ --}}
@@ -166,7 +166,7 @@
         <div class="tuiles">
             @foreach($categories as $categorie)
             <label class="tuile">
-                <input type="radio" name="categorie_id" value="{{ $categorie->id }}"
+                <input type="radio" name="categorie_id" data-etape-suivante value="{{ $categorie->id }}"
                        {{ ($choix['categorie_id'] ?? null) == $categorie->id ? 'checked' : '' }}>
                 <div class="corps">
                     <div class="titre">{{ $categorie->nom }}</div>
@@ -449,4 +449,22 @@
     </div>
 </form>
 
+@endsection
+
+@section('scripts')
+<script>
+// Retest de production : choisir le domaine puis cliquer « Continuer » est un
+// geste de trop — il n'y a qu'un domaine à choisir. Le clic sur la tuile
+// mène à l'étape suivante ; le bouton reste pour qui navigue au clavier.
+document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
+    // `click` et non `change` : un domaine déjà coché (parcours repris) ne
+    // déclenche pas `change`, et le clic resterait sans effet.
+    radio.addEventListener('click', function () {
+        var form = document.getElementById('form-souscription');
+        if (form.dataset.envoye) return;
+        form.dataset.envoye = '1';
+        form.submit();
+    });
+});
+</script>
 @endsection
