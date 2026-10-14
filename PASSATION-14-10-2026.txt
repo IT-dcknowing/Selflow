@@ -10,10 +10,10 @@ PLAN-RETOURS-PRODUCTION-14-10-2026.md et PLAN-CORRECTION-SELFLOW.xlsx
 --------------------
 Branche de référence : main, poussée sur les deux dépôts
 (IT-dcknowing/Selflow et meledjeabrahamagnimel-lgtm/Selflow).
-Plan des retours : PLAN-RETOURS-PRODUCTION.xlsx — 34 chantiers, 27 terminés,
-4 à faire (B2B), 3 à trancher ou attendus. Le plan de correction
+Plan des retours : PLAN-RETOURS-PRODUCTION.xlsx — 34 chantiers, 31 terminés,
+3 à trancher ou attendus. Le plan de correction
 (PLAN-CORRECTION-SELFLOW.xlsx) reste celui du 09/10.
-Suite : 1 724 épreuves, 1 719 passantes, 5 sautées.
+Suite : 1 732 épreuves, 1 727 passantes, 5 sautées.
 Courriel vérifié en production le 14/10 (selflow:verifier-courriel).
 Aucun fichier du périmètre FNE gelé n'a été modifié.
 
@@ -46,14 +46,16 @@ Aucun fichier du périmètre FNE gelé n'a été modifié.
   contraste du haut de page.
 - Lot 74 — Étape 1 du pas à pas en liste avec barre en bas ; retour arrière
   du parcours de configuration réparé ; plan Excel des retours à part.
+- Lot 75 — B2B approfondi : fil de discussion, contre-propositions,
+  commande (ou commande directe), confirmation selon le stock, livraison
+  facturée, réception, refus motivé ; courriels et pastilles « non lu ».
 
 
 3. TRANCHÉ ET À TRANCHER
 ------------------------
 (numéros du classeur PLAN-RETOURS-PRODUCTION.xlsx)
 - 5.2 Timbre d'une facture annulée : NON remboursé (propriétaire, 14/10).
-- 9.1 à 9.4 B2B approfondi (70a à 70d) : validé ; commande directe
-  autorisée (propriétaire, 14/10). À programmer.
+- 9.1 à 9.4 B2B approfondi : livré (lot 75).
 - 6.3 Fiscalité & DGI : préciser le défaut d'affichage des sous-modules.
 - 8.2 Vitrine : textes et adresses de RHFlow, LegalFlow, Agent-AI,
   CGA-Connect.
@@ -69,7 +71,8 @@ Aucun fichier du périmètre FNE gelé n'a été modifié.
   php artisan migrate --force
      (2026_10_14_000001 achats.declaree_par_fournisseur + « Bon de Commande »
       corrigé ; 2026_10_14_000002 table demandes_stickers ; 2026_10_14_000003
-      liens des applications sur la vitrine : additives)
+      liens des applications sur la vitrine ; 2026_10_14_000004 suivi des
+      lectures B2B : additives)
 
   LE COURRIEL — sans ces lignes dans le .env, AUCUN courriel ne part :
      MAIL_MAILER=smtp

@@ -57,6 +57,9 @@ class Achat extends Model
         'fne_certifie_at',
         'type_facture',
         'declaree_par_fournisseur',
+        // La négociation B2B d'où vient la pièce. Absente d'ici, elle était
+        // ignorée en silence : aucune pièce n'était jamais rattachée (lot 75).
+        'b2b_negotiation_id',
         'archived',
         'parent_id',
         'raison_avoir',

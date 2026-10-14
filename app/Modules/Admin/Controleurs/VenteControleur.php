@@ -507,32 +507,13 @@ class VenteControleur
             return;
         }
 
-        if (B2bNegotiation::where('entreprise_client_id', $emettrice)
-            ->where('reference_commande', $vente->numero_facture)->exists()) {
-            return;
+        // La vente est déjà enregistrée : un incident côté B2B ne doit pas
+        // la faire passer pour un échec. Il est consigné.
+        try {
+            \App\Modules\Admin\Services\B2bService::ouvrirDepuisVente($vente, $entrepriseDestinataire);
+        } catch (\Throwable $e) {
+            logger()->error('Transmission B2B du bon de commande ' . $vente->numero_facture . ' : ' . $e->getMessage());
         }
-
-        // Charger les détails avec les produits
-        $vente->load('details.produit');
-        $produitsDemandes = $vente->details->map(function ($d) {
-            return [
-                'nom' => $d->produit?->nom ?? $d->libelle_virtuel ?? 'Produit #' . $d->produit_id,
-                'quantite' => $d->quantite,
-                'unite' => $d->unite ?? $d->produit?->unite ?? 'pcs',
-                'prix_propose' => $d->prix_unitaire,
-            ];
-        })->values()->all();
-
-        B2bNegotiation::create([
-            'entreprise_client_id' => $emettrice,
-            'entreprise_fournisseur_id' => $entrepriseDestinataire->id,
-            'statut' => 'RFQ',
-            'type_demande' => 'commande',
-            'reference_commande' => $vente->numero_facture,
-            'produits_demandes' => $produitsDemandes,
-            'prix_final' => $vente->montant_ttc,
-            'historique_discussions' => [],
-        ]);
     }
 
     public function factures(): View

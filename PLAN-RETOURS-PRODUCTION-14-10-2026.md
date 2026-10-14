@@ -19,11 +19,12 @@ deux dépôts une fois la suite verte.
 | 66 Cycle d'achat | **Terminé** | `cbd50f2` |
 | 68 Stickers par DC-Knowing | **Terminé** | `641d6fc` |
 | 69 Vente pas à pas | **Terminé** | `91f052b` |
-| 70 B2B approfondi | **Validé, à programmer** (étude ci-dessous) | — |
+| 70 B2B approfondi | **Terminé** — livré au lot 75 | — |
 | 71 Erreur 500 de la fiche article, mot de passe, recherches, import du stock | **Terminé** | `3b6d3ac` |
 | 72 Plan comptable modifiable, Gestion FNE | **Terminé** | `1376c21` |
 | 73 Page d'accueil | **Terminé en partie** (textes des applications attendus) | `0ed7302` |
-| 74 Étape 1 du pas à pas refaite, retour arrière du parcours, plan Excel à part | **Terminé** | — |
+| 74 Étape 1 du pas à pas refaite, retour arrière du parcours, plan Excel à part | **Terminé** | `5888d61` |
+| 75 B2B approfondi (70a à 70d) | **Terminé** | — |
 
 **Le plan chiffré vit dans `PLAN-RETOURS-PRODUCTION.xlsx`**, à part du plan de
 correction (même modèle, mêmes couleurs).

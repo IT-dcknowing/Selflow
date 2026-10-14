@@ -374,37 +374,9 @@ class AchatControleur
             if (!empty($fournisseur->ncc)) {
                 $fournisseurEntreprise = Entreprise::where('ncc', $fournisseur->ncc)->first();
                 if ($fournisseurEntreprise && $fournisseurEntreprise->id !== $entreprise->id) {
-                    $masquerPrix = $request->input('masquer_prix_conseilles') == '1';
-                    $produitsDemandes = [];
-                    foreach ($achat->details as $d) {
-                        $produitsDemandes[] = [
-                            'produit_id_client' => $d->produit_id,
-                            'reference'         => $d->produit?->reference ?? 'REF-' . $d->produit_id,
-                            'nom'               => $d->produit?->nom ?? $d->libelle_virtuel ?? 'Produit #' . $d->produit_id,
-                            'quantite'          => (float)$d->quantite,
-                            'prix_propose'      => $masquerPrix ? 0.0 : (float)$d->prix_unitaire,
-                            'unite'             => $d->unite ?? $d->produit?->unite ?? 'pcs'
-                        ];
-                    }
-
-                    $historique = [[
-                        'date'    => now()->toDateTimeString(),
-                        'auteur'  => Auth::user()->nom . ' ' . Auth::user()->prenom,
-                        'role'    => 'Client',
-                        'message' => $achat->etape === 'Bon de commande'
-                            ? 'Bon de commande direct envoyé via B2B.'
-                            : 'Demande de prix initiale (RFQ) envoyée via B2B.'
-                    ]];
-
-                    B2bNegotiation::create([
-                        'entreprise_client_id'      => $entreprise->id,
-                        'entreprise_fournisseur_id' => $fournisseurEntreprise->id,
-                        'statut'                    => 'RFQ',
-                        'type_demande'              => $achat->etape === 'Bon de commande' ? 'commande' : 'rfq',
-                        'reference_commande'        => $achat->numero_facture,
-                        'produits_demandes'         => $produitsDemandes,
-                        'historique_discussions'    => $historique,
-                    ]);
+                    \App\Modules\Admin\Services\B2bService::ouvrirDepuisAchat(
+                        $achat, $fournisseurEntreprise, $request->input('masquer_prix_conseilles') == '1'
+                    );
                 }
             }
         }
@@ -1087,38 +1059,12 @@ class AchatControleur
             return back()->with('erreur', "Vous ne pouvez pas initier une relation commerciale B2B avec votre propre entreprise.");
         }
 
-        $produitsDemandes = [];
-        foreach ($achat->details as $d) {
-            $produitsDemandes[] = [
-                'produit_id_client' => $d->produit_id,
-                'reference'         => $d->produit?->reference ?? 'REF-' . $d->produit_id,
-                'nom'               => $d->produit?->nom ?? $d->libelle_virtuel ?? 'Produit #' . $d->produit_id,
-                'quantite'          => (float)$d->quantite,
-                'prix_propose'      => (float)$d->prix_unitaire,
-                'unite'             => $d->unite ?? $d->produit?->unite ?? 'pcs'
-            ];
-        }
+        $negociation = \App\Modules\Admin\Services\B2bService::ouvrirDepuisAchat($achat, $fournisseurEntreprise);
 
-        $historique = [[
-            'date'    => now()->toDateTimeString(),
-            'auteur'  => Auth::user()->nom . ' ' . Auth::user()->prenom,
-            'role'    => 'Client',
-            'message' => $achat->etape === 'Bon de commande'
-                ? 'Bon de commande direct envoyé via B2B (Transmission différée).'
-                : 'Demande de prix initiale (RFQ) envoyée via B2B (Transmission différée).'
-        ]];
-
-        B2bNegotiation::create([
-            'entreprise_client_id'      => $entreprise->id,
-            'entreprise_fournisseur_id' => $fournisseurEntreprise->id,
-            'statut'                    => 'RFQ',
-            'type_demande'              => $achat->etape === 'Bon de commande' ? 'commande' : 'rfq',
-            'reference_commande'        => $achat->numero_facture,
-            'produits_demandes'         => $produitsDemandes,
-            'historique_discussions'    => $historique,
-        ]);
-
-        return back()->with('succes', "Demande transmise avec succès en B2B !");
+        return redirect()->route('admin.b2b.client.voir', $negociation)
+            ->with('succes', $achat->etape === 'Bon de commande'
+                ? 'Commande transmise au fournisseur : il la confirmera selon son stock.'
+                : 'Demande de prix transmise au fournisseur.');
     }    /*
      * L'avoir fournisseur a été retiré le 25/09/2026.
      *

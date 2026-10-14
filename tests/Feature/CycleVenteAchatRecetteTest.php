@@ -561,7 +561,12 @@ class CycleVenteAchatRecetteTest extends TestCase
             'articles' => [['produit_id' => $this->ciment->id, 'quantite' => 3, 'unite' => 'sac']],
         ])->assertSessionHasNoErrors();
 
-        $this->assertSame(1, B2bNegotiation::where('entreprise_fournisseur_id', $autre->id)->count());
+        // Le client inscrit est le client de la négociation, et le vendeur son
+        // fournisseur. L'épreuve vérifiait l'inverse, qui était le défaut
+        // relevé le 14/10/2026 : l'acheteur recevait sa propre commande parmi
+        // les demandes à servir (lot 75).
+        $this->assertSame(1, B2bNegotiation::where('entreprise_client_id', $autre->id)
+            ->where('entreprise_fournisseur_id', $this->entreprise->id)->count());
     }
 
     /** Le titre de la page dit la nature de la pièce. */

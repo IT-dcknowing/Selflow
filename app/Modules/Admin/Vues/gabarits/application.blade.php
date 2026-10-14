@@ -869,8 +869,10 @@
             @endif
 
             @if(auth()->user()->aHabilitation('nouvelle_vente'))
-            <a href="{{ route('admin.b2b.negociations.fournisseur') }}" class="nav-item {{ request()->routeIs('admin.b2b.negociations.fournisseur*') ? 'active' : '' }}">
+            <a href="{{ route('admin.b2b.negociations.fournisseur') }}" class="nav-item {{ request()->routeIs('admin.b2b.negociations.fournisseur*', 'admin.b2b.fournisseur.*') ? 'active' : '' }}">
                 <i class="fas fa-handshake"></i> Demandes B2B reçues
+                @php $__b2b = \App\Modules\Admin\Modeles\B2bNegotiation::nonLuesPour((int) auth()->user()->entreprise_id, 'fournisseur')->count(); @endphp
+                @if($__b2b)<span title="Réponses ou commandes à voir" style="margin-left:auto; background:#2563eb; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700;">{{ $__b2b }}</span>@endif
             </a>
             @endif
             @endif
@@ -899,8 +901,10 @@
             @endif
 
             @if(auth()->user()->aHabilitation('nouvel_achat'))
-            <a href="{{ route('admin.b2b.negociations.client') }}" class="nav-item {{ request()->routeIs('admin.b2b.negociations.client*') ? 'active' : '' }}">
+            <a href="{{ route('admin.b2b.negociations.client') }}" class="nav-item {{ request()->routeIs('admin.b2b.negociations.client*', 'admin.b2b.client.*') ? 'active' : '' }}">
                 <i class="fas fa-comments-dollar"></i> Négociations B2B (Achats)
+                @php $__b2b = \App\Modules\Admin\Modeles\B2bNegotiation::nonLuesPour((int) auth()->user()->entreprise_id, 'client')->count(); @endphp
+                @if($__b2b)<span title="Réponses ou commandes à voir" style="margin-left:auto; background:#2563eb; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700;">{{ $__b2b }}</span>@endif
             </a>
             @endif
             @endif

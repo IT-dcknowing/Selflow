@@ -579,7 +579,13 @@
                             {{-- Le geste suivant de la pièce, dans l'ordre de l'achat
                                  (retest d'octobre 2026 : la colonne était vide pour
                                  les demandes de prix et les commandes). --}}
-                            @if($achat->etape === 'Demande de prix' && $achat->statut !== 'En attente B2B')
+                            {{-- Une pièce née d'une négociation B2B suit le parcours B2B :
+                                 c'est le fournisseur qui confirme, livre et facture. --}}
+                            @if($achat->b2b_negotiation_id && $achat->etape !== 'Facture' && $achat->statut !== 'En attente B2B')
+                                <a href="{{ route('admin.b2b.client.voir', \App\Modules\Admin\Modeles\B2bNegotiation::find($achat->b2b_negotiation_id)) }}" class="btn btn-sm btn-outline" style="font-weight:700; font-size:11px; padding:4px 8px; text-decoration:none;">
+                                    <i class="fas fa-comments-dollar"></i> Suivre en B2B
+                                </a>
+                            @elseif($achat->etape === 'Demande de prix' && $achat->statut !== 'En attente B2B')
                                 <form method="POST" action="{{ route('admin.achats.confirmer', $achat) }}" style="display:inline; margin:0;"
                                       onsubmit="return confirm('Confirmer la commande {{ $achat->numero_facture }} ? La demande de prix devient un bon de commande.');">
                                     @csrf
@@ -613,7 +619,7 @@
                                 <form method="POST" action="{{ route('admin.b2b.achat.accepter', $achat) }}" style="display:inline; margin:0;">
                                     @csrf
                                     <button type="submit" class="btn btn-success btn-sm" style="font-weight:700; font-size:11px; padding:4px 8px;" title="Accepter la livraison et comptabiliser l'achat">
-                                        <i class="fas fa-check-double"></i> Accepter B2B
+                                        <i class="fas fa-check-double"></i> Réceptionner B2B
                                     </button>
                                 </form>
                             @endif

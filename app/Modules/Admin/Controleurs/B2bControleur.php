@@ -54,7 +54,14 @@ class B2bControleur extends Controller
 
         $negociations = $tab === 'commandes' ? $commandes : $devis;
 
-        return view('admin::b2b.negociations_client', compact('negociations', 'devis', 'commandes', 'tab'));
+        // Pour composer une demande ou une commande directe : les fournisseurs
+        // inscrits dans Selflow (même NCC), et le catalogue de l'entreprise.
+        $nccInscrits = Entreprise::whereNotNull('ncc')->where('id', '!=', $entrepriseId)->pluck('ncc');
+        $fournisseursB2b = Fournisseur::where('entreprise_id', $entrepriseId)->whereIn('ncc', $nccInscrits)->orderBy('nom')->get();
+        $produits = Produit::where('entreprise_id', $entrepriseId)->actifs()->orderBy('nom')->get(['id', 'nom', 'reference', 'prix_achat', 'unite']);
+        $role = B2bNegotiation::CLIENT;
+
+        return view('admin::b2b.negociations_client', compact('negociations', 'devis', 'commandes', 'tab', 'fournisseursB2b', 'produits', 'role'));
     }
 
     /**
@@ -77,8 +84,9 @@ class B2bControleur extends Controller
 
         // Rétro-compat : $negociations pointe sur la collection active
         $negociations = $tab === 'commandes' ? $commandes : $devis;
+        $role = B2bNegotiation::FOURNISSEUR;
 
-        return view('admin::b2b.negociations_fournisseur', compact('negociations', 'devis', 'commandes', 'tab'));
+        return view('admin::b2b.negociations_fournisseur', compact('negociations', 'devis', 'commandes', 'tab', 'role'));
     }
 
     /**
@@ -95,6 +103,8 @@ class B2bControleur extends Controller
             'articles.*.quantite'   => Quantite::physique(),
             'articles.*.prix'       => ['nullable', 'numeric', 'min:0'],
             'articles.*.prix_unitaire' => ['nullable', 'numeric', 'min:0'],
+            'type_demande'   => ['nullable', 'in:rfq,commande'],
+            'message'        => ['nullable', 'string', 'max:1000'],
         ]);
 
         $fournisseur = Fournisseur::where('entreprise_id', $entreprise->id)->findOrFail($request->fournisseur_id);
@@ -114,39 +124,30 @@ class B2bControleur extends Controller
             return back()->with('erreur', "Vous ne pouvez pas initier une relation commerciale B2B avec votre propre entreprise.");
         }
 
-        // Structurer les produits demandés
+        // Une commande directe est permise (propriétaire, 14/10/2026) : elle
+        // crée tout de suite le bon de commande du client.
+        $commande = $request->input('type_demande') === 'commande';
         $masquerPrix = $request->input('masquer_prix_conseilles') == '1';
-        $produitsDemandes = [];
+        $articles = [];
         foreach ($request->articles as $art) {
-            $produit = Produit::findOrFail($art['produit_id']);
-            $prixUnitaire = isset($art['prix_unitaire']) ? $art['prix_unitaire'] : (isset($art['prix']) ? $art['prix'] : 0.0);
-            $produitsDemandes[] = [
-                'produit_id_client' => $produit->id,
-                'reference'         => $produit->reference,
-                'nom'               => $produit->nom,
-                'quantite'          => (float)$art['quantite'],
-                'prix_propose'      => $masquerPrix ? 0.0 : (float)$prixUnitaire,
-                'unite'             => $produit->unite ?? 'Unité'
+            $prix = $art['prix_unitaire'] ?? $art['prix'] ?? 0;
+            $articles[] = [
+                'produit'  => Produit::where('entreprise_id', $entreprise->id)->findOrFail($art['produit_id']),
+                'quantite' => (float) $art['quantite'],
+                'prix'     => $masquerPrix && !$commande ? 0.0 : (float) $prix,
             ];
         }
 
-        $historique = [[
-            'date'    => now()->toDateTimeString(),
-            'auteur'  => Auth::user()->nom . ' ' . Auth::user()->prenom,
-            'role'    => 'Client',
-            'message' => 'Demande de prix initiale (RFQ) envoyée.'
-        ]];
+        try {
+            $negociation = \App\Modules\Admin\Services\B2bService::ouvrir(
+                $entreprise, $fournisseurEntreprise, $articles, $commande, $request->input('message')
+            );
+        } catch (\DomainException $e) {
+            return back()->withInput()->with('erreur', $e->getMessage());
+        }
 
-        B2bNegotiation::create([
-            'entreprise_client_id'      => $entreprise->id,
-            'entreprise_fournisseur_id' => $fournisseurEntreprise->id,
-            'statut'                    => 'RFQ',
-            'produits_demandes'         => $produitsDemandes,
-            'historique_discussions'    => $historique,
-        ]);
-
-        return redirect()->route('admin.b2b.negociations.client')
-            ->with('succes', 'Demande de prix (RFQ) envoyée au fournisseur avec succès.');
+        return redirect()->route('admin.b2b.client.voir', $negociation)
+            ->with('succes', $commande ? 'Commande envoyée au fournisseur.' : 'Demande de prix envoyée au fournisseur.');
     }
 
     /**
@@ -474,68 +475,193 @@ class B2bControleur extends Controller
     }
 
     /**
-     * L'acheteur (client) accepte la livraison et comptabilise l'achat
+     * L'acheteur réceptionne la livraison (depuis la liste des achats).
      */
     public function accepterAchatB2b(Achat $achat): RedirectResponse
     {
-        $entrepriseId = Auth::user()->entreprise_id;
-        abort_unless($achat->pointDeVente->entreprise_id === $entrepriseId, 404);
+        abort_unless($achat->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
 
-        if ($achat->statut !== 'En attente B2B') {
-            return back()->with('info', 'Cet achat B2B a déjà été comptabilisé.');
+        try {
+            \App\Modules\Admin\Services\B2bService::receptionner($achat);
+        } catch (\DomainException $e) {
+            return back()->with('info', $e->getMessage());
         }
 
-        DB::transaction(function () use ($achat) {
-            // Passer en étape Facture et statut de paiement final
-            $modePaiement = $achat->mode_paiement;
-            $statutFinal = ($modePaiement === 'Crédit') ? 'Crédit' : 'Payé';
-
-            $achat->update([
-                'statut' => $statutFinal,
-                'etape'  => 'Facture',
-            ]);
-
-            // Incrémenter le stock de chaque produit chez l'acheteur
-            foreach ($achat->details as $det) {
-                // Entree chez l'acheteur. Meme remarque : « Entree » sans
-                // accent et un sous-type « achat » inconnu de l'ecran. C'est
-                // une reception.
-                if ($det->produit && $det->produit->estStockable()) {
-                    $det->update(['quantite_receptionnee' => $det->quantite]);
-
-                    StockService::entree($det->produit, (int) $achat->point_de_vente_id,
-                        (float) $det->quantite, MouvementStock::RECEPTION,
-                        ['piece' => $achat, 'reference' => $achat->numero_facture,
-                         'fournisseur_id' => $achat->fournisseur_id]);
-                }
-            }
-
-            // Si c'est payé au comptant, sortir de la trésorerie
-            $montantPayeB2b = $modePaiement !== 'Crédit' ? $achat->montant_ttc : 0;
-
-            if ($montantPayeB2b > 0) {
-                $soldeActuel = TresorerieJournal::where('point_de_vente_id', $achat->point_de_vente_id)
-                    ->orderByDesc('created_at')->value('solde_resultat') ?? 0;
-
-                TresorerieJournal::create([
-                    'point_de_vente_id'  => $achat->point_de_vente_id,
-                    'date_operation'     => now()->toDateString(),
-                    'type_operation'     => 'Décaissement',
-                    'libelle'            => ComptabiliteService::libelleTresorerieAchat($achat),
-                    'mode_paiement'      => $modePaiement,
-                    'montant_entree'     => 0,
-                    'montant_sortie'     => $montantPayeB2b,
-                    'solde_resultat'     => $soldeActuel - $montantPayeB2b,
-                    'reference_document' => $achat->numero_facture,
-                ]);
-            }
-
-            // Générer l'écriture comptable de la facture d'achat chez le client :
-            // décide seule si achat comptant (aucune ligne 401) ou à crédit.
-            ComptabiliteService::genererEcrituresAchat($achat, $montantPayeB2b, $modePaiement, now()->toDateString());
-        });
-
         return redirect()->route('admin.achats.factures')
-            ->with('succes', 'Livraison B2B acceptée et comptabilisée avec succès. Les stocks ont été mis à jour.');
+            ->with('succes', 'Livraison B2B réceptionnée : stock mis à jour et facture d\'achat établie.');
+    }
+
+    // ═════════════════════════════════════════════════════════════════
+    // Le parcours approfondi (lot 75) — une page par négociation
+    // ═════════════════════════════════════════════════════════════════
+
+    public function voirClient(B2bNegotiation $negociation): View
+    {
+        return $this->voir($negociation, B2bNegotiation::CLIENT);
+    }
+
+    public function voirFournisseur(B2bNegotiation $negociation): View
+    {
+        return $this->voir($negociation, B2bNegotiation::FOURNISSEUR);
+    }
+
+    private function voir(B2bNegotiation $negociation, string $role): View
+    {
+        $this->partie($negociation, $role);
+        \App\Modules\Admin\Services\B2bService::marquerLu($negociation, $role);
+        $negociation->load(['entrepriseClient', 'entrepriseFournisseur']);
+
+        $entrepriseId = Auth::user()->entreprise_id;
+        $catalogue = collect();
+        $correspondances = [];
+        $stocks = [];
+        $pointsDeVente = collect();
+
+        if ($role === B2bNegotiation::FOURNISSEUR) {
+            $catalogue = Produit::where('entreprise_id', $entrepriseId)->actifs()->orderBy('nom')->get(['id', 'nom', 'reference', 'type', 'unite']);
+            $pointsDeVente = PointDeVente::where('entreprise_id', $entrepriseId)->orderBy('nom')->get();
+            $pdv = session('point_de_vente_actif_id') ?? $pointsDeVente->first()?->id;
+            foreach ($negociation->produits_demandes ?? [] as $i => $ligne) {
+                $produit = \App\Modules\Admin\Services\B2bService::articleDuFournisseur($entrepriseId, $ligne);
+                $correspondances[$i] = $produit?->id;
+                $stocks[$i] = $produit && $pdv ? ($produit->estStockable() ? $produit->stockActuel($pdv) : null) : null;
+            }
+        }
+
+        $achat = Achat::where('b2b_negotiation_id', $negociation->id)->latest('id')->first();
+        $ventes = Vente::where('b2b_negotiation_id', $negociation->id)->orderBy('id')->get();
+
+        return view('admin::b2b.negociation', compact(
+            'negociation', 'role', 'catalogue', 'correspondances', 'stocks', 'pointsDeVente', 'achat', 'ventes'
+        ));
+    }
+
+    public function ecrireClient(Request $request, B2bNegotiation $negociation): RedirectResponse
+    {
+        return $this->ecrire($request, $negociation, B2bNegotiation::CLIENT);
+    }
+
+    public function ecrireFournisseur(Request $request, B2bNegotiation $negociation): RedirectResponse
+    {
+        return $this->ecrire($request, $negociation, B2bNegotiation::FOURNISSEUR);
+    }
+
+    private function ecrire(Request $request, B2bNegotiation $negociation, string $role): RedirectResponse
+    {
+        $this->partie($negociation, $role);
+        $request->validate(['message' => ['required', 'string', 'max:2000']]);
+        \App\Modules\Admin\Services\B2bService::ecrire($negociation, $role, trim($request->message));
+
+        return back()->with('succes', 'Message envoyé.');
+    }
+
+    public function proposerClient(Request $request, B2bNegotiation $negociation): RedirectResponse
+    {
+        return $this->proposer($request, $negociation, B2bNegotiation::CLIENT);
+    }
+
+    public function proposerFournisseur(Request $request, B2bNegotiation $negociation): RedirectResponse
+    {
+        return $this->proposer($request, $negociation, B2bNegotiation::FOURNISSEUR);
+    }
+
+    private function proposer(Request $request, B2bNegotiation $negociation, string $role): RedirectResponse
+    {
+        $this->partie($negociation, $role);
+        $request->validate([
+            'prix'        => ['required', 'array'],
+            'prix.*'      => ['nullable', 'numeric', 'min:0'],
+            'quantites'   => ['nullable', 'array'],
+            'quantites.*' => ['nullable', 'numeric', 'min:0'],
+            'message'     => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        return $this->agir(fn () => \App\Modules\Admin\Services\B2bService::proposer(
+            $negociation, $role, $request->input('prix', []),
+            // Le client discute le prix ; la quantité, c'est le fournisseur qui la confirme.
+            $role === B2bNegotiation::FOURNISSEUR ? [] : $request->input('quantites', []),
+            $request->input('message')
+        ), 'Proposition envoyée.');
+    }
+
+    public function commander(Request $request, B2bNegotiation $negociation): RedirectResponse
+    {
+        $this->partie($negociation, B2bNegotiation::CLIENT);
+
+        return $this->agir(fn () => \App\Modules\Admin\Services\B2bService::commander($negociation, $request->input('message')),
+            'Commande envoyée au fournisseur : il la confirmera selon son stock.');
+    }
+
+    public function confirmer(Request $request, B2bNegotiation $negociation): RedirectResponse
+    {
+        $this->partie($negociation, B2bNegotiation::FOURNISSEUR);
+        $request->validate([
+            'point_de_vente_id' => ['required', 'integer', Appartenance::a('points_de_vente', 'id')],
+            'produits'          => ['nullable', 'array'],
+            'produits.*'        => ['nullable', 'integer', Appartenance::a('produits', 'id')],
+            'quantites'         => ['nullable', 'array'],
+            'quantites.*'       => ['nullable', 'numeric', 'min:0'],
+            'message'           => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        return $this->agir(fn () => \App\Modules\Admin\Services\B2bService::confirmer(
+            $negociation, (int) $request->point_de_vente_id, $request->input('produits', []), $request->input('quantites', []), $request->input('message')
+        ), 'Commande confirmée : le client est prévenu. Livrez, puis facturez depuis cette page.');
+    }
+
+    public function refuserClient(Request $request, B2bNegotiation $negociation): RedirectResponse
+    {
+        return $this->refuser($request, $negociation, B2bNegotiation::CLIENT);
+    }
+
+    public function refuserFournisseur(Request $request, B2bNegotiation $negociation): RedirectResponse
+    {
+        return $this->refuser($request, $negociation, B2bNegotiation::FOURNISSEUR);
+    }
+
+    private function refuser(Request $request, B2bNegotiation $negociation, string $role): RedirectResponse
+    {
+        $this->partie($negociation, $role);
+        $request->validate(['motif' => ['required', 'string', 'max:1000']], ['motif.required' => 'Dites pourquoi : l\'autre partie le lira.']);
+
+        return $this->agir(fn () => \App\Modules\Admin\Services\B2bService::refuser($negociation, $role, trim($request->motif)), 'Négociation refusée.');
+    }
+
+    public function livrer(B2bNegotiation $negociation): RedirectResponse
+    {
+        $this->partie($negociation, B2bNegotiation::FOURNISSEUR);
+
+        return $this->agir(fn () => \App\Modules\Admin\Services\B2bService::livrer($negociation),
+            'Livraison facturée : stock sorti, facture établie (et certifiée si la normalisation est automatique). Le client est prévenu.');
+    }
+
+    public function receptionner(B2bNegotiation $negociation): RedirectResponse
+    {
+        $this->partie($negociation, B2bNegotiation::CLIENT);
+        $achat = Achat::where('b2b_negotiation_id', $negociation->id)->where('statut', 'En attente B2B')->latest('id')->first();
+        if (!$achat) {
+            return back()->with('erreur', 'Aucune livraison à réceptionner pour cette négociation.');
+        }
+
+        return $this->agir(fn () => \App\Modules\Admin\Services\B2bService::receptionner($achat),
+            'Livraison réceptionnée : stock mis à jour et facture d\'achat établie.');
+    }
+
+    /** L'entreprise connectée tient-elle bien ce rôle dans la négociation ? */
+    private function partie(B2bNegotiation $negociation, string $role): void
+    {
+        abort_unless($negociation->roleDe(Auth::user()->entreprise_id) === $role, 404);
+    }
+
+    /** Une action du parcours : un refus du parcours devient un message, jamais une erreur 500. */
+    private function agir(callable $action, string $succes): RedirectResponse
+    {
+        try {
+            $action();
+        } catch (\DomainException|\InvalidArgumentException $e) {
+            return back()->withInput()->with('erreur', $e->getMessage());
+        }
+
+        return back()->with('succes', $succes);
     }
 }

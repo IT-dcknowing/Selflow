@@ -468,6 +468,25 @@ Route::prefix('admin')
             Route::get('/negociation/{negociation}/stock', [B2bControleur::class, 'verifierStock'])->name('negociation.stock');
             Route::post('/negociation/{negociation}/finaliser', [B2bControleur::class, 'finaliserB2b'])->name('negociation.finaliser');
             Route::post('/achat/{achat}/accepter', [B2bControleur::class, 'accepterAchatB2b'])->name('achat.accepter');
+
+            // Le parcours approfondi (lot 75) : une page par négociation, et les
+            // gestes de chaque partie sous sa propre habilitation.
+            Route::prefix('achats/{negociation}')->name('client.')->group(function () {
+                Route::get('/', [B2bControleur::class, 'voirClient'])->name('voir');
+                Route::post('/message', [B2bControleur::class, 'ecrireClient'])->name('message');
+                Route::post('/proposer', [B2bControleur::class, 'proposerClient'])->name('proposer');
+                Route::post('/commander', [B2bControleur::class, 'commander'])->name('commander');
+                Route::post('/refuser', [B2bControleur::class, 'refuserClient'])->name('refuser');
+                Route::post('/receptionner', [B2bControleur::class, 'receptionner'])->name('receptionner');
+            });
+            Route::prefix('ventes/{negociation}')->name('fournisseur.')->group(function () {
+                Route::get('/', [B2bControleur::class, 'voirFournisseur'])->name('voir');
+                Route::post('/message', [B2bControleur::class, 'ecrireFournisseur'])->name('message');
+                Route::post('/proposer', [B2bControleur::class, 'proposerFournisseur'])->name('proposer');
+                Route::post('/confirmer', [B2bControleur::class, 'confirmer'])->name('confirmer');
+                Route::post('/refuser', [B2bControleur::class, 'refuserFournisseur'])->name('refuser');
+                Route::post('/livrer', [B2bControleur::class, 'livrer'])->name('livrer');
+            });
         });
 
         Route::prefix('clients')->name('clients.')->group(function () {
