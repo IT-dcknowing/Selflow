@@ -188,4 +188,19 @@ class Retest2Test extends TestCase
         $this->assertFalse($reponse->json('success'));
         $this->assertStringContainsString('Aucune ligne importée', $reponse->json('message'));
     }
+
+    // ── La page d'accueil ──────────────────────────────────────────────
+
+    public function test_le_menu_de_la_vitrine_est_court_et_les_applications_menent_a_leur_site(): void
+    {
+        auth()->logout();
+        $html = $this->get(route('vitrine'))->assertOk()->getContent();
+
+        // Des entrées courtes : le titre entier s'empilait sur trois lignes.
+        $this->assertMatchesRegularExpression('/<a href="#produits" title="[^"]*">Applications<\/a>/', $html);
+        $this->assertStringNotContainsString('>Ce que la normalisation change pour vous</a>', $html);
+
+        $this->assertStringContainsString('https://selflow.dc-knowing.com/', $html);
+        $this->assertStringContainsString('https://comptaflow.dc-knowing.com/', $html);
+    }
 }

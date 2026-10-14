@@ -9,7 +9,9 @@ lot terminé.
 Dernière mise à jour : 14 octobre 2026 — lots 64 à 69, retours de la mise en
 production : la faille du mot de passe oublié et les courriels, les écrans du
 retest, les écritures d'avoir, le cycle d'achat et la facture déclarée par le
-fournisseur, les stickers achetés par DC-Knowing, la vente pas à pas. Plan :
+fournisseur, les stickers achetés par DC-Knowing, la vente pas à pas ; puis
+lots 71 à 73 : l'erreur 500 de la fiche article en ligne, le second retest,
+le plan comptable, « Gestion FNE », la page d'accueil. Plan :
 `PLAN-RETOURS-PRODUCTION-14-10-2026.md` ; B2B approfondi (lot 70) à valider.
 
 ---
@@ -7950,6 +7952,28 @@ Branche `fiscalite-et-plan-comptable`. Aucun fichier gelé touché.
 
 - `FiscaliteEtPlanComptableTest` (5)
 - Suite : 1 721 épreuves, 1 716 passantes, 5 sautées ; `verifier:variables` propre.
+
+---
+
+### Lot 73 — La page d'accueil — **TERMINÉ le 14/10/2026 (en partie)**
+
+Branche `vitrine-retest`. Le contenu de la vitrine vit en base et se saisit
+depuis l'écran superadmin ; ce lot touche la mise en page et deux liens.
+
+| Retour | Correction |
+|---|---|
+| « Le menu n'est pas bon » | il reprenait le titre entier de chaque section et s'empilait sur trois lignes : entrées courtes (Conformité FNE, Comptabilité, Applications, Équipe, DC-Knowing, Documentation), sans retour à la ligne ; le menu passe derrière le bouton « burger » sous 1 100 px |
+| Liens vers les applications | Selflow et Comptaflow mènent à leur site (migration `2026_10_14_000003`, qui n'écrase pas un lien saisi ; semeur aligné) |
+| (trouvé) | la pastille « Conforme à la FNE » et le bouton « Créer un compte » du haut de page étaient bleu sur bleu nuit : contrastés |
+
+**Attend le propriétaire** : la description nette et l'adresse de RHFlow,
+LegalFlow, Agent-AI et CGA-Connect (rien n'est inventé : ces textes engagent
+DC-Knowing) ; et la section « Le cabinet » — elle n'a qu'une ligne et une
+fiche : à compléter (présentation, photo) ou à masquer, d'un clic, depuis
+Superadmin › Vitrine. Vérifié dans Chromium à 1 600 et 1 024 px.
+
+- `Retest2Test` : une épreuve de plus.
+- Suite : 1 722 épreuves, 1 717 passantes, 5 sautées ; `verifier:variables` propre.
 
 ---
 
