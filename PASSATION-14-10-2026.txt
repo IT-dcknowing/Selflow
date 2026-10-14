@@ -1,0 +1,78 @@
+PASSATION DU 14/10/2026 — SELFLOW
+=================================
+
+À lire avec CLAUDE.md, JOURNAL-DE-BORD.md (lots 64 à 69),
+PLAN-RETOURS-PRODUCTION-14-10-2026.md et PLAN-CORRECTION-SELFLOW.xlsx
+(section 21).
+
+
+1. OÙ NOUS EN SOMMES
+--------------------
+Branche de référence : main, poussée sur les deux dépôts
+(IT-dcknowing/Selflow et meledjeabrahamagnimel-lgtm/Selflow).
+Plan : 119 chantiers, 101 terminés, 8 sans objet, 7 à faire, 3 à trancher.
+Suite : 1 705 épreuves, 1 700 passantes, 5 sautées.
+Aucun fichier du périmètre FNE gelé n'a été modifié.
+
+
+2. FAIT LE 14/10/2026 (retours de la mise en production)
+--------------------------------------------------------
+- Lot 64 — FAILLE CORRIGÉE : « mot de passe oublié » affichait le lien de
+  réinitialisation à quiconque tapait une adresse. Il ne part plus que par
+  courriel. Avis d'ouverture de compte (inscription, employé, responsable,
+  admin interne).
+- Lot 65 — La vente refusée (stock, lot périmé) le dit enfin ; message de
+  3 s ; panier vidé ; recherche sur tout le catalogue ; avatar par défaut ;
+  fusée retirée ; le domaine mène à l'étape suivante d'un clic.
+- Lot 66 — Achats : un geste par étape, actions dans la liste ; question
+  « facture déclarée par le fournisseur ? » (oui → saisie informative,
+  la facture DGI porte l'écriture).
+- Lot 67 — Avoirs : contre-passation complète (taxes), remboursement écrit,
+  retour au coût de sortie. Le timbre reste dû.
+- Lot 68 — Stickers : demande d'achat confiée à DC-Knowing (courriel +
+  page superadmin).
+- Lot 69 — Vente pas à pas (bascule Caisse / Pas à pas).
+
+
+3. À TRANCHER
+-------------
+- 21.10 Le timbre d'une facture annulée est-il remboursé au client ?
+  (aujourd'hui : non, il reste dû à l'État).
+- 21.11 Communication B2B approfondie (lots 70a à 70d) : étude de
+  faisabilité dans PLAN-RETOURS-PRODUCTION-14-10-2026.md. Une question :
+  commande B2B directe autorisée, ou toujours après une demande de prix ?
+- 20.18 et 20.19 restent ouverts (voir passation du 09/10).
+
+
+4. DÉPLOIEMENT SUR LE SERVEUR (Linux)
+-------------------------------------
+  cd /chemin/de/selflow
+  git fetch origin && git checkout main && git pull origin main
+  composer install --no-dev --optimize-autoloader
+  php artisan migrate --force
+     (2026_10_14_000001 achats.declaree_par_fournisseur + « Bon de Commande »
+      corrigé ; 2026_10_14_000002 table demandes_stickers : additives)
+
+  LE COURRIEL — sans ces lignes dans le .env, AUCUN courriel ne part :
+     MAIL_MAILER=smtp
+     MAIL_HOST=...            MAIL_PORT=587 (ou 465)
+     MAIL_USERNAME=...        MAIL_PASSWORD=...
+     MAIL_SCHEME=             (smtps pour le port 465)
+     MAIL_FROM_ADDRESS=no-reply@dc-knowing.com
+     MAIL_FROM_NAME="Selflow"
+     APP_URL=https://selflow.dc-knowing.com
+     SELFLOW_ADRESSE_STICKERS=...   (facultatif : où vont les demandes de stickers)
+
+  php artisan config:cache && php artisan route:cache && php artisan view:cache
+  php artisan selflow:verifier-courriel            (affiche la configuration)
+  php artisan selflow:verifier-courriel vous@exemple.com   (message d'essai)
+  php artisan queue:restart
+
+
+5. CE QUI RESTE
+---------------
+- « Des corrections à revoir pour Selflow.docx » : non parvenu le 14/10.
+- 20.15 / 7.5 Liaison Comptaflow réelle et déversement à vérifier.
+- 20.16 Résumé de la logique de Selflow.
+- Plan-de-travail-Selflow.pdf : non régénéré (sa source HTML est hors dépôt) ;
+  le classeur et le plan Markdown font foi pour ce lot.

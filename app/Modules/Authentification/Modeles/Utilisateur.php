@@ -172,22 +172,51 @@ class Utilisateur extends Authenticatable
         return is_array($this->habilitations) && in_array($page, $this->habilitations);
     }
 
+    /**
+     * L'image du profil, ou les initiales quand il n'y en a pas d'affichable.
+     *
+     * Le retest de production montrait une image cassée à qui n'avait chargé
+     * aucune photo. Trois causes : la connexion Google enregistre l'adresse
+     * de la photo Google, que la politique de sécurité (`img-src 'self'`)
+     * refuse ; un fichier effacé du disque laissait une adresse en 404 ; et
+     * une initiale accentuée, coupée par `substr` au milieu de son octet,
+     * rendait le dessin illisible.
+     */
     public function getAvatarUrlAttribute(): string
     {
-        if ($this->avatar_path) {
-            return \App\Modules\Admin\Services\FichierPublic::url($this->avatar_path);
+        $chemin = trim((string) $this->avatar_path);
+
+        if ($chemin !== '' && ! preg_match('#^https?://#i', $chemin)) {
+            try {
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($chemin)) {
+                    $url = \App\Modules\Admin\Services\FichierPublic::url($chemin);
+                    if ($url) {
+                        return $url;
+                    }
+                }
+            } catch (\Throwable) {
+                // Disque injoignable : les initiales valent mieux qu'une page en erreur.
+            }
         }
+
+        return $this->avatar_repli;
+    }
+
+    /** Les initiales dessinées, servies en ligne : elles ne peuvent pas manquer. */
+    public function getAvatarRepliAttribute(): string
+    {
         return 'data:image/svg+xml;utf8,' . rawurlencode($this->genererAvatarSvg());
     }
 
     public function genererAvatarSvg(): string
     {
-        $prenomInitial = !empty($this->prenom) ? substr($this->prenom, 0, 1) : '';
-        $nomInitial = !empty($this->nom) ? substr($this->nom, 0, 1) : '';
-        $initials = strtoupper($prenomInitial . $nomInitial);
-        if (empty($initials)) {
+        $initiale = fn ($texte) => mb_strtoupper(mb_substr(trim((string) $texte), 0, 1));
+        $initials = $initiale($this->prenom) . $initiale($this->nom);
+        if ($initials === '') {
             $initials = 'U';
         }
+        $initials = htmlspecialchars($initials, ENT_XML1 | ENT_QUOTES, 'UTF-8');
+
         return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><rect width="128" height="128" fill="#002B5C"/><text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" font-family="system-ui, -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif" font-size="48" font-weight="800" fill="#FFFFFF">' . $initials . '</text></svg>';
     }
 

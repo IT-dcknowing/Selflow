@@ -65,7 +65,12 @@
 ])
 
 {{-- ── Cartes Stickers & Timbres (récupérées en temps réel depuis la base / API) ── --}}
-<div class="section-titre"><i class="fas fa-stamp"></i> Stickers &amp; Timbres (plateforme DGI)</div>
+<div class="section-titre" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+    <span><i class="fas fa-stamp"></i> Stickers &amp; Timbres (plateforme DGI)</span>
+    <a href="{{ route('admin.stickers.index') }}" class="btn btn-primary btn-sm" style="margin-left:auto; font-size:12px;">
+        <i class="fas fa-ticket"></i> Commander des stickers par DC-Knowing
+    </a>
+</div>
 <div class="kpi-grid">
     {{-- Le mode de facturation (stickers ou provision) se coche dans les
          paramètres de la DGI et l'API n'expose aucun champ pour le lire. Il se

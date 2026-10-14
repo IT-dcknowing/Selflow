@@ -6,11 +6,11 @@ et ce fichier. Tout ce qui a été décidé, tout ce qui a été écarté et pou
 tout ce qui reste à faire doit donc figurer ici — et y être tenu à jour à chaque
 lot terminé.
 
-Dernière mise à jour : 6 octobre 2026 — lots 41 à 52 : la lenteur mesurée et
-corrigée (dont l'écran de stock qui écrivait en base), les factures d'achat
-reçues de la DGI passées en écriture, le déversement Comptaflow regroupé par
-opération, les avoirs plafonnés, la comptabilité éteinte sans compte à l'écran,
-la configuration globale des comptes.
+Dernière mise à jour : 14 octobre 2026 — lots 64 à 69, retours de la mise en
+production : la faille du mot de passe oublié et les courriels, les écrans du
+retest, les écritures d'avoir, le cycle d'achat et la facture déclarée par le
+fournisseur, les stickers achetés par DC-Knowing, la vente pas à pas. Plan :
+`PLAN-RETOURS-PRODUCTION-14-10-2026.md` ; B2B approfondi (lot 70) à valider.
 
 ---
 
@@ -7727,18 +7727,195 @@ Branche `entree-de-stock-et-defauts-recette` (qui fusionne `corrections-recette-
 - `RecetteNouvelleEntrepriseTest` : 7 épreuves de plus ; `CycleVenteAchatRecetteTest` attend `BCF-`.
 - Vérification au retrait : comptes du rayon, avertissement, liste et validation des régimes, NCC B2G, préfixe BCF.
 
-Points ouverts : la liste de l'entreprise elle-même porte `RNE — Régime du
-Négoce et de l'Exportation`, régime que le CGI ivoirien ne connaît pas (le
-sigle est celui du reçu normalisé) — à trancher par le propriétaire ; le NCC
+Points ouverts : le régime `RNE — Régime du Négoce et de l'Exportation` —
+**tranché le 09/10 : il reste** (voir plus bas) ; le NCC
 d'un **fournisseur** B2G reste effacé, car le garder ferait sortir ses achats
 du bordereau (BAPA), ce qui touche à ce que la FNE reçoit ; un client B2G
 transmet désormais son NCC dans `clientNcc` (facultatif hors B2B dans le
 référentiel, `FneService` inchangé).
 
+Réponses du propriétaire, 09/10/2026 :
+
+- **RNE reste.** Le régime « RNE — Régime du Négoce et de l'Exportation » et
+  le reçu normalisé RNE (`isRne` / `numero_rne` de la FNE) sont deux choses
+  distinctes ; le propriétaire garde le régime. Rappel : un article à 0 % d'une
+  entreprise RNE part en TVAC, seuls TEE, TCE et RME donnent TVAD.
+- **NCC du client B2G** : il figure désormais sur la facture certifiée
+  (`clientNcc`), là où il partait vide parce que Selflow l'effaçait. Expliqué ;
+  à surveiller sur la première facture B2G certifiée.
+- **NCC du fournisseur B2G** (plan 20.19) : effacé par la règle recopiée des
+  clients. Sans NCC, un achat part en bordereau BAPA. Recommandé de le garder ;
+  attend l'accord du propriétaire.
+- **Taux du portail** (plan 20.18) : le menu du portail montre « TVA exo
+  export », la Taxe sur les Opérations Bancaires 5 % et 10 %, la Taxe pour le
+  Développement Touristique. Selflow a les codes A (TVA 18), B (TVAB 9),
+  C (TVAC 0, exonération conventionnelle), D (TVAD 0, exonération légale) ;
+  TOB et Taxe touristique se saisissent en « autres taxes » (`customTaxes`,
+  nom et taux libres). L'export n'a aucun code dans la procédure
+  d'interfaçage : rien n'est ajouté sans la nouvelle version du référentiel ou
+  une pièce certifiée qui le porte (périmètre gelé).
+
 Reste de 20.17 : libellés FNE incohérents (non repris : ils touchent les écrans du périmètre gelé, à lister avant toute retouche).
 
 - Suite : 1 665 épreuves, 1 660 passantes, 5 sautées ; `verifier:variables` propre.
 
+
+### Retours de la mise en production — 14/10/2026
+
+Plan : `PLAN-RETOURS-PRODUCTION-14-10-2026.md` (lots 64 à 70). Le second
+document du propriétaire (« des corrections à revoir ») n'est pas parvenu.
+
+### Lot 64 — Le lien de réinitialisation ne s'affiche plus, les courriels partent — **TERMINÉ le 14/10/2026**
+
+Branche `correctifs-mot-de-passe-et-courriels`. Aucun fichier gelé touché.
+
+| Défaut | Correction |
+|---|---|
+| **Faille** : « Mot de passe oublié » affichait le lien de réinitialisation à l'écran, en production, à quiconque tapait une adresse — prise de n'importe quel compte | lien affiché en environnement `local` seulement (contrôleur et vue) |
+| Aucun courriel reçu : `MAIL_MAILER` absent → transport `log`, et l'écran disait « envoyé » ; l'échec SMTP était avalé | `App\Mail\EnvoiCourriel` : envoi immédiat (sans file), un échec ou un transport `log` hors local rend faux et l'écran le dit |
+| La page disait quelles adresses ont un compte (`exists`) | même réponse que l'adresse existe ou non |
+| Le formulaire s'ouvrait pour n'importe quel jeton | jeton vérifié avant l'affichage, sinon retour à la demande |
+| Aucun courriel à la création d'un compte | `CompteSelflowOuvert` : inscription, employé (écran et API mobile), responsable créé par le superadmin, admin interne. Ni mot de passe ni clé ; l'écran du créateur dit si l'avis n'est pas parti |
+
+`php artisan selflow:verifier-courriel [adresse]` affiche la configuration
+(MAIL_*, adresse d'expédition, APP_URL), signale ce qui empêche l'envoi et
+envoie un message d'essai. **Au déploiement** : renseigner dans le `.env`
+`MAIL_MAILER=smtp`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`,
+`MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`, et
+`APP_URL=https://selflow.dc-knowing.com`, puis lancer la commande.
+
+- `CourrielsDeCompteTest` (9)
+- Suite : 1 674 épreuves, 1 669 passantes, 5 sautées ; `verifier:variables` propre.
+
+---
+
+### Lot 65 — Les écrans du retest — **TERMINÉ le 14/10/2026**
+
+Branche `correctifs-ecrans-retest`. Aucun fichier gelé touché.
+
+| Retour | Cause | Correction |
+|---|---|---|
+| « L'enregistrement de la facture ne passe pas, sans message » | les refus « stock insuffisant » et « lot périmé » partaient sous la clé `error`, que le gabarit n'affiche pas (treize contrôleurs l'emploient) : la page se rechargeait muette. Le second contrôle de stock, sous verrou, tombait en page « Panne » | le gabarit lit `error` ; les refus levés dans la transaction reviennent en message |
+| Message de confirmation qui disparaît en 3 s | — | « Facture VTE-… enregistrée » ; durée réglable par le contrôleur (`succes_duree`) |
+| (trouvé) | le panier de la caisse, gardé dans le navigateur, n'était jamais vidé | vidé après une vente enregistrée |
+| Recherche du catalogue limitée à la page | filtre côté navigateur sur les 24 articles affichés | recherche, catégorie et type envoyés au serveur (nom ou référence), pagination qui garde les filtres |
+| Domaine : cliquer puis « Continuer » | — | le clic sur la tuile mène à l'étape suivante |
+| Image cassée sans photo de profil | photo Google refusée par la politique de sécurité (`img-src 'self'`), fichier effacé en 404, initiale accentuée coupée par `substr` | initiales si la photo n'est pas affichable, repli `onerror`, `mb_substr` et échappement |
+| Fusée de la bannière | — | retirée |
+
+- `RetestEcransTest` (9)
+- Suite : 1 683 épreuves, 1 678 passantes, 5 sautées ; `verifier:variables` propre.
+
+---
+
+### Lot 67 — L'avoir est l'écriture d'origine en négatif — **TERMINÉ le 14/10/2026**
+
+Branche `ecritures-avoir`. Question de la réunion : « les factures d'avoir
+passent-elles bien en écriture, en négatif de l'écriture d'origine ? »
+
+**Réponse : oui pour l'essentiel, avec trois trous, bouchés.** L'avoir
+contre-passe la facture sur les mêmes comptes — client au crédit, produits
+(70x) et TVA (443x) au débit — en montants positifs changés de colonne :
+c'est la contre-passation du SYSCOHADA, identique sur chaque compte à une
+écriture négative, et ce que Comptaflow accepte. Ce qui manquait :
+
+| Défaut | Correction |
+|---|---|
+| Seul le TTC était recrédité : les taxes parafiscales d'une vente annulée restaient au débit du client et au crédit du 447 | `ComptabiliteService::montantsDeLAvoirVente()` : taxes de la facture d'origine à proportion de ce que l'avoir reprend, contre-passées au 447 |
+| Le remboursement en espèces n'était écrit qu'au journal de trésorerie : la caisse comptable ne bougeait pas, le client restait créditeur | `genererEcritureRemboursementAvoirVente()` : débit 411 / crédit caisse, lettré avec l'avoir ; la sortie de caisse rend aussi les taxes |
+| La marchandise revenait au CUMP (Coût Unitaire Moyen Pondéré) du jour : un arrivage entre la vente et l'avoir empêchait le 603 de se solder | le retour entre au coût de la sortie d'origine (repli : CUMP du jour) |
+
+**Le timbre de quittance ne revient pas, et c'est voulu** : il frappe la
+quittance délivrée, `TimbreQuittanceService` (gelé) l'exclut de tout avoir, et
+l'avoir certifié n'en porte pas. Après un avoir total sur une facture
+comptant, tout est à zéro sauf le 447800, créditeur du timbre, et la caisse
+qui garde ce montant. **À confirmer par le propriétaire** si l'entreprise
+rembourse aussi le timbre au client (ce serait alors une charge, 646).
+
+L'avoir fournisseur n'a plus d'écran depuis le lot 54 (la plateforme ne
+certifie que l'avoir du vendeur) ; sa méthode n'est pas changée.
+
+- `EcrituresAvoirTest` (4), les quatre tombent sur l'ancien code (vérifié au retrait).
+- Suite : 1 687 épreuves, 1 682 passantes, 5 sautées ; `verifier:variables` propre.
+
+---
+
+### Lot 66 — Le cycle d'achat avance d'un geste, et la facture déclarée ne s'écrit qu'une fois — **TERMINÉ le 14/10/2026**
+
+Branche `cycle-achat-actions`. Aucun fichier gelé touché (dans
+`factures/achat.blade.php`, seule la barre d'actions bouge).
+
+| Retour | Correction |
+|---|---|
+| Demande de prix : « Passer en bon de réception » **et** « Confirmer la commande » | un geste par étape : DP → Confirmer la commande ; BC → Bon de réception et Valider & Facturer |
+| Liste : colonne Action vide pour les DP et les BC | DP : « Confirmer la commande » ; BC : « Facturer » (ouvre la page avec la modale de règlement) ; facture informative signalée |
+| À la facturation, demander si le fournisseur déclarera la facture | question obligatoire à l'écran (modale du BC et saisie directe d'une facture), colonne `achats.declaree_par_fournisseur` (migration `2026_10_14_000001`, additive). **Oui** → la saisie est informative : pas d'écriture de facture, seul le règlement s'écrit ; la facture reçue de la DGI rattachée à l'achat passe en écriture (`EcritureFactureRecueService` ne l'écarte plus). **Non** → écriture comme avant. Un BAPA n'est jamais « déclaré par le fournisseur » |
+| (trouvé) l'achat créé par la négociation B2B s'écrivait « Bon de Commande » (C majuscule) et échappait aux contrôles | écrit « Bon de commande » ; la migration corrige les lignes existantes |
+
+**Nuance de la règle du lot 42** : « rattachée à un achat, c'est l'achat qui
+porte » reste vrai pour un achat non déclaré (ou antérieur : colonne nulle).
+Pour un achat déclaré, c'est la facture certifiée qui porte. Si le relevé du
+portail ne tourne pas, l'achat déclaré reste sans écriture de facture : l'écran
+le dit (« saisie informative »).
+
+Non repris : l'API mobile (`AchatApiControleur`) ne pose pas la question — sans
+réponse, l'achat s'écrit comme avant ; l'achat B2B non plus (lot 70).
+
+- `AchatDeclareParLeFournisseurTest` (9)
+- Suite : 1 696 épreuves, 1 691 passantes, 5 sautées ; `verifier:variables` propre.
+
+---
+
+### Lot 68 — Les stickers, achetés par DC-Knowing — **TERMINÉ le 14/10/2026**
+
+Branche `demande-de-stickers`. `AlerteStickersService` (gelé) n'est pas touché :
+seul le texte de l'alerte, dans le gabarit, gagne un lien.
+
+L'écran retiré au lot 40 laissait croire que Selflow vendait les vignettes.
+Il revient sous la forme demandée : **l'entreprise choisit, DC-Knowing achète
+pour elle** sur la plateforme FNE.
+
+| Où | Quoi |
+|---|---|
+| Ventes › Commander des stickers (`admin.stickers.*`, habilitation `factures_vente`, hors module comptable) | quantité (au moins 50, raccourcis 100 / 500 / 1 000 / 5 000), site, urgence, téléphone, commentaire ; montant estimé au tarif de `selflow.sticker_prix_unitaire` ; historique et statut ; annulation tant que DC-Knowing n'a pas commencé |
+| Courriel | à DC-Knowing (`SELFLOW_ADRESSE_STICKERS`, plusieurs adresses séparées par des virgules ; défaut : les deux adresses des alertes de production), et accusé de réception au demandeur |
+| Superadmin › Demandes de stickers (`superadmin.stickers.*`, habilitation `gestion_fne`) | toutes les demandes, ouvertes et urgentes d'abord, compteur au menu ; statut (reçue, achat en cours, achetée, livrée, annulée) et note visibles par l'entreprise |
+| Liens | l'alerte de solde bas et la page « Gestion FNE » mènent à l'écran |
+
+Table `demandes_stickers` (migration `2026_10_14_000002`).
+
+- `DemandeStickersTest` (6)
+- Suite : 1 702 épreuves, 1 697 passantes, 5 sautées ; `verifier:variables` propre.
+
+**Au déploiement** : renseigner `SELFLOW_ADRESSE_STICKERS` si les demandes
+doivent partir ailleurs que vers les deux adresses par défaut.
+
+---
+
+### Lot 69 — La vente pas à pas — **TERMINÉ le 14/10/2026**
+
+Branche `vente-pas-a-pas`. Rien ne change côté serveur ni FNE : c'est le même
+formulaire, découpé.
+
+Une bascule **« Caisse / Pas à pas »** en tête de « Nouvelle vente » (retenue
+par le navigateur, comme celle du catalogue) ouvre une présentation en quatre
+étapes : **1 Articles** (catalogue et panier) → **2 Client et document** →
+**3 Règlement** (mode, montant, taxes sur TTC) → **4 Valider et facturer**
+(panier, totaux, récapitulatif avec « modifier » par ligne, bouton
+d'envoi). Chaque bloc porte l'étape où il paraît (`data-pas`), le
+formulaire porte l'étape courante ; « Suivant » refuse en le disant (panier
+vide, montant manquant, champ obligatoire), Entrée n'envoie qu'à la
+dernière étape, et un champ invalide resté sur une étape masquée y ramène au
+lieu de bloquer l'envoi en silence. Le caissier a la même page.
+
+**Vérifié dans Chromium** (parcours complet jusqu'à la facture, refus de
+chaque étape, message de 3 s, panier vidé, aucune erreur JavaScript), ainsi
+que le domaine en un clic (lot 65) et la demande de stickers (lot 68).
+
+- `VentePasAPasTest` (3)
+- Suite : 1 705 épreuves, 1 700 passantes, 5 sautées ; `verifier:variables` propre.
+
+---
 
 ## 5 bis. La numérotation des comptes — tranché
 

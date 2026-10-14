@@ -32,38 +32,45 @@
     </div>
 </div>
 
-{{-- Barre de recherche et filtres --}}
-<div class="card" style="padding:14px 20px; margin-bottom:16px;">
+{{-- Barre de recherche et filtres : envoyés au serveur, ils portent sur
+     tout le catalogue et non sur la seule page affichée. --}}
+<form method="GET" action="{{ route('admin.produits.index') }}" id="form-filtres-produits" class="card" style="padding:14px 20px; margin-bottom:16px;">
     <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
         <div style="flex:1; min-width:200px; position:relative;">
             <i class="fas fa-search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-3);"></i>
-            <input type="text" id="recherche-produit" placeholder="Rechercher un produit..."
+            <input type="search" name="q" id="recherche-produit" placeholder="Rechercher un produit (nom ou référence)..."
+                value="{{ $filtres['q'] }}" autocomplete="off"
                 style="width:100%; padding:8px 12px 8px 36px; border:1px solid var(--border); border-radius:8px; background:var(--bg2); color:var(--text-1); font-size:13px;"
                 oninput="filtrerProduits()">
         </div>
-        <select id="filtre-categorie" onchange="filtrerProduits()"
+        <select name="categorie" id="filtre-categorie" onchange="this.form.submit()"
             style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg2); color:var(--text-1); font-size:13px;">
             <option value="">Toutes les catégories</option>
             @foreach($categories as $cat)
-                <option value="{{ $cat->nom }}">{{ $cat->nom }}</option>
+                <option value="{{ $cat->id }}" @selected($filtres['categorie'] === $cat->id)>{{ $cat->nom }}</option>
             @endforeach
         </select>
-        <select id="filtre-type" onchange="filtrerProduits()"
+        <select name="type" id="filtre-type" onchange="this.form.submit()"
             style="padding:8px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg2); color:var(--text-1); font-size:13px;">
             <option value="">Tous les types</option>
             @foreach(\App\Modules\Admin\Modeles\Produit::TYPES as $val => $lib)
-                <option value="{{ $lib }}">{{ $lib }}</option>
+                <option value="{{ $val }}" @selected($filtres['type'] === $val)>{{ $lib }}</option>
             @endforeach
         </select>
+        @if($filtres['q'] !== '' || $filtres['categorie'] || $filtres['type'] !== '')
+            <a href="{{ route('admin.produits.index') }}" class="btn btn-outline" style="font-size:12.5px;">
+                <i class="fas fa-xmark"></i> Effacer
+            </a>
+        @endif
     </div>
-</div>
+</form>
 
 {{-- ═══════════════════ VUE CARTES ═══════════════════ --}}
 <div id="vue-cartes" style="display:none;">
     @if($produits->isEmpty())
         <div class="card" style="text-align:center; padding:60px; color:var(--text-3);">
             <i class="fas fa-box-open" style="font-size:48px; margin-bottom:16px; opacity:.4;"></i>
-            <p>Aucun produit dans le catalogue.</p>
+            <p>{{ ($filtres['q'] !== '' || $filtres['categorie'] || $filtres['type'] !== '') ? 'Aucun produit ne correspond à la recherche.' : 'Aucun produit dans le catalogue.' }}</p>
         </div>
     @else
     <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:18px; margin-bottom:24px;">
@@ -776,34 +783,21 @@ function setVue(mode) {
     localStorage.setItem('selflow_produits_vue', mode);
 }
 
-// ─── Filtre côté client (sur la page courante) ───────────────────────────────
+// ─── Recherche : envoyée au serveur après une courte pause de frappe ─────────
+// Elle porte sur tout le catalogue ; filtrer la page affichée laissait
+// introuvable tout article des pages suivantes.
 
+let minuterieRecherche = null;
+// Après l'envoi, la page revient : le curseur reprend sa place dans le champ.
+document.addEventListener('DOMContentLoaded', function () {
+    const champ = document.getElementById('recherche-produit');
+    if (champ && champ.value) { champ.focus(); champ.setSelectionRange(champ.value.length, champ.value.length); }
+});
 function filtrerProduits() {
-    const terme    = document.getElementById('recherche-produit').value.toLowerCase();
-    const cat      = document.getElementById('filtre-categorie').value.toLowerCase();
-    const type     = document.getElementById('filtre-type').value.toLowerCase();
-
-    // Filtrer les cartes
-    document.querySelectorAll('.produit-carte').forEach(function(carte) {
-        const nom      = carte.dataset.nom || '';
-        const catCard  = (carte.dataset.categorie || '').toLowerCase();
-        const typeCard = (carte.dataset.type || '').toLowerCase();
-        const matchT   = !terme || nom.includes(terme);
-        const matchC   = !cat  || catCard === cat;
-        const matchTy  = !type || typeCard === type;
-        carte.style.display = (matchT && matchC && matchTy) ? '' : 'none';
-    });
-
-    // Filtrer les lignes du tableau
-    document.querySelectorAll('#vue-tableau tbody tr.ligne-produit').forEach(function(tr) {
-        const nom     = (tr.dataset.nom || '').toLowerCase();
-        const catRow  = (tr.dataset.categorie || '').toLowerCase();
-        const typeRow = (tr.dataset.type || '').toLowerCase();
-        const matchT  = !terme || nom.includes(terme);
-        const matchC  = !cat  || catRow === cat;
-        const matchTy = !type || typeRow === type;
-        tr.style.display = (matchT && matchC && matchTy) ? '' : 'none';
-    });
+    clearTimeout(minuterieRecherche);
+    minuterieRecherche = setTimeout(function () {
+        document.getElementById('form-filtres-produits').submit();
+    }, 500);
 }
 
 // ─── Upload photo (AJAX) ─────────────────────────────────────────────────────

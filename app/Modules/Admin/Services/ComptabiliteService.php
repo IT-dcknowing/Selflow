@@ -278,6 +278,21 @@ class ComptabiliteService
         // `genererEcritureReglementAchat()`, qui porte seul le décaissement.
         $codeJournalAchat = self::codeJournal($entrepriseId, 'Achat', 'ACH');
 
+        // La facture que le fournisseur déclarera revient par le relevé du
+        // portail, et c'est elle qui passe en écriture (règle du propriétaire,
+        // retest d'octobre 2026). La saisie reste une information ; seul
+        // l'argent réellement sorti s'écrit, au compte du fournisseur.
+        if ($achat->estInformative()) {
+            if ($montantPaye > 0) {
+                self::genererEcritureReglementAchat(
+                    $achat, $montantPaye, $modePaiement, $date, $moyenBancaire, $referencePaiement,
+                    'Règlement d\'une facture déclarée par le fournisseur'
+                );
+            }
+
+            return;
+        }
+
         $ventilation = self::ventilationAchat($achat);
 
         $jetons = self::jetonsAchat($achat, $refDoc, $codeJournalAchat, $date, $ventilation);
@@ -430,8 +445,49 @@ class ComptabiliteService
     // ─────────────────────────────────────────────────────────────────
 
     /**
+     * Ce que l'avoir rend au client, décomposé comme la facture l'a débité.
+     *
+     * La facture débite le client du **net à payer** : TTC fiscal, taxes
+     * parafiscales et droit de timbre. L'avoir ne recréditait que le TTC —
+     * un avoir total laissait au débit du client les taxes parafiscales
+     * d'une vente annulée, et le compte de l'État les gardait au crédit.
+     *
+     * Les taxes de l'avoir se lisent sur la facture d'origine, à proportion
+     * de ce que l'avoir reprend (un avoir total : tout ; la moitié du TTC :
+     * la moitié). Rien n'est écrit sur la pièce : c'est une lecture
+     * comptable, et ce que la plateforme reçoit pour l'avoir ne change pas.
+     *
+     * **Le timbre de quittance ne revient pas.** Il frappe la quittance
+     * délivrée au paiement, qui a existé ; la plateforme ne le porte sur
+     * aucun avoir (`TimbreQuittanceService::estApplicable` l'exclut) et
+     * l'avoir certifié n'en dit rien. Le contre-passer ferait disparaître de
+     * la comptabilité une dette envers l'État que la DGI, elle, garde.
+     *
+     * @return array{ttc: float, autres_taxes: float, net: float}
+     */
+    public static function montantsDeLAvoirVente(Vente $avoir): array
+    {
+        $ttc = round((float) $avoir->montant_ttc, 2);
+        $parent = $avoir->parent_id ? Vente::find($avoir->parent_id) : null;
+
+        $autres = 0.0;
+        if ($parent && (float) $parent->montant_ttc > 0) {
+            $part = min(1.0, $ttc / (float) $parent->montant_ttc);
+            $autres = round((float) ($parent->montant_autres_taxes ?? 0) * $part, 2);
+        }
+
+        return ['ttc' => $ttc, 'autres_taxes' => $autres, 'net' => round($ttc + $autres, 2)];
+    }
+
+    /**
      * Génère les écritures comptables SYSCOHADA pour un avoir client.
-     * Inverse la facturation d'origine : Crédit Client / Débit Vente / Débit TVA.
+     *
+     * L'avoir est l'écriture de la facture **en négatif** : mêmes comptes,
+     * mêmes montants (à proportion de ce qu'il reprend), sens inversé — le
+     * client au crédit, les produits, la TVA et les taxes parafiscales au
+     * débit (le timbre reste dû : voir `montantsDeLAvoirVente`). C'est la contre-passation du SYSCOHADA : les montants restent
+     * positifs et changent de colonne, ce qui revient au même sur chaque
+     * compte et que Comptaflow, comme tout logiciel comptable, accepte.
      */
     public static function genererEcritureAvoirVente(Vente $avoir): void
     {
@@ -445,12 +501,13 @@ class ComptabiliteService
         $compteClientTiers = self::tiersClient($avoir->client, $entrepriseId);
 
         $ventilation = self::ventilationVente($avoir);
+        $montants = self::montantsDeLAvoirVente($avoir);
         $jetons = self::jetonsVente($avoir, $refDoc, $codeJournal, $date, $ventilation);
         $libelleGeneral = LibelleEcritureService::operation($entrepriseId, 'AvoirVente', $jetons);
 
         DB::transaction(function () use (
             $entrepriseId, $pdvId, $date, $refDoc, $codeJournal,
-            $compteClientGeneral, $compteClientTiers, $ventilation, $avoir, $jetons, $libelleGeneral
+            $compteClientGeneral, $compteClientTiers, $ventilation, $montants, $jetons, $libelleGeneral
         ) {
             $libelle = fn (string $role) => LibelleEcritureService::ligne(
                 $entrepriseId, 'AvoirVente', $role, $jetons
@@ -462,7 +519,7 @@ class ComptabiliteService
             );
 
             self::ligne($operation, $entrepriseId, $pdvId, $date, $refDoc, $codeJournal,
-                $libelle('Facturation Avoir Client'), null, $compteClientGeneral, $compteClientTiers, 0, $avoir->montant_ttc);
+                $libelle('Facturation Avoir Client'), null, $compteClientGeneral, $compteClientTiers, 0, $montants['net']);
 
             foreach ($ventilation['comptes'] as $compte => $detailCompte) {
                 [$libelleDetail, $description] = self::libelleEtDescriptionDetailCompte(
@@ -477,7 +534,63 @@ class ComptabiliteService
                     $libelle('Annulation TVA Collectée'), $compteTva, null, null, $montantTva, 0);
             }
 
+            if ($montants['autres_taxes'] > 0) {
+                self::ligne($operation, $entrepriseId, $pdvId, $date, $refDoc, $codeJournal,
+                    $libelle('Annulation taxes collectées pour l\'État'), config('selflow.plan_comptable_defaut.taxes_collectees'), null, null, $montants['autres_taxes'], 0);
+            }
+
             $operation->cloturerEquilibre();
+        });
+    }
+
+    /**
+     * Le remboursement en espèces d'un avoir : le client est débité, la caisse
+     * créditée.
+     *
+     * Il ne s'écrivait qu'au journal de trésorerie : la caisse de l'écran
+     * baissait, celle de la comptabilité non, et le client restait créditeur
+     * de la somme qu'on venait de lui rendre.
+     */
+    public static function genererEcritureRemboursementAvoirVente(Vente $avoir, float $montant, string $modePaiement): void
+    {
+        if ($montant <= 0) {
+            return;
+        }
+
+        $entrepriseId = $avoir->pointDeVente->entreprise_id;
+        $pdvId = $avoir->point_de_vente_id;
+        $date = $avoir->date_vente ? $avoir->date_vente->toDateString() : now()->toDateString();
+        $refDoc = $avoir->numero_facture;
+
+        [$compteFinancier, $codeJournal] = self::compteEtJournalFinancier($entrepriseId, $modePaiement);
+        $compteClientGeneral = $avoir->client?->compte_comptable ?? config('selflow.plan_comptable_defaut.client_collectif');
+        $compteClientTiers = self::tiersClient($avoir->client, $entrepriseId);
+
+        [$libelleProduits, $descriptionProduits] = self::libelleEtDescriptionProduits($avoir->loadMissing('details.produit')->details);
+        $jetons = array_merge(
+            self::jetonsVente($avoir, $refDoc, $codeJournal, $date),
+            ['produits' => $libelleProduits, 'reference' => 'Remboursement'],
+        );
+        $libelle = LibelleEcritureService::ligne($entrepriseId, 'ReglementVente', '', $jetons);
+
+        DB::transaction(function () use (
+            $entrepriseId, $pdvId, $date, $refDoc, $codeJournal, $compteFinancier,
+            $compteClientGeneral, $compteClientTiers, $libelle, $descriptionProduits, $montant
+        ) {
+            $operation = Operation::creer(
+                $entrepriseId, $pdvId, $date, 'ReglementVente',
+                $codeJournal, $refDoc, 'Remboursement de l\'avoir client'
+            );
+
+            self::ligne($operation, $entrepriseId, $pdvId, $date, $refDoc, $codeJournal,
+                $libelle, $compteClientGeneral, null, $compteClientTiers, $montant, 0, $descriptionProduits);
+
+            self::ligne($operation, $entrepriseId, $pdvId, $date, $refDoc, $codeJournal,
+                $libelle, null, $compteFinancier, null, 0, $montant, $descriptionProduits);
+
+            $operation->cloturerEquilibre();
+
+            LettrageService::lettrerLaPiece($entrepriseId, $compteClientGeneral, $refDoc);
         });
     }
 

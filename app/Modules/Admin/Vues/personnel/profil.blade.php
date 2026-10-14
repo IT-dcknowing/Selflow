@@ -26,7 +26,7 @@
         {{-- Partie gauche : Avatar & Informations système --}}
         <div class="card" style="padding:24px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:16px;">
             <div style="position:relative; width:120px; height:120px; border-radius:50%; overflow:hidden; border:2px solid var(--border); background:var(--bg3);">
-                <img id="avatar-preview" src="{{ $utilisateur->avatar_url }}" alt="Avatar" style="width:100%; height:100%; object-fit:cover;">
+                <img id="avatar-preview" src="{{ $utilisateur->avatar_url }}" alt="" onerror="this.onerror=null; this.src='{{ $utilisateur->avatar_repli }}';" style="width:100%; height:100%; object-fit:cover;">
                 <label for="avatar-input" style="position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.6); color:#fff; font-size:11px; padding:4px 0; cursor:pointer; font-weight:600;">
                     <i class="fas fa-camera"></i> Modifier
                 </label>

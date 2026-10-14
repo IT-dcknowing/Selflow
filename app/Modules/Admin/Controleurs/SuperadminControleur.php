@@ -222,7 +222,7 @@ class SuperadminControleur
         // main. `doit_changer_password` est posé parce que le mot de passe
         // vient d'un tiers — le superadministrateur — et non de son
         // propriétaire : il doit être remplacé à la première connexion.
-        Utilisateur::create([
+        $responsable = Utilisateur::create([
             'entreprise_id'         => $entreprise->id,
             'nom'                   => $request->gerant_nom ?: 'Responsable',
             'prenom'                => $request->gerant_prenom ?: '',
@@ -276,6 +276,7 @@ class SuperadminControleur
         return redirect()->route('superadmin.entreprises')->with('succes',
             'Entreprise créée, avec son point de vente « Siège » et le compte de son responsable ('
             . $entreprise->email . '). Il devra changer son mot de passe à la première connexion.'
+            . (\App\Mail\EnvoiCourriel::annoncerCompte($responsable, true) ? '' : \App\Mail\EnvoiCourriel::AVIS_NON_PARTI)
             . $messageSupplement);
     }
 
@@ -461,7 +462,7 @@ class SuperadminControleur
             'statut'        => ['required', 'string', 'in:actif,inactif'],
         ]);
 
-        Utilisateur::create([
+        $admin = Utilisateur::create([
             'entreprise_id'         => null,
             'nom'                   => trim($request->nom),
             'prenom'                => trim($request->prenom),
@@ -473,7 +474,9 @@ class SuperadminControleur
             'doit_changer_password' => false,
         ]);
 
-        return redirect()->route('superadmin.admins.index')->with('succes', 'Administrateur interne créé avec succès.');
+        $avis = \App\Mail\EnvoiCourriel::annoncerCompte($admin, true) ? '' : \App\Mail\EnvoiCourriel::AVIS_NON_PARTI;
+
+        return redirect()->route('superadmin.admins.index')->with('succes', 'Administrateur interne créé avec succès.' . $avis);
     }
 
     public function modifierAdmin(Utilisateur $utilisateur): View

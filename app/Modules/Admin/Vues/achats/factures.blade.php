@@ -575,7 +575,30 @@
 
                     @if($afficherActions)
                     <td>
-                        <div style="display:flex; gap:6px; align-items:center;">
+                        <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                            {{-- Le geste suivant de la pièce, dans l'ordre de l'achat
+                                 (retest d'octobre 2026 : la colonne était vide pour
+                                 les demandes de prix et les commandes). --}}
+                            @if($achat->etape === 'Demande de prix' && $achat->statut !== 'En attente B2B')
+                                <form method="POST" action="{{ route('admin.achats.confirmer', $achat) }}" style="display:inline; margin:0;"
+                                      onsubmit="return confirm('Confirmer la commande {{ $achat->numero_facture }} ? La demande de prix devient un bon de commande.');">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm" style="font-weight:700; font-size:11px; padding:4px 8px; background:var(--warning); color:#fff; border:none;" title="La demande de prix est acceptée : elle devient un bon de commande">
+                                        <i class="fas fa-check-circle"></i> Confirmer la commande
+                                    </button>
+                                </form>
+                            @elseif($achat->etape === 'Bon de commande' && $achat->statut !== 'En attente B2B')
+                                <a href="{{ route('admin.achats.imprimer', $achat) }}?facturer=1" class="btn btn-sm" style="font-weight:700; font-size:11px; padding:4px 8px; background:#10b981; color:#fff; border:none; text-decoration:none;" title="La livraison est reçue : établir la facture">
+                                    <i class="fas fa-file-invoice-dollar"></i> Facturer
+                                </a>
+                            @endif
+
+                            @if($achat->etape === 'Facture' && $achat->estInformative())
+                                <span style="font-size:11px; color:#1d4ed8; font-weight:700;" title="Facture déclarée par le fournisseur : l'écriture vient de la facture certifiée récupérée de la FNE.">
+                                    <i class="fas fa-circle-info"></i> Informative
+                                </span>
+                            @endif
+
                             {{-- Normalisation manuelle (BAPA uniquement) --}}
                             @if(!$achat->normalise && $achat->etape === 'Facture' && $achat->estBapa())
                                 <form method="POST" action="{{ route('admin.achats.normaliser', $achat) }}" style="display:inline; margin:0;">

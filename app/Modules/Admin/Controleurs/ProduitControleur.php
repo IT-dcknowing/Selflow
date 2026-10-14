@@ -15,14 +15,32 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProduitControleur
 {
-    public function index(): View
+    public function index(Request $request): View
     {
         $entreprise = Auth::user()->entreprise;
+
+        // La recherche filtrait la page affichée, côté navigateur : un article
+        // de la page 2 restait introuvable depuis la page 1 (retest de
+        // production). Elle porte désormais sur tout le catalogue, et la
+        // pagination garde les filtres.
+        $filtres = [
+            'q'         => trim((string) $request->query('q', '')),
+            'categorie' => (int) $request->query('categorie', 0),
+            'type'      => array_key_exists((string) $request->query('type'), Produit::TYPES) ? (string) $request->query('type') : '',
+        ];
+
         $produits   = Produit::where('entreprise_id', $entreprise->id)
             ->actifs()
+            ->when($filtres['q'] !== '', function ($q) use ($filtres) {
+                $terme = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $filtres['q']) . '%';
+                $q->where(fn ($w) => $w->where('nom', 'like', $terme)->orWhere('reference', 'like', $terme));
+            })
+            ->when($filtres['categorie'] > 0, fn ($q) => $q->where('categorie_id', $filtres['categorie']))
+            ->when($filtres['type'] !== '', fn ($q) => $q->where('type', $filtres['type']))
             ->with(['category', 'sousCategorieRelation', 'stocks', 'taxes'])
             ->orderBy('nom')
-            ->paginate(24);
+            ->paginate(24)
+            ->withQueryString();
 
         $produits_archives = Produit::where('entreprise_id', $entreprise->id)
             ->archives()
@@ -47,7 +65,7 @@ class ProduitControleur
             ->get();
 
         return view('admin::produits.index', compact(
-            'produits', 'produits_archives', 'comptes', 'categories', 'syscohadaKws'
+            'produits', 'produits_archives', 'comptes', 'categories', 'syscohadaKws', 'filtres'
         ));
     }
 
