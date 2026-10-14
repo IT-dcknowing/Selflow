@@ -361,6 +361,7 @@
                             </div>
                             <span class="force-label" id="force-label">Force du mot de passe</span>
                         </div>
+                        @include('authentification::partials.regles_mot_de_passe')
                     </div>
 
                     {{-- Confirmation --}}

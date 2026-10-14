@@ -124,16 +124,7 @@ class ProduitControleur
 
         $categorieId = self::categorieDeLaFiche($request, $entreprise);
 
-        $sousCategorieId = $request->input('sous_categorie_id');
-        if ($sousCategorieId === 'nouvelle' && $request->filled('nouvelle_sous_categorie') && $categorieId) {
-            $sousCategorie = \App\Modules\Admin\Modeles\SousCategorie::create([
-                'categorie_id' => $categorieId,
-                'nom'          => trim($request->input('nouvelle_sous_categorie')),
-            ]);
-            $sousCategorieId = $sousCategorie->id;
-        } elseif ($sousCategorieId === 'nouvelle' || empty($sousCategorieId)) {
-            $sousCategorieId = null;
-        }
+        $sousCategorieId = self::sousCategorieDeLaFiche($request, $categorieId);
 
         $produit = Produit::create([
             'entreprise_id'     => $entreprise->id,
@@ -406,16 +397,7 @@ class ProduitControleur
 
         $categorieId = self::categorieDeLaFiche($request, $entreprise);
 
-        $sousCategorieId = $request->input('sous_categorie_id');
-        if ($sousCategorieId === 'nouvelle' && $request->filled('nouvelle_sous_categorie') && $categorieId) {
-            $sousCategorie = \App\Modules\Admin\Modeles\SousCategorie::create([
-                'categorie_id' => $categorieId,
-                'nom'          => trim($request->input('nouvelle_sous_categorie')),
-            ]);
-            $sousCategorieId = $sousCategorie->id;
-        } elseif ($sousCategorieId === 'nouvelle' || empty($sousCategorieId)) {
-            $sousCategorieId = null;
-        }
+        $sousCategorieId = self::sousCategorieDeLaFiche($request, $categorieId);
 
         // Si la catégorie change et qu'aucune référence n'existe ou si on veut la recalculer
         // Notons que si le produit change de catégorie, on peut éventuellement générer une nouvelle référence, 
@@ -593,6 +575,37 @@ class ProduitControleur
      * @return array{compte_vente: string, compte_achat: string}
      */
     /**
+     * La sous-catégorie de la fiche : une sous-catégorie de la catégorie
+     * retenue, une à créer, ou aucune. Même défaut que la catégorie : la
+     * chaîne `nouvelle` sans nom partait telle quelle en base.
+     */
+    private static function sousCategorieDeLaFiche(Request $request, ?int $categorieId): ?int
+    {
+        $valeur = trim((string) $request->input('sous_categorie_id', ''));
+
+        if ($valeur === '' || !$categorieId) {
+            return null;
+        }
+
+        if ($valeur === 'nouvelle') {
+            if (!$request->filled('nouvelle_sous_categorie')) {
+                return null;
+            }
+
+            return \App\Modules\Admin\Modeles\SousCategorie::create([
+                'categorie_id' => $categorieId,
+                'nom'          => trim($request->input('nouvelle_sous_categorie')),
+            ])->id;
+        }
+
+        if (ctype_digit($valeur) && \App\Modules\Admin\Modeles\SousCategorie::where('categorie_id', $categorieId)->whereKey((int) $valeur)->exists()) {
+            return (int) $valeur;
+        }
+
+        return null;
+    }
+
+    /**
      * La catégorie choisie sur la fiche, ou celle qu'on y crée à la volée.
      *
      * Créée ici, elle reçoit les comptes de stock et de variation du type de
@@ -601,12 +614,40 @@ class ProduitControleur
      * de vente et d'achat, eux, restent à l'héritage — configuration globale
      * puis défaut —, comme pour toute catégorie.
      */
-    private static function categorieDeLaFiche(Request $request, $entreprise)
+    /**
+     * La catégorie choisie sur la fiche : un identifiant de l'entreprise,
+     * une catégorie à créer, ou aucune.
+     *
+     * En production (MySQL), choisir « Nouvelle catégorie » sans lui donner
+     * de nom renvoyait la chaîne `nouvelle` telle quelle, insérée dans
+     * `produits.categorie_id` : erreur 500 « Incorrect integer value »
+     * (SQLite, celui des épreuves, l'acceptait sans rien dire). Toute valeur
+     * qui n'est pas une catégorie de l'entreprise est désormais refusée par
+     * un message — l'identifiant d'une catégorie d'une autre entreprise
+     * passait aussi.
+     */
+    private static function categorieDeLaFiche(Request $request, $entreprise): ?int
     {
-        $categorieId = $request->input('categorie_id');
+        $categorieId = trim((string) $request->input('categorie_id', ''));
 
-        if ($categorieId !== 'nouvelle' || !$request->filled('nouvelle_categorie')) {
-            return $categorieId;
+        if ($categorieId === '') {
+            return null;
+        }
+
+        if ($categorieId === 'nouvelle' && !$request->filled('nouvelle_categorie')) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'nouvelle_categorie' => 'Donnez un nom à la nouvelle catégorie, ou choisissez une catégorie existante.',
+            ]);
+        }
+
+        if ($categorieId !== 'nouvelle') {
+            if (!ctype_digit($categorieId) || !\App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)->whereKey((int) $categorieId)->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'categorie_id' => 'Cette catégorie n\'existe pas dans votre catalogue.',
+                ]);
+            }
+
+            return (int) $categorieId;
         }
 
         $prefixe = strtoupper(trim((string) $request->input('prefixe_categorie')));

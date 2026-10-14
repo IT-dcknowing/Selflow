@@ -7917,6 +7917,27 @@ que le domaine en un clic (lot 65) et la demande de stickers (lot 68).
 
 ---
 
+### Lot 71 — L'erreur 500 de la fiche article, et le second retest — **TERMINÉ le 14/10/2026**
+
+Branche `correctifs-retest-2`. Source : la capture d'erreur en ligne et
+`des correction a revoir pour selflow.docx` (dix images). Réponses du
+propriétaire le 14/10 : **le timbre d'une facture annulée n'est pas
+remboursé** (règle du lot 67 confirmée) ; **un client B2B peut commander
+directement**, sans demande de prix (lot 70).
+
+| Retour | Cause | Correction |
+|---|---|---|
+| **Erreur 500 en ligne** à la création d'un article : `Incorrect integer value` sur `produits.categorie_id` | « Nouvelle catégorie » choisie sans nom : la chaîne `nouvelle` partait en base. MySQL la refuse, SQLite (épreuves) l'acceptait — d'où l'absence d'alerte. L'identifiant d'une catégorie d'une autre entreprise passait aussi | `categorieDeLaFiche()` rend un entier de l'entreprise, ou refuse par un message ; `sousCategorieDeLaFiche()` idem (création et modification) |
+| « 429 Too Many Requests » sur le mot de passe oublié | borne de 3 demandes par quart d'heure **par IP**, partagée avec l'envoi du nouveau mot de passe : derrière la box d'un bureau, trois essais de l'équipe suffisaient | 3 par **adresse saisie**, 10 par IP ; l'envoi du nouveau mot de passe a sa borne (`reinitialisation`) ; au-delà, la page revient avec un message (statut 429). `HttpResponseException` n'est plus prise pour une panne (elle tournait en 500) |
+| Préciser les caractères du mot de passe | — | liste cochée en direct sous le champ (inscription, changement, réinitialisation) : 8 caractères (obligatoire), majuscule, minuscule, chiffre, caractère spécial (conseillés) |
+| La recherche recharge la page à chaque caractère | neuf écrans relançaient la recherche 0,5 s après la dernière frappe (le catalogue du lot 65 aussi) | Entrée ou bouton ; plus de rechargement pendant la saisie |
+| Inventaire : « aucun article ne porte la référence » | le modèle portait des références d'exemple (STYL-BLU-001…) | modèle **rempli des articles de l'entreprise**, site par site, coût compris ; référence sans casse ni espaces, repli sur la désignation ; ligne sans quantité laissée de côté ; « 0 ligne importée » n'est plus affiché en vert |
+
+- `Retest2Test` (10) ; `LimitesDeDebitTest` connaît la borne `reinitialisation`.
+- Suite : 1 716 épreuves, 1 711 passantes, 5 sautées ; `verifier:variables` propre.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

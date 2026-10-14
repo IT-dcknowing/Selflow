@@ -31,7 +31,7 @@
             <div style="flex:1; position:relative;">
                 <i class="fas fa-search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-3); font-size:13px;"></i>
                 <input type="text" name="recherche" value="{{ request('recherche') }}" placeholder="Rechercher par nom ou référence de produit..." class="form-control" style="padding-left:36px; height:40px;"
-                       oninput="clearTimeout(window._rechercheFichesTimer); window._rechercheFichesTimer = setTimeout(() => document.getElementById('formRechercheFiches').submit(), 500);">
+                       title="Appuyez sur Entrée pour lancer la recherche" onkeydown="if (event.key === 'Enter') { event.preventDefault(); document.getElementById('formRechercheFiches').submit(); }">
             </div>
             <button type="submit" class="btn btn-outline" style="height:40px;">
                 <i class="fas fa-filter"></i> Filtrer

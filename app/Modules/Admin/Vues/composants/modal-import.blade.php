@@ -209,9 +209,12 @@ function lancerImport(id, routeImport, token) {
             const rapport = document.getElementById(id + '-rapport');
             let html = '';
 
-            if (res.success) {
-                html += `<div style="padding:12px 16px;background:#d1fae5;border-radius:8px;border:1px solid #6ee7b7;color:#065f46;font-weight:600;font-size:13px;margin-bottom:10px;">
-                    <i class="fas fa-check-circle"></i> ${res.message}
+            // Vert si quelque chose est entré, rouge si tout a été refusé :
+            // « 0 ligne importée avec succès » s'affichait en vert.
+            if (res.message) {
+                const ok = res.success;
+                html += `<div style="padding:12px 16px;background:${ok ? '#d1fae5' : '#fee2e2'};border-radius:8px;border:1px solid ${ok ? '#6ee7b7' : '#fca5a5'};color:${ok ? '#065f46' : '#991b1b'};font-weight:600;font-size:13px;margin-bottom:10px;">
+                    <i class="fas ${ok ? 'fa-check-circle' : 'fa-circle-exclamation'}"></i> ${res.message}
                 </div>`;
             }
 

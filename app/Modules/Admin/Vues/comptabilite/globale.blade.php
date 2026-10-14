@@ -113,7 +113,7 @@
         <div style="position:relative;">
             <i class="fas fa-search" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-3); font-size:12px;"></i>
             <input type="text" name="search" id="inputSearch" value="{{ $search }}" placeholder="Référence, libellé, compte…" class="form-control" style="padding-left:32px; height:40px;"
-                   oninput="clearTimeout(window._globaleTimer); window._globaleTimer = setTimeout(() => document.getElementById('formGlobale').submit(), 500);">
+                   title="Appuyez sur Entrée pour lancer la recherche" onkeydown="if (event.key === 'Enter') { event.preventDefault(); document.getElementById('formGlobale').submit(); }">
         </div>
     </div>
 

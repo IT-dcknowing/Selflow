@@ -46,15 +46,28 @@ class LimitesDeDebit extends ServiceProvider
         // au-delà, c'est une boucle ou un balayage.
         RateLimiter::for('api', fn (Request $r) => Limit::perMinute(60)->by($this->acteur($r)));
 
-        // Envoyer un courriel de réinitialisation. Trois par quart d'heure : le
-        // temps de vérifier sa boîte, et pas de quoi l'inonder.
+        // Envoyer un courriel de réinitialisation. Trois par quart d'heure
+        // **pour une même adresse** : le temps de vérifier sa boîte, et pas de
+        // quoi l'inonder.
+        //
+        // La borne était comptée par adresse IP, et partagée avec l'envoi du
+        // nouveau mot de passe : derrière la box d'un bureau, trois essais de
+        // toute l'équipe suffisaient à afficher une page « 429 Too Many
+        // Requests » brute (retest de production, octobre 2026). Elle porte
+        // désormais sur l'adresse saisie ; la borne par IP, plus large, reste
+        // pour arrêter le balayage d'adresses. Au-delà, la page de demande
+        // revient avec un message, et non une page d'erreur.
         RateLimiter::for('mot-de-passe', fn (Request $r) => [
-            Limit::perMinutes(15, 3)->by($this->acteur($r)),
-            // Une seconde borne, plus large, par adresse IP : elle arrête le
-            // balayage d'adresses électroniques, que la première ne voit pas
-            // puisque chaque adresse essayée a sa propre clé.
-            Limit::perMinutes(15, 10)->by($r->ip()),
+            Limit::perMinutes(15, 3)->by('email:' . mb_strtolower(trim((string) $r->input('email'))))->response($this->refusPoli()),
+            Limit::perMinutes(15, 10)->by('ip:' . $r->ip())->response($this->refusPoli()),
         ]);
+
+        // Le nouveau mot de passe : le jeton est une chaîne, sans borne il
+        // s'éprouve. Compté à part de la demande de lien.
+        RateLimiter::for('reinitialisation', fn (Request $r) => Limit::perMinutes(15, 10)->by('ip:' . $r->ip())
+            ->response(fn () => back()->withErrors([
+                'email' => 'Trop d\'essais. Patientez un quart d\'heure, puis recommencez.',
+            ])));
 
         // L'import : un fichier lourd, lu ligne à ligne, qui écrit en base.
         RateLimiter::for('import', fn (Request $r) => Limit::perMinute(6)->by($this->acteur($r)));
@@ -88,6 +101,22 @@ class LimitesDeDebit extends ServiceProvider
      * trente portes voisines l'une après l'autre sans jamais franchir une
      * limite.
      */
+    /**
+     * La page de demande, rendue avec un message, sous le statut 429.
+     */
+    private function refusPoli(): \Closure
+    {
+        return function (Request $requete, array $entetes) {
+            $minutes = max(1, (int) ceil(((int) ($entetes['Retry-After'] ?? 900)) / 60));
+            $erreurs = (new \Illuminate\Support\ViewErrorBag())->put('default', new \Illuminate\Support\MessageBag([
+                'email' => "Trop de demandes de lien pour cette adresse. Un lien vous a peut-être déjà été envoyé : "
+                    . "regardez votre boîte (et les indésirables), ou réessayez dans {$minutes} minute" . ($minutes > 1 ? 's' : '') . '.',
+            ]));
+
+            return response()->view('authentification::mot_de_passe_oublie', ['errors' => $erreurs], 429, $entetes);
+        };
+    }
+
     private function acteur(Request $requete): string
     {
         return $requete->user()?->getAuthIdentifier()
