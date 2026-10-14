@@ -140,9 +140,20 @@
 
     <div style="display: flex; justify-content: space-between; align-items: center; border-top: 0.5px solid var(--border); padding-top: 15px; flex-wrap: wrap; gap: 10px;">
         <div style="display: flex; gap: 8px; align-items: center;">
+            {{-- Un seul geste par étape (retest d'octobre 2026) : une demande de
+                 prix se confirme, elle ne se réceptionne pas. Le bon de
+                 réception n'a de sens qu'une fois la commande passée. --}}
+            @if($achat->etape !== 'Demande de prix')
             <button class="tab" id="receipt-toggle-btn" onclick="toggleReceiptMode()" style="border-color: var(--primary); color: var(--primary);">
                 <i class="fas fa-truck-ramp-box"></i> Passer en Bon de réception
             </button>
+            @endif
+            @if($achat->estInformative())
+                <span class="tab" style="border-color:#93c5fd; color:#1d4ed8; background:#eff6ff; cursor:default;"
+                      title="L'écriture comptable est portée par la facture certifiée récupérée de la FNE.">
+                    <i class="fas fa-circle-info"></i> Facture déclarée par le fournisseur — saisie informative
+                </span>
+            @endif
             {{-- Le format du bordereau, pour un bordereau établi seulement :
                  il était offert sur toute pièce d'un fournisseur sans NCC,
                  demande de prix comprise. --}}
@@ -192,7 +203,14 @@
         'modeDefaut'     => 'Crédit',
         'banques'        => $banques ?? collect(),
         'libelleMontant' => 'Montant payé au fournisseur',
+        'questionDeclaration' => $achat->type_facture !== 'bapa',
     ])
+    {{-- « Facturer » depuis la liste des commandes ouvre directement la modale. --}}
+    @if(request()->boolean('facturer'))
+        <script>document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('modal-facturer-achat').style.display = 'flex';
+        });</script>
+    @endif
 @endif
 
 <div class="invoice-container">
