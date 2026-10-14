@@ -7808,6 +7808,38 @@ Branche `correctifs-ecrans-retest`. Aucun fichier gelé touché.
 
 ---
 
+### Lot 67 — L'avoir est l'écriture d'origine en négatif — **TERMINÉ le 14/10/2026**
+
+Branche `ecritures-avoir`. Question de la réunion : « les factures d'avoir
+passent-elles bien en écriture, en négatif de l'écriture d'origine ? »
+
+**Réponse : oui pour l'essentiel, avec trois trous, bouchés.** L'avoir
+contre-passe la facture sur les mêmes comptes — client au crédit, produits
+(70x) et TVA (443x) au débit — en montants positifs changés de colonne :
+c'est la contre-passation du SYSCOHADA, identique sur chaque compte à une
+écriture négative, et ce que Comptaflow accepte. Ce qui manquait :
+
+| Défaut | Correction |
+|---|---|
+| Seul le TTC était recrédité : les taxes parafiscales d'une vente annulée restaient au débit du client et au crédit du 447 | `ComptabiliteService::montantsDeLAvoirVente()` : taxes de la facture d'origine à proportion de ce que l'avoir reprend, contre-passées au 447 |
+| Le remboursement en espèces n'était écrit qu'au journal de trésorerie : la caisse comptable ne bougeait pas, le client restait créditeur | `genererEcritureRemboursementAvoirVente()` : débit 411 / crédit caisse, lettré avec l'avoir ; la sortie de caisse rend aussi les taxes |
+| La marchandise revenait au CUMP (Coût Unitaire Moyen Pondéré) du jour : un arrivage entre la vente et l'avoir empêchait le 603 de se solder | le retour entre au coût de la sortie d'origine (repli : CUMP du jour) |
+
+**Le timbre de quittance ne revient pas, et c'est voulu** : il frappe la
+quittance délivrée, `TimbreQuittanceService` (gelé) l'exclut de tout avoir, et
+l'avoir certifié n'en porte pas. Après un avoir total sur une facture
+comptant, tout est à zéro sauf le 447800, créditeur du timbre, et la caisse
+qui garde ce montant. **À confirmer par le propriétaire** si l'entreprise
+rembourse aussi le timbre au client (ce serait alors une charge, 646).
+
+L'avoir fournisseur n'a plus d'écran depuis le lot 54 (la plateforme ne
+certifie que l'avoir du vendeur) ; sa méthode n'est pas changée.
+
+- `EcrituresAvoirTest` (4), les quatre tombent sur l'ancien code (vérifié au retrait).
+- Suite : 1 687 épreuves, 1 682 passantes, 5 sautées ; `verifier:variables` propre.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
