@@ -480,5 +480,16 @@ class FacturationCommandeService
             'converti_en_id' => $facture->id,
             'statut'         => 'Facturé',
         ]);
+
+        // Une commande née d'une négociation B2B : le client attend sa
+        // livraison, il doit apprendre qu'elle est facturée (lot 75). La
+        // facture est faite ; un incident ici ne la défait pas.
+        if ($bc->b2b_negotiation_id) {
+            try {
+                B2bService::factureeAilleurs((int) $bc->b2b_negotiation_id);
+            } catch (\Throwable $e) {
+                logger()->error('B2B : facture ' . $facture->numero_facture . ' non signalée au client : ' . $e->getMessage());
+            }
+        }
     }
 }

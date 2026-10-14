@@ -7996,6 +7996,53 @@ remis.
 
 ---
 
+### Lot 75 — Le B2B approfondi (70a à 70d) — **TERMINÉ le 14/10/2026**
+
+Branche `b2b-approfondi`. Demandé par le propriétaire le 14/10 ; commande
+directe autorisée. **Aucun fichier gelé touché** : la facture du fournisseur
+passe par `FacturationCommandeService`, comme toute facture de commande.
+
+**Le parcours** (`B2bService`, une seule porte pour toutes les transitions) :
+
+| Étape | Qui | Ce qui se passe |
+|---|---|---|
+| Demande de prix | client | depuis « Négociations B2B › Nouvelle demande » (ou un nouvel achat, ou « Transmettre B2B ») ; le fournisseur la reçoit |
+| Proposition / contre-proposition | l'un et l'autre | prix ligne à ligne (et quantités côté client), avec message ; autant d'allers-retours que nécessaire |
+| Commande | client | « Commander aux prix affichés », ou **commande directe** ; refusée tant qu'un prix manque. Le **bon de commande du client** (BCF-) naît, ou la demande de prix d'origine le devient |
+| Confirmation | fournisseur | il rattache chaque ligne à un article de son catalogue (référence, sinon désignation, sinon à choisir), voit son stock, dit la quantité livrée ; son **bon de commande de vente** (BC-) naît ; statut « Confirmée — en attente de livraison » des deux côtés ; le BCF- du client suit les quantités confirmées |
+| Livraison | fournisseur | « Livrer et facturer » : facture par la porte habituelle (stock, écritures, FNE selon la normalisation automatique) ; le BCF- du client passe « En attente B2B » avec les montants de la facture. Facturer le BC depuis l'écran des ventes produit le même effet |
+| Réception | client | « J'ai reçu la livraison » (ou « Réceptionner B2B » dans la liste des achats) : stock entré au prix convenu, facture d'achat ; **déclarée par le fournisseur si sa facture est déjà certifiée** (lot 66 : l'écriture viendra de la facture reçue de la DGI), sinon écrite tout de suite |
+| Refus | l'un ou l'autre, jusqu'à la confirmation | avec motif ; les bons de commande nés de la négociation sont clos |
+
+**70a, le fil** : une page par négociation (`/admin/b2b/achats/{id}` côté
+client, `/admin/b2b/ventes/{id}` côté fournisseur, sous les habilitations
+`nouvel_achat` et `nouvelle_vente`) : étapes, lignes, actions possibles,
+pièces liées, et les échanges en bulles. **70d** : courriel aux
+administrateurs de l'autre partie à chaque événement (`B2bEvenement`) ;
+pastille « non lu » au menu et point bleu dans les listes (colonnes
+`derniere_activite_*`, `lu_*_le`, migration `2026_10_14_000004`).
+
+**Défauts corrigés en chemin :**
+
+- `b2b_negotiation_id` n'était pas dans les champs remplissables d'`Achat`
+  ni de `Vente` : Laravel l'ignorait, **aucune pièce n'a jamais été rattachée
+  à sa négociation**, ancien parcours compris.
+- Le BC d'un vendeur pour un client inscrit inversait client et fournisseur ;
+  ses lignes n'avaient pas de référence. Il arrive désormais chez le client
+  comme une commande confirmée, avec son BCF-. `CycleVenteAchatRecetteTest`
+  vérifiait l'inversion : l'épreuve est redressée.
+- Un incident B2B (client sans point de vente) ne fait plus échouer la vente
+  du fournisseur.
+
+L'ancien geste « finaliser » (facture directe sans commande) reste en place
+pour les négociations déjà ouvertes, mais n'est plus proposé à l'écran.
+
+- `B2bApprofondiTest` (8). Parcours complet vérifié dans Chromium entre deux
+  entreprises.
+- Suite : 1 732 épreuves, 1 727 passantes, 5 sautées ; `verifier:variables` propre.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

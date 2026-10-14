@@ -14,6 +14,9 @@ class Vente extends Model
     protected $table = 'ventes';
 
     protected $fillable = [
+        // La négociation B2B d'où vient la pièce. Absente d'ici, elle était
+        // ignorée en silence : aucune pièce n'était jamais rattachée (lot 75).
+        'b2b_negotiation_id',
         'point_de_vente_id',
         'utilisateur_id',
         'client_id',

@@ -419,6 +419,18 @@ class Habilitations
         'admin.b2b.negociation.stock'        => 'nouvelle_vente',
         'admin.b2b.negociation.finaliser'    => 'nouvelle_vente',
         'admin.b2b.achat.accepter'           => 'nouvel_achat',
+        'admin.b2b.client.voir'              => 'nouvel_achat',
+        'admin.b2b.client.message'           => 'nouvel_achat',
+        'admin.b2b.client.proposer'          => 'nouvel_achat',
+        'admin.b2b.client.commander'         => 'nouvel_achat',
+        'admin.b2b.client.refuser'           => 'nouvel_achat',
+        'admin.b2b.client.receptionner'      => 'nouvel_achat',
+        'admin.b2b.fournisseur.voir'         => 'nouvelle_vente',
+        'admin.b2b.fournisseur.message'      => 'nouvelle_vente',
+        'admin.b2b.fournisseur.proposer'     => 'nouvelle_vente',
+        'admin.b2b.fournisseur.confirmer'    => 'nouvelle_vente',
+        'admin.b2b.fournisseur.refuser'      => 'nouvelle_vente',
+        'admin.b2b.fournisseur.livrer'       => 'nouvelle_vente',
 
         // ── Tiers ──
         'admin.clients.index'         => 'tiers_clients',
