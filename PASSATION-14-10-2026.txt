@@ -110,3 +110,17 @@ Aucun fichier du périmètre FNE gelé n'a été modifié.
 - À trancher : refonte « pas à pas » de l'achat ; couper tout à fait les
   écritures quand la comptabilité est fermée (aujourd'hui tenues en arrière-plan).
 - Aucune migration nouvelle pour ces trois lots.
+
+
+7. SUITE DU 15/10/2026 (soir) — lots 79 à 81
+--------------------------------------------
+- 79 Page de maintenance sans détail technique ; registre des pannes
+  (Superadmin › Pannes & assistance) ; contacts de l'assistance et du service
+  commercial à y saisir AVANT tout.
+- 80 Création d'entreprise par le superadmin : parcours de A à Z, quota 3,
+  plus de modules, mot de passe avec « Voir » et jauge, bloc FNE corrigé.
+- 81 Offres d'abonnement en cartes après l'inscription ; limites appliquées
+  (points de vente, utilisateurs).
+- MIGRATIONS NOUVELLES : 2026_10_15_000001 (pannes, parametres_plateforme),
+  2026_10_15_000002 (abonnements) — php artisan migrate --force.
+- À trancher : paiement des offres ; fin du pass cadeau.
