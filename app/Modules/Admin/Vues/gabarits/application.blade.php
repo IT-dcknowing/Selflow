@@ -743,6 +743,12 @@
             </a>
             @endif
 
+            @php $__pannesOuvertes = \App\Modules\Admin\Modeles\PanneConsignee::ouvertes()->count(); @endphp
+            <a href="{{ route('superadmin.pannes.index') }}" class="nav-item {{ request()->routeIs('superadmin.pannes*') ? 'active' : '' }}">
+                <i class="fas fa-bug"></i> Pannes &amp; assistance
+                @if($__pannesOuvertes)<span style="margin-left:auto; background:#ef4444; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700;">{{ $__pannesOuvertes }}</span>@endif
+            </a>
+
             <div class="nav-section"><span>INTÉGRATIONS</span></div>
             <a href="{{ route('superadmin.liaisons.index') }}" class="nav-item {{ request()->routeIs('superadmin.liaisons*') ? 'active' : '' }}">
                 <i class="fas fa-link"></i> Liaisons COMPTAFLOW

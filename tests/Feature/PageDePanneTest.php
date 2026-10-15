@@ -19,8 +19,9 @@ use Tests\TestCase;
  * d'exploitation et l'arborescence, une version de bibliothèque dit quelles
  * failles connues essayer.
  *
- * La page porte désormais le message d'attente, une référence à donner au
- * service informatique, et le détail replié.
+ * La page porte le message d'attente, une référence à donner au service
+ * informatique et les contacts de l'assistance ; le détail va au registre des
+ * pannes du superadministrateur (15/10/2026).
  */
 class PageDePanneTest extends TestCase
 {
@@ -52,8 +53,8 @@ class PageDePanneTest extends TestCase
 
         $reponse->assertStatus(500);
         $reponse->assertSee('Page en maintenance');
-        $reponse->assertSee('notre service informatique s\'en charge', false);
-        $reponse->assertSee('désolé pour le désagrément', false);
+        $reponse->assertSee('notre service technique est prévenu', false);
+        $reponse->assertSee('pour le désagrément', false);
     }
 
     public function test_la_page_porte_une_reference_a_donner_au_service(): void
@@ -67,16 +68,16 @@ class PageDePanneTest extends TestCase
         $reponse->assertSee('SF-' . now()->format('ymd'), false);
     }
 
-    public function test_le_detail_technique_est_present_et_replie(): void
+    public function test_aucun_detail_technique_n_est_montre_a_l_utilisateur(): void
     {
-        // `<details>` s'ouvre au clic sans une ligne de script, et fonctionne
-        // même si le navigateur en refuse.
+        // Décision du 15/10/2026 : le détail part au registre des pannes du
+        // superadministrateur ; l'utilisateur n'en voit rien.
         $reponse = $this->provoquerLaPanne();
 
-        $reponse->assertSee('Détail technique', false);
-        $reponse->assertSee('<details', false);
-        $reponse->assertDontSee('<details open', false);
-        $reponse->assertSee('La base de données ne répond pas.', false);
+        $reponse->assertDontSee('La base de données ne répond pas.', false);
+        $reponse->assertDontSee('Détail technique', false);
+        $reponse->assertDontSee('<pre', false);
+        $reponse->assertSee('résolu dans un instant', false);
     }
 
     public function test_la_page_reprend_la_palette_de_l_application(): void
@@ -97,26 +98,29 @@ class PageDePanneTest extends TestCase
         $reponse->assertSee('data:image/svg+xml', false);
     }
 
-    // ══════════════ Ce que le repli contient ══════════════
+    // ══════════════ L'assistance et le registre ══════════════
 
-    public function test_la_suite_des_appels_est_visible_de_tous(): void
+    public function test_la_page_donne_les_contacts_saisis_par_le_superadmin(): void
     {
-        // Décision du propriétaire du projet : le repli montre tout, y compris
-        // la suite des appels.
-        $reponse = $this->provoquerLaPanne();
+        \App\Modules\Admin\Modeles\ParametrePlateforme::ecrire('assistance_email', 'support@dc-knowing.com');
+        \App\Modules\Admin\Modeles\ParametrePlateforme::ecrire('assistance_telephone', '+225 07 01 02 03 04');
 
-        $reponse->assertSee('<pre class="trace"', false);
-        $reponse->assertSee('Suite des appels', false);
+        $this->provoquerLaPanne()
+            ->assertSee('contactez l\'assistance technique', false)
+            ->assertSee('mailto:support@dc-knowing.com', false)
+            ->assertSee('tel:+2250701020304', false);
     }
 
-    public function test_le_detail_se_copie_d_un_bouton(): void
+    public function test_la_panne_est_consignee_une_fois_par_defaut(): void
     {
-        // C'est ce qu'on colle dans un billet d'assistance : le recopier à la
-        // main depuis un écran de caisse n'arrive jamais.
-        $reponse = $this->provoquerLaPanne();
+        $this->provoquerLaPanne();
+        $this->provoquerLaPanne();
 
-        $reponse->assertSee('Copier le détail', false);
-        $reponse->assertSee('copierLaTrace', false);
+        $panne = \App\Modules\Admin\Modeles\PanneConsignee::sole();
+        $this->assertSame(2, $panne->occurrences);
+        $this->assertSame('La base de données ne répond pas.', $panne->message);
+        $this->assertStringContainsString('/_panne-de-test', $panne->url);
+        $this->assertNull($panne->corrigee_le);
     }
 
     public function test_le_chemin_du_serveur_est_ramene_au_projet(): void

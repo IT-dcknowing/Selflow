@@ -7,8 +7,8 @@
     trop lisible pour qui passait par là.
 
     Ici : le message d'attente, la référence à donner au service informatique,
-    et le détail technique replié — qu'on ouvre d'un clic quand on sait quoi en
-    faire.
+    et les contacts de l'assistance. Le détail technique va au registre des pannes du
+    superadministrateur (décision du 15/10/2026).
 
     Le fond reprend la palette de l'application — le bleu royal `#002B5C`, le
     gris-bleu très clair `#F4F6F9`, la police Inter — et le motif est dessiné en
@@ -16,12 +16,12 @@
     à recharger le jour où le serveur va mal.
 --}}
 @php
-    $detail = $detail ?? null;
     $reference = $reference ?? null;
+    $assistance = $assistance ?? [];
 
-    // **La suite des appels est visible de tous** — décision du propriétaire du
-    // projet. Elle porte l'arborescence du serveur ; les chemins sont ramenés à
-    // la racine du projet pour n'en dire que le nécessaire.
+    // **Plus aucun détail technique à l'écran** (décision du 15/10/2026) : il
+    // part au registre des pannes du superadministrateur. L'utilisateur garde
+    // le message d'attente, la référence et les contacts de l'assistance.
 @endphp
 <!DOCTYPE html>
 <html lang="fr">
@@ -141,43 +141,10 @@
             border-radius: 7px; padding: 5px 10px; color: var(--primary);
         }
 
-        /* Le détail technique, replié. */
-        .repli { margin-top: 22px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-
-        .repli > summary {
-            list-style: none; cursor: pointer; user-select: none;
-            padding: 13px 16px; background: var(--bg);
-            font-size: 13px; font-weight: 600; color: var(--text-2);
-            display: flex; align-items: center; gap: 9px;
-        }
-        .repli > summary::-webkit-details-marker { display: none; }
-        .repli > summary:hover { background: #EBF2FC; color: var(--primary); }
-        .repli > summary .chevron { transition: transform .18s ease; font-size: 11px; }
-        .repli[open] > summary .chevron { transform: rotate(90deg); }
-        .repli[open] > summary { border-bottom: 1px solid var(--border); }
-
-        .repli-contenu { padding: 16px; background: var(--surface); }
-
-        .ligne-detail {
-            display: grid; grid-template-columns: 130px 1fr; gap: 10px;
-            padding: 8px 0; border-bottom: 1px dashed var(--border);
-            font-size: 12.5px; align-items: start;
-        }
-        .ligne-detail:last-child { border-bottom: none; }
-        .ligne-detail dt { color: var(--text-3); font-weight: 600; }
-        .ligne-detail dd {
-            color: var(--text); word-break: break-word;
-            font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
-        }
-
-        pre.trace {
-            margin-top: 12px; padding: 14px;
-            background: #0F172A; color: #CBD5E1;
-            border-radius: 9px; font-size: 11.5px; line-height: 1.6;
-            max-height: 320px; overflow: auto;
-            font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
-        }
-
+        .assistance { margin-top: 22px; padding: 16px 18px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); }
+        .assistance-titre { font-size: 13.5px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+        .assistance-titre i { color: var(--primary); }
+        .assistance-liens { margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
         .actions { margin-top: 26px; display: flex; gap: 10px; flex-wrap: wrap; }
 
         .btn {
@@ -198,7 +165,6 @@
 
         @media (max-width: 560px) {
             .panne-entete, .panne-corps { padding-left: 20px; padding-right: 20px; }
-            .ligne-detail { grid-template-columns: 1fr; gap: 2px; }
         }
     </style>
 </head>
@@ -214,8 +180,9 @@
 
         <div class="panne-corps">
             <p class="message">
-                Cette page est en maintenance et notre service informatique s'en charge.
-                Veuillez patienter, et désolé pour le désagrément.
+                Cette page est momentanément en maintenance : notre service technique est prévenu
+                et le problème sera résolu dans un instant. Merci de votre patience, et désolé
+                pour le désagrément.
             </p>
 
             @if($reference)
@@ -230,52 +197,24 @@
                 </div>
             @endif
 
-            {{-- Le détail, replié : `<details>` s'ouvre au clic sans une ligne
-                 de script, et fonctionne même si le navigateur en refuse. --}}
-            @if($detail)
-                <details class="repli">
-                    <summary>
-                        <i class="fas fa-chevron-right chevron"></i>
-                        Détail technique
-                    </summary>
-                    <div class="repli-contenu">
-                        <dl>
-                            <div class="ligne-detail">
-                                <dt>Type</dt>
-                                <dd>{{ $detail['type'] }}</dd>
-                            </div>
-                            <div class="ligne-detail">
-                                <dt>Message</dt>
-                                <dd>{{ $detail['message'] }}</dd>
-                            </div>
-                            <div class="ligne-detail">
-                                <dt>Fichier</dt>
-                                <dd>{{ $detail['fichier'] }}:{{ $detail['ligne'] }}</dd>
-                            </div>
-                            <div class="ligne-detail">
-                                <dt>Adresse</dt>
-                                <dd>{{ $detail['url'] }}</dd>
-                            </div>
-                            <div class="ligne-detail">
-                                <dt>Moment</dt>
-                                <dd>{{ $detail['moment'] }}</dd>
-                            </div>
-                        </dl>
-
-                        @if(!empty($detail['trace']))
-                            <div style="margin-top:14px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
-                                <span style="font-size:12px; font-weight:600; color:var(--text-3);">
-                                    Suite des appels
-                                </span>
-                                <button type="button" class="btn" style="padding:4px 10px; font-size:12px;"
-                                        onclick="copierLaTrace()">
-                                    <i class="fas fa-copy"></i> Copier le détail
-                                </button>
-                            </div>
-                            <pre class="trace" id="trace">{{ $detail['trace'] }}</pre>
+            @if(!empty($assistance['email']) || !empty($assistance['telephone']))
+                <div class="assistance">
+                    <div class="assistance-titre"><i class="fas fa-headset"></i> Pour toute préoccupation, contactez l'assistance technique</div>
+                    <div class="assistance-liens">
+                        @if(!empty($assistance['email']))
+                            <a href="mailto:{{ $assistance['email'] }}{{ $reference ? '?subject=' . rawurlencode('Selflow — ' . $reference) : '' }}" class="btn">
+                                <i class="fas fa-envelope"></i> {{ $assistance['email'] }}
+                            </a>
+                        @endif
+                        @if(!empty($assistance['telephone']))
+                            <a href="tel:{{ preg_replace('/[^0-9+]/', '', $assistance['telephone']) }}" class="btn">
+                                <i class="fas fa-phone"></i> {{ $assistance['telephone'] }}
+                            </a>
                         @endif
                     </div>
-                </details>
+                </div>
+            @else
+                <p class="assistance-titre" style="margin-top:20px;"><i class="fas fa-headset"></i> Pour toute préoccupation, contactez l'assistance technique de DC-Knowing.</p>
             @endif
 
             <div class="actions">
@@ -294,27 +233,6 @@
     </main>
 
     <script>
-        /**
-         * Copier tout le detail technique d'un coup : c'est ce qu'on colle dans
-         * un billet d'assistance, et le recopier a la main d'un ecran de caisse
-         * n'arrive jamais.
-         */
-        function copierLaTrace() {
-            const bloc = document.getElementById('trace');
-            const reference = document.getElementById('reference')?.textContent?.trim() ?? '';
-
-            if (!bloc || !navigator.clipboard) return;
-
-            const texte = 'Référence : ' + reference + '\n\n' + bloc.textContent;
-            const bouton = event.currentTarget;
-
-            navigator.clipboard.writeText(texte).then(() => {
-                const avant = bouton.innerHTML;
-                bouton.innerHTML = '<i class="fas fa-check"></i> Copié';
-                setTimeout(() => { bouton.innerHTML = avant; }, 1800);
-            });
-        }
-
         function copierLaReference() {
             const texte = document.getElementById('reference')?.textContent?.trim();
 

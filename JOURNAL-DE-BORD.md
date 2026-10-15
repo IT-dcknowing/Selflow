@@ -8136,6 +8136,30 @@ modifiée).
 
 ---
 
+### Lot 79 — Page de maintenance et registre des pannes — **TERMINÉ le 15/10/2026**
+
+Branche `registre-des-pannes`. Demande du propriétaire le 15/10.
+
+- **L'utilisateur ne voit plus l'erreur** : page « en maintenance », « résolu
+  dans un instant », la référence, et les **contacts de l'assistance** saisis
+  par le superadministrateur (courriel, téléphone). Le détail technique et la
+  suite des appels quittent la page (la décision « visible de tous » est
+  remplacée). Si le débogage est allumé en production, seul le
+  superadministrateur voit encore la trace de Laravel.
+- **Registre des pannes** (`superadmin.pannes.index`, menu « Pannes &
+  assistance », pastille du nombre ouvert) : une ligne par défaut (classe,
+  fichier, ligne), avec le code et l'adresse ; un clic sur le code déplie
+  l'erreur, le fichier, l'entreprise, l'utilisateur et la trace. Bouton
+  « Corrigée » ; une panne se ferme aussi d'elle-même quand le fichier fautif a
+  changé depuis (correctif déployé) ; si elle revient, elle se rouvre.
+- Tables `pannes` et `parametres_plateforme` (migration `2026_10_15_000001`,
+  rejouable). Habilitation : `tableau_de_bord_superadmin`.
+
+- `RegistreDesPannesTest` (4), `PageDePanneTest` redressé (+2).
+- Suite : 1 747 épreuves, 1 742 passantes, 5 sautées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
