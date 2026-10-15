@@ -666,6 +666,13 @@ Route::prefix('superadmin')
             Route::post('/{entreprise}/timbre', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'basculerTimbre'])->name('timbre');
         });
 
+        // ── Registre des pannes et contacts de l'assistance (15/10/2026) ──
+        Route::prefix('pannes')->name('pannes.')->group(function () {
+            Route::get('/', [\App\Modules\Admin\Controleurs\SuperadminPanneControleur::class, 'index'])->name('index');
+            Route::post('/assistance', [\App\Modules\Admin\Controleurs\SuperadminPanneControleur::class, 'assistance'])->name('assistance');
+            Route::post('/{panne}/corriger', [\App\Modules\Admin\Controleurs\SuperadminPanneControleur::class, 'corriger'])->name('corriger');
+        });
+
         // ── Vitrine publique (contenu de la page de presentation) ──
         Route::prefix('vitrine')->name('vitrine.')->group(function () {
             Route::get('/', [\App\Modules\Admin\Controleurs\VitrineControleur::class, 'index'])->name('index');

@@ -70,58 +70,50 @@ return Application::configure(basePath: dirname(__DIR__))
         );
 
         $exceptions->render(function (\Throwable $e, Request $request) {
-            // Uniquement pour les requêtes web non-API en production
-            if (!config('app.debug') && !$request->is('api/*') && \App\Exceptions\Panne::estUne($e)) {
-                // Tenter d'envoyer l'alerte email aux super-admins
-                try {
-                    $url = $request->fullUrl();
-                    $msg  = "Alerte Production : Panne détectée sur Selflow\n\n";
-                    // La même référence que celle affichée à l'utilisateur :
-                    // c'est par elle que les deux bouts se rejoignent.
-                    $msg .= "Référence : " . \App\Exceptions\Panne::reference($e) . "\n";
-                    $msg .= "URL de la page : " . $url . "\n";
-                    $msg .= "Erreur : " . $e->getMessage() . "\n";
-                    $msg .= "Fichier : " . $e->getFile() . "\n";
-                    $msg .= "Ligne : " . $e->getLine() . "\n\n";
-                    $msg .= "Trace d'exécution :\n" . substr($e->getTraceAsString(), 0, 1500) . "\n";
-
-                    \Illuminate\Support\Facades\Mail::raw($msg, function ($mail) {
-                        $mail->to(['meledjeagnimel17@gmail.com', 'it.dcknowin@gmail.com'])
-                             ->subject("[Selflow - Alerte Technique] Dysfonctionnement détecté en production");
-                    });
-                } catch (\Throwable $mailError) {
-                    // Tolérance aux pannes : ignorer si l'envoi d'email échoue (ex: SMTP non configuré)
-                }
-
-                // **La page de panne remplace la trace de Laravel.** Sur un
-                // écran de caisse, celle-ci montrait le nom des fichiers du
-                // serveur, les versions des bibliothèques et le contenu des
-                // variables : illisible pour l'utilisateur, et trop lisible
-                // pour qui passait par là.
-                //
-                // La page porte le message d'attente, une référence à donner au
-                // service informatique, et le détail replié.
-                return response()->view('errors.500', [
-                    'reference' => \App\Exceptions\Panne::reference($e),
-                    'detail'    => [
-                        'type'    => $e::class,
-                        'message' => $e->getMessage(),
-                        'fichier' => str_replace(base_path() . DIRECTORY_SEPARATOR, '', $e->getFile()),
-                        'ligne'   => $e->getLine(),
-                        'url'     => $request->fullUrl(),
-                        'moment'  => now()->format('d/m/Y à H:i:s'),
-                        // Les chemins sont ramenés à la racine du projet. La
-                        // suite des appels est désormais visible de tous : elle
-                        // n'a pas à dire sous quel compte le serveur tourne ni
-                        // où le projet est installé, seulement quel fichier a
-                        // appelé quel autre.
-                        'trace'   => substr(
-                            str_replace(base_path() . DIRECTORY_SEPARATOR, '', $e->getTraceAsString()),
-                            0,
-                            4000
-                        ),
-                    ],
-                ], 500);
+            if ($request->is('api/*') || ! \App\Exceptions\Panne::estUne($e)) {
+                return null;
             }
+
+            // **L'utilisateur ne voit plus l'erreur** (décision du 15/10/2026) :
+            // une page « en maintenance », la référence et les contacts de
+            // l'assistance. Le détail va au superadministrateur, dans le
+            // registre des pannes. La trace de Laravel ne reste qu'au poste
+            // du développeur, ou au superadministrateur quand le débogage est
+            // allumé.
+            $panne = \App\Modules\Admin\Modeles\PanneConsignee::consigner($e, $request);
+
+            $traceAutorisee = config('app.debug') && (
+                app()->environment('local', 'testing')
+                || (bool) $request->user()?->estSuperAdmin()
+            );
+            if ($traceAutorisee) {
+                return null;
+            }
+
+            // Une alerte par courriel, comme avant — sans jamais bloquer la page.
+            try {
+                $msg  = "Alerte Production : Panne détectée sur Selflow\n\n";
+                $msg .= "Référence : " . \App\Exceptions\Panne::reference($e) . "\n";
+                $msg .= "URL de la page : " . $request->fullUrl() . "\n";
+                $msg .= "Erreur : " . $e->getMessage() . "\n";
+                $msg .= "Fichier : " . $e->getFile() . "\n";
+                $msg .= "Ligne : " . $e->getLine() . "\n\n";
+                $msg .= "Le détail est au registre des pannes du superadministrateur.\n";
+
+                \Illuminate\Support\Facades\Mail::raw($msg, function ($mail) {
+                    $mail->to(['meledjeagnimel17@gmail.com', 'it.dcknowin@gmail.com'])
+                         ->subject("[Selflow - Alerte Technique] Dysfonctionnement détecté en production");
+                });
+            } catch (\Throwable $mailError) {
+                // L'envoi peut échouer (SMTP non configuré) : la page s'affiche quand même.
+            }
+
+            return response()->view('errors.500', [
+                'reference' => \App\Exceptions\Panne::reference($e),
+                'assistance' => [
+                    'email'     => \App\Modules\Admin\Modeles\ParametrePlateforme::lire(\App\Modules\Admin\Modeles\ParametrePlateforme::ASSISTANCE_EMAIL),
+                    'telephone' => \App\Modules\Admin\Modeles\ParametrePlateforme::lire(\App\Modules\Admin\Modeles\ParametrePlateforme::ASSISTANCE_TELEPHONE),
+                ],
+            ], 500);
         });
     })->create();

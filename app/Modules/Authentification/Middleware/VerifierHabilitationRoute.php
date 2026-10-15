@@ -80,6 +80,12 @@ class VerifierHabilitationRoute
         'superadmin.stickers.index'         => 'gestion_fne',
         'superadmin.stickers.mettre_a_jour' => 'gestion_fne',
 
+        // Le registre des pannes : tout superadministrateur qui voit le
+        // tableau de bord doit voir ce qui tombe.
+        'superadmin.pannes.index'      => 'tableau_de_bord_superadmin',
+        'superadmin.pannes.corriger'   => 'tableau_de_bord_superadmin',
+        'superadmin.pannes.assistance' => 'tableau_de_bord_superadmin',
+
         'superadmin.admins.index'         => 'administration_interne',
         'superadmin.admins.creer'         => 'administration_interne',
         'superadmin.admins.enregistrer'   => 'administration_interne',
