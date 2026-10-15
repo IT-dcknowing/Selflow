@@ -8230,6 +8230,34 @@ Branche `abonnements`. Décision du propriétaire le 15/10 :
 
 ---
 
+### Lot 82 — Les habilitations mises à jour — **TERMINÉ le 15/10/2026** (urgent)
+
+Branche `habilitations-a-jour`. Retour urgent du propriétaire (fenêtre de
+création d'un personnel).
+
+**Ce qui a été trouvé.** La liste des cases ne suivait plus le menu :
+- les groupes **Produits** et **Tiers** n'apparaissaient pas : le catalogue
+  cherchait les modules `produits` et `tiers`, que l'inscription n'enregistre
+  jamais (le menu, lui, les montre dès que les ventes ou les achats sont
+  ouverts) ;
+- sept écrans n'avaient pas de droit à eux et se cachaient derrière un voisin :
+  Fiscalité & DGI et stickers derrière « Factures vente », B2B derrière
+  « Nouvelle vente / Nouvel achat », bons de livraison et consignations
+  derrière « Articles & stock », immobilisations derrière « Opération
+  globale », paramètres et parcours derrière « Points de vente » ;
+- « Habilitations » n'ouvrait rien (l'onglet est gardé par `gestion_personnel`),
+  et le menu Fiscalité & DGI s'affichait sans aucun contrôle de droit.
+
+**Correctif.** Nouveaux droits : `ventes_livraisons`, `b2b_negociations`,
+`stock_consignations`, `immobilisations`, `fne_gestion`, `stickers_commande`,
+`parametres_entreprise` ; 61 routes reclassées ; menu aligné. La migration
+`2026_10_15_000003` les accorde à qui avait l'ancien droit
+(`Habilitations::HERITES_DE`) : **personne ne perd un écran**.
+
+- `HabilitationsAJourTest` (4). Suite : 1 761 épreuves, 1 756 passantes, 5 sautées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

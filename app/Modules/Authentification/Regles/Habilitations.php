@@ -90,6 +90,11 @@ class Habilitations
      * @var array<string, array<string, array<string, string>>>
      */
     public const CATALOGUE = [
+        // Mis à jour le 15/10/2026 sur le menu tel qu'il est : chaque écran a
+        // son droit. Livraisons, B2B, Fiscalité & DGI, stickers, consignations,
+        // immobilisations et paramètres se cachaient derrière un droit voisin —
+        // « Factures vente » ouvrait la gestion FNE, « Opération globale » les
+        // immobilisations — sans que la liste le dise.
         'principal' => [
             'Tableau de bord' => [
                 'tableau_de_bord_personnel' => 'Tableau de bord personnel',
@@ -101,44 +106,20 @@ class Habilitations
         ],
         'ventes' => [
             'Ventes' => [
-                'nouvelle_vente'    => 'Nouvelle vente',
-                'factures_vente'    => 'Factures vente',
+                'nouvelle_vente'   => 'Nouvelle vente',
+                'factures_vente'   => 'Factures vente & avoirs clients',
+                'ventes_livraisons' => 'Bons de livraison',
             ],
         ],
         'achats' => [
             'Achats' => [
-                'nouvel_achat'  => 'Nouvel achat',
+                'nouvel_achat'   => 'Nouvel achat',
                 'factures_achat' => 'Factures achat',
             ],
         ],
-        'production' => [
-            'Production' => [
-                'production_recettes' => 'Fiches techniques (recettes)',
-                'production_ordres'   => 'Ordres de production',
-            ],
-        ],
-        'stock' => [
-            'Stock' => [
-                'stock_articles'   => 'Articles & stock',
-                'stock_mouvements' => 'Mouvements',
-            ],
-        ],
-        'comptabilite' => [
-            'Comptabilité' => [
-                'tresorerie_encaissements'    => 'Encaissements',
-                'tresorerie_decaissements'    => 'Décaissements',
-                'tresorerie_journal'          => 'Solde & journal',
-                'tresorerie_codes_journaux'   => 'Codes journaux',
-                'comptabilite_globale'        => 'Opération & écriture globale',
-                'comptabilite_creances'       => 'Créances & règlements',
-                'comptabilite_plan_comptable' => 'Plan comptable',
-            ],
-        ],
-        'points_de_vente' => [
-            'Points de vente' => [
-                'gestion_pdv'           => 'Points de vente',
-                'gestion_personnel'     => 'Personnels & accès',
-                'gestion_habilitations' => 'Habilitations',
+        'b2b' => [
+            'B2B' => [
+                'b2b_negociations' => 'Négociations B2B (achats et demandes reçues)',
             ],
         ],
         'produits' => [
@@ -152,6 +133,85 @@ class Habilitations
                 'tiers_fournisseurs' => 'Fournisseurs',
             ],
         ],
+        'stock' => [
+            'Stock' => [
+                'stock_articles'      => 'Articles, stock & entrées',
+                'stock_mouvements'    => 'Mouvements & inventaire',
+                'stock_consignations' => 'Consignations (emballages)',
+            ],
+        ],
+        'production' => [
+            'Production' => [
+                'production_recettes' => 'Fiches techniques (recettes)',
+                'production_ordres'   => 'Ordres de production',
+            ],
+        ],
+        'points_de_vente' => [
+            'Points de vente' => [
+                'gestion_pdv'       => 'Points de vente',
+                'gestion_personnel' => 'Personnels, accès & habilitations',
+            ],
+        ],
+        'comptabilite' => [
+            'Comptabilité' => [
+                'tresorerie_encaissements'    => 'Encaissements',
+                'tresorerie_decaissements'    => 'Décaissements',
+                'tresorerie_journal'          => 'Solde & journal',
+                'tresorerie_codes_journaux'   => 'Codes journaux',
+                'comptabilite_globale'        => 'Opération & écriture globale',
+                'comptabilite_creances'       => 'Créances & règlements',
+                'comptabilite_plan_comptable' => 'Plan comptable',
+                'immobilisations'             => 'Immobilisations',
+            ],
+        ],
+        'fne' => [
+            'Fiscalité & DGI' => [
+                'fne_gestion'       => 'Gestion FNE, situation, factures émises/reçues',
+                'stickers_commande' => 'Commander des stickers',
+            ],
+        ],
+        'parametres' => [
+            'Entreprise' => [
+                'parametres_entreprise' => 'Paramètres de l\'entreprise & configuration',
+            ],
+        ],
+    ];
+
+    /**
+     * Ce qui ouvre un groupe du catalogue, quand ce n'est pas un module du
+     * même nom. Le catalogue cherchait les modules `produits` et `tiers`, que
+     * l'inscription n'enregistre pas : les deux groupes manquaient de la
+     * liste, alors que le menu les montre dès que les ventes ou les achats
+     * sont ouverts.
+     *
+     * @var array<string, array<int, string>>
+     */
+    private const OUVERT_PAR = [
+        'produits'   => ['ventes', 'achats', 'stock'],
+        'tiers'      => ['ventes', 'achats'],
+        'parametres' => [],
+        // Le menu « Fiscalité & DGI » suit le module comptable (ses routes aussi).
+        'fne'        => ['fne', 'comptabilite'],
+    ];
+
+    /**
+     * Les droits ajoutés le 15/10/2026, et celui qui les donnait jusque-là :
+     * la migration les accorde à qui avait l'ancien, pour que personne ne
+     * perde un écran.
+     *
+     * @var array<string, array<int, string>>
+     */
+    public const HERITES_DE = [
+        'ventes_livraisons'     => ['stock_articles'],
+        'b2b_negociations'      => ['nouvelle_vente', 'nouvel_achat'],
+        'stock_consignations'   => ['stock_articles'],
+        'immobilisations'       => ['comptabilite_globale'],
+        'fne_gestion'           => ['factures_vente', 'gestion_pdv'],
+        'stickers_commande'     => ['factures_vente'],
+        'parametres_entreprise' => ['gestion_pdv'],
+        // « Habilitations » n'ouvrait rien : l'onglet vit sur l'écran du
+        // personnel, gardé par `gestion_personnel`.
+        'gestion_personnel'     => ['gestion_habilitations'],
     ];
 
     /**
@@ -165,7 +225,7 @@ class Habilitations
 
         foreach (self::CATALOGUE as $module => $sesGroupes) {
             // `principal` n'est gardé par aucun module : tout le monde l'a.
-            if ($module !== 'principal' && $entreprise && !$entreprise->moduleEstActif($module)) {
+            if ($module !== 'principal' && $entreprise && !self::groupeOuvert($entreprise, $module)) {
                 continue;
             }
 
@@ -175,6 +235,26 @@ class Habilitations
         }
 
         return $groupes;
+    }
+
+    private static function groupeOuvert(\App\Modules\Admin\Modeles\Entreprise $entreprise, string $groupe): bool
+    {
+        if (! array_key_exists($groupe, self::OUVERT_PAR)) {
+            return $entreprise->moduleEstActif($groupe);
+        }
+
+        $modules = self::OUVERT_PAR[$groupe];
+        if ($modules === []) {
+            return true;
+        }
+
+        foreach ($modules as $module) {
+            if ($entreprise->moduleEstActif($module)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -213,12 +293,12 @@ class Habilitations
         'admin.ventes.factures.details'              => 'factures_vente',
         'admin.ventes.factures.rechercher'           => 'factures_vente',
         'admin.ventes.factures.produits_categories'  => 'nouvelle_vente',
-        'admin.ventes.livraison.creer'               => 'stock_articles',
-        'admin.ventes.livraison.enregistrer'         => 'stock_articles',
-        'admin.ventes.livraison.facturer'            => 'factures_vente',
-        'admin.ventes.livraison.voir'                => 'stock_articles',
-        'admin.ventes.livraison.livrer'              => 'stock_articles',
-        'admin.ventes.livraisons'                    => 'stock_articles',
+        'admin.ventes.livraison.creer'               => 'ventes_livraisons',
+        'admin.ventes.livraison.enregistrer'         => 'ventes_livraisons',
+        'admin.ventes.livraison.facturer'            => 'ventes_livraisons',
+        'admin.ventes.livraison.voir'                => 'ventes_livraisons',
+        'admin.ventes.livraison.livrer'              => 'ventes_livraisons',
+        'admin.ventes.livraisons'                    => 'ventes_livraisons',
 
         // ── Achats ──
         'admin.achats.nouveau'                       => 'nouvel_achat',
@@ -282,10 +362,10 @@ class Habilitations
         // ── Emballages consignés ──
         // Une consignation est une dette de l'entreprise : la constater ou la
         // solder engage le bilan.
-        'admin.consignations.index'       => 'stock_articles',
-        'admin.consignations.enregistrer' => 'stock_articles',
-        'admin.consignations.rendre'      => 'stock_articles',
-        'admin.consignations.non_retour'  => 'stock_articles',
+        'admin.consignations.index'       => 'stock_consignations',
+        'admin.consignations.enregistrer' => 'stock_consignations',
+        'admin.consignations.rendre'      => 'stock_consignations',
+        'admin.consignations.non_retour'  => 'stock_consignations',
 
         // ── Trésorerie ──
         'admin.tresorerie.encaissements'          => 'tresorerie_encaissements',
@@ -354,14 +434,14 @@ class Habilitations
         // ── Immobilisations ──
         // Le parc et son amortissement portent l'actif du bilan et une charge
         // déductible : cela relève de la comptabilité, non de la caisse.
-        'admin.immobilisations.index'       => 'comptabilite_globale',
-        'admin.immobilisations.creer'       => 'comptabilite_globale',
-        'admin.immobilisations.enregistrer' => 'comptabilite_globale',
-        'admin.immobilisations.fiche'       => 'comptabilite_globale',
-        'admin.immobilisations.modifier'    => 'comptabilite_globale',
-        'admin.immobilisations.ceder'       => 'comptabilite_globale',
-        'admin.immobilisations.dotation'    => 'comptabilite_globale',
-        'admin.immobilisations.cloturer'    => 'comptabilite_globale',
+        'admin.immobilisations.index'       => 'immobilisations',
+        'admin.immobilisations.creer'       => 'immobilisations',
+        'admin.immobilisations.enregistrer' => 'immobilisations',
+        'admin.immobilisations.fiche'       => 'immobilisations',
+        'admin.immobilisations.modifier'    => 'immobilisations',
+        'admin.immobilisations.ceder'       => 'immobilisations',
+        'admin.immobilisations.dotation'    => 'immobilisations',
+        'admin.immobilisations.cloturer'    => 'immobilisations',
 
         // ── Points de vente ──
         'admin.pdv.index'             => 'gestion_pdv',
@@ -412,25 +492,25 @@ class Habilitations
         'admin.production.ordres.imprimer'                       => 'production_ordres',
 
         // ── B2B ──
-        'admin.b2b.negociations.client'      => 'nouvel_achat',
-        'admin.b2b.negociations.fournisseur' => 'nouvelle_vente',
-        'admin.b2b.rfq.creer'                => 'nouvel_achat',
-        'admin.b2b.negociation.proposer'     => 'nouvel_achat',
-        'admin.b2b.negociation.stock'        => 'nouvelle_vente',
-        'admin.b2b.negociation.finaliser'    => 'nouvelle_vente',
-        'admin.b2b.achat.accepter'           => 'nouvel_achat',
-        'admin.b2b.client.voir'              => 'nouvel_achat',
-        'admin.b2b.client.message'           => 'nouvel_achat',
-        'admin.b2b.client.proposer'          => 'nouvel_achat',
-        'admin.b2b.client.commander'         => 'nouvel_achat',
-        'admin.b2b.client.refuser'           => 'nouvel_achat',
-        'admin.b2b.client.receptionner'      => 'nouvel_achat',
-        'admin.b2b.fournisseur.voir'         => 'nouvelle_vente',
-        'admin.b2b.fournisseur.message'      => 'nouvelle_vente',
-        'admin.b2b.fournisseur.proposer'     => 'nouvelle_vente',
-        'admin.b2b.fournisseur.confirmer'    => 'nouvelle_vente',
-        'admin.b2b.fournisseur.refuser'      => 'nouvelle_vente',
-        'admin.b2b.fournisseur.livrer'       => 'nouvelle_vente',
+        'admin.b2b.negociations.client'      => 'b2b_negociations',
+        'admin.b2b.negociations.fournisseur' => 'b2b_negociations',
+        'admin.b2b.rfq.creer'                => 'b2b_negociations',
+        'admin.b2b.negociation.proposer'     => 'b2b_negociations',
+        'admin.b2b.negociation.stock'        => 'b2b_negociations',
+        'admin.b2b.negociation.finaliser'    => 'b2b_negociations',
+        'admin.b2b.achat.accepter'           => 'b2b_negociations',
+        'admin.b2b.client.voir'              => 'b2b_negociations',
+        'admin.b2b.client.message'           => 'b2b_negociations',
+        'admin.b2b.client.proposer'          => 'b2b_negociations',
+        'admin.b2b.client.commander'         => 'b2b_negociations',
+        'admin.b2b.client.refuser'           => 'b2b_negociations',
+        'admin.b2b.client.receptionner'      => 'b2b_negociations',
+        'admin.b2b.fournisseur.voir'         => 'b2b_negociations',
+        'admin.b2b.fournisseur.message'      => 'b2b_negociations',
+        'admin.b2b.fournisseur.proposer'     => 'b2b_negociations',
+        'admin.b2b.fournisseur.confirmer'    => 'b2b_negociations',
+        'admin.b2b.fournisseur.refuser'      => 'b2b_negociations',
+        'admin.b2b.fournisseur.livrer'       => 'b2b_negociations',
 
         // ── Tiers ──
         'admin.clients.index'         => 'tiers_clients',
@@ -456,11 +536,11 @@ class Habilitations
         // ── Paramètres de l'entreprise ──
         // Ils portent le NCC, le RCCM et le régime d'imposition : ce que la
         // plateforme lit sur chaque facture.
-        'admin.entreprise.parametres'             => 'gestion_pdv',
-        'admin.entreprise.parametres.enregistrer' => 'gestion_pdv',
+        'admin.entreprise.parametres'             => 'parametres_entreprise',
+        'admin.entreprise.parametres.enregistrer' => 'parametres_entreprise',
         'admin.entreprise.periodes.creer'         => 'comptabilite_globale',
         'admin.entreprise.periodes.cloturer'      => 'comptabilite_globale',
-        'admin.entreprise.fne.tester_connexion'   => 'gestion_pdv',
+        'admin.entreprise.fne.tester_connexion'   => 'parametres_entreprise',
         'admin.entreprise.comptaflow.demander'    => 'comptabilite_globale',
         'admin.entreprise.comptaflow.sync_real'   => 'comptabilite_globale',
         // Le deversement de l'historique engage le dossier comptable : meme
@@ -471,25 +551,25 @@ class Habilitations
         // ── FNE ──
         // Les écrans fiscaux : la normalisation engage l'entreprise devant la
         // DGI, et l'achat de stickers engage sa trésorerie.
-        'admin.fne.factures'            => 'factures_vente',
-        'admin.fne.factures.donnees'    => 'factures_vente',
-        'admin.fne.gestion'             => 'factures_vente',
-        'admin.stickers.index'          => 'factures_vente',
-        'admin.stickers.enregistrer'    => 'factures_vente',
-        'admin.stickers.annuler'        => 'factures_vente',
-        'admin.fne.gestion.donnees'     => 'factures_vente',
-        'admin.fne.situation'           => 'factures_vente',
-        'admin.fne.situation.donnees'   => 'factures_vente',
-        'admin.fne.rechercher'          => 'factures_vente',
-        'admin.fne.batch_normaliser'    => 'factures_vente',
-        'admin.fne.batch_status'        => 'factures_vente',
-        'admin.fne.schedule_batch'      => 'factures_vente',
-        'admin.fne.config'              => 'gestion_pdv',
-        'admin.fne.config.sauvegarder'  => 'gestion_pdv',
+        'admin.fne.factures'            => 'fne_gestion',
+        'admin.fne.factures.donnees'    => 'fne_gestion',
+        'admin.fne.gestion'             => 'fne_gestion',
+        'admin.stickers.index'          => 'stickers_commande',
+        'admin.stickers.enregistrer'    => 'stickers_commande',
+        'admin.stickers.annuler'        => 'stickers_commande',
+        'admin.fne.gestion.donnees'     => 'fne_gestion',
+        'admin.fne.situation'           => 'fne_gestion',
+        'admin.fne.situation.donnees'   => 'fne_gestion',
+        'admin.fne.rechercher'          => 'fne_gestion',
+        'admin.fne.batch_normaliser'    => 'fne_gestion',
+        'admin.fne.batch_status'        => 'fne_gestion',
+        'admin.fne.schedule_batch'      => 'fne_gestion',
+        'admin.fne.config'              => 'fne_gestion',
+        'admin.fne.config.sauvegarder'  => 'fne_gestion',
         // Les pièces refusées par la plateforme se lisent avec les factures.
-        'admin.fne.rejets'              => 'factures_vente',
-        'admin.fne.rejets.diagnostiquer'=> 'factures_vente',
-        'admin.fne.rejets.resoudre'     => 'factures_vente',
+        'admin.fne.rejets'              => 'fne_gestion',
+        'admin.fne.rejets.diagnostiquer'=> 'fne_gestion',
+        'admin.fne.rejets.resoudre'     => 'fne_gestion',
         // Sauf « appliquer » et « corriger-maintenant », qui renomment ou
         // rattachent un point de vente. Les ranger avec les factures ouvrirait à
         // qui saisit des ventes une porte latérale vers le renommage des points
@@ -497,11 +577,11 @@ class Habilitations
         'admin.fne.rejets.appliquer'          => 'gestion_pdv',
         'admin.fne.rejets.corriger_maintenant'=> 'gestion_pdv',
         'admin.fne.rejets.corriger_avec'      => 'gestion_pdv',
-        'admin.fne.rejets.statut_scraping'    => 'factures_vente',
+        'admin.fne.rejets.statut_scraping'    => 'fne_gestion',
 
         // ── Souscription ──
-        'admin.souscription.index'       => 'gestion_pdv',
-        'admin.souscription.enregistrer' => 'gestion_pdv',
+        'admin.souscription.index'       => 'parametres_entreprise',
+        'admin.souscription.enregistrer' => 'parametres_entreprise',
     ];
 
     /**
