@@ -869,12 +869,14 @@
             </a>
             {{-- Les stickers certifient les factures : la demande vit avec elles.
                  DC-Knowing les achète pour l'entreprise (retest d'octobre 2026). --}}
+            @endif
+            @if(auth()->user()->aHabilitation('stickers_commande'))
             <a href="{{ route('admin.stickers.index') }}" class="nav-item {{ request()->routeIs('admin.stickers.*') ? 'active' : '' }}">
                 <i class="fas fa-ticket"></i> Commander des stickers
             </a>
             @endif
 
-            @if(auth()->user()->aHabilitation('nouvelle_vente'))
+            @if(in_array('b2b', $modulesActifs) && auth()->user()->aHabilitation('b2b_negociations'))
             <a href="{{ route('admin.b2b.negociations.fournisseur') }}" class="nav-item {{ request()->routeIs('admin.b2b.negociations.fournisseur*', 'admin.b2b.fournisseur.*') ? 'active' : '' }}">
                 <i class="fas fa-handshake"></i> Demandes B2B reçues
                 @php $__b2b = \App\Modules\Admin\Modeles\B2bNegotiation::nonLuesPour((int) auth()->user()->entreprise_id, 'fournisseur')->count(); @endphp
@@ -906,7 +908,7 @@
                  menu, c'est la même page deux fois. --}}
             @endif
 
-            @if(auth()->user()->aHabilitation('nouvel_achat'))
+            @if(in_array('b2b', $modulesActifs) && auth()->user()->aHabilitation('b2b_negociations'))
             <a href="{{ route('admin.b2b.negociations.client') }}" class="nav-item {{ request()->routeIs('admin.b2b.negociations.client*', 'admin.b2b.client.*') ? 'active' : '' }}">
                 <i class="fas fa-comments-dollar"></i> Négociations B2B (Achats)
                 @php $__b2b = \App\Modules\Admin\Modeles\B2bNegotiation::nonLuesPour((int) auth()->user()->entreprise_id, 'client')->count(); @endphp
@@ -984,7 +986,7 @@
             @endif
 
             <!-- 6. Points de vente (Inclus Personnel & Habilitations) -->
-            @if(in_array('points_de_vente', $modulesActifs) && (auth()->user()->aHabilitation('gestion_pdv') || auth()->user()->aHabilitation('gestion_personnel') || auth()->user()->aHabilitation('gestion_habilitations')))
+            @if(in_array('points_de_vente', $modulesActifs) && (auth()->user()->aHabilitation('gestion_pdv') || auth()->user()->aHabilitation('gestion_personnel')))
             <div class="nav-section"><i class="fas fa-store nav-section-icone" aria-hidden="true"></i><span>Points de vente</span></div>
             @if(auth()->user()->aHabilitation('gestion_pdv'))
             <a href="{{ route('admin.pdv.index') }}" class="nav-item {{ request()->routeIs('admin.pdv.index') ? 'active' : '' }}">
@@ -996,7 +998,7 @@
                 <i class="fas fa-users-gear"></i> Personnels &amp; accès
             </a>
             @endif
-            @if(auth()->user()->aHabilitation('gestion_habilitations'))
+            @if(auth()->user()->aHabilitation('gestion_personnel'))
             <a href="{{ route('admin.personnel.index') }}?tab=habilitations" class="nav-item {{ request()->routeIs('admin.personnel.index') && request('tab') === 'habilitations' ? 'active' : '' }}">
                 <i class="fas fa-shield-halved"></i> Habilitations
             </a>
@@ -1124,7 +1126,7 @@
             @endif
 
             <!-- Fiscalité & DGI (Module FNE) -->
-            @if(in_array('comptabilite', $modulesActifs))
+            @if(in_array('comptabilite', $modulesActifs) && auth()->user()->aHabilitation('fne_gestion'))
             <div class="nav-section"><i class="fas fa-receipt nav-section-icone" aria-hidden="true"></i><span>Fiscalité &amp; DGI</span></div>
             <a href="{{ route('admin.fne.gestion') }}" data-visite="fne" class="nav-item {{ request()->routeIs('admin.fne.gestion') ? 'active' : '' }}">
                 <i class="fas fa-calculator"></i> Gestion FNE
