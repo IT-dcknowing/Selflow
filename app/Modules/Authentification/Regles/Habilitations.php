@@ -230,11 +230,60 @@ class Habilitations
             }
 
             foreach ($sesGroupes as $titre => $droits) {
-                $groupes[$titre] = $droits;
+                if ($entreprise) {
+                    [$titre, $droits] = self::ceQueLEntrepriseDispose($entreprise, $titre, $droits);
+                }
+                if ($droits !== []) {
+                    $groupes[$titre] = $droits;
+                }
             }
         }
 
         return $groupes;
+    }
+
+    /**
+     * Les droits d'un groupe, réduits à ce que l'entreprise dispose **à cet
+     * instant**, selon les mêmes conditions que le menu (retour du
+     * 15/10/2026 : toute la comptabilité était proposée alors qu'elle n'était
+     * pas activée dans les paramètres).
+     *
+     * Comptabilité fermée, il ne reste que la trésorerie de caisse : le solde
+     * et le journal, et les moyens de paiement. Ouverte, les encaissements,
+     * décaissements et l'écriture globale suivent en plus leur attribution par
+     * le superadministrateur.
+     *
+     * @param  array<string, string>  $droits
+     * @return array{0: string, 1: array<string, string>}
+     */
+    private static function ceQueLEntrepriseDispose(\App\Modules\Admin\Modeles\Entreprise $entreprise, string $titre, array $droits): array
+    {
+        if ($titre !== 'Comptabilité') {
+            return [$titre, $droits];
+        }
+
+        $ouverte = $entreprise->comptabiliteOuverte();
+        $offert = [
+            'tresorerie_encaissements'    => $ouverte && $entreprise->encaissementsAccordes(),
+            'tresorerie_decaissements'    => $ouverte && $entreprise->decaissementsAccordes(),
+            'comptabilite_globale'        => $ouverte && $entreprise->ecritureGlobaleAccordee(),
+            'comptabilite_creances'       => $ouverte,
+            'comptabilite_plan_comptable' => $ouverte,
+            'immobilisations'             => $ouverte,
+        ];
+
+        $droits = array_filter($droits, fn ($droit) => $offert[$droit] ?? true, ARRAY_FILTER_USE_KEY);
+
+        if (! $ouverte) {
+            // Le menu dit « Trésorerie » et « Moyens de paiement » : la liste aussi.
+            if (isset($droits['tresorerie_codes_journaux'])) {
+                $droits['tresorerie_codes_journaux'] = 'Moyens de paiement';
+            }
+
+            return ['Trésorerie', $droits];
+        }
+
+        return [$titre, $droits];
     }
 
     private static function groupeOuvert(\App\Modules\Admin\Modeles\Entreprise $entreprise, string $groupe): bool

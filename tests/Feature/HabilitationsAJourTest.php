@@ -92,4 +92,56 @@ class HabilitationsAJourTest extends TestCase
             $this->assertStringContainsString($libelle, $page);
         }
     }
+
+    private function droitsOfferts(Entreprise $entreprise): array
+    {
+        $tous = [];
+        foreach (Habilitations::pourLEntreprise($entreprise) as $titre => $droits) {
+            foreach ($droits as $cle => $libelle) {
+                $tous[$cle] = [$titre, $libelle];
+            }
+        }
+
+        return $tous;
+    }
+
+    public function test_comptabilite_fermee_seule_la_tresorerie_est_proposee(): void
+    {
+        // Retour du 15/10/2026 : toute la comptabilité était proposée alors
+        // qu'elle n'était pas activée dans les paramètres.
+        $entreprise = Entreprise::create([
+            'nom' => 'Boutique', 'comptabilite_activee' => false,
+            'modules_actifs' => ['principal', 'ventes', 'achats', 'stock', 'comptabilite', 'points_de_vente'],
+        ]);
+
+        $offerts = $this->droitsOfferts($entreprise);
+        foreach (['tresorerie_encaissements', 'tresorerie_decaissements', 'comptabilite_globale', 'comptabilite_creances', 'comptabilite_plan_comptable', 'immobilisations'] as $absent) {
+            $this->assertArrayNotHasKey($absent, $offerts, "{$absent} ne doit pas être proposé.");
+        }
+        $this->assertSame(['Trésorerie', 'Solde & journal'], $offerts['tresorerie_journal']);
+        $this->assertSame(['Trésorerie', 'Moyens de paiement'], $offerts['tresorerie_codes_journaux']);
+        $this->assertArrayNotHasKey('Comptabilité', Habilitations::pourLEntreprise($entreprise));
+    }
+
+    public function test_comptabilite_ouverte_les_ecrans_attribues_s_ajoutent(): void
+    {
+        $entreprise = Entreprise::create([
+            'nom' => 'Boutique', 'comptabilite_activee' => true,
+            'modules_actifs' => ['principal', 'ventes', 'comptabilite', 'points_de_vente'],
+        ]);
+
+        $offerts = $this->droitsOfferts($entreprise);
+        foreach (['comptabilite_creances', 'comptabilite_plan_comptable', 'immobilisations', 'tresorerie_codes_journaux'] as $present) {
+            $this->assertArrayHasKey($present, $offerts);
+        }
+        // Encaissements, décaissements, écriture globale : seulement accordés par le superadmin.
+        $this->assertArrayNotHasKey('tresorerie_encaissements', $offerts);
+
+        $entreprise->attributions = ['encaissements', 'decaissements', 'comptabilite_globale'];
+        $entreprise->save();
+        $offerts = $this->droitsOfferts($entreprise->fresh());
+        foreach (['tresorerie_encaissements', 'tresorerie_decaissements', 'comptabilite_globale'] as $present) {
+            $this->assertArrayHasKey($present, $offerts);
+        }
+    }
 }
