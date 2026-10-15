@@ -8318,6 +8318,31 @@ n'efface rien et le dit.
 
 ---
 
+### Lot 85 — Le parcours se déroule dans sa section ; fin du pass cadeau — **TERMINÉ le 15/10/2026**
+
+Branche `parcours-dans-la-section`. Retour du propriétaire le 15/10.
+
+- **« Suivant » ne soumet plus la page.** Il soumettait tout le formulaire de
+  création et s'arrêtait sur les champs obligatoires laissés vides. Le
+  parcours se déroule désormais **dans la section « Domaine d'activité »**,
+  sans requête ni validation du reste : Domaine (choisir, c'est avancer) →
+  Métiers → Modules (décochables, les structurels figés) → Rayons (tous
+  retenus au départ), avec Retour et un fil d'étapes. Le référentiel voyage
+  avec la page.
+- Les choix partent avec « Créer la structure » et sont appliqués comme les
+  étapes 1 à 4 du parcours de l'entreprise
+  (`SouscriptionProfilService::appliquerLeParcoursDeCreation`) ; le
+  superadministrateur arrive ensuite à l'étape 5 (prix et stock) des articles
+  créés. Sans domaine choisi, rien ne change.
+- **Fin du pass cadeau : tranché, l'accès est bloqué** — c'est l'échéance du
+  lot 83, qui couvre le pass ; épreuve dédiée.
+
+- `SuperadminCreationAligneeTest` +2, `FacturationEtEcheanceTest` +1. Vérifié
+  dans Chromium (la page ne bouge pas, seule la section change).
+- Suite : 1 773 épreuves, 1 768 passantes, 5 sautées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
