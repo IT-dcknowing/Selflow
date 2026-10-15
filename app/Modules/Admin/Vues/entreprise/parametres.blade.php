@@ -257,8 +257,8 @@
                 <div>
                     <h4 style="font-weight:700;font-size:14px;margin-bottom:2px;">Inscription incomplète</h4>
                     <p style="font-size:12px;color:#B45309;">Remplissez les champs marqués <span
-                            style="color:#DC2626;font-weight:700;">*</span> pour finaliser l'inscription et débloquer toutes les
-                        fonctionnalités.
+                            style="color:#DC2626;font-weight:700;">*</span> pour finaliser l'inscription. Vous pouvez déjà vendre,
+                        acheter et facturer : ces informations ne sont exigées qu'à la normalisation DGI.
                         {{-- Le secteur ne se coche plus dans ce formulaire : sans cette
                              phrase, une entreprise qui n'a pas fait son parcours resterait
                              « incomplète » en remplissant pourtant tous les champs visibles,

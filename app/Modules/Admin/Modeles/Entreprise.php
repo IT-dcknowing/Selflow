@@ -564,6 +564,78 @@ class Entreprise extends Model
     }
 
     /**
+     * Ce qui empêche d'enregistrer une vente ou un achat — et seulement cela.
+     *
+     * ── Le blocage n'est plus fiscal (retour de production du 15/10/2026) ──
+     *
+     * Ventes et achats restaient fermés tant que manquaient le NCC, le RCCM,
+     * le régime, l'adresse, la fonction du gérant ou le domaine. Or une
+     * entreprise peut tenir son stock, acheter, vendre et facturer sans jamais
+     * normaliser : ces informations ne servent qu'à la DGI. Le contrôle fiscal
+     * a donc quitté la saisie pour la normalisation
+     * (`elementsNormalisationManquants`).
+     *
+     * Reste le point de vente : chaque pièce s'y rattache, et la caisse n'en
+     * invente plus (voir `VenteControleur::nouvelle`).
+     *
+     * @return array<int, array{cle: string, libelle: string, ou: string}>
+     */
+    public function elementsBloquantsLaSaisie(): array
+    {
+        if ($this->nom === '[PENDING_ONBOARDING]') {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $this->elementsInscriptionManquants(),
+            fn (array $manquant) => $manquant['cle'] === 'point_de_vente'
+        ));
+    }
+
+    /**
+     * Ce qui manque pour normaliser une pièce auprès de la DGI.
+     *
+     * Le NCC et le régime partent dans chaque pièce ; le point de vente aussi,
+     * sous son nom ; et sans accès FNE actif (la clé que DC-Knowing pose une
+     * fois le compte relevé), la plateforme ne peut pas être appelée. Le reste
+     * de l'identité (RCCM, adresse, domaine) se complète sans retenir la
+     * normalisation.
+     *
+     * @return array<int, array{cle: string, libelle: string, ou: string}>
+     */
+    public function elementsNormalisationManquants(): array
+    {
+        $manquants = [];
+
+        if (blank($this->ncc)) {
+            $manquants[] = ['cle' => 'ncc', 'libelle' => 'Le NCC (numéro de compte contribuable)', 'ou' => 'fiscal'];
+        }
+
+        if (blank($this->regime_imposition)) {
+            $manquants[] = ['cle' => 'regime_imposition', 'libelle' => 'Le régime d\'imposition', 'ou' => 'fiscal'];
+        }
+
+        if ($this->exists && $this->pointsDeVente()->count() === 0) {
+            $manquants[] = ['cle' => 'point_de_vente', 'libelle' => 'Un point de vente déclaré sur votre espace FNE', 'ou' => 'points_de_vente'];
+        }
+
+        if ($this->exists && blank($this->fneCredential?->cleActive())) {
+            $manquants[] = [
+                'cle'     => 'acces_fne',
+                'libelle' => 'L\'accès FNE de l\'entreprise (identifiants de l\'espace DGI, activés par DC-Knowing)',
+                'ou'      => 'fiscal',
+            ];
+        }
+
+        return $manquants;
+    }
+
+    public function peutNormaliser(): bool
+    {
+        return $this->elementsNormalisationManquants() === [];
+    }
+
+    /**
      * Profils d'activité auxquels cette entreprise a souscrit.
      *
      * Une activité mixte en cumule plusieurs : une quincaillerie qui livre des

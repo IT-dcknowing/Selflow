@@ -437,16 +437,33 @@ class CreationDeCompteTest extends TestCase
         }
     }
 
-    public function test_un_ncc_mal_forme_est_refuse(): void
+    public function test_un_ncc_mal_forme_n_empeche_pas_de_creer_l_entreprise(): void
     {
         // Sept caractères alphanumériques suivis d'une lettre. `26032100` a la
-        // bonne longueur mais finit par un chiffre : c'est le cas qu'une simple
-        // vérification de taille laisserait passer.
+        // bonne longueur mais finit par un chiffre. L'étape 3 est facultative :
+        // le NCC mal formé est écarté, l'entreprise créée, et on le dit
+        // (retour de production du 15/10/2026 — l'inscription était refusée).
         $this->post(route('inscription.traitement'), $this->inscription([
             'possede_compte_fne' => '1',
-            'fne_ncc'            => '26032100',
-        ]))->assertSessionHasErrors('fne_ncc');
+            'fne_ncc'            => '2603',
+            'fne_mot_de_passe'   => 'secret-fne',
+        ]))->assertSessionHasNoErrors()
+            ->assertRedirect(route('admin.tableau_de_bord'))
+            ->assertSessionHas('avertissement', fn ($m) => str_contains($m, 'NCC « 2603 »'));
 
-        $this->assertDatabaseMissing('entreprises', ['nom' => 'Boutique du carrefour']);
+        $entreprise = Entreprise::where('nom', 'Boutique du carrefour')->firstOrFail();
+        $this->assertNull($entreprise->ncc);
+        $this->assertAuthenticated();
+    }
+
+    public function test_le_ncc_du_bloc_non_choisi_ne_compte_pas(): void
+    {
+        $this->post(route('inscription.traitement'), $this->inscription([
+            'possede_compte_fne' => '0',
+            'fne_ncc'            => 'abc',
+            'ncc'                => '2603210a',
+        ]))->assertSessionHasNoErrors()->assertSessionMissing('avertissement');
+
+        $this->assertSame('2603210A', Entreprise::where('nom', 'Boutique du carrefour')->value('ncc'));
     }
 }
