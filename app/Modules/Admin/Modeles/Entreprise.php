@@ -103,6 +103,7 @@ class Entreprise extends Model
         'abonnement_choisi_le'     => 'datetime',
         'abonnement_expire_le'     => 'datetime',
         'pass_cadeau_utilise_le'   => 'datetime',
+        'abonnement_demande_le'    => 'datetime',
         'quota_utilisateurs'       => 'integer',
         'timbre_quittance'   => 'boolean',
         'bapa'               => 'boolean',

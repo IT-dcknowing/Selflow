@@ -32,9 +32,9 @@ class ReferentielTest extends TestCase
     public function test_le_classeur_est_charge_en_entier(): void
     {
         $this->assertSame(12,  Categorie::count());
-        $this->assertSame(71,  Profil::count());
-        $this->assertSame(197, Famille::count());
-        $this->assertSame(616, Article::count());
+        $this->assertSame(72,  Profil::count()); // 71 du classeur + la poissonnerie (15/10/2026)
+        $this->assertSame(203, Famille::count());
+        $this->assertSame(638, Article::count());
         $this->assertSame(10,  TypeArticle::count());
         // 1 256 comptes OHADA, dont les 41 communs qui les recouvrent.
         $this->assertSame(1256, Compte::count());
@@ -157,7 +157,7 @@ class ReferentielTest extends TestCase
         }
     }
 
-    public function test_les_cinq_combinaisons_de_modules_couvrent_les_71_profils(): void
+    public function test_les_cinq_combinaisons_de_modules_couvrent_tous_les_profils(): void
     {
         // Cinq combinaisons sur seize possibles : le paramétrage à écrire est
         // bien plus petit que le nombre de profils ne le laisse craindre.
@@ -176,9 +176,9 @@ class ReferentielTest extends TestCase
         $this->seed(ReferentielSeeder::class);
         $this->seed(ReferentielSeeder::class);
 
-        $this->assertSame(71,  Profil::count());
-        $this->assertSame(197, Famille::count());
-        $this->assertSame(616, Article::count());
+        $this->assertSame(72,  Profil::count()); // 71 du classeur + la poissonnerie (15/10/2026)
+        $this->assertSame(203, Famille::count());
+        $this->assertSame(638, Article::count());
     }
 
     public function test_tout_compte_du_referentiel_recoit_un_intitule(): void

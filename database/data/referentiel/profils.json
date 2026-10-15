@@ -779,5 +779,16 @@
   "module_chantiers": true,
   "module_cycles": false,
   "note_gestion": "Comptabilité par projet et par bailleur (fonds affectés) : le module « chantiers » sert de suivi par projet (budget, dépenses, taux d'exécution, reporting bailleur). Les entités à but non lucratif relèvent du référentiel SYCEBNL de l'OHADA : faire valider le paramétrage des comptes par le comptable. Les fonds affectés non consommés sont reportés, pas des excédents libres."
+ },
+ {
+  "code": "poissonnerie",
+  "nom": "Poissonnerie",
+  "categorie": "Commerce",
+  "description": "Vente de poisson frais, congelé, fumé ou séché, et de fruits de mer, au détail ou en demi-gros.",
+  "module_stock": true,
+  "module_production": false,
+  "module_chantiers": false,
+  "module_cycles": false,
+  "note_gestion": "Produits périssables : suivre les lots et les dates (congélation), vendre au kilo ; la glace et les emballages sont des consommables."
  }
 ]

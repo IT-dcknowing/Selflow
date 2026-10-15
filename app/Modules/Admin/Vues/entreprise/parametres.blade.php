@@ -93,6 +93,7 @@
                 'rejets'     => ['Pièces refusées', 'fa-triangle-exclamation'],
             ],
             "L'entreprise" => [
+                'facturation' => ['Facturation', 'fa-file-invoice-dollar'],
                 'identite'   => ['Identité', 'fa-info-circle'],
                 'fiscal'     => ['Identité fiscale', 'fa-file-invoice'],
                 'exercices'  => ['Exercices comptables', 'fa-calendar-alt'],
@@ -274,6 +275,12 @@
             <span
                 style="background:#FCD34D;color:#92400E;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;">{{ $entreprise->nom === '[PENDING_ONBOARDING]' ? 'Démarrage' : 'En cours' }}</span>
         </div>
+    @endif
+
+    {{-- La facturation de l'abonnement (15/10/2026) : hors du formulaire des
+         paramètres, ses propres boutons envoient leurs propres demandes. --}}
+    @if(auth()->user()->role === 'admin')
+        @include('admin::abonnements.partials.facturation', ['entreprise' => $entreprise])
     @endif
 
     <form method="POST" action="{{ route('admin.entreprise.parametres.enregistrer') }}" enctype="multipart/form-data">

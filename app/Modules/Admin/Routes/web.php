@@ -22,7 +22,7 @@ use App\Modules\Admin\Controleurs\SuperadminLiaisonControleur;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')
-    ->middleware(['auth', 'role:admin', 'habilitation', 'apercu.readonly', 'periode'])
+    ->middleware(['auth', 'role:admin', 'habilitation', 'apercu.readonly', 'periode', 'abonnement.actif'])
     ->name('admin.')
     ->group(function () {
 
@@ -562,7 +562,7 @@ Route::prefix('admin/visite')
 // propre parcours de configuration.
 // ───────────────────────────────────────────────────────────────────────
 Route::prefix('admin/souscription')
-    ->middleware(['auth', 'role:admin'])
+    ->middleware(['auth', 'role:admin', 'abonnement.actif'])
     ->name('admin.souscription.')
     ->group(function () {
         Route::get('/', [\App\Modules\Admin\Controleurs\SouscriptionControleur::class, 'index'])->name('index');
@@ -581,6 +581,7 @@ Route::prefix('admin/abonnement')
     ->group(function () {
         Route::get('/', [\App\Modules\Admin\Controleurs\AbonnementControleur::class, 'choisir'])->name('choisir');
         Route::post('/', [\App\Modules\Admin\Controleurs\AbonnementControleur::class, 'enregistrer'])->name('enregistrer');
+        Route::post('/renouveler', [\App\Modules\Admin\Controleurs\AbonnementControleur::class, 'renouveler'])->name('renouveler');
     });
 
 // ───────────────────────────────────────────────────────────────────────
@@ -717,7 +718,7 @@ Route::prefix('superadmin')
 // Routes pour l'interface Caissier (Point de Vente)
 // ───────────────────────────────────────────────────────────────────────
 Route::prefix('caissier')
-    ->middleware(['auth', 'role:admin,caissier', 'caissier.acces', 'habilitation', 'apercu.readonly', 'periode'])
+    ->middleware(['auth', 'role:admin,caissier', 'caissier.acces', 'habilitation', 'apercu.readonly', 'periode', 'abonnement.actif'])
     ->name('caissier.')
     ->group(function () {
         // Le tableau de bord du caissier est l'écran de caisse/nouvelle vente

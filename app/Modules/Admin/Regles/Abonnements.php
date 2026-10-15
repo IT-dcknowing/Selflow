@@ -98,8 +98,10 @@ final class Abonnements
         $offre = self::offres()[$code];
 
         $valeurs = [
-            'plan_abonnement'      => $code,
-            'abonnement_choisi_le' => now(),
+            'plan_abonnement'       => $code,
+            'abonnement_choisi_le'  => now(),
+            'abonnement_demande'    => $code === self::PASS_CADEAU ? null : $code,
+            'abonnement_demande_le' => $code === self::PASS_CADEAU ? null : now(),
         ];
 
         if ($code === self::SUR_MESURE) {
@@ -116,8 +118,9 @@ final class Abonnements
             $valeurs['abonnement_expire_le'] = now()->addDays(self::DUREE_PASS_CADEAU_JOURS);
             $valeurs['pass_cadeau_utilise_le'] = now();
         } elseif (in_array($code, [self::SOLO, self::BUSINESS, self::PREMIUM], true)) {
+            // L'échéance ne bouge pas : seul le règlement la repousse
+            // (DC-Knowing aujourd'hui, le paiement en ligne bientôt).
             $valeurs['abonnement_statut'] = self::STATUT_A_REGLER;
-            $valeurs['abonnement_expire_le'] = null;
         }
 
         $entreprise->forceFill($valeurs)->save();
@@ -131,6 +134,54 @@ final class Abonnements
                 ))),
             ])->save();
         }
+    }
+
+    /** Rang des offres, pour savoir laquelle est « supérieure ». */
+    public const RANG = [
+        self::A_CHOISIR => 0, self::PASS_CADEAU => 0, self::SOLO => 1,
+        self::BUSINESS => 2, self::PREMIUM => 3, self::SUR_MESURE => 4,
+    ];
+
+    /**
+     * Ce que chaque offre apporte, carte par carte (15/10/2026).
+     *
+     * @return array<string, array<int, string>>
+     */
+    public static function avantages(): array
+    {
+        return [
+            self::PASS_CADEAU => ['Tout Selflow pendant ' . self::DUREE_PASS_CADEAU_JOURS . ' jours', 'Sans engagement, sans carte', 'Vos données sont gardées à la fin de l\'essai'],
+            self::SOLO => ['Caisse, factures et reçus', 'Stock et achats', 'Normalisation DGI (FNE)', 'Assistance par courriel'],
+            self::BUSINESS => ['Tout Solo, pour une équipe', 'Habilitations par employé', 'Plusieurs boutiques, stock par site', 'B2B entre entreprises Selflow', 'Assistance prioritaire'],
+            self::PREMIUM => ['Tout Business, sans limite', 'Sites et utilisateurs illimités', 'Production, consignations, immobilisations', 'Accompagnement à la mise en route'],
+            self::SUR_MESURE => ['Volumes et modules à la demande', 'Intégrations spécifiques', 'Interlocuteur dédié'],
+        ];
+    }
+
+    public static function estSuperieure(string $offre, ?string $actuelle): bool
+    {
+        return (self::RANG[$offre] ?? 0) > (self::RANG[$actuelle] ?? 0);
+    }
+
+    /**
+     * L'abonnement est-il arrivé à échéance ? L'entreprise voit alors son
+     * espace sans pouvoir rien y faire, jusqu'au renouvellement (15/10/2026).
+     */
+    public static function estATerme(?Entreprise $entreprise): bool
+    {
+        return $entreprise !== null
+            && $entreprise->abonnement_expire_le !== null
+            && now()->greaterThan($entreprise->abonnement_expire_le);
+    }
+
+    /** Jours avant l'échéance ; `null` sans échéance. */
+    public static function joursRestants(Entreprise $entreprise): ?int
+    {
+        if ($entreprise->abonnement_expire_le === null) {
+            return null;
+        }
+
+        return max(0, (int) ceil(now()->diffInHours($entreprise->abonnement_expire_le, false) / 24));
     }
 
     /** L'entreprise doit-elle encore choisir son offre ? */

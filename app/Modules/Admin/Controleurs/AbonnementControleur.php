@@ -44,7 +44,7 @@ class AbonnementControleur
         $offre = $donnees['offre'];
 
         if ($offre === Abonnements::PASS_CADEAU && $entreprise->pass_cadeau_utilise_le !== null) {
-            return back()->with('erreur', 'Le pass cadeau a déjà été utilisé par votre entreprise : il ne s\'offre qu\'une fois.');
+            return $this->retour($request)->with('erreur', 'Le pass cadeau a déjà été utilisé par votre entreprise : il ne s\'offre qu\'une fois.');
         }
 
         Abonnements::appliquer($entreprise, $offre);
@@ -60,7 +60,42 @@ class AbonnementControleur
                 . $this->contactsEnPhrase(),
         };
 
-        return redirect()->route('admin.tableau_de_bord')->with('succes', $message);
+        return $this->retour($request)->with('succes', $message);
+    }
+
+    /**
+     * Renouveler son offre avant l'échéance — ou après, pour sortir du
+     * blocage. Le paiement en ligne n'est pas encore branché : la demande est
+     * notée, DC-Knowing confirme le règlement et repousse l'échéance.
+     */
+    public function renouveler(Request $request): RedirectResponse
+    {
+        $entreprise = Auth::user()->entreprise;
+        abort_unless($entreprise, 403);
+
+        $offre = $entreprise->plan_abonnement;
+        if (! in_array($offre, [Abonnements::SOLO, Abonnements::BUSINESS, Abonnements::PREMIUM, Abonnements::SUR_MESURE], true)) {
+            return $this->retour($request)->with('erreur', 'Choisissez d\'abord une offre : le pass cadeau ne se renouvelle pas.');
+        }
+
+        $entreprise->forceFill([
+            'abonnement_demande'    => $offre,
+            'abonnement_demande_le' => now(),
+            'abonnement_statut'     => Abonnements::STATUT_A_REGLER,
+        ])->save();
+
+        return $this->retour($request)->with('succes',
+            'Demande de renouvellement de l\'offre « ' . Abonnements::libelle($offre) . ' » enregistrée. '
+            . 'Le paiement en ligne arrive bientôt ; d\'ici là, DC-Knowing vous contacte pour le règlement.'
+            . $this->contactsEnPhrase());
+    }
+
+    /** Depuis la section Facturation, on y revient ; sinon, au tableau de bord. */
+    private function retour(Request $request): RedirectResponse
+    {
+        return $request->input('depuis') === 'facturation'
+            ? redirect()->to(route('admin.entreprise.parametres') . '#facturation')
+            : redirect()->route('admin.tableau_de_bord');
     }
 
     private function donnees(): array
