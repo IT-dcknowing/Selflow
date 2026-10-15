@@ -889,6 +889,18 @@ class FneDashboardControleur
             ], 400);
         }
 
+        // La saisie n'exige aucune information fiscale ; la normalisation si.
+        $manquants = $entreprise->elementsNormalisationManquants();
+        if ($manquants !== []) {
+            return response()->json([
+                'success'   => false,
+                'manquants' => $manquants,
+                'message'   => 'Informations fiscales non renseignées : '
+                    . implode(' · ', array_column($manquants, 'libelle'))
+                    . '. Complétez-les dans Paramètres › Fiscalité avant de normaliser.',
+            ], 422);
+        }
+
         $successCount = 0;
         $errors = [];
 

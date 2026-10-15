@@ -171,8 +171,9 @@ class VenteControleur
         // la marchandise entre la pré-vérification et ici, un lot non
         // servable) tombaient en page « Panne » : la vente semblait ne pas
         // passer, sans un mot. La transaction est annulée ; on le dit.
+        $normalisationEcartee = false;
         try {
-        DB::transaction(function () use ($request, $pointDeVenteId, &$venteId, $entreprise) {
+        DB::transaction(function () use ($request, $pointDeVenteId, &$venteId, $entreprise, &$normalisationEcartee) {
             $montantHt = 0;
             $remiseTaux = self::tauxBorne($request->input('remise_taux', 0));
             $etape = $request->input('etape', 'Facture');
@@ -399,9 +400,18 @@ class VenteControleur
                 // La certification suit désormais le réglage de l'entreprise —
                 // dès l'émission, ou à la main après vérification. Une pièce
                 // certifiée ne se reprenant pas, le choix lui appartient.
+                //
+                // Sans situation fiscale (NCC, régime, accès FNE), la pièce
+                // s'enregistre et reste à normaliser : l'envoyer ne ferait
+                // qu'empiler un rejet. Le bouton « Normaliser » dira ce qui
+                // manque, au moment où on le demande.
                 if ($entreprise->normaliseAutomatiquement($vente)) {
-                    // En arrière-plan : n'attendons pas la réponse de la DGI.
-                    NormaliserFactureFne::dispatch($vente);
+                    if ($entreprise->peutNormaliser()) {
+                        // En arrière-plan : n'attendons pas la réponse de la DGI.
+                        NormaliserFactureFne::dispatch($vente);
+                    } else {
+                        $normalisationEcartee = true;
+                    }
                 }
 
                 // Écritures de facturation (+ règlement immédiat le cas échéant).
@@ -485,7 +495,8 @@ class VenteControleur
         // la validation de l'enregistrement ». Le message nomme la pièce et
         // disparaît en trois secondes.
         return redirect()->route($routeRetour, ['etape' => $etape])
-            ->with('succes', $piece . ' enregistré(e) avec succès.')
+            ->with('succes', $piece . ' enregistré(e) avec succès.'
+                . (!empty($normalisationEcartee) ? ' Non normalisée : informations fiscales à compléter.' : ''))
             ->with('succes_duree', 3000)
             ->with('vente_enregistree', true);
     }
@@ -1543,6 +1554,15 @@ class VenteControleur
 
         if ($vente->etape !== 'Facture') {
             return back()->with('erreur', 'Seules les factures finalisées peuvent être normalisées.');
+        }
+
+        // Ce qui manque est dit, avec de quoi le remplir : la saisie n'exige
+        // aucune information fiscale, la normalisation si.
+        $manquants = $vente->pointDeVente->entreprise->elementsNormalisationManquants();
+        if ($manquants !== []) {
+            return back()
+                ->with('normalisation_impossible', $manquants)
+                ->with('normalisation_impossible_piece', $vente->numero_facture);
         }
 
         NormaliserFactureFne::dispatchSync($vente);

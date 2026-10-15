@@ -1686,13 +1686,14 @@
              page de paramètres de trois écrans de haut et cherchait. --}}
         @php
             $manquants = Auth::check() && Auth::user()->entreprise
-                ? Auth::user()->entreprise->elementsInscriptionManquants()
+                ? Auth::user()->entreprise->elementsBloquantsLaSaisie()
                 : [];
         @endphp
 
+        {{-- Seul le point de vente retient la saisie : la situation fiscale
+             n'est réclamée qu'à la normalisation (modale suivante). --}}
         <p style="color:#64748B; font-size:14px; line-height:1.6; margin-bottom:18px; font-family:'Inter', sans-serif;">
-            Ces éléments partent avec chaque facture à la plateforme de la DGI. Tant qu'ils manquent,
-            aucune vente ni aucun achat ne peut être enregistré.
+            Chaque vente et chaque achat se rattache à un point de vente. Créez-en un pour commencer.
         </p>
 
         @if($manquants)
@@ -1725,6 +1726,55 @@
         </div>
     </div>
 </div>
+
+{{-- ── MODALE : NORMALISATION IMPOSSIBLE, INFORMATIONS FISCALES MANQUANTES ──
+     Ventes, achats et factures s'enregistrent sans situation fiscale ; c'est
+     la normalisation qui la réclame, et elle dit précisément quoi
+     (retour de production du 15/10/2026). --}}
+<script>
+/**
+ * « Informations fiscales non renseignées » — Remplir / Fermer.
+ * Appelée au retour d'une normalisation refusée (session) comme par les
+ * normalisations par lot (réponse JSON `manquants`).
+ */
+window.afficherNormalisationImpossible = function (manquants, piece) {
+    var ancienne = document.getElementById('modale-normalisation-impossible');
+    if (ancienne) ancienne.remove();
+    manquants = manquants || [];
+    var premier = (manquants[0] && manquants[0].ou) || 'fiscal';
+    var lien = premier === 'points_de_vente'
+        ? @json(route('admin.pdv.index'))
+        : @json(route('admin.entreprise.parametres')) + '#' + premier;
+    var echapper = function (t) { var d = document.createElement('div'); d.textContent = t; return d.innerHTML; };
+    var liste = manquants.map(function (m) { return '<li>' + echapper(m.libelle) + '</li>'; }).join('');
+    var intro = piece
+        ? 'La pièce ' + echapper(piece) + ' est bien enregistrée, mais elle ne peut pas être normalisée auprès de la DGI tant que manquent :'
+        : 'La normalisation auprès de la DGI attend :';
+    var fond = document.createElement('div');
+    fond.id = 'modale-normalisation-impossible';
+    fond.setAttribute('role', 'dialog');
+    fond.setAttribute('aria-modal', 'true');
+    fond.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(6px);z-index:99998;display:flex;align-items:center;justify-content:center;padding:20px;';
+    fond.innerHTML =
+        '<div style="background:#fff;border-radius:16px;width:100%;max-width:480px;box-shadow:0 25px 50px -12px rgba(0,0,0,.25);padding:32px;text-align:center;font-family:Inter,sans-serif;">'
+      + '<div style="width:56px;height:56px;border-radius:14px;background:#FEF3C7;color:#D97706;display:inline-flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:16px;"><i class="fas fa-file-shield"></i></div>'
+      + '<h2 style="font-size:19px;font-weight:800;color:#1E293B;margin-bottom:8px;">Informations fiscales non renseignées</h2>'
+      + '<p style="color:#64748B;font-size:14px;line-height:1.6;margin-bottom:16px;">' + intro + '</p>'
+      + '<ul style="text-align:left;margin:0 0 22px;padding:12px 16px 12px 34px;background:#FEF3C7;border:1px solid #FCD34D;border-radius:10px;color:#92400E;font-size:13.5px;line-height:1.8;">' + liste + '</ul>'
+      + '<div style="display:flex;gap:12px;">'
+      + '<button type="button" id="btn-fermer-normalisation-impossible" style="flex:1;padding:12px;background:#F1F5F9;color:#475569;font-weight:600;border:none;border-radius:10px;font-size:14px;cursor:pointer;">Fermer</button>'
+      + '<a href="' + lien + '" id="btn-remplir-normalisation-impossible" style="flex:1;padding:12px;background:#002B5C;color:#fff;font-weight:600;border-radius:10px;font-size:14px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;"><i class="fas fa-pen"></i> Remplir</a>'
+      + '</div></div>';
+    document.body.appendChild(fond);
+    fond.querySelector('#btn-fermer-normalisation-impossible').onclick = function () { fond.remove(); };
+    fond.addEventListener('click', function (e) { if (e.target === fond) fond.remove(); });
+};
+@if(session('normalisation_impossible'))
+document.addEventListener('DOMContentLoaded', function () {
+    window.afficherNormalisationImpossible(@json(array_values((array) session('normalisation_impossible'))), @json(session('normalisation_impossible_piece')));
+});
+@endif
+</script>
 
 <script>
 function fermerModalIncomplet() {
@@ -1760,7 +1810,7 @@ document.addEventListener('DOMContentLoaded', () => {
 @endif
 
 // Intercepter également au clic côté client si l'inscription est incomplète
-@if(Auth::check() && Auth::user()->entreprise && !Auth::user()->entreprise->estInscriptionComplete())
+@if(Auth::check() && Auth::user()->entreprise && Auth::user()->entreprise->elementsBloquantsLaSaisie() !== [])
 document.addEventListener('DOMContentLoaded', () => {
     // Cibler tous les liens ou boutons pointant vers les ventes ou achats
     document.querySelectorAll('a, button').forEach(el => {

@@ -364,7 +364,10 @@ class AchatControleur
         });
 
         // Si c'est un achat de type BAPA, normalisation BAPA asynchrone
-        if ($achat && $achat->etape === 'Facture' && $achat->type_facture === 'bapa') {
+        // Sans situation fiscale, le bordereau s'enregistre et reste à
+        // normaliser : le bouton « Normaliser » dira ce qui manque.
+        if ($achat && $achat->etape === 'Facture' && $achat->type_facture === 'bapa'
+            && Auth::user()->entreprise->peutNormaliser()) {
             NormaliserAchatBapaJob::dispatch($achat);
         }
 
@@ -875,7 +878,7 @@ class AchatControleur
         $achat->refresh();
 
         // La certification du bordereau : seulement pour un bordereau.
-        if ($achat->type_facture === 'bapa') {
+        if ($achat->type_facture === 'bapa' && Auth::user()->entreprise->peutNormaliser()) {
             NormaliserAchatBapaJob::dispatch($achat);
         }
 
@@ -906,6 +909,13 @@ class AchatControleur
 
         if ($achat->etape !== 'Facture') {
             return back()->with('erreur', 'Seules les factures finalisées peuvent être normalisées.');
+        }
+
+        $manquants = $achat->pointDeVente->entreprise->elementsNormalisationManquants();
+        if ($manquants !== []) {
+            return back()
+                ->with('normalisation_impossible', $manquants)
+                ->with('normalisation_impossible_piece', $achat->numero_facture);
         }
 
         NormaliserAchatBapaJob::dispatchSync($achat);

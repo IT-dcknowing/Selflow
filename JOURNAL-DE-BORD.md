@@ -8043,6 +8043,45 @@ pour les négociations déjà ouvertes, mais n'est plus proposé à l'écran.
 
 ---
 
+### Lot 76 — Inscription sans blocage, la fiscalité réclamée à la normalisation — **TERMINÉ le 15/10/2026**
+
+Branche `inscription-sans-blocage-fiscal`. Retour **urgent** du propriétaire le
+15/10 : à l'inscription, l'étape 3 « facultative » refusait de créer
+l'entreprise (« Le NCC doit comporter exactement 8 caractères ») dès qu'on
+avait coché « J'ai déjà un compte FNE » sans finir. **Aucun fichier gelé
+touché** : le contrôle vit dans les contrôleurs, avant l'appel des tâches.
+
+**Décision du propriétaire** : on doit pouvoir tenir son stock, acheter,
+vendre et facturer sans aucune information fiscale ; le blocage est à la
+normalisation, avec un message qui dit ce qui manque et deux boutons,
+« Remplir » et « Fermer ».
+
+- **Inscription** : une donnée fiscale mal formée (NCC, régime, champ trop
+  long) est écartée, l'entreprise créée, et un avertissement le dit. Seul
+  compte le NCC du bloc choisi (« j'ai un compte » ou « je n'en ai pas »).
+- **Saisie** : le garde `inscription.complete` ne retient plus ventes et
+  achats que faute de **point de vente** (`Entreprise::elementsBloquantsLaSaisie`) ;
+  NCC, RCCM, régime, adresse, domaine n'y sont plus. Bannières et modale reformulées.
+- **Normalisation** : `Entreprise::elementsNormalisationManquants()` — NCC,
+  régime, point de vente, accès FNE actif. Normalisation manuelle (vente,
+  achat), par lot (JSON `manquants`, 422) : modale « Informations fiscales non
+  renseignées » (`window.afficherNormalisationImpossible`) avec Remplir →
+  Paramètres › Fiscalité. Normalisation automatique (caisse, facturation
+  d'une commande, B2B, API, bordereau d'achat) : la pièce s'enregistre et
+  reste à normaliser, sans empiler de rejet ; la caisse le dit dans son message.
+- **NCC posé plus tard** : les impressions lisent le NCC de l'entreprise au
+  moment de l'impression ; les factures déjà faites le portent dès qu'il est
+  renseigné (épreuve ajoutée, rien à changer).
+
+Épreuves redressées : `CreationDeCompteTest` (un NCC mal formé **ne refuse
+plus** l'inscription), `NormalisationAutomatiqueTest` (l'entreprise reçoit un
+accès FNE, désormais exigé avant l'envoi).
+
+- `SaisieSansSituationFiscaleTest` (7).
+- Suite : 1 740 épreuves, 1 735 passantes, 5 sautées ; `verifier:variables` propre.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

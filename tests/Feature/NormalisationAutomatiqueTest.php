@@ -57,6 +57,12 @@ class NormalisationAutomatiqueTest extends TestCase
             'modules_actifs'    => ['principal', 'ventes', 'achats', 'stock', 'produits', 'tiers'],
         ]);
 
+        // L'accès FNE fait partie de ce que la normalisation réclame : sans
+        // lui, la pièce s'enregistre et reste à normaliser.
+        \App\Modules\Admin\Modeles\FneCredential::create([
+            'entreprise_id' => $this->entreprise->id, 'cle_test' => 'fne_test_cle', 'statut' => 'test',
+        ]);
+
         $this->magasin = PointDeVente::create([
             'entreprise_id' => $this->entreprise->id,
             'nom' => 'Magasin central', 'ville' => 'Abidjan', 'commune' => 'Plateau',

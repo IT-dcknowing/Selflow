@@ -361,7 +361,10 @@ class B2bControleur extends Controller
             }
 
             // Normalisation FNE en arrière-plan (Section 18.5)
-            NormaliserFactureFne::dispatch($vente, false);
+            // Sans situation fiscale, la facture reste à normaliser.
+            if (\App\Modules\Admin\Modeles\Entreprise::find($entrepriseId)?->peutNormaliser()) {
+                NormaliserFactureFne::dispatch($vente, false);
+            }
 
             // Comptabilisation de la vente chez le fournisseur : décide seule si
             // vente comptant (aucune ligne 411) ou à crédit (411 pour le TTC).

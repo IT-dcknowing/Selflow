@@ -389,7 +389,8 @@ class FacturationCommandeService
 
             // ── La certification suit le réglage de l'entreprise, comme à la
             //    caisse : dès l'émission, ou à la main après vérification. ──
-            if ($entreprise->normaliseAutomatiquement($facture)) {
+            // Sans situation fiscale, la facture reste à normaliser.
+            if ($entreprise->normaliseAutomatiquement($facture) && $entreprise->peutNormaliser()) {
                 $estRne = empty($facture->client_id);
                 NormaliserFactureFne::dispatch($facture, $estRne);
             }

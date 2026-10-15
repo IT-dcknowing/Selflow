@@ -1476,6 +1476,12 @@ function lancerBatchNormalisation() {
     })
     .then(r => r.json())
     .then(data => {
+        if (data.manquants && window.afficherNormalisationImpossible) {
+            window.afficherNormalisationImpossible(data.manquants);
+            btn.disabled = false;
+            btn.innerHTML = oldHtml;
+            return;
+        }
         if (data.success) {
             alert(`Succès ! ${data.success_count} facture(s) normalisée(s) avec succès.`);
             window.location.reload();
@@ -1595,6 +1601,11 @@ function traiterParTranches(ids, flux) {
         })
         .then(r => r.json())
         .then(data => {
+            if (data.manquants && window.afficherNormalisationImpossible) {
+                window.afficherNormalisationImpossible(data.manquants);
+                terminer(null);
+                return;
+            }
             traites += data.success_count ?? lot.length;
             if (data.errors && data.errors.length) erreurs.push(...data.errors);
             majProgression(null);

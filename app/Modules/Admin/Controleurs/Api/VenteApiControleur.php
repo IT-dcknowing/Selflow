@@ -269,7 +269,8 @@ class VenteApiControleur
             }
 
             // Normalisation FNE DGI-CI en arrière-plan
-            if ($etape === 'Facture') {
+            // Sans situation fiscale, la facture reste à normaliser.
+            if ($etape === 'Facture' && $vente->pointDeVente->entreprise->peutNormaliser()) {
                 $estRne = empty($request->client_id) || ($request->client_id == 'divers');
                 NormaliserFactureFne::dispatch($vente, $estRne);
             }
