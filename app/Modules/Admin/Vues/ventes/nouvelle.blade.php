@@ -205,8 +205,31 @@
     .barre-pas-resume { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-2); }
     .barre-pas-resume strong { color: var(--text); }
     .barre-pas-sep { color: var(--text-3); }
+    /* La ligne choisie s'ouvre en boîte, comme une ligne de commande d'Odoo :
+       quantité, unité, remise, code TVA et total se règlent sur place, sans
+       attendre l'étape 4 (retour du 15/10/2026 : « impossible de voir la TVA,
+       la remise »). Les lignes libres ont la même boîte, au-dessus du catalogue. */
+    .boite-ligne, .produit-fisc, .lignes-libres-pas { display: none; }
+    .vente-pas-a-pas .produit-card { grid-template-areas: "nom stock prix action" "cat stock prix action" "fisc fisc fisc fisc" "boite boite boite boite"; }
+    .vente-pas-a-pas .produit-fisc { grid-area: fisc; display: block; font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
+    .vente-pas-a-pas .produit-card.dans-panier .boite-ligne { grid-area: boite; display: flex; }
+    .vente-pas-a-pas .produit-card.dans-panier .produit-fisc { display: none; }
+    .vente-pas-a-pas[data-pas-courant="1"] .lignes-libres-pas:not(:empty) { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+    .boite-ligne {
+        flex-wrap: wrap; align-items: flex-end; gap: 10px 14px; margin-top: 10px; padding: 10px 12px;
+        background: var(--bg2); border: 1px solid #bfdbfe; border-radius: 10px; cursor: default;
+    }
+    .boite-ligne label { display: flex; flex-direction: column; gap: 3px; font-size: 10.5px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .03em; }
+    .boite-ligne input, .boite-ligne select { height: 32px; font-size: 13px; padding: 4px 8px; }
+    .boite-ligne .boite-total { margin-left: auto; text-align: right; font-size: 11px; color: var(--text-3); }
+    .boite-ligne .boite-total strong { display: block; font-size: 16px; color: var(--text); }
+    .boite-ligne .boite-retirer { border: none; background: none; color: var(--danger); cursor: pointer; font-size: 14px; padding: 6px; }
+    .boite-ligne .boite-taxes { flex-basis: 100%; font-size: 11px; color: var(--text-3); }
+    .ligne-libre-pas { border: 1px solid var(--primary); background: #eff6ff; border-radius: 10px; padding: 10px 16px; box-shadow: inset 4px 0 0 var(--primary); }
+    .ligne-libre-pas .ligne-libre-nom { font-weight: 700; font-size: 14px; }
+    .ligne-libre-pas .boite-ligne { display: flex; }
     @media (max-width: 760px) {
-        .vente-pas-a-pas .produit-card { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nom prix" "cat action" "stock action"; }
+        .vente-pas-a-pas .produit-card { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nom prix" "cat action" "stock action" "fisc fisc" "boite boite"; }
     }
     /* ── Présentation « Pas à pas » (retest d'octobre 2026) ─────────────
        Le même formulaire, découpé : chaque bloc dit à quelle(s) étape(s) il
@@ -300,6 +323,11 @@
                 {{-- Recherche --}}
                 <input type="text" id="rechercheInput" class="form-control search-produit" placeholder="🔍 Rechercher un produit…">
 
+                {{-- Les lignes libres (service, article hors catalogue), en
+                     présentation « Pas à pas » : sans elles, l'étape 1 les
+                     cachait, le panier latéral n'y étant pas affiché. --}}
+                <div class="lignes-libres-pas" id="lignesLibresPas"></div>
+
                 {{-- Grille produits --}}
                 <div class="produit-grid" id="grilleProduits">
                     @foreach($produits as $produit)
@@ -345,6 +373,14 @@
                             <button type="button" class="ligne-plus" onclick="ajouterAuPanier(this.closest('.produit-card'))" aria-label="Ajouter un">+</button>
                             <button type="button" class="ligne-ajouter" onclick="ajouterAuPanier(this.closest('.produit-card'))"><i class="fas fa-plus"></i> Ajouter</button>
                         </div>
+                        {{-- Ce que la fiche porte, lisible avant d'ajouter ; une
+                             fois ajoutée, la ligne s'ouvre en boîte réglable. --}}
+                        <div class="produit-fisc">
+                            TVA {{ rtrim(rtrim(number_format((float) $produit->taux_tva, 2, ',', ''), '0'), ',') }} %
+                            @if((float) ($produit->remise_taux ?? 0) > 0) · Remise {{ rtrim(rtrim(number_format((float) $produit->remise_taux, 2, ',', ''), '0'), ',') }} % @endif
+                            @foreach($produit->taxes as $taxe) · {{ $taxe->nom }} {{ (float) $taxe->taux }} % @endforeach
+                        </div>
+                        <div class="boite-ligne" onclick="event.stopPropagation()"></div>
                     </div>
                     @endforeach
                 </div>
@@ -1830,6 +1866,62 @@ document.getElementById('formVente').addEventListener('submit', function(e) {
 
 /* Étape 1 en liste : chaque ligne dit combien elle est dans le panier, et la
    barre du bas reprend le nombre d'articles et le net à payer. */
+/**
+ * La boîte d'une ligne choisie : quantité, unité, remise, code TVA, total.
+ *
+ * Construite une fois, puis seulement mise à jour : la reconstruire à chaque
+ * frappe ferait perdre le champ en cours de saisie. Elle passe par les mêmes
+ * fonctions que le panier de la caisse — un seul calcul, un seul envoi.
+ */
+function remplirBoite(boite, id, item) {
+    if (!item) {
+        boite.innerHTML = '';
+        delete boite.dataset.pret;
+        return;
+    }
+    // Entre apostrophes : l'attribut est entre guillemets.
+    const cle = "'" + String(id).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+    if (!boite.dataset.pret) {
+        boite.innerHTML = `
+            <label>Quantité
+                <input type="number" class="form-control" data-champ="qte" min="0.001" step="0.001" style="width:90px;"
+                       onchange="saisirQte(${cle}, this.value)">
+            </label>
+            <label>Unité
+                <input type="text" class="form-control" data-champ="unite" style="width:90px;"
+                       onchange="saisirUnite(${cle}, this.value)">
+            </label>
+            <label>Prix unitaire
+                <span class="form-control" data-champ="prix" style="width:110px; display:flex; align-items:center; background:transparent;"></span>
+            </label>
+            <label>Remise (%)
+                <input type="number" class="form-control" data-champ="remise" min="0" max="100" step="0.01" style="width:80px;"
+                       oninput="saisirRemiseLigne(${cle}, this.value)">
+            </label>
+            <label>TVA <span data-champ="tva"></span></label>
+            <div class="boite-total">Total HT de la ligne<strong data-champ="total"></strong></div>
+            <button type="button" class="boite-retirer" title="Retirer la ligne" onclick="supprimerItem(${cle})"><i class="fas fa-trash"></i></button>
+            <div class="boite-taxes" data-champ="taxes"></div>`;
+        boite.dataset.pret = '1';
+    }
+    const actif = document.activeElement;
+    const poser = function (champ, valeur) {
+        const el = boite.querySelector(`[data-champ="${champ}"]`);
+        if (el && el !== actif) el.value = valeur;
+    };
+    poser('qte', item.qte);
+    poser('unite', item.unite || 'Unité');
+    poser('remise', parseFloat(item.remise_taux || 0));
+    boite.querySelector('[data-champ="prix"]').textContent = formatFcfa(item.prix);
+    const tva = boite.querySelector('[data-champ="tva"]');
+    if (!tva.contains(actif)) tva.innerHTML = selecteurCodeTva(id, item) + alerteCodeTva(item);
+    const remise = parseFloat(item.remise_taux || 0);
+    boite.querySelector('[data-champ="total"]').textContent = formatFcfa(item.prix * item.qte * (1 - remise / 100));
+    boite.querySelector('[data-champ="taxes"]').textContent = (item.taxes || []).length
+        ? 'Autres taxes : ' + item.taxes.map(t => `${t.nom} ${t.taux} %`).join(' · ')
+        : '';
+}
+
 function majSelectionPasAPas() {
     let nb = 0;
     document.querySelectorAll('#grilleProduits .produit-card').forEach(function (card) {
@@ -1837,7 +1929,30 @@ function majSelectionPasAPas() {
         card.classList.toggle('dans-panier', !!item);
         const qte = card.querySelector('.ligne-qte');
         if (qte) qte.textContent = item ? item.qte : 0;
+        const boite = card.querySelector('.boite-ligne');
+        if (boite) remplirBoite(boite, card.dataset.id, item);
     });
+
+    // Les lignes libres n'ont pas de carte au catalogue : elles ont la leur.
+    const libres = document.getElementById('lignesLibresPas');
+    if (libres) {
+        const virtuels = Object.keys(panier).filter(k => panier[k].isVirtual);
+        libres.querySelectorAll('.ligne-libre-pas').forEach(function (el) {
+            if (!panier[el.dataset.id]) el.remove();
+        });
+        virtuels.forEach(function (k) {
+            let el = libres.querySelector(`.ligne-libre-pas[data-id="${CSS.escape(k)}"]`);
+            if (!el) {
+                el = document.createElement('div');
+                el.className = 'ligne-libre-pas';
+                el.dataset.id = k;
+                el.innerHTML = '<div class="ligne-libre-nom"></div><div class="boite-ligne"></div>';
+                libres.appendChild(el);
+            }
+            el.querySelector('.ligne-libre-nom').textContent = panier[k].nom + ' — saisie libre';
+            remplirBoite(el.querySelector('.boite-ligne'), k, panier[k]);
+        });
+    }
     Object.keys(panier).forEach(function (k) { nb += 1; });
     const nbEl = document.getElementById('barrePasNb');
     if (nbEl) nbEl.textContent = nb + (nb > 1 ? ' articles' : ' article');

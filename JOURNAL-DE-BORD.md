@@ -8109,6 +8109,33 @@ est proposée au plan, non engagée.
 
 ---
 
+### Lot 78 — Pas à pas, étape 1 : chaque ligne en boîte réglable — **TERMINÉ le 15/10/2026**
+
+Branche `pas-a-pas-lignes-en-boites`. Retour du propriétaire le 15/10 (image 1) :
+la liste de l'étape 1 ne montrait plus la TVA ni la remise, que le panier de
+la caisse permettait de régler ; inspiration demandée : Odoo.
+
+- Chaque ligne du catalogue affiche ce que porte la fiche (TVA, remise,
+  autres taxes) avant d'être ajoutée.
+- Ajoutée, elle s'ouvre en **boîte** : quantité, unité, prix unitaire,
+  remise (%), code TVA DGI (même liste que la caisse, mêmes alertes hors
+  barème), total HT de la ligne, retrait. La boîte appelle les fonctions du
+  panier de la caisse (`saisirQte`, `saisirUnite`, `saisirRemiseLigne`,
+  `saisirCodeTvaLigne`, `supprimerItem`) : un seul calcul, un seul envoi ;
+  elle n'est jamais reconstruite sous le champ en cours de saisie.
+- Les **lignes libres** (service, article hors catalogue) étaient invisibles à
+  l'étape 1, le panier latéral y étant masqué : elles ont désormais leur boîte
+  au-dessus du catalogue.
+
+Rien ne change côté serveur ni FNE (la liste des codes TVA est lue, pas
+modifiée).
+
+- `VentePasAPasTest` +1. Vérifié dans Chromium (quantité 3, remise 10 %, TVAB :
+  panier, champs envoyés et net à payer suivent).
+- Suite : 1 743 épreuves, 1 738 passantes, 5 sautées ; `verifier:variables` propre.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

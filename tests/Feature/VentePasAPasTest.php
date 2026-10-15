@@ -34,6 +34,11 @@ class VentePasAPasTest extends TestCase
             'role' => 'admin', 'entreprise_id' => $entreprise->id, 'point_de_vente_id' => $site->id,
         ]);
 
+        \App\Modules\Admin\Modeles\Produit::create([
+            'entreprise_id' => $entreprise->id, 'reference' => 'SRV-1', 'nom' => 'Lavage complet',
+            'type' => 'service', 'unite' => 'u', 'prix_achat' => 0, 'prix_vente' => 20000, 'taux_tva' => 18,
+        ]);
+
         return $this->actingAs($admin)->withSession(['point_de_vente_actif_id' => $site->id])
             ->get(route('admin.ventes.nouvelle'))->assertOk()->getContent();
     }
@@ -79,6 +84,24 @@ class VentePasAPasTest extends TestCase
         $this->assertStringContainsString('id="barrePasNet"', $html);
         $this->assertStringContainsString('.vente-pas-a-pas[data-pas-courant="1"] .colonne-panier { display: none; }', $html);
         $this->assertStringContainsString('renderPanier = function () { renderPanierCaisse(); majSelectionPasAPas(); };', $html);
+    }
+
+    public function test_chaque_ligne_choisie_s_ouvre_en_boite_reglable(): void
+    {
+        $html = $this->page();
+
+        // Avant d'ajouter : la TVA de la fiche se lit sur la ligne.
+        $this->assertStringContainsString('class="produit-fisc"', $html);
+        $this->assertMatchesRegularExpression('/TVA 18 %/', $html);
+        // Une fois ajoutée : quantité, unité, remise, code TVA et total, par
+        // les mêmes fonctions que le panier de la caisse.
+        $this->assertStringContainsString('class="boite-ligne"', $html);
+        $this->assertStringContainsString('function remplirBoite(boite, id, item)', $html);
+        foreach (['saisirQte(${cle}', 'saisirUnite(${cle}', 'saisirRemiseLigne(${cle}', 'selecteurCodeTva(id, item)', 'supprimerItem(${cle})'] as $appel) {
+            $this->assertStringContainsString($appel, $html);
+        }
+        // Les lignes libres ne disparaissent plus à l'étape 1.
+        $this->assertStringContainsString('id="lignesLibresPas"', $html);
     }
 
     public function test_revenir_en_arriere_dans_le_parcours_garde_le_clic_sur_le_domaine(): void
