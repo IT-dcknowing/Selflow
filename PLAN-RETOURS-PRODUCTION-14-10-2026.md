@@ -33,6 +33,8 @@ deux dépôts une fois la suite verte.
 | 81 Offres d'abonnement | **Terminé** | `acb6b06` |
 | 82 Habilitations mises à jour (urgent) | **Terminé** | `fe83cf4` |
 | 83 Facturation, échéance, métier Poissonnerie | **Terminé** | `b985ccd` |
+| 84 Suppression d'une entreprise (erreur 500 en production) | **Terminé** | `67f2c58` |
+| 85 Parcours dans la section, fin du pass cadeau | **Terminé** | `4d821d1` |
 
 **Le plan chiffré vit dans `PLAN-RETOURS-PRODUCTION.xlsx`**, à part du plan de
 correction (même modèle, mêmes couleurs).
@@ -170,3 +172,11 @@ offre payante reste « à régler ») et ce qui se passe à la fin du pass cadea
 
 **Attendu** : l'API de paiement. D'ici là, une demande de renouvellement est
 notée et DC-Knowing repousse l'échéance depuis la fiche de l'entreprise.
+
+## Retours du 15/10/2026 (suite)
+
+| Retour | Fait |
+|---|---|
+| Fin du pass cadeau : bloquer ? | **oui** — l'accès est bloqué à la fin des 7 jours (lot 83, épreuve au lot 85) |
+| « Suivant » du domaine bloquait la page | lot 85 : le parcours se déroule dans la section, sans soumettre |
+| Erreur 500 à la suppression d'une entreprise | lot 84 ; **« eve disagn » a perdu ses utilisateurs avant l'erreur : relancer sa suppression une fois déployé** |
