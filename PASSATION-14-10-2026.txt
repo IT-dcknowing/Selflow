@@ -136,3 +136,13 @@ Aucun fichier du périmètre FNE gelé n'a été modifié.
   puis php artisan db:seed --class=ReferentielSeeder (pour la poissonnerie).
 - Pour débloquer une entreprise à terme après règlement : Superadmin ›
   Entreprises › Configurer › « Fin de l'offre » à une date future.
+
+
+9. SUITE DU 15/10/2026 — lots 84 et 85
+--------------------------------------
+- 84 Suppression d'une entreprise en une transaction. En production,
+  « eve disagn » est restée sans utilisateurs après l'erreur : relancer sa
+  suppression depuis Superadmin › Entreprises une fois déployé.
+- 85 Le parcours se déroule dans la section « Domaine d'activité » de la
+  création ; la fin du pass cadeau bloque l'accès.
+- Aucune migration nouvelle.
