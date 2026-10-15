@@ -24,7 +24,10 @@ deux dépôts une fois la suite verte.
 | 72 Plan comptable modifiable, Gestion FNE | **Terminé** | `1376c21` |
 | 73 Page d'accueil | **Terminé en partie** (textes des applications attendus) | `0ed7302` |
 | 74 Étape 1 du pas à pas refaite, retour arrière du parcours, plan Excel à part | **Terminé** | `5888d61` |
-| 75 B2B approfondi (70a à 70d) | **Terminé** | — |
+| 75 B2B approfondi (70a à 70d) | **Terminé** | `541854f` |
+| 76 Inscription sans blocage, fiscalité exigée à la normalisation | **Terminé** | `00c4ff3` |
+| 77 Achat : aucun règlement sur une DP ou un BC | **Terminé** | `8dd00a1` |
+| 78 Pas à pas : chaque ligne en boîte réglable | **Terminé** | `7ec712c` |
 
 **Le plan chiffré vit dans `PLAN-RETOURS-PRODUCTION.xlsx`**, à part du plan de
 correction (même modèle, mêmes couleurs).
@@ -111,3 +114,29 @@ pas remboursé** ; la règle du lot 67 est la bonne.
 | 8 | Import de l'inventaire : référence refusée | lot 71 : modèle rempli des articles de l'entreprise |
 | 9 | Fiscalité & DGI : affichage, données du timbre | lot 72 ; **le défaut d'affichage des sous-modules est à préciser** |
 | 10 | Modifier et supprimer les comptes créés | lot 72 |
+
+## Retours du 15/10/2026
+
+| Retour | Fait |
+|---|---|
+| **URGENT** — l'inscription exigeait l'accès FNE à l'étape 3 « facultative » | lot 76 : un NCC mal formé est écarté et signalé, l'entreprise est créée |
+| Vendre, acheter, facturer sans information fiscale ; bloquer seulement à la normalisation, avec « Remplir » et « Fermer » | lot 76 : seul le point de vente retient la saisie ; la normalisation (manuelle, par lot, automatique) dit ce qui manque — NCC, régime, point de vente, accès FNE |
+| Le NCC posé plus tard doit paraître sur les factures | déjà le cas (lu à l'impression) ; épreuve ajoutée |
+| Achat : pas de moyen de paiement pour une demande de prix ou un bon de commande | lot 77 |
+| Achat : refonte ? | **à décider** — la page est cohérente une fois le défaut levé ; un « pas à pas » comme la vente reste possible |
+| Pas à pas : voir et régler TVA, remise par ligne, à la manière d'Odoo | lot 78 |
+| Les quatre modes d'usage | voir ci-dessous |
+
+### Les quatre modes d'usage
+
+| Mode | Normalisation | Écritures | Comment |
+|---|---|---|---|
+| 1 | non | non | ne pas renseigner l'accès FNE (ou couper la normalisation automatique) ; comptabilité fermée |
+| 2 | non | oui | idem, comptabilité ouverte (Paramètres › Modules, ou attribution du superadmin) |
+| 3 | oui | non | situation fiscale et accès FNE renseignés ; comptabilité fermée |
+| 4 | oui | oui | situation fiscale et accès FNE renseignés ; comptabilité ouverte |
+
+Nuance : comptabilité fermée, Selflow **tient quand même les écritures en
+arrière-plan** (décision du lot 5) — personne ne les voit ni ne les passe, et
+ouvrir la comptabilité plus tard trouve l'historique. Les couper tout à fait
+est possible : **à décider**.

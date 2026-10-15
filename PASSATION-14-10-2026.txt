@@ -96,3 +96,17 @@ Aucun fichier du périmètre FNE gelé n'a été modifié.
 - 20.16 Résumé de la logique de Selflow.
 - Plan-de-travail-Selflow.pdf : non régénéré (sa source HTML est hors dépôt) ;
   le classeur et le plan Markdown font foi pour ce lot.
+
+
+6. SUITE DU 15/10/2026 — lots 76 à 78 (main 7ec712c puis la mise à jour des plans)
+------------------------------------------------------------------------------
+- 76 Inscription : l'étape 3 ne bloque plus ; ventes et achats sans situation
+  fiscale (seul le point de vente reste exigé) ; la normalisation dit ce qui
+  manque (NCC, régime, point de vente, accès FNE) avec « Remplir » / « Fermer ».
+  À SAVOIR EN PRODUCTION : une entreprise sans accès FNE actif voit ses
+  factures rester « à normaliser » au lieu de partir en rejet.
+- 77 Achat : aucun règlement sur une demande de prix ni un bon de commande.
+- 78 Vente pas à pas : chaque ligne choisie s'ouvre en boîte réglable.
+- À trancher : refonte « pas à pas » de l'achat ; couper tout à fait les
+  écritures quand la comptabilité est fermée (aujourd'hui tenues en arrière-plan).
+- Aucune migration nouvelle pour ces trois lots.
