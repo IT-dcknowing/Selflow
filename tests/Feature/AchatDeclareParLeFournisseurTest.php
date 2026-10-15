@@ -98,6 +98,37 @@ class AchatDeclareParLeFournisseurTest extends TestCase
         ]);
     }
 
+    // ── Une demande de prix, un bon de commande ne se paient pas (15/10/2026) ──
+
+    public function test_une_commande_ignore_le_reglement_envoye_par_le_formulaire(): void
+    {
+        foreach (['Demande de prix', 'Bon de commande'] as $etape) {
+            $this->post(route('admin.achats.enregistrer'), [
+                'fournisseur_id' => $this->fournisseur->id, 'date_achat' => now()->toDateString(), 'etape' => $etape,
+                // Ce que la page postait : le mode « Caisse » par défaut, et un
+                // montant saisi avant de changer de type de document.
+                'mode_paiement' => 'Banque', 'montant_paye' => 7000,
+                'articles' => [['produit_id' => $this->ciment->id, 'quantite' => 2, 'prix_unitaire' => 5000, 'unite' => 'sac']],
+            ])->assertSessionHasNoErrors();
+
+            $piece = Achat::latest('id')->firstOrFail();
+            $this->assertSame($etape, $piece->etape);
+            $this->assertSame('Crédit', $piece->mode_paiement, "{$etape} : aucun mode de paiement.");
+            $this->assertNull($piece->montant_recu, "{$etape} : aucun montant reçu.");
+            $this->assertFalse(
+                DB::table('tresorerie_journal')->where('reference_document', $piece->numero_facture)->exists(),
+                "{$etape} : rien ne sort de la caisse."
+            );
+        }
+    }
+
+    public function test_la_page_dit_qu_une_commande_ne_se_paie_pas(): void
+    {
+        $this->get(route('admin.achats.nouveau'))->assertOk()
+            ->assertSee('noteSansReglement', false)
+            ->assertSee('Aucun règlement pour une demande de prix ni un bon de commande', false);
+    }
+
     // ── La règle : déclarée par le fournisseur, la saisie est informative ──
 
     public function test_declaree_la_facture_saisie_ne_s_ecrit_pas_mais_son_reglement_si(): void

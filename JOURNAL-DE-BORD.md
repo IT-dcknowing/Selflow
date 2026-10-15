@@ -8082,6 +8082,33 @@ accès FNE, désormais exigé avant l'envoi).
 
 ---
 
+### Lot 77 — Achat : aucun règlement pour une demande de prix ni un bon de commande — **TERMINÉ le 15/10/2026**
+
+Branche `achat-sans-reglement-dp-bc`. Retour du propriétaire le 15/10 (image 2).
+
+**Ce qui a été trouvé.** Le bloc de règlement (mode, banque, devise, montant)
+n'apparaît qu'avec « Facture physique fournisseur » ou « BAPA ». Mais la
+facture physique laissait les boutons « Demande de prix / Bon de commande »
+visibles : cliquer l'un d'eux changeait le type de document **sans fermer le
+règlement**. Côté serveur, le formulaire postait toujours `mode_paiement =
+Caisse` (champ caché) : une demande de prix s'enregistrait « payée en caisse »
+sur le papier, avec le montant saisi avant de changer de type.
+
+**Correctif.** Choisir DP ou BC quitte la facture physique (ou le bordereau)
+et masque le règlement ; pendant la saisie d'une facture, aucun des deux
+boutons ne reste allumé ; une note dit que le règlement se saisit à la
+facturation. Le serveur ignore tout règlement posté sur une DP ou un BC
+(mode « Crédit », aucun montant reçu, rien en trésorerie).
+
+**Refonte de la page** : non indispensable — l'écran est cohérent une fois ce
+défaut levé. Une version « pas à pas » comme la vente reste possible ; elle
+est proposée au plan, non engagée.
+
+- `AchatDeclareParLeFournisseurTest` +2. Vérifié dans Chromium.
+- Suite : 1 742 épreuves, 1 737 passantes, 5 sautées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
