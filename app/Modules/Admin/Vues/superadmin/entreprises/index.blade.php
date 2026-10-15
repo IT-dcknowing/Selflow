@@ -140,7 +140,7 @@
                                     @endif
                                 </button>
                             </form>
-                            <form method="POST" action="{{ route('superadmin.entreprises.supprimer', $ent) }}" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer définitivement l\'entreprise « {{ $ent->nom }} » et toutes ses données associées (utilisateurs, pdvs) ?')" style="margin: 0; display: inline;">
+                            <form method="POST" action="{{ route('superadmin.entreprises.supprimer', $ent) }}" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer définitivement l\'entreprise « {{ $ent->nom }} » et toutes ses données : utilisateurs, points de vente, factures, stock, écritures ? Cette action est définitive.')" style="margin: 0; display: inline;">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="btn btn-sm" style="padding: 4px 8px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; border-radius: 6px; cursor: pointer;">

@@ -8288,6 +8288,36 @@ Branche `facturation-et-echeance`. Demande du propriétaire le 15/10.
 
 ---
 
+### Lot 84 — Supprimer une entreprise : erreur 500 en production — **TERMINÉ le 15/10/2026**
+
+Branche `suppression-entreprise`. Erreur relevée en production par le
+propriétaire (`superadmin.entreprises.supprimer`, entreprise « eve disagn ») :
+`SQLSTATE[23000] 1451 … ventes_parent_id_foreign`.
+
+**Cause.** La suppression effaçait les utilisateurs, puis les points de vente,
+puis l'entreprise — **sans transaction**. Effacer les points de vente faisait
+effacer leurs ventes en cascade, et MySQL refusait : un avoir pointe vers sa
+facture (`ventes.parent_id`). Les utilisateurs, eux, étaient déjà partis :
+**l'entreprise est restée en base sans aucun utilisateur.**
+
+**Correctif.** `SuppressionEntrepriseService` relève tout ce qui dépend de
+l'entreprise en suivant les clés étrangères du schéma (et les colonnes
+`entreprise_id` / `point_de_vente_id` sans contrainte), puis efface le tout
+dans **une seule transaction**. Seul un `ON DELETE CASCADE` déclaré fait suivre
+une ligne ; tout autre lien venant d'ailleurs (l'achat d'une autre entreprise
+vers une négociation B2B commune) est remis à vide, la ligne restant. Un échec
+n'efface rien et le dit.
+
+**À faire en production** une fois déployé : relancer la suppression de
+« eve disagn » (elle n'a plus d'utilisateurs, le reste est intact).
+
+- `SuppressionEntrepriseTest` (2) : une entreprise avec facture et avoir est
+  supprimée, sa voisine n'a rien perdu, aucune clé ne pointe dans le vide
+  (`PRAGMA foreign_key_check`) ; un échec n'efface rien.
+- Suite : 1 770 épreuves, 1 765 passantes, 5 sautées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
