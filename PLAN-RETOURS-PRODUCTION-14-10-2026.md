@@ -31,6 +31,8 @@ deux dépôts une fois la suite verte.
 | 79 Page de maintenance, registre des pannes | **Terminé** | `17e9698` |
 | 80 Création d'entreprise par le superadmin, alignée | **Terminé** | `a089b26` |
 | 81 Offres d'abonnement | **Terminé** | `acb6b06` |
+| 82 Habilitations mises à jour (urgent) | **Terminé** | `fe83cf4` |
+| 83 Facturation, échéance, métier Poissonnerie | **Terminé** | `b985ccd` |
 
 **Le plan chiffré vit dans `PLAN-RETOURS-PRODUCTION.xlsx`**, à part du plan de
 correction (même modèle, mêmes couleurs).
@@ -156,3 +158,15 @@ est possible : **à décider**.
 **À trancher** : le paiement des offres (aucun encaissement en ligne : une
 offre payante reste « à régler ») et ce qui se passe à la fin du pass cadeau
 (aujourd'hui, un bandeau seulement).
+
+## Retours du 15/10/2026 (nuit)
+
+| Retour | Fait |
+|---|---|
+| **URGENT** — mettre à jour les habilitations | lot 82 : Produits et Tiers revenus dans la liste, sept écrans avec leur propre droit, migration sans perte d'accès |
+| Section Facturation dans les paramètres, cartes avec avantages, renouveler ou monter en gamme | lot 83 |
+| À l'échéance : espace visible mais bloqué, message « abonnement à terme », bouton Continuer vers la facturation | lot 83 |
+| Métier Poissonnerie dans la configuration | lot 83 |
+
+**Attendu** : l'API de paiement. D'ici là, une demande de renouvellement est
+notée et DC-Knowing repousse l'échéance depuis la fiche de l'entreprise.
