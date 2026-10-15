@@ -28,6 +28,9 @@ deux dépôts une fois la suite verte.
 | 76 Inscription sans blocage, fiscalité exigée à la normalisation | **Terminé** | `00c4ff3` |
 | 77 Achat : aucun règlement sur une DP ou un BC | **Terminé** | `8dd00a1` |
 | 78 Pas à pas : chaque ligne en boîte réglable | **Terminé** | `7ec712c` |
+| 79 Page de maintenance, registre des pannes | **Terminé** | `17e9698` |
+| 80 Création d'entreprise par le superadmin, alignée | **Terminé** | `a089b26` |
+| 81 Offres d'abonnement | **Terminé** | `acb6b06` |
 
 **Le plan chiffré vit dans `PLAN-RETOURS-PRODUCTION.xlsx`**, à part du plan de
 correction (même modèle, mêmes couleurs).
@@ -140,3 +143,16 @@ Nuance : comptabilité fermée, Selflow **tient quand même les écritures en
 arrière-plan** (décision du lot 5) — personne ne les voit ni ne les passe, et
 ouvrir la comptabilité plus tard trouve l'historique. Les couper tout à fait
 est possible : **à décider**.
+
+## Retours du 15/10/2026 (soir)
+
+| Retour | Fait |
+|---|---|
+| Une page qui tombe : « en maintenance », résolu dans un instant, contacts de l'assistance saisis par le superadmin | lot 79 |
+| Le superadmin voit chaque erreur (code, adresse), le détail au clic ; la ligne disparaît une fois corrigée | lot 79 — à la main, ou d'elle-même quand le fichier fautif a été modifié |
+| Création par le superadmin : secteurs → même parcours avec « Suivant » ; quota 3 ; modules retirés ; « Voir » et barre du mot de passe ; bloc FNE présentable et choix retirable ; alignement sur les décisions | lot 80 |
+| Offres SOLO, BUSINESS, PREMIUM, SUR MESURE, PASS CADEAU en cartes, après l'inscription | lot 81 |
+
+**À trancher** : le paiement des offres (aucun encaissement en ligne : une
+offre payante reste « à régler ») et ce qui se passe à la fin du pass cadeau
+(aujourd'hui, un bandeau seulement).
