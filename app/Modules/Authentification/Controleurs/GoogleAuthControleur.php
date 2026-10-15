@@ -65,10 +65,11 @@ class GoogleAuthControleur
                 'email'               => $googleUser->getEmail(),
                 'modules_actifs'      => ['principal', 'ventes', 'achats', 'stock', 'production', 'comptabilite', 'points_de_vente', 'personnel', 'b2b', 'fne'],
                 'secteur_activite'    => [],
-                'quota_points_de_vente' => 5,
-                'plan_abonnement'     => 'Starter',
+                'quota_points_de_vente' => \App\Modules\Admin\Regles\Abonnements::QUOTA_PAR_DEFAUT,
+                'plan_abonnement'     => \App\Modules\Admin\Regles\Abonnements::A_CHOISIR,
                 'statut'              => 'actif',
             ]);
+            $entreprise->forceFill(['quota_utilisateurs' => \App\Modules\Admin\Regles\Abonnements::QUOTA_PAR_DEFAUT])->save();
 
             // Sans plan comptable ni journal, la premiere vente s'impute sur des
             // comptes inventes a la volee. L'entreprise recoit donc de quoi

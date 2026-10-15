@@ -148,9 +148,12 @@ class InscriptionControleur
                 'gerant_fonction'     => trim($request->fonction_gerant ?? ''),
                 'modules_actifs'      => ['principal', 'ventes', 'achats', 'stock', 'production', 'comptabilite', 'points_de_vente', 'personnel', 'b2b', 'fne'],
                 'statut'              => 'actif',
-                'quota_points_de_vente' => 5,
-                'plan_abonnement'     => 'Starter',
+                // L'offre se choisit juste après, en cartes (15/10/2026) ;
+                // d'ici là, trois points de vente et trois utilisateurs.
+                'quota_points_de_vente' => \App\Modules\Admin\Regles\Abonnements::QUOTA_PAR_DEFAUT,
+                'plan_abonnement'     => \App\Modules\Admin\Regles\Abonnements::A_CHOISIR,
             ]);
+            $entreprise->forceFill(['quota_utilisateurs' => \App\Modules\Admin\Regles\Abonnements::QUOTA_PAR_DEFAUT])->save();
 
             // Sans plan comptable ni journal, la premiere vente s'impute sur des
             // comptes inventes a la volee. L'entreprise recoit donc de quoi
@@ -186,8 +189,10 @@ class InscriptionControleur
             Auth::login($utilisateur);
             $request->session()->regenerate();
 
-            $redirection = redirect()->route('admin.tableau_de_bord')
-                ->with('succes', 'Bienvenue sur Selflow ! Votre espace est prêt. Commencez par configurer votre entreprise.');
+            // L'inscription terminée — complète ou « sans remplir la suite » —
+            // mène aux offres, en cartes.
+            $redirection = redirect()->route('admin.abonnement.choisir')
+                ->with('succes', 'Bienvenue sur Selflow ! Votre espace est prêt. Choisissez votre offre.');
 
             if ($ecartees !== []) {
                 $redirection->with('avertissement', 'Non retenu à l\'inscription : ' . implode(' ; ', $ecartees)

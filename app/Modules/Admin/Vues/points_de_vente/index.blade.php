@@ -6,7 +6,7 @@
 <div class="page-header">
     <div>
         <h1><i class="fas fa-store"></i> Points de vente</h1>
-        <p>{{ $pointsDeVente->count() }} / {{ $quotaMax }} points de vente utilisés</p>
+        <p>{{ $pointsDeVente->count() }} / {{ \App\Modules\Admin\Regles\Abonnements::enChiffres($quotaMax) }} points de vente utilisés</p>
     </div>
     <div style="display:flex;gap:10px;align-items:center;">
         <button class="btn btn-outline" onclick="ouvrirImport('modalImportPdv')" style="font-size:13px;">
@@ -24,7 +24,7 @@
 <div style="margin-bottom: 22px; background: var(--surface); border:1px solid var(--border); border-radius: var(--radius); padding: 18px 22px;">
     <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
         <span style="font-weight:600; font-size:13px;">Quota d'abonnement</span>
-        <span style="font-size:13px; color:var(--text-2);">{{ $pointsDeVente->count() }} / {{ $quotaMax }} utilisés</span>
+        <span style="font-size:13px; color:var(--text-2);">{{ $pointsDeVente->count() }} / {{ \App\Modules\Admin\Regles\Abonnements::enChiffres($quotaMax) }} utilisés</span>
     </div>
     <div style="background:var(--bg3); border-radius:99px; height:8px; overflow:hidden;">
         @php $pct = $quotaMax > 0 ? ($pointsDeVente->count() / $quotaMax) * 100 : 0; @endphp

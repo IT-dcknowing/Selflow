@@ -160,7 +160,9 @@ class SuperadminControleur
             // et l'écran proposait cinq intitulés que rien ne reconnaît.
             'regime_imposition'       => ['nullable', 'string', Rule::in(Entreprise::regimesAcceptesPour())],
             'quota_points_de_vente'   => ['required', 'integer', 'min:1'],
-            'plan_abonnement'         => ['required', 'string'],
+            'quota_utilisateurs'      => ['nullable', 'integer', 'min:1'],
+            'abonnement_expire_le'    => ['nullable', 'date'],
+            'plan_abonnement'         => ['required', 'string', Rule::in(array_keys(\App\Modules\Admin\Regles\Abonnements::offres()))],
 
             // Le domaine et la situation fiscale sont des étapes facultatives,
             // ici comme à l'inscription : elles se complètent aussi bien une
@@ -222,6 +224,7 @@ class SuperadminControleur
         // travailler des le premier jour ; ce qui ne lui sert pas, elle
         // l'archivera.
         TrousseauEntrepriseService::doter($entreprise);
+        $this->poserLesLimitesDeLOffre($entreprise, $request);
 
         // ── Le responsable, sans qui l'entreprise n'est atteignable par
         //    personne ──
@@ -322,9 +325,17 @@ class SuperadminControleur
             'gerant_prenom'           => ['nullable', 'string', 'max:150'],
             'gerant_fonction'         => ['nullable', 'string', 'max:150'],
             'quota_points_de_vente'   => ['required', 'integer', 'min:1'],
-            'plan_abonnement'         => ['required', 'string'],
-            'secteur_activite'        => ['required', 'array'],
-            'secteur_activite.*'      => ['required', 'string', Rule::in(Categorie::domaines())],
+            'quota_utilisateurs'      => ['nullable', 'integer', 'min:1'],
+            'abonnement_expire_le'    => ['nullable', 'date'],
+            // Les offres du 15/10/2026, et l'ancienne de l'entreprise si elle
+            // en porte une : la garder ne doit pas refuser l'enregistrement.
+            'plan_abonnement'         => ['required', 'string', Rule::in(array_merge(
+                array_keys(\App\Modules\Admin\Regles\Abonnements::offres()),
+                [$entreprise->plan_abonnement]
+            ))],
+            // Le domaine se règle par le parcours : il n'est plus exigé ici.
+            'secteur_activite'        => ['nullable', 'array'],
+            'secteur_activite.*'      => ['string', Rule::in(Categorie::domaines())],
             'modules_actifs'          => ['required', 'array'],
         ]);
 
@@ -340,9 +351,10 @@ class SuperadminControleur
             'gerant_fonction'        => $request->gerant_fonction,
             'quota_points_de_vente'  => $request->quota_points_de_vente,
             'plan_abonnement'        => $request->plan_abonnement,
-            'secteur_activite'       => $request->secteur_activite,
+            'secteur_activite'       => $request->secteur_activite ?? $entreprise->secteur_activite,
             'modules_actifs'         => $modules,
         ]);
+        $this->poserLesLimitesDeLOffre($entreprise, $request);
 
         // Le formulaire ne porte que les attributions avancées. Tout décocher
         // n'envoie rien : c'est le marqueur caché qui dit que la carte était
@@ -361,6 +373,38 @@ class SuperadminControleur
         }
 
         return redirect()->route('superadmin.entreprises')->with('succes', 'Entreprise mise à jour avec succès.');
+    }
+
+    /**
+     * L'offre et ses limites, telles que le superadministrateur les a posées :
+     * les contraintes par défaut de l'offre, relevées s'il le souhaite.
+     */
+    private function poserLesLimitesDeLOffre(Entreprise $entreprise, Request $request): void
+    {
+        $code = $request->input('plan_abonnement');
+        $expire = $request->filled('abonnement_expire_le')
+            ? \Illuminate\Support\Carbon::parse($request->input('abonnement_expire_le'))->endOfDay()
+            : null;
+
+        $valeurs = [
+            'quota_utilisateurs'   => $request->filled('quota_utilisateurs') ? (int) $request->input('quota_utilisateurs') : null,
+            'abonnement_expire_le' => $expire,
+        ];
+
+        if ($entreprise->wasChanged('plan_abonnement') || $entreprise->wasRecentlyCreated) {
+            $valeurs['abonnement_choisi_le'] = now();
+            $valeurs['abonnement_statut'] = match ($code) {
+                \App\Modules\Admin\Regles\Abonnements::PASS_CADEAU => \App\Modules\Admin\Regles\Abonnements::STATUT_ESSAI,
+                \App\Modules\Admin\Regles\Abonnements::SUR_MESURE  => \App\Modules\Admin\Regles\Abonnements::STATUT_SUR_DEVIS,
+                default => \App\Modules\Admin\Regles\Abonnements::STATUT_ACTIF,
+            };
+            if ($code === \App\Modules\Admin\Regles\Abonnements::PASS_CADEAU) {
+                $valeurs['abonnement_expire_le'] = $expire ?? now()->addDays(\App\Modules\Admin\Regles\Abonnements::DUREE_PASS_CADEAU_JOURS);
+                $valeurs['pass_cadeau_utilise_le'] = $entreprise->pass_cadeau_utilise_le ?? now();
+            }
+        }
+
+        $entreprise->forceFill($valeurs)->save();
     }
 
     /**

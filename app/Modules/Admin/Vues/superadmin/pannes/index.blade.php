@@ -8,9 +8,9 @@
     {{-- Les contacts de l'assistance : ce que voit l'utilisateur sur la page
          de maintenance. --}}
     <div class="card" style="padding:18px 20px; margin-bottom:18px;">
-        <h3 style="font-size:15px; font-weight:800; margin-bottom:4px;"><i class="fas fa-headset" style="color:var(--primary);"></i> Contacts de l'assistance technique</h3>
-        <p style="font-size:12.5px; color:var(--text-3); margin-bottom:14px;">Affichés sur la page « en maintenance » que voit l'utilisateur quand une page tombe.</p>
-        <form method="POST" action="{{ route('superadmin.pannes.assistance') }}" style="display:grid; grid-template-columns:1fr 1fr auto; gap:12px; align-items:end;">
+        <h3 style="font-size:15px; font-weight:800; margin-bottom:4px;"><i class="fas fa-headset" style="color:var(--primary);"></i> Contacts de l'assistance et du service commercial</h3>
+        <p style="font-size:12.5px; color:var(--text-3); margin-bottom:14px;">L'assistance s'affiche sur la page « en maintenance » ; le service commercial sur l'offre « sur mesure » (à défaut, l'assistance).</p>
+        <form method="POST" action="{{ route('superadmin.pannes.assistance') }}" style="display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:end;">
             @csrf
             <div class="form-group" style="margin:0;">
                 <label class="form-label">Courriel</label>
@@ -19,6 +19,14 @@
             <div class="form-group" style="margin:0;">
                 <label class="form-label">Téléphone</label>
                 <input type="text" name="assistance_telephone" class="form-control" value="{{ old('assistance_telephone', $assistance['telephone']) }}" placeholder="+225 07 00 00 00 00">
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label class="form-label">Service commercial — courriel <small style="color:var(--text-3);">(offre sur mesure)</small></label>
+                <input type="email" name="commercial_email" class="form-control" value="{{ old('commercial_email', $assistance['commercial_email']) }}" placeholder="commercial@dc-knowing.com">
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label class="form-label">Service commercial — téléphone</label>
+                <input type="text" name="commercial_telephone" class="form-control" value="{{ old('commercial_telephone', $assistance['commercial_telephone']) }}" placeholder="À défaut : ceux de l'assistance">
             </div>
             <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Enregistrer</button>
         </form>

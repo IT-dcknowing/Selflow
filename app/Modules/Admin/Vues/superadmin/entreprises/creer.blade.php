@@ -118,20 +118,7 @@
                 <div style="font-size:12px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
                     <i class="fas fa-money-bill-wave" style="color:var(--primary);"></i> Abonnement & Quotas
                 </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                    <div class="form-group">
-                        <label class="form-label">Plan d'abonnement <span style="color:var(--danger)">*</span></label>
-                        <select name="plan_abonnement" class="form-control" required>
-                            <option value="Starter">Starter</option>
-                            <option value="Pro" selected>Pro</option>
-                            <option value="Enterprise">Enterprise</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Quota Points de Vente max <span style="color:var(--danger)">*</span></label>
-                        <input type="number" name="quota_points_de_vente" class="form-control" required min="1" value="{{ old('quota_points_de_vente', 3) }}">
-                    </div>
-                </div>
+                @include('admin::superadmin.entreprises.partials.abonnement')
             </div>
         </div>
 

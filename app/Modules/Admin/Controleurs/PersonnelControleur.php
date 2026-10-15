@@ -49,6 +49,16 @@ class PersonnelControleur
             'habilitations'      => ['nullable', 'array'],
         ]);
 
+        // Le nombre d'utilisateurs suit l'offre (15/10/2026) : SOLO n'en
+        // compte qu'un, le gérant. Le superadministrateur peut le relever.
+        if (\App\Modules\Admin\Regles\Abonnements::placesUtilisateursRestantes($entreprise) === 0) {
+            return back()->withInput()->with('erreur', sprintf(
+                'Votre offre « %s » compte %s utilisateur(s), tous déjà créés. Changez d\'offre, ou demandez à DC-Knowing de relever la limite.',
+                \App\Modules\Admin\Regles\Abonnements::libelle($entreprise->plan_abonnement),
+                \App\Modules\Admin\Regles\Abonnements::enChiffres($entreprise->quota_utilisateurs)
+            ));
+        }
+
         $personnel = Utilisateur::create([
             'entreprise_id'         => $entreprise->id,
             'point_de_vente_id'     => $request->point_de_vente_id,

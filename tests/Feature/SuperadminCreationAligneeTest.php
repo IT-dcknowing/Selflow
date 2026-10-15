@@ -36,7 +36,7 @@ class SuperadminCreationAligneeTest extends TestCase
         return $this->post(route('superadmin.entreprises.creer.enregistrer'), array_merge([
             'nom' => 'Quincaillerie du Plateau', 'email' => 'gerant@quincaillerie.ci',
             'gerant_password' => 'un-mot-de-passe', 'gerant_password_confirmation' => 'un-mot-de-passe',
-            'plan_abonnement' => 'Pro', 'quota_points_de_vente' => 3,
+            'plan_abonnement' => 'BUSINESS', 'quota_points_de_vente' => 3,
         ], $extra));
     }
 

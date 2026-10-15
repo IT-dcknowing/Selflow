@@ -8193,6 +8193,43 @@ Branche `superadmin-creer-entreprise`. Retour du propriétaire le 15/10 (images 
 
 ---
 
+### Lot 81 — Les offres d'abonnement — **TERMINÉ le 15/10/2026**
+
+Branche `abonnements`. Décision du propriétaire le 15/10 :
+
+| Offre | Points de vente | Utilisateurs | Prix |
+|---|---|---|---|
+| SOLO | 1 | 1 (le gérant) | 10 000 F / mois |
+| BUSINESS | 3 | 3 | 25 000 F / mois |
+| PREMIUM | illimité | illimité | 45 000 F / mois |
+| SUR MESURE | sur devis | sur devis | contact du service commercial |
+| PASS CADEAU | 5 | 5, tout activé | gratuit 7 jours, une seule fois |
+
+- `App\Modules\Admin\Regles\Abonnements` : le catalogue, l'application d'une
+  offre, les places restantes. « Illimité » = 9 999 ; `quota_utilisateurs`
+  vide = sans limite (entreprises d'avant les offres, qui gardent ce qu'elles
+  ont). Migration `2026_10_15_000002` (rejouable).
+- **Page en cartes** : `/offres` pour le visiteur (lien depuis l'inscription),
+  `/admin/abonnement` pour l'entreprise, ouverte **juste après l'inscription**
+  — complète ou « terminer sans remplir » (et Google). D'ici le choix : offre
+  « à choisir », 3 points de vente, 3 utilisateurs.
+- **Contraintes appliquées** : points de vente (contrôle existant) et désormais
+  utilisateurs (écran du personnel et API). Le superadministrateur choisit
+  l'offre, et peut **relever les limites sans changer d'offre** (création et
+  modification), avec une échéance.
+- Bandeau du tableau de bord : offre à choisir, jours restants du pass, pass
+  terminé, règlement en attente. Contacts du service commercial saisis au
+  superadmin (« Pannes & assistance »), à défaut ceux de l'assistance.
+- **Non fait, à trancher** : aucun paiement en ligne (une offre payante reste
+  « à régler » jusqu'à confirmation par DC-Knowing) ; à la fin du pass, rien
+  n'est bloqué — un bandeau invite à choisir.
+
+- `AbonnementsTest` (6) ; épreuves de création redressées (offres nouvelles,
+  redirection vers les offres). Vérifié dans Chromium.
+- Suite : 1 757 épreuves, 1 752 passantes, 5 sautées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
