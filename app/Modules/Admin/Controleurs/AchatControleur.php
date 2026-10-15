@@ -123,6 +123,18 @@ class AchatControleur
             'articles.required'          => 'Veuillez ajouter au moins un article.',
         ] + self::messagesChampsFne());
 
+        // Une demande de prix ou un bon de commande ne se paie pas : ce que le
+        // formulaire porterait de règlement (le mode « Caisse » posé par
+        // défaut, une banque, un montant saisi avant de changer de type) est
+        // ignoré, et le règlement se demande à la facturation (retour de
+        // production du 15/10/2026).
+        if ($request->input('etape', 'Facture') !== 'Facture') {
+            $request->merge([
+                'mode_paiement' => null, 'montant_paye' => null, 'banque_id' => null,
+                'moyen_bancaire' => null, 'reference_paiement' => null, 'mobile_money_operateur' => null,
+            ]);
+        }
+
         // Pour le mode BAPA : résoudre (ou créer) le fournisseur "tiers" à partir du nom libre
         if ($isBapa) {
             $nomTiers = trim($request->input('fournisseur_nom_bapa'));

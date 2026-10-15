@@ -161,6 +161,10 @@
                             <i class="fas fa-shopping-basket"></i> Bon de commande
                         </button>
                     </div>
+                    <div id="noteSansReglement" style="font-size:11.5px; color:var(--text-3); line-height:1.5;">
+                        <i class="fas fa-circle-info"></i> Aucun règlement pour une demande de prix ni un bon de commande :
+                        il se saisit à la facturation.
+                    </div>
                 </div>
 
                 {{-- Le détail de la pièce. Les deux boutons qui l'ouvraient sont
@@ -649,7 +653,26 @@ function toggleB2bOptions() {
 }
 
 // Lot F : sélectionner l'étape du document
+//
+// Choisir « Demande de prix » ou « Bon de commande » quitte la facture
+// physique ou le bordereau : ni l'une ni l'autre ne se paie, et le bloc de
+// règlement disparaît avec (retour de production du 15/10/2026 — il restait
+// affiché sous un type de document qui n'appelle aucun paiement).
+let etapeChoisie = 'Bon de commande';
 function selectionnerEtape(btn) {
+    if (facturePhysiqueActive) {
+        facturePhysiqueActive = false;
+        marquerNature(null);
+    }
+    if (bapaActive) {
+        bapaActive = false;
+        marquerNature(null);
+        restaurerFournisseur();
+    }
+    afficherQuestionDeclaration(false);
+    document.getElementById('typeFactureInput').value = 'normale';
+    etapeChoisie = btn.dataset.etape;
+
     document.querySelectorAll('[data-etape]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const etape = btn.dataset.etape;
@@ -659,6 +682,7 @@ function selectionnerEtape(btn) {
         'Bon de commande': 'Enregistrer le bon de commande',
     };
     document.getElementById('labelBtnValider').textContent = labelMap[etape] || 'Enregistrer';
+    recalculer();
 }
 
 // Lot F : bascule affichage bloc facture physique & BAPA
@@ -682,6 +706,13 @@ function marquerNature(actif) {
     document.getElementById('blocFacturePhysique').style.display = actif ? 'block' : 'none';
     // Un BAPA n'est ni une demande de prix ni un bon de commande.
     document.getElementById('blocTypeDocument').style.display = actif === 'btnBapa' ? 'none' : 'block';
+    // Une facture n'est pas non plus l'un ou l'autre : aucun des deux ne
+    // reste allumé pendant qu'on la saisit ; le choix d'avant revient ensuite.
+    document.querySelectorAll('[data-etape]').forEach(function (b) {
+        b.classList.toggle('active', !actif && b.dataset.etape === etapeChoisie);
+    });
+    var note = document.getElementById('noteSansReglement');
+    if (note) note.style.display = actif ? 'none' : 'block';
     basculerB2b();
 }
 
