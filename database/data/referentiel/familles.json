@@ -1968,5 +1968,65 @@
   "compte_achat": "604000",
   "compte_stock": "330000",
   "compte_variation": "603300"
+ },
+ {
+  "profil": "poissonnerie",
+  "code": "FRA",
+  "nom": "Poisson frais",
+  "type_article": "MARCHANDISE",
+  "compte_vente": "701000",
+  "compte_achat": "601000",
+  "compte_stock": "310000",
+  "compte_variation": "603100"
+ },
+ {
+  "profil": "poissonnerie",
+  "code": "CON",
+  "nom": "Poisson congelé",
+  "type_article": "MARCHANDISE",
+  "compte_vente": "701000",
+  "compte_achat": "601000",
+  "compte_stock": "310000",
+  "compte_variation": "603100"
+ },
+ {
+  "profil": "poissonnerie",
+  "code": "FUM",
+  "nom": "Poisson fumé et séché",
+  "type_article": "MARCHANDISE",
+  "compte_vente": "701000",
+  "compte_achat": "601000",
+  "compte_stock": "310000",
+  "compte_variation": "603100"
+ },
+ {
+  "profil": "poissonnerie",
+  "code": "FDM",
+  "nom": "Fruits de mer",
+  "type_article": "MARCHANDISE",
+  "compte_vente": "701000",
+  "compte_achat": "601000",
+  "compte_stock": "310000",
+  "compte_variation": "603100"
+ },
+ {
+  "profil": "poissonnerie",
+  "code": "CSM",
+  "nom": "Glace et emballages",
+  "type_article": "CONSOMMABLE",
+  "compte_vente": null,
+  "compte_achat": "604000",
+  "compte_stock": "330000",
+  "compte_variation": "603300"
+ },
+ {
+  "profil": "poissonnerie",
+  "code": "SRV",
+  "nom": "Préparation (écaillage, découpe)",
+  "type_article": "SERVICE",
+  "compte_vente": "706000",
+  "compte_achat": null,
+  "compte_stock": null,
+  "compte_variation": null
  }
 ]

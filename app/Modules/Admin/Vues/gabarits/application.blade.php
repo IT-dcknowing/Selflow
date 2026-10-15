@@ -582,7 +582,27 @@
     </style>
     @yield('styles')
 </head>
-<body>
+@php
+    // Abonnement à terme (15/10/2026) : l'espace reste visible, rien ne se
+    // clique. Seule la section Facturation des paramètres reste utilisable.
+    $__aTerme = auth()->check() && !auth()->user()->estSuperAdmin()
+        && \App\Modules\Admin\Regles\Abonnements::estATerme(auth()->user()->entreprise);
+    $__surFacturation = request()->routeIs('admin.entreprise.parametres');
+@endphp
+<body class="{{ $__aTerme ? 'abonnement-a-terme' : '' }} {{ $__aTerme && $__surFacturation ? 'sur-facturation' : '' }}">
+@if($__aTerme)
+<style>
+    /* Rien ne se clique dans l'espace… */
+    body.abonnement-a-terme .sidebar, body.abonnement-a-terme .main-content { pointer-events: none; user-select: none; }
+    /* …sauf la section Facturation, sur la page des paramètres. */
+    body.sur-facturation #section-facturation, body.sur-facturation #section-facturation * { pointer-events: auto; }
+    #voile-abonnement-a-terme, #voile-abonnement-a-terme * { pointer-events: auto; }
+    #voile-abonnement-a-terme { position: fixed; inset: 0; z-index: 100000; background: rgba(15,23,42,.55); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 20px; }
+    #voile-abonnement-a-terme .boite { background: #fff; border-radius: 16px; max-width: 480px; width: 100%; padding: 30px; text-align: center; font-family: 'Inter', sans-serif; box-shadow: 0 25px 50px -12px rgba(0,0,0,.3); }
+    #bandeau-a-terme { position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 100000; background: #991B1B; color: #fff; padding: 10px 18px; border-radius: 30px; font-size: 13px; font-weight: 600; pointer-events: auto; }
+</style>
+@endif
+
 
 @if(session()->has('apercu_pdv_id'))
 <div class="banner-apercu">
@@ -1521,6 +1541,36 @@
         @endif
 
         @yield('contenu')
+
+        @if($__aTerme && !$__surFacturation)
+            {{-- La fenêtre ne se ferme pas : seul « Continuer » mène quelque part. --}}
+            <div id="voile-abonnement-a-terme" role="alertdialog" aria-modal="true" aria-labelledby="titre-a-terme">
+                <div class="boite">
+                    <div style="width:58px; height:58px; border-radius:14px; background:#FEE2E2; color:#DC2626; display:inline-flex; align-items:center; justify-content:center; font-size:24px; margin-bottom:16px;">
+                        <i class="fas fa-hourglass-end"></i>
+                    </div>
+                    <h2 id="titre-a-terme" style="font-size:20px; font-weight:800; color:#1E293B; margin-bottom:8px;">Abonnement à terme</h2>
+                    <p style="color:#64748B; font-size:14px; line-height:1.6; margin-bottom:22px;">
+                        Votre abonnement est arrivé à échéance le {{ auth()->user()->entreprise->abonnement_expire_le->format('d/m/Y') }}.
+                        Renouvelez-le, ou passez à une offre supérieure, pour continuer à travailler.
+                        Vos données sont conservées.
+                    </p>
+                    @if(auth()->user()->role === 'admin')
+                        <a href="{{ route('admin.entreprise.parametres') }}#facturation" id="btn-continuer-a-terme"
+                           style="display:flex; justify-content:center; align-items:center; gap:8px; padding:13px; background:#002B5C; color:#fff; border-radius:10px; font-weight:700; text-decoration:none;">
+                            Continuer <i class="fas fa-arrow-right"></i>
+                        </a>
+                    @else
+                        <p style="font-size:13px; color:#991B1B; font-weight:600;">Prévenez l'administrateur de votre entreprise.</p>
+                        <form method="POST" action="{{ route('deconnexion') }}" style="margin-top:12px;">@csrf
+                            <button type="submit" style="width:100%; padding:12px; border:1px solid #E2E8F0; background:#fff; border-radius:10px; font-weight:600; cursor:pointer;">Se déconnecter</button>
+                        </form>
+                    @endif
+                </div>
+            </div>
+        @elseif($__aTerme)
+            <div id="bandeau-a-terme"><i class="fas fa-hourglass-end"></i> Abonnement à terme — seule la section Facturation est disponible.</div>
+        @endif
     </main>
 </div>
 

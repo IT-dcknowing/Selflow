@@ -8258,6 +8258,36 @@ création d'un personnel).
 
 ---
 
+### Lot 83 — Facturation, échéance de l'abonnement, métier « Poissonnerie » — **TERMINÉ le 15/10/2026**
+
+Branche `facturation-et-echeance`. Demande du propriétaire le 15/10.
+
+- **Section « Facturation » des paramètres** (raccourci en tête, hors du
+  formulaire) : offre actuelle, échéance et jours restants, points de vente et
+  utilisateurs utilisés, demande en cours ; des **cartes** avec les avantages
+  de chaque offre (`Abonnements::avantages`) — « Renouveler » sur la sienne,
+  « Passer à … » sur les offres supérieures, les inférieures grisées.
+- **Paiement** : l'API n'est pas encore branchée. Renouveler ou monter en
+  gamme note la demande (`abonnement_demande`, migration `2026_10_15_000004`)
+  et met l'offre « à régler » ; **seul le règlement repousse l'échéance**
+  (DC-Knowing aujourd'hui, depuis la fiche de l'entreprise ; l'API demain).
+- **Abonnement à terme** (échéance dépassée, pass compris) : l'espace reste
+  visible mais **rien ne se clique** (menu et contenu inertes) ; une fenêtre
+  « Abonnement à terme — renouvelez ou passez à une offre supérieure » avec
+  **Continuer** vers la Facturation, seule section utilisable. Côté serveur,
+  `abonnement.actif` refuse toute action (sauf choisir ou renouveler l'offre,
+  se déconnecter) et renvoie vers la Facturation. Un caissier voit la fenêtre
+  sans le bouton : il est invité à prévenir l'administrateur.
+- **Poissonnerie** : nouveau métier du parcours (Commerce) — poisson frais,
+  congelé, fumé et séché, fruits de mer, glace et emballages, préparation ;
+  22 articles. Ajouté aux fichiers du référentiel (`ReferentielTest` passe de
+  71 à 72 profils).
+
+- `FacturationEtEcheanceTest` (7). Vérifié dans Chromium.
+- Suite : 1 768 épreuves, 1 763 passantes, 5 sautées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
