@@ -119,7 +119,16 @@ class SuperadminControleur
     public function creer(Request $request): RedirectResponse
     {
         // Normaliser le NCC : suppression des espaces et mise en majuscule
-        $request->merge(['ncc' => $request->has('ncc') ? strtoupper(preg_replace('/\s+/', '', $request->input('ncc'))) : null]);
+        foreach (['ncc', 'fne_ncc'] as $champNcc) {
+            if ($request->filled($champNcc)) {
+                $request->merge([$champNcc => strtoupper(preg_replace('/\s+/', '', (string) $request->input($champNcc)))]);
+            }
+        }
+
+        // La situation fiscale est facultative ici comme à l'inscription : une
+        // donnée mal formée est écartée et signalée, la création ne tombe pas
+        // pour elle (décision du 15/10/2026).
+        $ecartees = \App\Modules\Admin\Services\DonneesFiscalesFacultatives::ecarterLesInvalides($request);
 
         $request->validate([
             'nom'                     => ['required', 'string', 'max:150', 'unique:entreprises,nom'],
@@ -273,11 +282,25 @@ class SuperadminControleur
                 : ' ⚠️ L\'entreprise Selflow est créée, mais le dossier Comptaflow n\'a pas pu être ouvert : ' . $resultat['message'];
         }
 
-        return redirect()->route('superadmin.entreprises')->with('succes',
-            'Entreprise créée, avec son point de vente « Siège » et le compte de son responsable ('
+        // Le message parlait d'un point de vente « Siège » qui n'est plus créé
+        // depuis longtemps : l'entreprise crée le sien.
+        $message = 'Entreprise créée avec le compte de son responsable ('
             . $entreprise->email . '). Il devra changer son mot de passe à la première connexion.'
             . (\App\Mail\EnvoiCourriel::annoncerCompte($responsable, true) ? '' : \App\Mail\EnvoiCourriel::AVIS_NON_PARTI)
-            . $messageSupplement);
+            . $messageSupplement;
+
+        // « Suivant » : le domaine d'activité se règle par le même parcours
+        // que celui de l'entreprise, de A à Z.
+        $redirection = $request->input('suite') === 'parcours'
+            ? redirect()->route('superadmin.entreprises.parcours', $entreprise)
+            : redirect()->route('superadmin.entreprises');
+
+        $redirection->with('succes', $message);
+        if ($ecartees !== []) {
+            $redirection->with('avertissement', 'Non retenu : ' . implode(' ; ', $ecartees) . '. À compléter depuis les paramètres de l\'entreprise.');
+        }
+
+        return $redirection;
     }
 
     /**

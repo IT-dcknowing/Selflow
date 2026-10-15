@@ -391,14 +391,17 @@ class CreationDeCompteTest extends TestCase
         }
     }
 
-    public function test_un_regime_hors_referentiel_est_refuse(): void
+    public function test_un_regime_hors_referentiel_n_est_jamais_enregistre(): void
     {
+        // Le régime reste contrôlé, mais il ne refuse plus la création (15/10/2026) :
+        // un intitulé hors référentiel est écarté et signalé, jamais enregistré.
         $this->actingAs($this->superadmin())
             ->post(route('superadmin.entreprises.creer.enregistrer'),
                 $this->creationSuperadmin(['regime_imposition' => 'Réel Normal']))
-            ->assertSessionHasErrors('regime_imposition');
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('avertissement', fn ($m) => str_contains($m, 'régime'));
 
-        $this->assertDatabaseMissing('entreprises', ['nom' => 'Quincaillerie du Plateau']);
+        $this->assertNull(Entreprise::where('nom', 'Quincaillerie du Plateau')->value('regime_imposition'));
     }
 
     public function test_une_entreprise_sur_l_ancien_vocabulaire_reste_modifiable(): void

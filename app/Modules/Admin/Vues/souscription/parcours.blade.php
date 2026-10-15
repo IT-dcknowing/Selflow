@@ -92,7 +92,7 @@
 @endsection
 
 @section('contenu')
-@php $comptaOuverte = auth()->user()->estSuperAdmin() || (bool) auth()->user()->entreprise?->comptabiliteOuverte(); @endphp
+@php $comptaOuverte = (bool) $entreprise->comptabiliteOuverte(); @endphp
 
 {{-- ── Le fil du parcours ── --}}
 @php
@@ -104,7 +104,7 @@
             $classe = $numero === $etape ? 'ici' : ($numero <= $entreprise->souscription_etape ? 'faite' : '');
         @endphp
         @if($numero <= $entreprise->souscription_etape + 1 && $numero !== $etape)
-            <a href="{{ route('admin.souscription.index', ['etape' => $numero]) }}"
+            <a href="{{ $routeEtape($numero) }}"
                class="pas {{ $classe }}" style="text-decoration:none;">
                 <span class="num">{{ $numero }}</span> {{ $titre }}
             </a>
@@ -123,7 +123,7 @@
     </div>
 @endif
 
-<form method="POST" action="{{ route('admin.souscription.enregistrer', $etape) }}" id="form-souscription">
+<form method="POST" action="{{ $routeEnregistrer }}" id="form-souscription">
     @csrf
 
     {{-- ══ 1. Le domaine ══ --}}
@@ -256,7 +256,7 @@
             // Un module déjà ouvert n'est pas un choix à refaire (chantier
             // 3.5) : l'étape le présentait coché, « à activer », alors qu'il
             // l'était déjà. Il se montre désormais comme acquis.
-            $dejaOuverts = (array) (auth()->user()->entreprise?->modules_actifs ?? []);
+            $dejaOuverts = (array) ($entreprise->modules_actifs ?? []);
             $tousOuverts = $modulesProposes !== []
                 && array_diff($modulesProposes, $dejaOuverts) === [];
         @endphp
@@ -428,7 +428,7 @@
         @endunless
 
         @if($etape > 1)
-            <a href="{{ route('admin.souscription.index', ['etape' => $etape - 1]) }}" class="btn btn-outline">
+            <a href="{{ $routeEtape($etape - 1) }}" class="btn btn-outline">
                 <i class="fas fa-arrow-left"></i> Retour
             </a>
         @endif
@@ -437,8 +437,8 @@
              refaire en entier : il complète un point et repart. Sans cette
              sortie, il devrait traverser les cinq étapes pour retrouver ses
              paramètres. --}}
-        @if($entreprise->souscription_terminee_le)
-            <a href="{{ route('admin.entreprise.parametres') }}" class="btn btn-outline">
+        @if($entreprise->souscription_terminee_le || request()->routeIs('superadmin.*'))
+            <a href="{{ $routeQuitter }}" class="btn btn-outline">
                 <i class="fas fa-xmark"></i> Quitter
             </a>
         @endif

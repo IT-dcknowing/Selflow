@@ -60,14 +60,17 @@
             </span>
         </label>
     </div>
+    <small class="fne-retirer" data-fne-retirer hidden>
+        <i class="fa-solid fa-rotate-left"></i> Cliquez à nouveau sur le choix pour le retirer.
+    </small>
 
     {{-- ── Elle a un compte : son accès suffit ── --}}
     <div class="fne-volet" data-fne-volet="oui" style="display:{{ $aDeja === '1' ? 'block' : 'none' }};">
         <div class="fne-note">
             <i class="fa-solid fa-shield-halved"></i>
-            Ces informations servent uniquement à relever votre paramétrage.
+            <span>Ces informations servent uniquement à relever votre paramétrage.
             Le mot de passe est <strong>chiffré</strong>, n'est affiché à
-            personne, et sera effacé une fois la configuration faite.
+            personne, et sera effacé une fois la configuration faite.</span>
         </div>
 
         <div class="rangee-2">
@@ -93,8 +96,8 @@
     <div class="fne-volet" data-fne-volet="non" style="display:{{ $aDeja === '0' ? 'block' : 'none' }};">
         <div class="fne-note">
             <i class="fa-solid fa-circle-info"></i>
-            Voici ce que la DGI demande pour ouvrir un compte. Ce qui vous
-            manque aujourd'hui se complétera depuis vos paramètres.
+            <span>Voici ce que la DGI demande pour ouvrir un compte. Ce qui vous
+            manque aujourd'hui se complétera depuis vos paramètres.</span>
         </div>
 
         <div class="rangee-2">
@@ -157,6 +160,18 @@
                 border-radius:8px; padding:11px 13px; margin-bottom:14px; }
     .fne-note i { flex-shrink:0; margin-top:1px; font-size:14px; }
     .bloc-fne .erreur { color:#DC2626; font-size:11.5px; display:block; margin-top:4px; }
+    /* Les champs portent leur propre mise en forme : l'écran du
+       superadministrateur n'a pas les styles de l'inscription, et le bloc s'y
+       affichait en champs bruts (retour du 15/10/2026). */
+    .bloc-fne .rangee-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    @media (max-width:640px) { .bloc-fne .rangee-2 { grid-template-columns:1fr; } }
+    .bloc-fne .champ { display:flex; flex-direction:column; gap:5px; margin-bottom:12px; min-width:0; }
+    .bloc-fne .champ label { font-size:11.5px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:.03em; }
+    .bloc-fne .champ input, .bloc-fne .champ select { width:100%; height:40px; padding:8px 12px; font-size:13.5px; font-family:inherit;
+                  border:1px solid #E2E8F0; border-radius:8px; background:#fff; color:#1E293B; }
+    .bloc-fne .champ input:focus, .bloc-fne .champ select:focus { outline:none; border-color:#002B5C; box-shadow:0 0 0 3px rgba(0,43,92,.1); }
+    .fne-option:has(input:checked) { border-color:#002B5C; background:#EFF6FF; }
+    .fne-retirer { display:block; font-size:11px; color:#64748B; margin-top:6px; }
     .fne-regime-notice { display:block; font-size:11.5px; color:#6B7280; line-height:1.55; margin-top:5px; }
 </style>
 
@@ -173,14 +188,36 @@
     document.querySelectorAll('[data-bloc-fne]').forEach(function (bloc) {
         var volets = bloc.querySelectorAll('[data-fne-volet]');
 
-        bloc.querySelectorAll('[data-fne-radio]').forEach(function (radio) {
-            radio.addEventListener('change', function () {
-                volets.forEach(function (volet) {
-                    volet.style.display =
-                        volet.dataset.fneVolet === radio.dataset.fneRadio ? 'block' : 'none';
-                });
+        var retirer = bloc.querySelector('[data-fne-retirer]');
+
+        function afficherLesVolets() {
+            var coche = bloc.querySelector('[data-fne-radio]:checked');
+            volets.forEach(function (volet) {
+                volet.style.display = coche && volet.dataset.fneVolet === coche.dataset.fneRadio ? 'block' : 'none';
             });
+            if (retirer) retirer.hidden = !coche;
+        }
+
+        // Un bouton radio ne se décoche pas de lui-même : une fois un choix
+        // fait, on ne pouvait plus revenir à « pas encore répondu » (retour du
+        // 15/10/2026). Un second clic sur le choix coché le retire.
+        bloc.querySelectorAll('[data-fne-radio]').forEach(function (radio) {
+            // Le clic peut tomber sur le libellé : l'état d'avant se relève là aussi.
+            (radio.closest('label') || radio).addEventListener('mousedown', function () { radio.dataset.etaitCoche = radio.checked ? '1' : ''; });
+            radio.addEventListener('keydown', function () { radio.dataset.etaitCoche = ''; });
+            radio.addEventListener('click', function () {
+                if (radio.dataset.etaitCoche === '1') {
+                    radio.checked = false;
+                    // Les champs du volet fermé ne partent pas avec le formulaire.
+                    bloc.querySelectorAll('[data-fne-volet="' + radio.dataset.fneRadio + '"] input, [data-fne-volet="' + radio.dataset.fneRadio + '"] select')
+                        .forEach(function (champ) { champ.value = ''; });
+                }
+                radio.dataset.etaitCoche = '';
+                afficherLesVolets();
+            });
+            radio.addEventListener('change', afficherLesVolets);
         });
+        afficherLesVolets();
 
         var regime = bloc.querySelector('[data-fne-regime]');
         var notice = bloc.querySelector('[data-fne-regime-notice]');

@@ -583,6 +583,11 @@ Route::prefix('superadmin')
         Route::post('/entreprises/creer', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'creer'])->name('entreprises.creer.enregistrer');
         Route::get('/entreprises/{entreprise}/modifier', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'modifierFormulaire'])->name('entreprises.modifier');
         Route::put('/entreprises/{entreprise}/modifier', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'modifier'])->name('entreprises.modifier.enregistrer');
+        // Le parcours de configuration, déroulé pour l'entreprise qu'on vient
+        // de créer : le même que le sien, de A à Z (15/10/2026).
+        Route::get('/entreprises/{entreprise}/parcours', [\App\Modules\Admin\Controleurs\SouscriptionControleur::class, 'indexPour'])->name('entreprises.parcours');
+        Route::post('/entreprises/{entreprise}/parcours/{etape}', [\App\Modules\Admin\Controleurs\SouscriptionControleur::class, 'enregistrerPour'])
+            ->whereNumber('etape')->name('entreprises.parcours.enregistrer');
         Route::post('/entreprises/{entreprise}/toggle-status', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'toggleStatus'])->name('entreprises.toggle_status');
         Route::delete('/entreprises/{entreprise}', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'supprimer'])->name('entreprises.supprimer');
         Route::get('/utilisateurs', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'utilisateurs'])->name('utilisateurs');

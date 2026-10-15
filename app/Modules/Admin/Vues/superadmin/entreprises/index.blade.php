@@ -125,6 +125,11 @@
                             <a href="{{ route('superadmin.entreprises.modifier', $ent) }}" class="btn btn-primary btn-sm" style="padding: 4px 8px; font-size: 12px;">
                                 <i class="fas fa-pen-to-square"></i> Configurer
                             </a>
+                            @unless($ent->souscription_terminee_le)
+                            <a href="{{ route('superadmin.entreprises.parcours', $ent) }}" class="btn btn-outline btn-sm" style="padding: 4px 8px; font-size: 12px;" title="Dérouler le parcours de configuration pour cette entreprise">
+                                <i class="fas fa-route"></i> Parcours
+                            </a>
+                            @endunless
                             <form method="POST" action="{{ route('superadmin.entreprises.toggle_status', $ent) }}" style="margin: 0; display: inline;">
                                 @csrf
                                 <button type="submit" class="btn btn-sm" style="padding: 4px 8px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; background: {{ $ent->statut === 'bloque' ? '#d1fae5' : '#fef3c7' }}; color: {{ $ent->statut === 'bloque' ? '#065f46' : '#92400e' }}; border: 1px solid {{ $ent->statut === 'bloque' ? '#34d399' : '#fbbf24' }}; border-radius: 6px; cursor: pointer;">
