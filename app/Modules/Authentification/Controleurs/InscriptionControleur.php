@@ -55,7 +55,7 @@ class InscriptionControleur
         // production du 15/10/2026). Une donnée fiscale mal formée est donc
         // écartée, l'entreprise créée, et l'utilisateur prévenu qu'il la
         // reprendra depuis ses paramètres. Seule la normalisation en a besoin.
-        $ecartees = $this->ecarterLesDonneesFiscalesInvalides($request);
+        $ecartees = \App\Modules\Admin\Services\DonneesFiscalesFacultatives::ecarterLesInvalides($request);
 
         $request->validate([
             'nom_entreprise'      => ['required', 'string', 'max:150'],
@@ -202,50 +202,5 @@ class InscriptionControleur
                 ->withErrors(['inscription_erreur' => 'Erreur lors de la création : ' . $e->getMessage()])
                 ->withInput($request->except('password', 'password_confirmation'));
         }
-    }
-
-    /**
-     * Retire de la requête les données fiscales facultatives mal formées.
-     *
-     * @return array<int, string> ce qui a été écarté, pour le dire
-     */
-    private function ecarterLesDonneesFiscalesInvalides(Request $request): array
-    {
-        $ecartees = [];
-        $formatNcc = '/^[A-Z0-9]{7}[A-Z]$/';
-
-        // Deux blocs portent un NCC (« j'ai un compte FNE » et « je n'en ai
-        // pas ») ; seul compte celui de la réponse choisie.
-        if ($request->input('possede_compte_fne') === '0') {
-            $request->merge(['fne_ncc' => null, 'fne_mot_de_passe' => null]);
-        } elseif ($request->input('possede_compte_fne') === '1') {
-            $request->merge(['ncc' => null]);
-        }
-
-        foreach (['fne_ncc', 'ncc'] as $champ) {
-            $valeur = (string) $request->input($champ, '');
-            if ($valeur !== '' && !preg_match($formatNcc, $valeur)) {
-                $ecartees[] = sprintf('le NCC « %s » (8 caractères attendus : 7 chiffres ou lettres puis une lettre)', $valeur);
-                $request->merge([$champ => null]);
-                if ($champ === 'fne_ncc') {
-                    $request->merge(['fne_mot_de_passe' => null]);
-                }
-            }
-        }
-
-        $regime = $request->input('regime_imposition');
-        if (filled($regime) && !in_array($regime, Entreprise::regimesAcceptesPour(), true)) {
-            $ecartees[] = 'le régime d\'imposition';
-            $request->merge(['regime_imposition' => null]);
-        }
-
-        foreach (['rccm' => 100, 'centre_impots' => 100, 'adresse' => 255, 'telephone' => 30, 'compte_contribuable' => 100] as $champ => $max) {
-            if (mb_strlen((string) $request->input($champ, '')) > $max) {
-                $ecartees[] = 'le champ ' . str_replace('_', ' ', $champ) . ' (trop long)';
-                $request->merge([$champ => null]);
-            }
-        }
-
-        return $ecartees;
     }
 }

@@ -26,7 +26,9 @@ use App\Modules\Admin\Regles\Quantite;
  * l'étape atteinte est retenue sur l'entreprise, pas dans la session, pour
  * qu'un changement de poste ou de navigateur ne fasse pas tout recommencer.
  *
- * Le superadmin n'y intervient jamais.
+ * Le superadministrateur peut le dérouler pour une entreprise qu'il vient de
+ * créer (15/10/2026) : mêmes étapes, mêmes règles, de A à Z — seules les
+ * adresses changent (`superadmin.entreprises.parcours`).
  *
  *   1. Catégorie      quel grand domaine
  *   2. Profils        le métier réel, plusieurs possibles, ou « Autre »
@@ -52,6 +54,13 @@ class SouscriptionControleur
 
         return view('admin::souscription.parcours', [
             'entreprise' => $entreprise,
+            'routeEtape' => fn (int $numero) => $this->adresseDeLEtape($numero, $entreprise),
+            'routeEnregistrer' => $this->pourLeSuperadmin()
+                ? route('superadmin.entreprises.parcours.enregistrer', [$entreprise, $etape])
+                : route('admin.souscription.enregistrer', $etape),
+            'routeQuitter' => $this->pourLeSuperadmin()
+                ? route('superadmin.entreprises')
+                : route('admin.entreprise.parametres'),
             'etape'      => $etape,
             'derniere'   => self::DERNIERE_ETAPE,
             'choix'      => $this->choix($entreprise),
@@ -69,7 +78,7 @@ class SouscriptionControleur
         // contrôle, un formulaire forgé sauterait le choix des profils et
         // souscrirait à des familles qui n'appartiennent à aucun d'eux.
         if ($etape > $entreprise->souscription_etape + 1 || $etape < 1 || $etape > self::DERNIERE_ETAPE) {
-            return redirect()->route('admin.souscription.index')
+            return redirect()->to($this->adresseDeLEtape(null, $entreprise))
                 ->with('erreur', 'Cette étape n\'est pas encore accessible.');
         }
 
@@ -262,6 +271,11 @@ class SouscriptionControleur
             'souscription_terminee_le' => now(),
         ]);
 
+        if ($this->pourLeSuperadmin()) {
+            return redirect()->route('superadmin.entreprises')
+                ->with('succes', "Le parcours de « {$entreprise->nom} » est terminé : domaine, métiers, modules, rayons et articles sont en place.");
+        }
+
         return redirect()->route('admin.tableau_de_bord')
             ->with('succes', 'Votre entreprise est configurée. Bonne vente !');
     }
@@ -328,6 +342,10 @@ class SouscriptionControleur
 
     private function entreprise(): Entreprise
     {
+        if ($this->pourLeSuperadmin()) {
+            return request()->route('entreprise');
+        }
+
         $entreprise = Auth::user()?->entreprise;
 
         abort_unless($entreprise, 403, 'Vous n\'êtes rattaché à aucune entreprise.');
@@ -353,7 +371,33 @@ class SouscriptionControleur
             $entreprise->update(['souscription_etape' => $etape - 1]);
         }
 
-        return redirect()->route('admin.souscription.index', ['etape' => $etape]);
+        return redirect()->to($this->adresseDeLEtape($etape, $entreprise));
+    }
+
+    /** Le parcours déroulé par le superadministrateur pour une entreprise. */
+    private function pourLeSuperadmin(): bool
+    {
+        return request()->route('entreprise') instanceof Entreprise && (bool) Auth::user()?->estSuperAdmin();
+    }
+
+    private function adresseDeLEtape(?int $etape, Entreprise $entreprise): string
+    {
+        $parametres = $etape ? ['etape' => $etape] : [];
+
+        return $this->pourLeSuperadmin()
+            ? route('superadmin.entreprises.parcours', [$entreprise] + $parametres)
+            : route('admin.souscription.index', $parametres);
+    }
+
+    /** Le même parcours, déroulé par le superadministrateur. */
+    public function indexPour(Request $request, Entreprise $entreprise): View
+    {
+        return $this->index($request);
+    }
+
+    public function enregistrerPour(Request $request, Entreprise $entreprise, int $etape): RedirectResponse
+    {
+        return $this->enregistrer($request, $etape);
     }
 
     /**

@@ -45,6 +45,8 @@ class VerifierHabilitationRoute
         'superadmin.entreprises.creer.enregistrer'    => 'gestion_entreprises',
         'superadmin.entreprises.modifier'             => 'gestion_entreprises',
         'superadmin.entreprises.modifier.enregistrer' => 'gestion_entreprises',
+        'superadmin.entreprises.parcours'             => 'gestion_entreprises',
+        'superadmin.entreprises.parcours.enregistrer' => 'gestion_entreprises',
         'superadmin.entreprises.toggle_status'        => 'gestion_entreprises',
         'superadmin.entreprises.supprimer'            => 'gestion_entreprises',
         'superadmin.utilisateurs'                     => 'gestion_entreprises',

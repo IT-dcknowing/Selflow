@@ -31,23 +31,9 @@
                         @error('nom') <small style="color:var(--danger)">{{ $message }}</small> @enderror
                     </div>
 
-                    {{-- Le régime d'imposition vivait ici, et proposait « Réel
-                         Normal », « Bénéfice Forfaitaire », « Exonéré » — des
-                         intitulés qu'aucune autre partie du logiciel ne
-                         reconnaît. Une entreprise ainsi enregistrée voyait ses
-                         lignes à 0 % partir en exonération conventionnelle quel
-                         que soit son régime réel. Il est demandé à l'étape de
-                         la facture normalisée, et seulement à qui n'a pas
-                         encore de compte FNE. --}}
-                    <div class="form-group">
-                        <label class="form-label">Forme Juridique</label>
-                        <select name="forme_juridique" class="form-control">
-                            <option value="">Sélectionner...</option>
-                            @foreach(['SARL','SA','SAS','SCI','EI','SASU','Association','GIE','Autre'] as $fj)
-                            <option value="{{ $fj }}" {{ old('forme_juridique') == $fj ? 'selected' : '' }}>{{ $fj }}</option>
-                            @endforeach
-                        </select>
-                    </div>
+                    {{-- La forme juridique a quitté la création, comme à
+                         l'inscription : elle se renseigne depuis les paramètres,
+                         avec le reste de l'identité légale (15/10/2026). --}}
 
                     {{-- Informations Gérant --}}
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
@@ -88,16 +74,29 @@
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                         <div class="form-group">
                             <label class="form-label">Mot de passe du responsable <span style="color:var(--danger)">*</span></label>
-                            <input type="password" name="gerant_password" class="form-control" required
-                                minlength="8" placeholder="Min. 8 caractères" autocomplete="new-password">
+                            <div class="champ-mdp">
+                                <input type="password" name="gerant_password" id="gerant_password" class="form-control" required
+                                    minlength="8" placeholder="Min. 8 caractères" autocomplete="new-password">
+                                <button type="button" class="voir-mdp" onclick="basculerLesMotsDePasse(this)" aria-label="Voir les mots de passe" title="Voir">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
                             @error('gerant_password') <small style="color:var(--danger);display:block;">{{ $message }}</small> @enderror
                         </div>
                         <div class="form-group">
                             <label class="form-label">Confirmation <span style="color:var(--danger)">*</span></label>
-                            <input type="password" name="gerant_password_confirmation" class="form-control" required
-                                minlength="8" placeholder="Répéter le mot de passe" autocomplete="new-password">
+                            <div class="champ-mdp">
+                                <input type="password" name="gerant_password_confirmation" id="gerant_password_confirmation" class="form-control" required
+                                    minlength="8" placeholder="Répéter le mot de passe" autocomplete="new-password">
+                                <button type="button" class="voir-mdp" onclick="basculerLesMotsDePasse(this)" aria-label="Voir les mots de passe" title="Voir">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <small id="accord-mdp" style="font-size:11px; display:block; margin-top:4px;"></small>
                         </div>
                     </div>
+                    {{-- Les règles et la jauge, comme à l'inscription. --}}
+                    @include('authentification::partials.regles_mot_de_passe', ['champMdp' => 'gerant_password', 'avecJauge' => true])
 
                     <div style="font-size:11.5px;color:#92400E;background:#FFFBEB;border:1px solid #FCD34D;border-radius:8px;padding:10px 12px;line-height:1.6;margin-bottom:16px;">
                         <i class="fas fa-key"></i>
@@ -105,26 +104,12 @@
                         le responsable devra <strong>le changer à sa première connexion</strong>.
                     </div>
 
-                    <div class="form-group">
-                        <label class="form-label">Adresse physique / Siège social</label>
-                        <input type="text" name="adresse" class="form-control" placeholder="Ex: Plateau, Abidjan" value="{{ old('adresse') }}">
-                    </div>
-
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                        <div class="form-group">
-                            <label class="form-label">RCCM</label>
-                            <input type="text" name="rccm" class="form-control" placeholder="Ex: CI-ABJ-..." value="{{ old('rccm') }}">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">NCC (N° Contribuable)</label>
-                            <input type="text" name="ncc" class="form-control" placeholder="Ex: 123456..." value="{{ old('ncc') }}">
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">N° Compte Contribuable CC</label>
-                        <input type="text" name="compte_contribuable" class="form-control" placeholder="Ex: CC-1234..." value="{{ old('compte_contribuable') }}">                    
-                    </div>
+                    {{-- Adresse, RCCM, NCC et compte contribuable vivaient
+                         ici **et** dans le bloc de la facture normalisée : deux
+                         champs du même nom, dont le second écrasait le premier.
+                         Ils ne restent que dans le bloc, comme à l'inscription ;
+                         le compte contribuable, qui désignait le même numéro que
+                         le NCC, est retiré (15/10/2026). --}}
                 </div>
             </div>
 
@@ -144,13 +129,13 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Quota Points de Vente max <span style="color:var(--danger)">*</span></label>
-                        <input type="number" name="quota_points_de_vente" class="form-control" required min="1" value="5">
+                        <input type="number" name="quota_points_de_vente" class="form-control" required min="1" value="{{ old('quota_points_de_vente', 3) }}">
                     </div>
                 </div>
             </div>
         </div>
 
-        {{-- Configuration du Secteur & Modules --}}
+        {{-- Facture normalisée, domaine, Comptaflow --}}
         <div style="display:flex; flex-direction:column; gap:20px;">
             <div class="card" style="padding: 24px;">
                 {{-- La facture normalisée : la même question qu'à
@@ -166,81 +151,26 @@
                     @include('admin::partiels.compte-fne', ['prefixeId' => 'sa'])
                 </div>
 
-                <div style="font-size:12px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
-                    <i class="fas fa-gears" style="color:var(--primary);"></i> Secteur & Modules Actifs
-                </div>
-                
-                <div class="form-group" style="margin-bottom:20px;">
-                    <label class="form-label">Secteurs d'activité
-                        <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3);background:var(--bg3);border-radius:4px;padding:1px 6px;margin-left:4px;">Facultatif</span>
-                    </label>
-                    <p style="font-size:11px;color:var(--text-3);margin-bottom:10px;">Le domaine décide des modules ouverts et du catalogue proposé. Il se choisit aussi bien plus tard, au parcours de configuration : ne bloquez pas la création pour lui.</p>
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
-                        @php
-                            // Le référentiel fait foi : mêmes douze domaines
-                            // qu'à l'inscription, aux paramètres et à la
-                            // première étape de la souscription.
-                            $secteursDispo = \App\Modules\Admin\Modeles\Referentiel\Categorie::domaines();
-                            $secteursOld = old('secteur_activite', []);
-                        @endphp
-                        @foreach($secteursDispo as $valeur)
-                        <label style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--bg3);border-radius:8px;cursor:pointer;font-size:12.5px;border:1px solid var(--border);transition:all .15s;"
-                            onmouseover="this.style.borderColor='var(--primary)';this.style.background='#EBF2FC'"
-                            onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--bg3)'">
-                            <input type="checkbox" name="secteur_activite[]" value="{{ $valeur }}"
-                                {{ in_array($valeur, $secteursOld) ? 'checked' : '' }}
-                                style="width:15px;height:15px;cursor:pointer;accent-color:var(--primary);">
-                            <span>{{ $valeur }}</span>
-                        </label>
-                        @endforeach
-                    </div>
-                    @error('secteur_activite') <small style="color:var(--danger);margin-top:6px;display:block;">{{ $message }}</small> @enderror
-                </div>
-                
-                <details style="margin-top: 15px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg3); overflow: hidden;">
-                    <summary style="font-weight: 700; color: var(--primary); cursor: pointer; padding: 14px 16px; background: var(--bg2); display: flex; align-items: center; justify-content: space-between; outline: none; list-style: none; user-select: none;">
-                        <span><i class="fas fa-cubes"></i> Configuration des modules (cliquer pour déplier)</span>
-                        <i class="fas fa-chevron-down" style="font-size: 11px;"></i>
-                    </summary>
-                    <div style="padding: 16px; display:flex; flex-direction:column; gap:10px; border-top: 1px solid var(--border);">
-                        @php
-                            $modules = [
-                                'principal'       => ['Tableaux de bord', 'Indicateurs d\'activité consolidés et personnels'],
-                                'ventes'          => ['Ventes & POS', 'Caisse tactile et factures clients'],
-                                'achats'          => ['Achats', 'Commandes et factures fournisseurs'],
-                                'stock'           => ['Stock avancé', 'Inventaire multi-sites, rebuts et transferts'],
-                                'production'      => ['Production / Usine', 'Fiches techniques et ordres de fabrication (Industriel)'],
-                                'comptabilite'    => ['Comptabilité', 'SYSCOHADA, trésorerie, encaissements/décaissements et écritures automatiques'],
-                                'points_de_vente' => ['Points de Vente', 'Gestion de l\'infrastructure multi-boutiques, personnels et habilitations'],
-                                'produits'        => ['Produits / Catalogue', 'Catalogue des articles, unités, prix et codes-barres'],
-                                'tiers'           => ['Tiers (Clients / Fournisseurs)', 'Répertoire complet des tiers'],
-                                'rapports'        => ['Rapports & Analyses', 'Graphiques et statistiques d\'activité'],
-                            ];
-                        @endphp
-                        @foreach($modules as $key => [$title, $desc])
-                        <label style="display:flex; align-items:flex-start; gap:10px; padding:10px; background:var(--bg2); border:1px solid var(--border); border-radius:8px; cursor:pointer;">
-                            <input type="checkbox" name="modules_actifs[]" value="{{ $key }}" id="mod_{{ $key }}" checked style="margin-top: 3px;">
-                            <div>
-                                <div style="font-weight:600; font-size:12.5px; color:var(--text);">{{ $title }}</div>
-                                <div style="font-size:11px; color:var(--text-3); margin-top:2px;">{{ $desc }}</div>
-                            </div>
-                        </label>
-                        @endforeach
+            </div>
 
-                        {{-- Services système intégrés d'office (B2B & FNE) --}}
-                        <input type="hidden" name="modules_actifs[]" value="b2b">
-                        <input type="hidden" name="modules_actifs[]" value="fne">
-                        
-                        <div style="margin-top:10px; padding:12px; background:rgba(0, 43, 92, 0.05); border:1px solid rgba(0, 43, 92, 0.15); border-radius:8px;">
-                            <div style="font-size:11.5px; font-weight:700; color:var(--navy); display:flex; align-items:center; gap:6px;">
-                                <i class="fas fa-check-double"></i> Services système inclus
-                            </div>
-                            <p style="font-size:10.5px; color:var(--text-2); margin-top:4px; line-height:1.4;">
-                                Les modules de communication inter-entreprises (B2B) et de facturation normalisée (FNE / DGI) sont automatiquement activés par défaut comme services d'infrastructure système.
-                            </p>
-                        </div>
-                    </div>
-                </details>
+            {{-- Le domaine d'activité : le même parcours que celui de
+                 l'entreprise, de A à Z — domaine, métiers, modules, rayons,
+                 articles (15/10/2026). La grille de cases à cocher et le
+                 tableau des modules sont retirés : les modules s'ouvrent par
+                 défaut, puis selon le domaine choisi. --}}
+            <div class="card" style="padding: 24px;">
+                <div style="font-size:12px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
+                    <i class="fas fa-route" style="color:var(--primary);"></i> Domaine d'activité
+                    <span style="font-size:10px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--text-3);">— facultatif</span>
+                </div>
+                <p style="font-size:12.5px;color:var(--text-3);line-height:1.6;margin-bottom:14px;">
+                    Le domaine décide des métiers, des modules ouverts, des rayons et des articles proposés.
+                    « Suivant » crée l'entreprise puis déroule pour elle le même parcours que dans son espace.
+                    Il peut aussi se faire plus tard, par l'entreprise elle-même.
+                </p>
+                <button type="submit" name="suite" value="parcours" class="btn btn-primary" id="btn-suivant-parcours" style="width:100%; justify-content:center; gap:8px;">
+                    Suivant — choisir le domaine <i class="fas fa-arrow-right"></i>
+                </button>
             </div>
 
             {{-- Section : Liaison COMPTAFLOW --}}
@@ -279,7 +209,33 @@
     </div>
 </form>
 
+<style>
+    .champ-mdp { position: relative; }
+    .champ-mdp input { padding-right: 42px; }
+    .voir-mdp { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: none; background: none; color: var(--text-3); cursor: pointer; padding: 4px 6px; }
+    .voir-mdp:hover { color: var(--primary); }
+</style>
 <script>
+// « Voir » : un clic ouvre les deux champs à la fois, et les referme ensemble.
+function basculerLesMotsDePasse() {
+    var champs = [document.getElementById('gerant_password'), document.getElementById('gerant_password_confirmation')];
+    var montrer = champs[0].type === 'password';
+    champs.forEach(function (c) { c.type = montrer ? 'text' : 'password'; });
+    document.querySelectorAll('.voir-mdp i').forEach(function (i) { i.className = montrer ? 'fas fa-eye-slash' : 'fas fa-eye'; });
+}
+(function () {
+    var mdp = document.getElementById('gerant_password');
+    var conf = document.getElementById('gerant_password_confirmation');
+    var accord = document.getElementById('accord-mdp');
+    function verifier() {
+        if (!conf.value) { accord.textContent = ''; return; }
+        var ok = conf.value === mdp.value;
+        accord.textContent = ok ? '✓ Les deux mots de passe correspondent' : '✗ Les deux mots de passe diffèrent';
+        accord.style.color = ok ? '#047857' : '#DC2626';
+    }
+    mdp.addEventListener('input', verifier);
+    conf.addEventListener('input', verifier);
+})();
 function toggleComptaflow(cb) {
     const fields = document.getElementById('comptaflow-fields');
     fields.style.display = cb.checked ? 'flex' : 'none';

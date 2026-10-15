@@ -8160,6 +8160,39 @@ Branche `registre-des-pannes`. Demande du propriétaire le 15/10.
 
 ---
 
+### Lot 80 — Création d'entreprise par le superadmin, alignée sur les décisions — **TERMINÉ le 15/10/2026**
+
+Branche `superadmin-creer-entreprise`. Retour du propriétaire le 15/10 (images 1 à 4).
+
+- **Domaine d'activité** : la grille de cases et le tableau des modules sont
+  retirés. Un bouton « Suivant — choisir le domaine » crée l'entreprise puis
+  déroule pour elle **le même parcours** que dans son espace
+  (`superadmin.entreprises.parcours`, cinq étapes, mêmes règles —
+  `SouscriptionControleur::indexPour / enregistrerPour`). Un bouton
+  « Parcours » dans la liste le reprend tant qu'il n'est pas terminé. Les
+  modules s'ouvrent par défaut, puis selon le domaine.
+- **Quota par défaut : 3** points de vente pour les entreprises créées
+  désormais ; celles qui existent gardent le leur.
+- **Mot de passe** : bouton « Voir » qui ouvre les deux champs ensemble,
+  règles cochées en direct, jauge de solidité, accord des deux saisies
+  (`regles_mot_de_passe` prend `champMdp` et `avecJauge`).
+- **Bloc « facture normalisée »** : il portait ses champs sans leur mise en
+  forme hors de l'inscription, et sa note se cassait autour du mot en gras ;
+  il est désormais présentable partout. **Un choix se retire** par un second
+  clic (les champs du volet sont vidés).
+- **Alignement** : forme juridique et compte contribuable retirés (comme à
+  l'inscription) ; adresse, RCCM et NCC n'existent plus qu'une fois (ils
+  étaient en double, le second écrasant le premier) ; une donnée fiscale mal
+  formée est écartée et signalée au lieu de refuser la création
+  (`DonneesFiscalesFacultatives`, partagé avec l'inscription) ; le message de
+  réussite ne parle plus d'un point de vente « Siège » qui n'est plus créé.
+
+- `SuperadminCreationAligneeTest` (4) ; `CreationDeCompteTest` redressé (un
+  régime inconnu est écarté, non refusé). Vérifié dans Chromium.
+- Suite : 1 751 épreuves, 1 746 passantes, 5 sautées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
