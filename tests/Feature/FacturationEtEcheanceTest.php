@@ -128,4 +128,22 @@ class FacturationEtEcheanceTest extends TestCase
         $this->assertSame('Poissonnerie', $profil->nom);
         $this->assertGreaterThanOrEqual(5, $profil->familles()->count());
     }
+
+    public function test_a_la_fin_du_pass_cadeau_l_acces_est_bloque(): void
+    {
+        // Tranché le 15/10/2026 : oui, le pass terminé bloque comme toute échéance.
+        $this->entreprise->forceFill([
+            'plan_abonnement' => Abonnements::PASS_CADEAU, 'abonnement_statut' => Abonnements::STATUT_ESSAI,
+            'pass_cadeau_utilise_le' => now()->subDays(8), 'abonnement_expire_le' => now()->subDay(),
+        ])->save();
+
+        $this->actingAs($this->admin)->get(route('admin.tableau_de_bord'))->assertSee('id="voile-abonnement-a-terme"', false);
+        $this->actingAs($this->admin)->post(route('admin.personnel.creer'), [
+            'nom' => 'Koné', 'prenom' => 'Awa', 'email' => 'awa@exemple.ci', 'password' => 'secret-1', 'role' => 'caissier',
+        ])->assertSessionHas('erreur');
+
+        // Choisir une offre reste possible depuis la facturation.
+        $this->actingAs($this->admin)->post(route('admin.abonnement.enregistrer'), ['offre' => Abonnements::SOLO, 'depuis' => 'facturation'])
+            ->assertSessionHas('succes');
+    }
 }

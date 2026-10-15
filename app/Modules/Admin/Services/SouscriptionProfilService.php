@@ -320,4 +320,56 @@ class SouscriptionProfilService
 
         return $ouverts;
     }
+
+    /**
+     * Le parcours déroulé dans la section « Domaine d'activité » de l'écran
+     * de création du superadministrateur (15/10/2026) : domaine, métiers,
+     * modules et rayons choisis sur place, appliqués à la création — comme les
+     * étapes 1 à 4 du parcours de l'entreprise. Les prix et le stock (étape 5)
+     * se règlent ensuite, sur les articles créés.
+     *
+     * @param  array{categorie_id?: int|string|null, profils?: array<int, string>, activite_autre?: ?string, modules?: array<int, string>, familles?: array<int, string>}  $parcours
+     * @return int l'étape atteinte (0 : rien de choisi)
+     */
+    public static function appliquerLeParcoursDeCreation(Entreprise $entreprise, array $parcours): int
+    {
+        $categorie = filled($parcours['categorie_id'] ?? null)
+            ? \App\Modules\Admin\Modeles\Referentiel\Categorie::find((int) $parcours['categorie_id'])
+            : null;
+
+        if (! $categorie) {
+            return 0;
+        }
+
+        $entreprise->update([
+            'secteur_activite'   => [$categorie->nom],
+            'activite_autre'     => $parcours['activite_autre'] ?? null,
+            'souscription_etape' => 1,
+        ]);
+
+        // Seuls les métiers du domaine choisi comptent.
+        $profils = Profil::where('categorie_id', $categorie->id)
+            ->whereIn('code', (array) ($parcours['profils'] ?? []))
+            ->pluck('code')->all();
+
+        if ($profils === []) {
+            return 1;
+        }
+
+        $bilan = self::souscrire($entreprise, $profils, (array) ($parcours['familles'] ?? []));
+
+        if (isset($parcours['modules'])) {
+            $entreprise->update([
+                'modules_actifs' => array_values(array_intersect(
+                    $bilan['modules'],
+                    array_merge((array) $parcours['modules'], Entreprise::MODULES_STRUCTURELS)
+                )),
+            ]);
+        }
+
+        VerrouConfigurationService::alignerLeSecteur($entreprise->refresh());
+        $entreprise->update(['souscription_etape' => 4]);
+
+        return 4;
+    }
 }

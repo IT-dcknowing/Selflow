@@ -55,7 +55,10 @@ class SuperadminCreationAligneeTest extends TestCase
         $this->assertSame(1, substr_count($page, 'name="ncc"'));
         $this->assertSame(1, substr_count($page, 'name="rccm"'));
         // Le bouton « Suivant » du domaine, le « Voir » et la jauge du mot de passe.
-        $this->assertStringContainsString('name="suite" value="parcours"', $page);
+        // « Suivant » déroule le parcours dans la section, sans rien envoyer.
+        $this->assertStringContainsString('id="parcours-suivant"', $page);
+        $this->assertStringContainsString('type="button" class="btn btn-primary" id="parcours-suivant"', $page);
+        $this->assertStringContainsString('name="parcours[categorie_id]"', $page);
         $this->assertStringContainsString('basculerLesMotsDePasse', $page);
         $this->assertStringContainsString('id="jauge-mdp-barre"', $page);
         // Le bloc FNE : un choix se retire.
@@ -98,5 +101,33 @@ class SuperadminCreationAligneeTest extends TestCase
         foreach (['ventes', 'achats', 'stock', 'b2b', 'fne'] as $module) {
             $this->assertContains($module, $modules);
         }
+    }
+
+    public function test_le_parcours_choisi_dans_la_section_est_applique_a_la_creation(): void
+    {
+        $profil = \App\Modules\Admin\Modeles\Referentiel\Profil::where('code', 'poissonnerie')->firstOrFail();
+        $familles = $profil->familles()->pluck('code')->all();
+
+        $this->creer(['parcours' => [
+            'categorie_id' => $profil->categorie_id,
+            'profils'      => ['poissonnerie'],
+            'modules'      => ['ventes', 'achats', 'stock', 'produits', 'tiers'],
+            'familles'     => array_slice($familles, 0, 3),
+        ]])->assertSessionHasNoErrors();
+
+        $entreprise = Entreprise::where('nom', 'Quincaillerie du Plateau')->firstOrFail();
+        $this->assertSame(4, (int) $entreprise->souscription_etape);
+        $this->assertContains('poissonnerie', $entreprise->profils()->pluck('code')->all());
+        $this->assertSame(3, \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)->count());
+        $this->assertNotContains('comptabilite', (array) $entreprise->modules_actifs, 'Un module décoché reste fermé.');
+
+        // Le parcours reprend aux prix et au stock.
+        $this->get(route('superadmin.entreprises.parcours', [$entreprise, 'etape' => 5]))->assertOk();
+    }
+
+    public function test_sans_domaine_la_creation_ne_touche_pas_au_parcours(): void
+    {
+        $this->creer()->assertRedirect(route('superadmin.entreprises'));
+        $this->assertSame(0, (int) Entreprise::where('nom', 'Quincaillerie du Plateau')->value('souscription_etape'));
     }
 }

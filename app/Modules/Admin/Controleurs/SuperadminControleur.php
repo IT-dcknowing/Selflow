@@ -110,7 +110,24 @@ class SuperadminControleur
      */
     public function creerFormulaire(): View
     {
-        return view('admin::superadmin.entreprises.creer');
+        // Le parcours se déroule dans la section « Domaine d'activité », sans
+        // quitter la page : tout ce qu'il affiche voyage avec elle.
+        $referentiel = [
+            'categories' => \App\Modules\Admin\Modeles\Referentiel\Categorie::withCount('profils')->orderBy('ordre')->get()
+                ->map(fn ($c) => ['id' => $c->id, 'nom' => $c->nom, 'metiers' => $c->profils_count])->values(),
+            'profils' => \App\Modules\Admin\Modeles\Referentiel\Profil::orderBy('nom')->get()
+                ->map(fn ($p) => [
+                    'code' => $p->code, 'nom' => $p->nom, 'categorie_id' => $p->categorie_id,
+                    'description' => $p->description, 'modules' => $p->modulesOuverts(),
+                ])->values(),
+            'familles' => \App\Modules\Admin\Modeles\Referentiel\Famille::with('profil:id,code')->withCount('articles')->orderBy('code')->get()
+                ->map(fn ($f) => ['profil' => $f->profil?->code, 'code' => $f->code, 'nom' => $f->nom, 'articles' => $f->articles_count])->values(),
+            'socle' => Entreprise::MODULES_SOCLE,
+            'structurels' => Entreprise::MODULES_STRUCTURELS,
+            'libelles' => collect(Entreprise::TOUS_LES_MODULES)->mapWithKeys(fn ($m) => [$m => Entreprise::libelleModule($m)]),
+        ];
+
+        return view('admin::superadmin.entreprises.creer', compact('referentiel'));
     }
 
     /**
@@ -171,6 +188,17 @@ class SuperadminControleur
             'secteur_activite.*'      => ['string', Rule::in(Categorie::domaines())],
             'modules_actifs'          => ['nullable', 'array'],
 
+            // ── Le parcours déroulé dans la section « Domaine d'activité » ──
+            'parcours'                => ['nullable', 'array'],
+            'parcours.categorie_id'   => ['nullable', 'integer', 'exists:referentiel_categories,id'],
+            'parcours.profils'        => ['nullable', 'array'],
+            'parcours.profils.*'      => ['string', 'exists:referentiel_profils,code'],
+            'parcours.activite_autre' => ['nullable', 'string', 'max:150'],
+            'parcours.modules'        => ['nullable', 'array'],
+            'parcours.modules.*'      => ['string', Rule::in(Entreprise::TOUS_LES_MODULES)],
+            'parcours.familles'       => ['nullable', 'array'],
+            'parcours.familles.*'     => ['string', 'max:32'],
+
             // ── L'accès à l'espace FNE, si l'entreprise en a déjà un ──
             'possede_compte_fne'      => ['nullable', 'in:0,1'],
             'fne_ncc'                 => ['nullable', 'string', 'size:8', 'regex:/^[A-Z0-9]{7}[A-Z]$/'],
@@ -225,6 +253,12 @@ class SuperadminControleur
         // l'archivera.
         TrousseauEntrepriseService::doter($entreprise);
         $this->poserLesLimitesDeLOffre($entreprise, $request);
+
+        // Domaine, métiers, modules et rayons choisis dans la section :
+        // appliqués comme les étapes 1 à 4 du parcours de l'entreprise.
+        $etapeAtteinte = \App\Modules\Admin\Services\SouscriptionProfilService::appliquerLeParcoursDeCreation(
+            $entreprise, (array) $request->input('parcours', [])
+        );
 
         // ── Le responsable, sans qui l'entreprise n'est atteignable par
         //    personne ──
@@ -294,9 +328,14 @@ class SuperadminControleur
 
         // « Suivant » : le domaine d'activité se règle par le même parcours
         // que celui de l'entreprise, de A à Z.
-        $redirection = $request->input('suite') === 'parcours'
-            ? redirect()->route('superadmin.entreprises.parcours', $entreprise)
-            : redirect()->route('superadmin.entreprises');
+        // Le parcours reprend où la section l'a laissé : les prix et le stock
+        // des articles créés (étape 5), ou les métiers si seul le domaine a
+        // été choisi.
+        $redirection = match (true) {
+            $etapeAtteinte >= 4 => redirect()->route('superadmin.entreprises.parcours', [$entreprise, 'etape' => 5]),
+            $etapeAtteinte >= 1, $request->input('suite') === 'parcours' => redirect()->route('superadmin.entreprises.parcours', $entreprise),
+            default => redirect()->route('superadmin.entreprises'),
+        };
 
         $redirection->with('succes', $message);
         if ($ecartees !== []) {
