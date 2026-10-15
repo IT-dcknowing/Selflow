@@ -428,13 +428,26 @@ class SuperadminControleur
     public function supprimer(Entreprise $entreprise): RedirectResponse
     {
         $nom = $entreprise->nom;
-        
-        // Supprimer les entités enfants associées
-        $entreprise->utilisateurs()->delete();
-        $entreprise->pointsDeVente()->delete();
-        $entreprise->delete();
 
-        return redirect()->route('superadmin.entreprises')->with('succes', "L'entreprise « {$nom} » a été supprimée avec succès.");
+        // Utilisateurs, puis points de vente, puis l'entreprise, sans
+        // transaction : en production la base a refusé la deuxième étape
+        // (une vente pointe vers une autre), et l'entreprise est restée sans
+        // ses utilisateurs (15/10/2026). Tout part désormais d'un bloc, en
+        // suivant les dépendances du schéma — ou rien ne part.
+        try {
+            $effacees = \App\Modules\Admin\Services\SuppressionEntrepriseService::supprimer($entreprise);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return redirect()->route('superadmin.entreprises')->with('erreur',
+                "L'entreprise « {$nom} » n'a pas pu être supprimée ; rien n'a été effacé. Référence : "
+                . \App\Exceptions\Panne::reference($e) . '.');
+        }
+
+        return redirect()->route('superadmin.entreprises')->with('succes', sprintf(
+            "L'entreprise « %s » a été supprimée avec toutes ses données (%d lignes : utilisateurs, points de vente, pièces, stock, écritures…).",
+            $nom, array_sum($effacees)
+        ));
     }
 
     /**
