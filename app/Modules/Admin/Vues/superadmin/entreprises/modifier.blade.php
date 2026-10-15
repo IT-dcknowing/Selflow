@@ -48,20 +48,7 @@
                         <input type="text" name="gerant_fonction" class="form-control" placeholder="Ex: Directeur Général" value="{{ old('gerant_fonction', $entreprise->gerant_fonction) }}">
                     </div>
                     
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                        <div class="form-group">
-                            <label class="form-label">Plan d'abonnement <span style="color:var(--danger)">*</span></label>
-                            <select name="plan_abonnement" class="form-control" required>
-                                <option value="Starter" {{ $entreprise->plan_abonnement === 'Starter' ? 'selected' : '' }}>Starter</option>
-                                <option value="Pro" {{ $entreprise->plan_abonnement === 'Pro' ? 'selected' : '' }}>Pro</option>
-                                <option value="Enterprise" {{ $entreprise->plan_abonnement === 'Enterprise' ? 'selected' : '' }}>Enterprise</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Quota Points de Vente max <span style="color:var(--danger)">*</span></label>
-                            <input type="number" name="quota_points_de_vente" class="form-control" value="{{ old('quota_points_de_vente', $entreprise->quota_points_de_vente) }}" required min="1">
-                        </div>
-                    </div>
+                    @include('admin::superadmin.entreprises.partials.abonnement', ['entreprise' => $entreprise])
 
                     <div style="padding: 12px; background: var(--bg3); border-radius: 8px; border: 1px solid var(--border); font-size: 12px; color: var(--text-2);">
                         <i class="fas fa-building" style="margin-right: 6px; color: var(--primary);"></i>
@@ -73,8 +60,8 @@
             
             <div class="card" style="padding: 24px; font-size: 13px; color: var(--text-2);">
                 <div style="font-weight: 700; margin-bottom: 10px; color: var(--text);"><i class="fas fa-database"></i> Métriques de la structure :</div>
-                <div>Nombre d'utilisateurs créés : <strong>{{ $entreprise->utilisateurs()->count() }}</strong></div>
-                <div style="margin-top: 6px;">Nombre de points de vente créés : <strong>{{ $entreprise->pointsDeVente()->count() }} / {{ $entreprise->quota_points_de_vente }}</strong></div>
+                <div>Nombre d'utilisateurs créés : <strong>{{ $entreprise->utilisateurs()->count() }} / {{ \App\Modules\Admin\Regles\Abonnements::enChiffres($entreprise->quota_utilisateurs) }}</strong></div>
+                <div style="margin-top: 6px;">Nombre de points de vente créés : <strong>{{ $entreprise->pointsDeVente()->count() }} / {{ \App\Modules\Admin\Regles\Abonnements::enChiffres($entreprise->quota_points_de_vente) }}</strong></div>
                 <div style="margin-top: 6px;">Nombre d'articles au catalogue : <strong>{{ $entreprise->produits()->count() }}</strong></div>
             </div>
         </div>
@@ -87,7 +74,7 @@
                 </div>
                 
                 <div class="form-group" style="margin-bottom:20px;">
-                    <label class="form-label">Secteurs d'activité <span style="color:var(--danger)">*</span></label>
+                    <label class="form-label">Secteurs d'activité <span style="font-size:10px;color:var(--text-3);">facultatif — le parcours le règle</span></label>
                     <p style="font-size:11px;color:var(--text-3);margin-bottom:10px;">Sélectionnez tous les secteurs qui correspondent à l'activité de l'entreprise.</p>
                     @php
                         // Le référentiel fait foi : mêmes douze domaines qu'à

@@ -79,7 +79,7 @@ class RecetteNouvelleEntrepriseTest extends TestCase
             'nom_entreprise' => 'Boutique Akwaba SARL', 'nom' => 'Kouassi', 'prenom' => 'Aya',
             'email' => 'aya@recette.ci', 'password' => 'Selflow!2026', 'password_confirmation' => 'Selflow!2026',
             'conditions' => '1', 'possede_compte_fne' => '1', 'fne_ncc' => '2603210a', 'fne_mot_de_passe' => 'mdp',
-        ])->assertSessionHasNoErrors()->assertRedirect(route('admin.tableau_de_bord'));
+        ])->assertSessionHasNoErrors()->assertRedirect(route('admin.abonnement.choisir'));
 
         $this->assertSame('2603210A', Entreprise::where('nom', 'Boutique Akwaba SARL')->value('ncc'));
 

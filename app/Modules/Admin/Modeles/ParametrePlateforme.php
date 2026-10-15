@@ -17,6 +17,10 @@ class ParametrePlateforme extends Model
     public const ASSISTANCE_EMAIL = 'assistance_email';
     public const ASSISTANCE_TELEPHONE = 'assistance_telephone';
 
+    /** Le service commercial, pour l'offre sur mesure (à défaut : l'assistance). */
+    public const COMMERCIAL_EMAIL = 'commercial_email';
+    public const COMMERCIAL_TELEPHONE = 'commercial_telephone';
+
     /**
      * Lire un réglage. Jamais d'exception : la page de maintenance l'appelle
      * alors que la base peut justement être en cause.

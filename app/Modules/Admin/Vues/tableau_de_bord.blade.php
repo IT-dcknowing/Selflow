@@ -69,6 +69,8 @@
     </span>
 </div>
 
+@include('admin::partials.bandeau-abonnement')
+
 @if(Auth::check() && Auth::user()->entreprise && !Auth::user()->entreprise->estInscriptionComplete())
 <div class="alert alert-warning" style="display:flex; align-items:center; justify-content:space-between; gap:16px; background:#FFFBEB; border:1px solid #FCD34D; border-radius:12px; padding:16px 20px; margin-bottom:20px; color:#92400E; box-shadow:0 1px 3px rgba(0,0,0,0.05); flex-wrap:wrap;">
     <div style="display:flex; align-items:center; gap:12px; min-width:280px; flex:1;">

@@ -65,7 +65,7 @@ class CreationDeCompteTest extends TestCase
             'gerant_password'              => 'un-mot-de-passe',
             'gerant_password_confirmation' => 'un-mot-de-passe',
             'quota_points_de_vente'        => 5,
-            'plan_abonnement'              => 'Starter',
+            'plan_abonnement'              => 'BUSINESS',
         ], $extra);
     }
 
@@ -451,7 +451,7 @@ class CreationDeCompteTest extends TestCase
             'fne_ncc'            => '2603',
             'fne_mot_de_passe'   => 'secret-fne',
         ]))->assertSessionHasNoErrors()
-            ->assertRedirect(route('admin.tableau_de_bord'))
+            ->assertRedirect(route('admin.abonnement.choisir'))
             ->assertSessionHas('avertissement', fn ($m) => str_contains($m, 'NCC « 2603 »'));
 
         $entreprise = Entreprise::where('nom', 'Boutique du carrefour')->firstOrFail();

@@ -516,6 +516,8 @@ class Habilitations
         'admin.mon_profil.enregistrer' => 'Idem — modifier ses propres coordonnées.',
         'admin.periods.switch'        => 'Choisir la période affichée ne donne accès à aucun écran de plus : chaque écran garde son propre contrôle.',
         'admin.onboarding.entreprise_nom' => 'Étape de la première configuration, avant qu\'aucune habilitation ne soit posée.',
+        'admin.abonnement.choisir'    => 'Les offres d\'abonnement de sa propre entreprise, juste après l\'inscription (15/10/2026) : la route est réservée au rôle admin.',
+        'admin.abonnement.enregistrer' => 'Retenir l\'offre de sa propre entreprise ; ses limites viennent de l\'offre, jamais du formulaire.',
         'admin.visite.terminer'       => 'Fermer la visite guidée.',
         'admin.visite.reprendre'      => 'Rouvrir la visite guidée.',
         'admin.visite.rejouer'        => 'Rejouer la visite guidée.',

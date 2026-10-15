@@ -33,6 +33,8 @@ class SuperadminPanneControleur
         $assistance = [
             'email'     => ParametrePlateforme::lire(ParametrePlateforme::ASSISTANCE_EMAIL),
             'telephone' => ParametrePlateforme::lire(ParametrePlateforme::ASSISTANCE_TELEPHONE),
+            'commercial_email'     => ParametrePlateforme::lire(ParametrePlateforme::COMMERCIAL_EMAIL),
+            'commercial_telephone' => ParametrePlateforme::lire(ParametrePlateforme::COMMERCIAL_TELEPHONE),
         ];
 
         return view('admin::superadmin.pannes.index', compact('pannes', 'corrigees', 'assistance'));
@@ -54,13 +56,17 @@ class SuperadminPanneControleur
         $donnees = $request->validate([
             'assistance_email'     => ['nullable', 'email', 'max:191'],
             'assistance_telephone' => ['nullable', 'string', 'max:40'],
+            'commercial_email'     => ['nullable', 'email', 'max:191'],
+            'commercial_telephone' => ['nullable', 'string', 'max:40'],
         ], [
             'assistance_email.email' => 'L\'adresse de l\'assistance n\'est pas valide.',
         ]);
 
         ParametrePlateforme::ecrire(ParametrePlateforme::ASSISTANCE_EMAIL, $donnees['assistance_email'] ?? null);
         ParametrePlateforme::ecrire(ParametrePlateforme::ASSISTANCE_TELEPHONE, $donnees['assistance_telephone'] ?? null);
+        ParametrePlateforme::ecrire(ParametrePlateforme::COMMERCIAL_EMAIL, $donnees['commercial_email'] ?? null);
+        ParametrePlateforme::ecrire(ParametrePlateforme::COMMERCIAL_TELEPHONE, $donnees['commercial_telephone'] ?? null);
 
-        return back()->with('succes', 'Les contacts de l\'assistance sont enregistrés : ils s\'affichent sur la page de maintenance.');
+        return back()->with('succes', 'Les contacts sont enregistrés : l\'assistance sur la page de maintenance, le service commercial sur l\'offre sur mesure.');
     }
 }

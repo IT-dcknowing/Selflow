@@ -143,7 +143,7 @@ class CourrielsDeCompteTest extends TestCase
         $this->actingAs($super)->post(route('superadmin.entreprises.creer.enregistrer'), [
             'nom' => 'Quincaillerie du Plateau', 'email' => 'gerant@quincaillerie.ci',
             'gerant_password' => 'un-mot-de-passe', 'gerant_password_confirmation' => 'un-mot-de-passe',
-            'quota_points_de_vente' => 5, 'plan_abonnement' => 'Starter',
+            'quota_points_de_vente' => 5, 'plan_abonnement' => 'BUSINESS',
         ])->assertSessionHasNoErrors();
 
         Mail::assertSent(CompteSelflowOuvert::class, fn ($m) => $m->hasTo('gerant@quincaillerie.ci') && $m->creeParUnTiers);

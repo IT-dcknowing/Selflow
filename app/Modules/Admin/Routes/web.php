@@ -571,6 +571,19 @@ Route::prefix('admin/souscription')
     });
 
 // ───────────────────────────────────────────────────────────────────────
+// Les offres d'abonnement (15/10/2026) : la vitrine pour le visiteur, le
+// choix pour l'entreprise juste inscrite.
+// ───────────────────────────────────────────────────────────────────────
+Route::get('/offres', [\App\Modules\Admin\Controleurs\AbonnementControleur::class, 'vitrine'])->name('offres');
+Route::prefix('admin/abonnement')
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.abonnement.')
+    ->group(function () {
+        Route::get('/', [\App\Modules\Admin\Controleurs\AbonnementControleur::class, 'choisir'])->name('choisir');
+        Route::post('/', [\App\Modules\Admin\Controleurs\AbonnementControleur::class, 'enregistrer'])->name('enregistrer');
+    });
+
+// ───────────────────────────────────────────────────────────────────────
 // Routes pour l'interface SuperAdmin
 // ───────────────────────────────────────────────────────────────────────
 Route::prefix('superadmin')

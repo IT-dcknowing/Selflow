@@ -398,6 +398,7 @@
             </div>
 
             <div class="lien-connexion">
+                <a href="{{ route('offres') }}">Voir nos offres</a> — pass cadeau de 7 jours offert.<br>
                 Déjà un compte ?
                 <a href="{{ route('connexion') }}">Se connecter</a>
             </div>

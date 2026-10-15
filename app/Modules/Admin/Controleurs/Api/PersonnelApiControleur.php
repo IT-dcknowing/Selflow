@@ -63,6 +63,14 @@ class PersonnelApiControleur
             'habilitations'      => ['nullable', 'array'],
         ]);
 
+        // Même limite que l'écran : le nombre d'utilisateurs suit l'offre.
+        if (\App\Modules\Admin\Regles\Abonnements::placesUtilisateursRestantes($entreprise) === 0) {
+            return response()->json([
+                'statut'  => 'erreur',
+                'message' => 'Limite d\'utilisateurs de votre offre atteinte.',
+            ], 422);
+        }
+
         $personnel = Utilisateur::create([
             'entreprise_id'      => $entreprise->id,
             'point_de_vente_id'  => $request->point_de_vente_id,

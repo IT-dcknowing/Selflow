@@ -21,6 +21,14 @@
     <div>
         <h1><i class="fas fa-users-gear"></i> Gestion des Personnels & Accès</h1>
         <p>Gérez les comptes des administrateurs et des caissiers, leurs contrats, notes et habilitations.</p>
+        @php $__ent = auth()->user()->entreprise; @endphp
+        @if($__ent && $__ent->quota_utilisateurs !== null)
+            <p style="font-size:12.5px; margin-top:4px;">
+                <i class="fas fa-users"></i> {{ $__ent->utilisateurs()->count() }} / {{ \App\Modules\Admin\Regles\Abonnements::enChiffres($__ent->quota_utilisateurs) }}
+                utilisateurs — offre {{ \App\Modules\Admin\Regles\Abonnements::libelle($__ent->plan_abonnement) }}
+                · <a href="{{ route('admin.abonnement.choisir') }}">changer d'offre</a>
+            </p>
+        @endif
     </div>
     <div style="display:flex; gap:10px; align-items:center;">
         <button class="btn btn-outline" onclick="ouvrirImport('modalImportPersonnel')" style="font-size:13px;">
