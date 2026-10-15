@@ -124,3 +124,15 @@ Aucun fichier du périmètre FNE gelé n'a été modifié.
 - MIGRATIONS NOUVELLES : 2026_10_15_000001 (pannes, parametres_plateforme),
   2026_10_15_000002 (abonnements) — php artisan migrate --force.
 - À trancher : paiement des offres ; fin du pass cadeau.
+
+
+8. SUITE DU 15/10/2026 (nuit) — lots 82 et 83
+---------------------------------------------
+- 82 (urgent) Habilitations mises à jour ; migration 2026_10_15_000003
+  accorde les nouveaux droits à qui avait l'ancien.
+- 83 Facturation dans les paramètres ; blocage à l'échéance ; métier
+  Poissonnerie. Migration 2026_10_15_000004.
+- EN PRODUCTION : php artisan migrate --force
+  puis php artisan db:seed --class=ReferentielSeeder (pour la poissonnerie).
+- Pour débloquer une entreprise à terme après règlement : Superadmin ›
+  Entreprises › Configurer › « Fin de l'offre » à une date future.
