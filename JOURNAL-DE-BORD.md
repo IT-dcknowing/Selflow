@@ -8343,6 +8343,28 @@ Branche `parcours-dans-la-section`. Retour du propriétaire le 15/10.
 
 ---
 
+### Lot 86 — Les habilitations proposées suivent ce que l'entreprise dispose — **TERMINÉ le 15/10/2026**
+
+Branche `habilitations-selon-l-entreprise`. Retour du propriétaire : la
+fenêtre du personnel proposait toute la comptabilité alors qu'elle n'était
+pas activée dans les paramètres.
+
+**Cause.** Le module `comptabilite` fait partie du socle (il porte la
+trésorerie de caisse) : le groupe entier était donc proposé, quel que soit
+l'état de la comptabilité.
+
+**Correctif.** `Habilitations::pourLEntreprise` applique les conditions du
+menu, à l'instant : comptabilité fermée, le groupe s'appelle « Trésorerie » et
+ne propose que « Solde & journal » et « Moyens de paiement » ; ouverte,
+créances, plan comptable, codes journaux et immobilisations s'ajoutent, et
+encaissements, décaissements, écriture globale seulement s'ils sont attribués
+par le superadministrateur. Un droit déjà accordé n'est pas retiré : il
+réapparaît dès que l'écran revient.
+
+- `HabilitationsAJourTest` +2. Suite : 1 775 épreuves, 1 770 passantes, 5 sautées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
