@@ -169,7 +169,9 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    // Par défaut, sécurisé dès que l'application est servie en HTTPS (audit
+    // du 16/10/2026) : le cookie de session ne part plus jamais en clair.
+    'secure' => env('SESSION_SECURE_COOKIE', str_starts_with((string) env('APP_URL', ''), 'https://')),
 
     /*
     |--------------------------------------------------------------------------

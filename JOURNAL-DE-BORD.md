@@ -8571,6 +8571,73 @@ disponible même si la base tombe. En urgence sans écran :
 
 ---
 
+### Lot 94 — Performance et sécurité (audits du 16/10/2026) — **TERMINÉ le 16/10/2026**
+
+Deux audits menés le 16/10/2026 : performance (pages mesurées, requêtes
+comptées) et sécurité (code relu, requêtes d'attaque jouées en local avec
+`APP_ENV=production`, `APP_DEBUG=false`). **Aucune faille critique**. La
+production n'a pas pu être sondée depuis le conteneur (proxy).
+
+**Sécurité, corrigé :**
+- **HSTS** (`Strict-Transport-Security: max-age=31536000; includeSubDomains`)
+  sur toute réponse HTTPS (`AjouterEntetesSecurite`).
+- **Cookie de session `Secure` par défaut** dès que `APP_URL` est en https
+  (`config/session.php`) ; `SESSION_SECURE_COOKIE` reste prioritaire.
+- **Jeton d'API mobile** : seule son **empreinte SHA-256** est gardée en base ;
+  un ancien jeton en clair est reconnu puis remplacé par son empreinte (pas de
+  reconnexion forcée) ; une empreinte présentée comme jeton est refusée.
+  `jeton_api` ajouté à `Utilisateur::$hidden`.
+- **OAuth Google** : `stateless()` retiré — le paramètre `state` est vérifié
+  (plus de connexion forcée par CSRF).
+- **Scripts de débogage retirés de la racine** (`check_*.php`, `scratch_*.php`,
+  `seed_mega.php`, `seed_tiers_data.php`, `temp_inspect_fne.php`,
+  `update_fiscal.php`).
+- `public/.htaccess` refuse `.env`, `.git`, `*.sqlite`, `*.log`, `*.bak`,
+  `*.sql` même si la racine web était mal posée.
+
+**Sécurité, constaté sûr** : `/.env`, `/.git/config`, journaux, `vendor`,
+base SQLite, traversées `../` et `%2f` → 404/403 ; IDOR inter-entreprises →
+404 ; admin vers `/superadmin` → 403 ; API sans jeton et `external/*` sans
+secret → 401 ; pas d'injection SQL pilotée par l'utilisateur ; CSRF partout ;
+connexion limitée à 5/min ; aucune trace technique affichée en production.
+
+**Sécurité, reste à faire (moyen terme)** : CSP à nonces (aujourd'hui
+`unsafe-inline`/`unsafe-eval`, imposé par le JS en ligne des vues) ; secret
+`external/*` par entreprise.
+
+**Performance, corrigé :**
+- `public/.htaccess` : **gzip** (`mod_deflate`) et **durées de cache**
+  (`mod_expires`) — une page de 100-190 Ko passe à 20-40 Ko, la caisse de
+  ~1,9 Mo à ~70 Ko pour 800 articles.
+- `FournisseurDeServicesModules` ne recharge plus les 396 routes quand elles
+  sont en cache : `php artisan optimize` sert enfin.
+- Le **nombre de points de vente** n'est plus compté 3 à 9 fois par page
+  (`Entreprise::nombreDePointsDeVente()`, mémoire de requête oubliée à la
+  création/suppression d'un point de vente).
+- `VerrouConfigurationService` n'interroge plus `information_schema` à chaque
+  affichage (mémoire par processus).
+- **Enregistrement d'une vente** : les articles sont lus une fois au lieu de
+  trois fois par ligne.
+- Courriels : délai SMTP borné à 5 s (`MAIL_TIMEOUT`), au lieu d'attendre
+  jusqu'à 60 s un serveur muet.
+- Liste des dossiers Comptaflow en cache 2 min (lot 92).
+
+**Performance, à faire sur le serveur** (aucun code ne le remplace) :
+`.env` : `CACHE_STORE=file`, `SESSION_DRIVER=file` (la limitation de débit et
+la session écrivaient en base à chaque clic), `QUEUE_CONNECTION=database`,
+`LOG_LEVEL=warning`, `SESSION_SECURE_COOKIE=true` ; puis `composer install
+--no-dev -o --classmap-authoritative`, `php artisan optimize`,
+`php artisan storage:link` ; vérifier OPcache ; espacer le scraper FNE (15-30
+min) s'il est actif.
+
+**Différé** : caisse paginée (n'afficher que 60 articles et chercher le reste)
+— le gzip règle le transfert, le rendu reste proportionnel au catalogue ;
+courriels B2B et stickers en file d'attente.
+
+- `DurcissementSecuriteTest` (4). Suite : 1 806 épreuves, 1 801 passantes.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

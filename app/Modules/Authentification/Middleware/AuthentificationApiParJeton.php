@@ -26,10 +26,23 @@ class AuthentificationApiParJeton
 
         $jeton = substr($authorization, 7);
 
-        // Recherche de l'utilisateur avec ce jeton
-        $utilisateur = Utilisateur::where('jeton_api', $jeton)
+        // La base ne garde que l'empreinte du jeton (audit du 16/10/2026). Un
+        // jeton délivré avant, conservé en clair, est encore reconnu une fois
+        // et remplacé par son empreinte : l'application mobile n'a pas à se
+        // reconnecter.
+        $empreinte = hash('sha256', $jeton);
+        $utilisateur = Utilisateur::where('jeton_api', $empreinte)
             ->where('statut', 'actif')
             ->first();
+
+        // Jamais pour une valeur au format d'une empreinte : sinon l'empreinte
+        // lue dans une copie de la base servirait elle-même de jeton.
+        if (!$utilisateur && $jeton !== '' && !preg_match('/^[0-9a-f]{64}$/', $jeton)) {
+            $utilisateur = Utilisateur::where('jeton_api', $jeton)
+                ->where('statut', 'actif')
+                ->first();
+            $utilisateur?->forceFill(['jeton_api' => $empreinte])->save();
+        }
 
         if (!$utilisateur) {
             return response()->json([

@@ -30,6 +30,13 @@ class AjouterEntetesSecurite
         // Désactive la sniffer de navigateur obsolète (IE)
         $response->headers->set('X-XSS-Protection', '1; mode=block');
 
+        // HSTS (audit du 16/10/2026) : une fois venu en HTTPS, le navigateur
+        // n'essaie plus jamais le HTTP clair pour ce domaine. Posé seulement
+        // sur une réponse sécurisée — un en-tête HSTS sur du HTTP est ignoré.
+        if ($request->isSecure()) {
+            $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+        }
+
         // Content-Security-Policy : tout vient du domaine.
         //
         // Les polices et les icônes venaient de trois CDN — Google Fonts,

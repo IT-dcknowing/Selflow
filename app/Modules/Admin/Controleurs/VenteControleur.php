@@ -128,6 +128,15 @@ class VenteControleur
         $venteId = null;
         $etapePrevue = $request->input('etape', 'Facture');
 
+        // Les articles de la pièce, lus une fois (audit de performance du
+        // 16/10/2026) : chaque ligne était relue trois fois — 160 requêtes
+        // pour une vente de dix lignes. Seuls le prix et le taux s'y lisent ;
+        // le stock, lui, reste compté en base.
+        $catalogue = Produit::whereIn('id', collect((array) $request->articles)->pluck('produit_id')->filter()->unique()->values()->all())
+            ->get()
+            ->keyBy('id');
+        $produitDe = fn ($id) => $catalogue->get((int) $id) ?? Produit::findOrFail($id);
+
         // Vérification de disponibilité AVANT toute écriture en base : une
         // facturation (décrémentation immédiate du stock) ne doit jamais
         // pouvoir dépasser le stock réellement disponible. Un Devis ou Bon
@@ -139,7 +148,7 @@ class VenteControleur
                 if (empty($article['produit_id']))
                     continue;
 
-                $produit = Produit::find($article['produit_id']);
+                $produit = $catalogue->get((int) $article['produit_id']) ?? Produit::find($article['produit_id']);
                 if (!$produit || !$produit->estStockable())
                     continue;
 
@@ -173,7 +182,7 @@ class VenteControleur
         // passer, sans un mot. La transaction est annulée ; on le dit.
         $normalisationEcartee = false;
         try {
-        DB::transaction(function () use ($request, $pointDeVenteId, &$venteId, $entreprise, &$normalisationEcartee) {
+        DB::transaction(function () use ($request, $pointDeVenteId, &$venteId, $entreprise, &$normalisationEcartee, $produitDe) {
             $montantHt = 0;
             $remiseTaux = self::tauxBorne($request->input('remise_taux', 0));
             $etape = $request->input('etape', 'Facture');
@@ -183,7 +192,7 @@ class VenteControleur
             //    globale ensuite sur le total ainsi obtenu.
             foreach ($request->articles as $article) {
                 if (!empty($article['produit_id'])) {
-                    $produit = Produit::findOrFail($article['produit_id']);
+                    $produit = $produitDe($article['produit_id']);
                     $prix = $produit->prix_vente;
                 } else {
                     $prix = floatval($article['prix_unitaire'] ?? 0);
@@ -205,7 +214,7 @@ class VenteControleur
             $montantTva = 0;
             foreach ($request->articles as $article) {
                 if (!empty($article['produit_id'])) {
-                    $produit = Produit::findOrFail($article['produit_id']);
+                    $produit = $produitDe($article['produit_id']);
                     // Le taux saisi sur la ligne prime sur celui du catalogue
                     $tvaRate = isset($article['tva']) && $article['tva'] !== ''
                         ? self::tauxBorne($article['tva'])
