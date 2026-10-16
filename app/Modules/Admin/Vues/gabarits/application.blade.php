@@ -780,6 +780,11 @@
                 <i class="fas fa-bug"></i> Pannes &amp; assistance
                 @if($__pannesOuvertes)<span style="margin-left:auto; background:#ef4444; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700;">{{ $__pannesOuvertes }}</span>@endif
             </a>
+            @if(auth()->user()->aHabilitation('administration_interne'))
+            <a href="{{ route('superadmin.tracabilite.index') }}" class="nav-item {{ request()->routeIs('superadmin.tracabilite*') ? 'active' : '' }}">
+                <i class="fas fa-chart-line"></i> Maintenance &amp; traçabilité
+            </a>
+            @endif
 
             <div class="nav-section"><span>INTÉGRATIONS</span></div>
             <a href="{{ route('superadmin.liaisons.index') }}" class="nav-item {{ request()->routeIs('superadmin.liaisons*') ? 'active' : '' }}">

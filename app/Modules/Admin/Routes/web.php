@@ -606,6 +606,15 @@ Route::prefix('superadmin')
             ->whereNumber('etape')->name('entreprises.parcours.enregistrer');
         Route::post('/entreprises/{entreprise}/toggle-status', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'toggleStatus'])->name('entreprises.toggle_status');
         Route::delete('/entreprises/{entreprise}', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'supprimer'])->name('entreprises.supprimer');
+        // ── Maintenance & traçabilité (16/10/2026) ──
+        Route::prefix('tracabilite')->name('tracabilite.')->group(function () {
+            Route::get('/', [\App\Modules\Admin\Controleurs\SuperadminTracabiliteControleur::class, 'index'])->name('index');
+            Route::get('/ip/{ip}', [\App\Modules\Admin\Controleurs\SuperadminTracabiliteControleur::class, 'ip'])->name('ip')->where('ip', '[0-9a-fA-F:.]+');
+            Route::post('/bloquer', [\App\Modules\Admin\Controleurs\SuperadminTracabiliteControleur::class, 'bloquer'])->name('bloquer');
+            Route::delete('/ip/{ip}', [\App\Modules\Admin\Controleurs\SuperadminTracabiliteControleur::class, 'debloquer'])->name('debloquer')->where('ip', '[0-9a-fA-F:.]+');
+            Route::post('/basculer', [\App\Modules\Admin\Controleurs\SuperadminTracabiliteControleur::class, 'basculerTracabilite'])->name('basculer');
+        });
+
         // ── Corbeille des entreprises (16/10/2026) ──
         Route::get('/corbeille', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'corbeille'])->name('corbeille');
         Route::post('/corbeille/{entreprise}/restaurer', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'restaurer'])->name('corbeille.restaurer');

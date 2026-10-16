@@ -278,3 +278,6 @@ Schedule::command('selflow:renouveler-cles-comptaflow')
 
 // La corbeille des entreprises : effacement définitif après 30 jours (16/10/2026).
 Schedule::command('selflow:purger-corbeille')->dailyAt('03:30')->withoutOverlapping();
+
+// Traçabilité : les visites de plus de 30 jours sont purgées (16/10/2026).
+Schedule::command('selflow:purger-visites')->dailyAt('03:40')->withoutOverlapping();
