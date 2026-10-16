@@ -150,4 +150,37 @@ class ConfigurationGlobaleDesComptesTest extends TestCase
 
         $this->get(route('admin.comptabilite.configuration'))->assertNotFound();
     }
+
+    /* Retour du 16/10/2026 : une section « Articles » à côté des types. */
+    public function test_la_section_articles_pose_et_retire_l_exception_d_un_article(): void
+    {
+        $eau = $this->article(['nom' => 'Eau minérale']);
+        $autre = Produit::create([
+            'entreprise_id' => Entreprise::create(['nom' => 'Autre'])->id, 'reference' => 'X-1', 'nom' => 'Étranger',
+            'type' => 'marchandise', 'prix_achat' => 1, 'prix_vente' => 2, 'taux_tva' => 18,
+        ]);
+
+        $this->get(route('admin.comptabilite.configuration'))->assertOk()
+            ->assertSee('Par article')->assertSee('Eau minérale')->assertDontSee('Étranger');
+
+        $this->put(route('admin.comptabilite.configuration.enregistrer'), [
+            'article' => [
+                $eau->id   => ['compte_vente' => '707200'],
+                $autre->id => ['compte_vente' => '707900'],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('707200', ImputationService::compteVente($eau->fresh()));
+        $this->assertSame('601000', $eau->fresh()->compte_achat, 'un champ non envoyé reste tel quel');
+        $this->assertNull($autre->fresh()->compte_vente);
+
+        $this->put(route('admin.comptabilite.configuration.enregistrer'), [
+            'article' => [$eau->id => ['compte_vente' => '']],
+        ]);
+        $this->assertSame('701000', ImputationService::compteVente($eau->fresh()));
+
+        $this->put(route('admin.comptabilite.configuration.enregistrer'), [
+            'article' => [$eau->id => ['compte_vente' => '601000']],
+        ])->assertSessionHasErrors('article.' . $eau->id . '.compte_vente');
+    }
 }

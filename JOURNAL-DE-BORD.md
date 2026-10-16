@@ -8487,6 +8487,27 @@ sur le message consigné.
 
 ---
 
+### Lot 91 — Configuration des comptes : onglet « Par article » — **TERMINÉ le 16/10/2026**
+
+Comptabilité › Configuration des comptes : à côté de « Par type », un onglet
+**Par article** dans les sections vente et achat. Chaque article montre le
+compte qu'il **hérite** (type, catégorie, général, famille, défaut) et un
+champ « Compte de l'article » : saisi, il devient l'exception de l'article
+(rang 1 de `ImputationService`) ; vidé, l'article retourne à l'héritage
+(`compte_*` à `null`). Recherche par nom ou référence. Seuls les champs
+**modifiés** partent (les autres sont désactivés à l'envoi) : un catalogue de
+mille articles dépasserait sinon `max_input_vars`. Classe 7 / classe 6
+contrôlées ; un article d'une autre entreprise est ignoré.
+
+Limite connue, héritée de la règle d'exception : un compte saisi qui vaut le
+défaut ou celui de la famille n'est pas une exception (il ne passe pas devant
+une configuration par type).
+
+- 1 épreuve ajoutée à `ConfigurationGlobaleDesComptesTest`. Vérifié au
+  navigateur (saisie, enregistrement, relecture).
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
