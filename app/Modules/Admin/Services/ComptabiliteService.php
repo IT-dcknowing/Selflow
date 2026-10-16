@@ -179,6 +179,78 @@ class ComptabiliteService
      * temps qu'une facturation à crédit partielle.
      * Débit Caisse/Banque (Montant) vs Crédit Client (Montant)
      */
+    /** Le type des opérations qui défont une facture modifiée. */
+    public const TYPE_CONTRE_PASSATION_VENTE = 'ContrePassationVente';
+
+    /**
+     * Défaire les écritures d'une facture avant de la réécrire — retour du
+     * 16/10/2026.
+     *
+     * Modifier une facture non normalisée refaisait ses lignes, son stock et
+     * sa trésorerie, mais **pas sa comptabilité** : les écritures gardaient
+     * l'ancien montant, et Comptaflow avec elles. Une facture saisie à
+     * 39 milliards puis corrigée à 39 000 F restait à 39 milliards dans les
+     * livres.
+     *
+     * On ne supprime rien : chaque opération de facturation et de règlement
+     * de la pièce est contre-passée (débit et crédit inversés, même
+     * référence). Le solde revient à zéro ici comme chez Comptaflow, où la
+     * contre-passation part comme toute écriture, et l'historique dit ce qui
+     * s'est passé. Une opération déjà contre-passée ne l'est pas deux fois.
+     *
+     * @return int  le nombre d'opérations contre-passées
+     */
+    public static function contrePasserLaVente(Vente $vente): int
+    {
+        $entrepriseId = $vente->pointDeVente->entreprise_id;
+        $reference = $vente->numero_facture;
+
+        $operations = Operation::withoutGlobalScopes()
+            ->with(['ecritures' => fn ($q) => $q->withoutGlobalScopes()])
+            ->where('entreprise_id', $entrepriseId)
+            ->where('reference_document', $reference)
+            ->get();
+
+        $dejaDefaites = $operations
+            ->where('type_operation', self::TYPE_CONTRE_PASSATION_VENTE)
+            ->map(fn ($op) => (string) \Illuminate\Support\Str::after((string) $op->libelle_general, 'saisie '))
+            ->all();
+
+        $aDefaire = $operations->filter(fn ($op) => in_array($op->type_operation, ['FactureVente', 'ReglementVente'], true)
+            && !in_array((string) $op->numero_saisie, $dejaDefaites, true));
+
+        DB::transaction(function () use ($aDefaire) {
+            foreach ($aDefaire as $origine) {
+                $annulation = Operation::creer(
+                    $origine->entreprise_id, $origine->point_de_vente_id, now()->toDateString(),
+                    self::TYPE_CONTRE_PASSATION_VENTE, $origine->code_journal, $origine->reference_document,
+                    'Contre-passation (facture modifiée) — saisie ' . $origine->numero_saisie
+                );
+
+                foreach ($origine->ecritures as $ecriture) {
+                    EcritureComptable::create([
+                        'operation_id'       => $annulation->id,
+                        'entreprise_id'      => $ecriture->entreprise_id,
+                        'point_de_vente_id'  => $ecriture->point_de_vente_id,
+                        'date_ecriture'      => $annulation->date_operation,
+                        'libelle'            => mb_substr('Contre-passation ' . $ecriture->libelle, 0, 255),
+                        'reference_document' => $ecriture->reference_document,
+                        'code_journal'       => $ecriture->code_journal,
+                        'compte_debit'       => $ecriture->compte_credit,
+                        'compte_credit'      => $ecriture->compte_debit,
+                        'compte_tiers'       => $ecriture->compte_tiers,
+                        'debit'              => $ecriture->credit,
+                        'credit'             => $ecriture->debit,
+                    ]);
+                }
+
+                $annulation->cloturerEquilibre();
+            }
+        });
+
+        return $aDefaire->count();
+    }
+
     public static function genererEcritureReglementVente(
         Vente $vente,
         float $montant,
