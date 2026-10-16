@@ -20,12 +20,26 @@ class DemandeSticker extends Model
 
     protected $table = 'demandes_stickers';
 
+    // « Livrée sur l'espace FNE » est retirée (16/10/2026) : la demande est
+    // terminée une fois achetée. « Échec » s'ajoute, avec son motif.
     public const STATUTS = [
         'recue'    => 'Reçue',
         'en_cours' => 'Achat en cours',
         'achetee'  => 'Achetée auprès de la DGI',
-        'livree'   => 'Livrée sur l\'espace FNE',
+        'echec'    => 'Échec',
         'annulee'  => 'Annulée',
+    ];
+
+    /** Ce que le superadministrateur compte encore à traiter. */
+    public const A_TRAITER = ['recue', 'en_cours'];
+
+    /** Fond et texte du badge : vert terminé, rouge annulé ou échoué, jaune en cours. */
+    public const COULEURS = [
+        'recue'    => ['#eff6ff', '#1d4ed8'],
+        'en_cours' => ['#fef9c3', '#a16207'],
+        'achetee'  => ['#dcfce7', '#15803d'],
+        'echec'    => ['#fee2e2', '#b91c1c'],
+        'annulee'  => ['#fee2e2', '#b91c1c'],
     ];
 
     public const URGENCES = [
@@ -44,6 +58,8 @@ class DemandeSticker extends Model
         'entreprise_id', 'point_de_vente_id', 'utilisateur_id', 'quantite', 'prix_unitaire',
         'montant_estime', 'urgence', 'contact_telephone', 'commentaire', 'statut',
         'note_dcknowing', 'traitee_par', 'traitee_le', 'courriel_envoye',
+        'operateur_paiement', 'reference_paiement', 'motif_echec', 'en_cours_le', 'achetee_le',
+        'echec_le', 'annulee_le', 'stock_communique', 'solde_communique', 'notification_vue_le',
     ];
 
     protected function casts(): array
@@ -53,6 +69,12 @@ class DemandeSticker extends Model
             'prix_unitaire'   => 'decimal:2',
             'montant_estime'  => 'decimal:2',
             'traitee_le'      => 'datetime',
+            'en_cours_le'     => 'datetime',
+            'achetee_le'      => 'datetime',
+            'echec_le'        => 'datetime',
+            'annulee_le'      => 'datetime',
+            'notification_vue_le' => 'datetime',
+            'solde_communique' => 'decimal:2',
             'courriel_envoye' => 'boolean',
         ];
     }
@@ -84,7 +106,31 @@ class DemandeSticker extends Model
 
     public function estOuverte(): bool
     {
-        return in_array($this->statut, ['recue', 'en_cours', 'achetee'], true);
+        return in_array($this->statut, self::A_TRAITER, true);
+    }
+
+    /** @return array{0: string, 1: string} fond, texte */
+    public function couleurs(): array
+    {
+        return self::COULEURS[$this->statut] ?? ['#f1f5f9', '#475569'];
+    }
+
+    /**
+     * Les étapes franchies, de la première à la dernière, avec leur heure :
+     * la traçabilité de la demande.
+     *
+     * @return array<int, array{statut: string, libelle: string, le: ?\Illuminate\Support\Carbon}>
+     */
+    public function etapes(): array
+    {
+        $etapes = [['statut' => 'recue', 'libelle' => self::STATUTS['recue'], 'le' => $this->created_at]];
+        foreach (['en_cours' => 'en_cours_le', 'achetee' => 'achetee_le', 'echec' => 'echec_le', 'annulee' => 'annulee_le'] as $statut => $colonne) {
+            if ($this->{$colonne}) {
+                $etapes[] = ['statut' => $statut, 'libelle' => self::STATUTS[$statut], 'le' => $this->{$colonne}];
+            }
+        }
+
+        return $etapes;
     }
 
     /** Où DC-Knowing reçoit les demandes. */

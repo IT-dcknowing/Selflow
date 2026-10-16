@@ -35,6 +35,7 @@ class SuperadminPanneControleur
             'telephone' => ParametrePlateforme::lire(ParametrePlateforme::ASSISTANCE_TELEPHONE),
             'commercial_email'     => ParametrePlateforme::lire(ParametrePlateforme::COMMERCIAL_EMAIL),
             'commercial_telephone' => ParametrePlateforme::lire(ParametrePlateforme::COMMERCIAL_TELEPHONE),
+            'paiement_numeros'     => ParametrePlateforme::lire(\App\Modules\Admin\Regles\PaiementParReference::PARAMETRE_NUMEROS),
         ];
 
         return view('admin::superadmin.pannes.index', compact('pannes', 'corrigees', 'assistance'));
@@ -58,6 +59,7 @@ class SuperadminPanneControleur
             'assistance_telephone' => ['nullable', 'string', 'max:40'],
             'commercial_email'     => ['nullable', 'email', 'max:191'],
             'commercial_telephone' => ['nullable', 'string', 'max:40'],
+            'paiement_numeros'     => ['nullable', 'string', 'max:1000'],
         ], [
             'assistance_email.email' => 'L\'adresse de l\'assistance n\'est pas valide.',
         ]);
@@ -66,6 +68,7 @@ class SuperadminPanneControleur
         ParametrePlateforme::ecrire(ParametrePlateforme::ASSISTANCE_TELEPHONE, $donnees['assistance_telephone'] ?? null);
         ParametrePlateforme::ecrire(ParametrePlateforme::COMMERCIAL_EMAIL, $donnees['commercial_email'] ?? null);
         ParametrePlateforme::ecrire(ParametrePlateforme::COMMERCIAL_TELEPHONE, $donnees['commercial_telephone'] ?? null);
+        ParametrePlateforme::ecrire(\App\Modules\Admin\Regles\PaiementParReference::PARAMETRE_NUMEROS, $donnees['paiement_numeros'] ?? null);
 
         return back()->with('succes', 'Les contacts sont enregistrés : l\'assistance sur la page de maintenance, le service commercial sur l\'offre sur mesure.');
     }

@@ -84,6 +84,8 @@ class VerifierHabilitationRoute
 
         // Le registre des pannes : tout superadministrateur qui voit le
         // tableau de bord doit voir ce qui tombe.
+        'superadmin.paiements.index'   => 'gestion_entreprises',
+        'superadmin.paiements.traiter' => 'gestion_entreprises',
         'superadmin.pannes.index'      => 'tableau_de_bord_superadmin',
         'superadmin.pannes.corriger'   => 'tableau_de_bord_superadmin',
         'superadmin.pannes.assistance' => 'tableau_de_bord_superadmin',

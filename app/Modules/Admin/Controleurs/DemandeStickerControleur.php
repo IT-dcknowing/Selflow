@@ -49,9 +49,9 @@ class DemandeStickerControleur extends Controller
             'urgence'           => ['required', Rule::in(array_keys(DemandeSticker::URGENCES))],
             'contact_telephone' => ['nullable', 'string', 'max:30'],
             'commentaire'       => ['nullable', 'string', 'max:1000'],
-        ], [
+        ] + \App\Modules\Admin\Regles\PaiementParReference::regles(), [
             'quantite.min' => 'Une demande porte sur ' . DemandeSticker::QUANTITE_MIN . ' stickers au moins.',
-        ]);
+        ] + \App\Modules\Admin\Regles\PaiementParReference::messages());
 
         $prix = (float) config('selflow.sticker_prix_unitaire', 20);
 
@@ -86,7 +86,7 @@ class DemandeStickerControleur extends Controller
             return back()->with('erreur', 'DC-Knowing a déjà commencé l\'achat : contactez-la pour annuler.');
         }
 
-        $demande->update(['statut' => 'annulee']);
+        $demande->update(['statut' => 'annulee', 'annulee_le' => now()]);
 
         return back()->with('succes', 'Demande annulée.');
     }
@@ -100,25 +100,83 @@ class DemandeStickerControleur extends Controller
         return view('admin::superadmin.stickers.index', [
             'demandes' => DemandeSticker::with(['entreprise', 'pointDeVente', 'utilisateur', 'traiteePar'])
                 ->when($statut, fn ($q) => $q->where('statut', $statut))
-                ->orderByRaw("CASE WHEN statut IN ('recue','en_cours','achetee') THEN 0 ELSE 1 END")
+                ->orderByRaw("CASE WHEN statut IN ('recue','en_cours') THEN 0 ELSE 1 END")
                 ->orderByRaw("CASE WHEN urgence = 'urgente' THEN 0 ELSE 1 END")
                 ->latest()
                 ->paginate(25)
                 ->withQueryString(),
             'statut'   => $statut,
-            'ouvertes' => DemandeSticker::whereIn('statut', ['recue', 'en_cours', 'achetee'])->count(),
+            'ouvertes' => DemandeSticker::whereIn('statut', DemandeSticker::A_TRAITER)->count(),
         ]);
     }
 
+    /**
+     * Les trois gestes de DC-Knowing (16/10/2026) : « En cours » (paiement
+     * reçu, achat lancé), « Terminé » (stickers achetés ; le stock et le solde
+     * relevés sur l'espace FNE du client s'y saisissent), « Échec » (avec
+     * motif). Chaque geste garde son heure.
+     */
     public function superadminMettreAJour(Request $request, DemandeSticker $demande): RedirectResponse
     {
         $donnees = $request->validate([
-            'statut'         => ['required', Rule::in(array_keys(DemandeSticker::STATUTS))],
-            'note_dcknowing' => ['nullable', 'string', 'max:1000'],
+            'action'          => ['required', Rule::in(['en_cours', 'terminer', 'echec'])],
+            'motif_echec'     => ['required_if:action,echec', 'nullable', 'string', 'max:255'],
+            'stock_communique' => ['nullable', 'integer', 'min:0', 'max:100000000'],
+            'solde_communique' => ['nullable', 'numeric', 'min:0', 'max:100000000000'],
+            'note_dcknowing'  => ['nullable', 'string', 'max:1000'],
+        ], ['motif_echec.required_if' => 'Indiquez le motif de l\'échec : l\'entreprise le verra.']);
+
+        if (! $demande->estOuverte()) {
+            return back()->with('erreur', 'Cette demande est déjà ' . mb_strtolower($demande->libelleStatut()) . '.');
+        }
+
+        $commun = ['traitee_par' => Auth::id(), 'traitee_le' => now(), 'note_dcknowing' => $donnees['note_dcknowing'] ?? $demande->note_dcknowing];
+
+        match ($donnees['action']) {
+            'en_cours' => $demande->update($commun + ['statut' => 'en_cours', 'en_cours_le' => now()]),
+            'echec'    => $demande->update($commun + ['statut' => 'echec', 'echec_le' => now(), 'motif_echec' => $donnees['motif_echec']]),
+            'terminer' => $this->terminer($demande, $donnees, $commun),
+        };
+
+        return back()->with('succes', 'Demande de ' . ($demande->entreprise?->nom ?? '') . ' : ' . $demande->fresh()->libelleStatut() . '.');
+    }
+
+    /**
+     * Terminer : les stickers sont achetés. Le stock et le solde relevés sur
+     * l'espace FNE du client sont portés à sa fiche — à la demande expresse du
+     * propriétaire (16/10/2026) ; la prochaine normalisation les remettra de
+     * toute façon à la valeur de la plateforme.
+     */
+    private function terminer(DemandeSticker $demande, array $donnees, array $commun): void
+    {
+        $stock = $donnees['stock_communique'] ?? null;
+        $solde = $donnees['solde_communique'] ?? null;
+
+        $demande->update($commun + [
+            'statut' => 'achetee', 'achetee_le' => now(),
+            'stock_communique' => $stock, 'solde_communique' => $solde,
+            'notification_vue_le' => null,
         ]);
 
-        $demande->update($donnees + ['traitee_par' => Auth::id(), 'traitee_le' => now()]);
+        $entreprise = $demande->entreprise;
+        if ($entreprise && ($stock !== null || $solde !== null)) {
+            $valeurs = ['fne_solde_maj_at' => now()];
+            if ($stock !== null) {
+                $valeurs['fne_sticker_balance'] = (int) $stock;
+            }
+            if ($solde !== null) {
+                $valeurs['fne_solde_provision'] = (float) $solde;
+            }
+            $entreprise->forceFill($valeurs)->save();
+        }
+    }
 
-        return back()->with('succes', 'Demande de ' . ($demande->entreprise?->nom ?? '') . ' : ' . $demande->libelleStatut() . '.');
+    /** L'entreprise a vu l'avis « stock renouvelé ». */
+    public function avisVu(DemandeSticker $demande): RedirectResponse
+    {
+        abort_unless($demande->entreprise_id === Auth::user()->entreprise_id, 404);
+        $demande->update(['notification_vue_le' => now()]);
+
+        return back();
     }
 }

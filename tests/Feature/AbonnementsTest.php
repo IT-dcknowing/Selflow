@@ -67,7 +67,7 @@ class AbonnementsTest extends TestCase
             Abonnements::PREMIUM => [Abonnements::ILLIMITE, Abonnements::ILLIMITE],
         ];
         foreach ($attendu as $offre => [$pdv, $utilisateurs]) {
-            $this->post(route('admin.abonnement.enregistrer'), ['offre' => $offre])->assertRedirect(route('admin.tableau_de_bord'));
+            $this->post(route('admin.abonnement.enregistrer'), ['offre' => $offre, 'operateur_paiement' => 'WAVE', 'reference_paiement' => 'TX-0001'])->assertRedirect(route('admin.tableau_de_bord'));
             $e = $this->entreprise();
             $this->assertSame($offre, $e->plan_abonnement);
             $this->assertSame($pdv, (int) $e->quota_points_de_vente);
@@ -87,7 +87,7 @@ class AbonnementsTest extends TestCase
         $this->assertSame(Abonnements::STATUT_ESSAI, $e->abonnement_statut);
         $this->assertTrue($e->abonnement_expire_le->between(now()->addDays(6), now()->addDays(8)));
 
-        $this->post(route('admin.abonnement.enregistrer'), ['offre' => Abonnements::SOLO]);
+        $this->post(route('admin.abonnement.enregistrer'), ['offre' => Abonnements::SOLO, 'operateur_paiement' => 'WAVE', 'reference_paiement' => 'TX-0001']);
         $this->post(route('admin.abonnement.enregistrer'), ['offre' => Abonnements::PASS_CADEAU])->assertSessionHas('erreur');
         $this->assertSame(Abonnements::SOLO, $this->entreprise()->plan_abonnement);
     }
@@ -95,7 +95,7 @@ class AbonnementsTest extends TestCase
     public function test_solo_n_admet_que_le_gerant(): void
     {
         $this->inscrire();
-        $this->post(route('admin.abonnement.enregistrer'), ['offre' => Abonnements::SOLO]);
+        $this->post(route('admin.abonnement.enregistrer'), ['offre' => Abonnements::SOLO, 'operateur_paiement' => 'WAVE', 'reference_paiement' => 'TX-0001']);
         PointDeVente::create(['entreprise_id' => $this->entreprise()->id, 'nom' => 'Boutique', 'ville' => 'Abidjan', 'commune' => 'Cocody']);
         $this->entreprise()->forceFill(['modules_actifs' => ['principal', 'ventes', 'points_de_vente', 'personnel']])->save();
 

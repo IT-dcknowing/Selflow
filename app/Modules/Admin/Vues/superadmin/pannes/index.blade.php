@@ -28,6 +28,10 @@
                 <label class="form-label">Service commercial — téléphone</label>
                 <input type="text" name="commercial_telephone" class="form-control" value="{{ old('commercial_telephone', $assistance['commercial_telephone']) }}" placeholder="À défaut : ceux de l'assistance">
             </div>
+            <div class="form-group" style="margin:0; grid-column:1 / -1;">
+                <label class="form-label">Numéros de paiement du cabinet <small style="color:var(--text-3);">(un par ligne — stickers et abonnements)</small></label>
+                <textarea name="paiement_numeros" class="form-control" rows="3" placeholder="Wave : 07 00 00 00 00&#10;Orange Money : 07 00 00 00 01">{{ old('paiement_numeros', $assistance['paiement_numeros'] ?? '') }}</textarea>
+            </div>
             <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Enregistrer</button>
         </form>
     </div>

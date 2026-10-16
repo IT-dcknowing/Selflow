@@ -63,6 +63,7 @@ class DemandeStickersTest extends TestCase
 
         $this->actingAs($this->admin)->post(route('admin.stickers.enregistrer'), [
             'quantite' => 1000, 'urgence' => 'urgente', 'contact_telephone' => '0707070707',
+            'operateur_paiement' => 'WAVE', 'reference_paiement' => 'T-2026-ABC123',
         ])->assertSessionHasNoErrors()->assertRedirect(route('admin.stickers.index'));
 
         $demande = DemandeSticker::sole();
@@ -77,31 +78,90 @@ class DemandeStickersTest extends TestCase
 
     public function test_une_quantite_trop_petite_est_refusee(): void
     {
-        $this->actingAs($this->admin)->post(route('admin.stickers.enregistrer'), ['quantite' => 3, 'urgence' => 'normale'])
+        $this->actingAs($this->admin)->post(route('admin.stickers.enregistrer'), ['quantite' => 3, 'urgence' => 'normale', 'operateur_paiement' => 'WAVE', 'reference_paiement' => 'T-1234'])
             ->assertSessionHasErrors('quantite');
         $this->assertSame(0, DemandeSticker::count());
     }
 
-    public function test_le_superadmin_voit_la_demande_et_la_fait_avancer(): void
+    private function demander(): DemandeSticker
     {
-        Mail::fake();
-        $this->actingAs($this->admin)->post(route('admin.stickers.enregistrer'), ['quantite' => 500, 'urgence' => 'normale']);
-        $demande = DemandeSticker::sole();
-
-        $super = $this->superadmin();
-        $this->actingAs($super)->get(route('superadmin.stickers.index'))->assertOk()
-            ->assertSee('Axenova')->assertSee('500');
-
-        $this->actingAs($super)->put(route('superadmin.stickers.mettre_a_jour', $demande), [
-            'statut' => 'livree', 'note_dcknowing' => 'Livrés sur votre espace FNE le 15/10',
+        $this->actingAs($this->admin)->post(route('admin.stickers.enregistrer'), [
+            'quantite' => 500, 'urgence' => 'urgente', 'operateur_paiement' => 'MTN', 'reference_paiement' => 'MP251016.1200.A1',
         ])->assertSessionHasNoErrors();
 
-        $this->assertSame('livree', $demande->fresh()->statut);
-        $this->assertSame($super->id, $demande->fresh()->traitee_par);
+        return DemandeSticker::sole();
+    }
 
-        // L'entreprise voit l'avancement.
+    public function test_sans_reference_de_paiement_la_demande_est_refusee(): void
+    {
+        Mail::fake();
+        $this->actingAs($this->admin)->post(route('admin.stickers.enregistrer'), ['quantite' => 500, 'urgence' => 'normale'])
+            ->assertSessionHasErrors(['operateur_paiement', 'reference_paiement']);
+        $this->assertSame(0, DemandeSticker::count());
+    }
+
+    public function test_le_superadmin_voit_la_reference_la_priorite_et_fait_avancer_la_demande(): void
+    {
+        Mail::fake();
+        $demande = $this->demander();
+        $super = $this->superadmin();
+
+        $this->actingAs($super)->get(route('superadmin.stickers.index'))->assertOk()
+            ->assertSee('Axenova')->assertSee('MP251016.1200.A1')->assertSee('Urgente')
+            ->assertSee('En cours')->assertSee('Terminé')->assertSee('Échec');
+
+        $this->actingAs($super)->put(route('superadmin.stickers.mettre_a_jour', $demande), ['action' => 'en_cours'])->assertSessionHasNoErrors();
+        $this->assertSame('en_cours', $demande->fresh()->statut);
+        $this->assertNotNull($demande->fresh()->en_cours_le);
+
+        $this->actingAs($super)->put(route('superadmin.stickers.mettre_a_jour', $demande), [
+            'action' => 'terminer', 'stock_communique' => 512, 'solde_communique' => 25000,
+        ])->assertSessionHasNoErrors();
+
+        $demande->refresh();
+        $this->assertSame('achetee', $demande->statut);
+        $this->assertSame(512, (int) $this->entreprise->fresh()->fne_sticker_balance);
+        $this->assertSame($super->id, $demande->traitee_par);
+
+        // L'entreprise voit chaque étape et son heure, et l'avis « stock renouvelé ».
+        $page = $this->actingAs($this->admin)->get(route('admin.stickers.index'))->getContent();
+        $this->assertStringContainsString('Achat en cours', $page);
+        $this->assertStringContainsString('Achetée auprès de la DGI', $page);
+        $this->assertStringContainsString($demande->achetee_le->format('d/m/Y H:i'), $page);
+        $this->assertStringContainsString('Stock de stickers renouvelé', $page);
+        $this->assertStringContainsString('Stock disponible', $page);
+
+        $this->actingAs($this->admin)->post(route('admin.stickers.avis_vu', $demande));
+        $this->assertStringNotContainsString('Stock de stickers renouvelé', $this->actingAs($this->admin)->get(route('admin.stickers.index'))->getContent());
+
+        // Le compteur du menu ne compte plus la demande terminée.
+        $this->assertSame(0, DemandeSticker::whereIn('statut', DemandeSticker::A_TRAITER)->count());
+    }
+
+    public function test_sans_stock_communique_l_avis_dit_que_tout_sera_a_jour_apres_normalisation(): void
+    {
+        Mail::fake();
+        $demande = $this->demander();
+        $this->actingAs($this->superadmin())->put(route('superadmin.stickers.mettre_a_jour', $demande), ['action' => 'terminer']);
+
         $this->actingAs($this->admin)->get(route('admin.stickers.index'))
-            ->assertSee('Livrée sur l')->assertSee('Livrés sur votre espace FNE le 15/10');
+            ->assertSee('vous pouvez normaliser')->assertSee('après votre première normalisation');
+        $this->assertSame(12, (int) $this->entreprise->fresh()->fne_sticker_balance, 'Le solde n\'est pas touché.');
+    }
+
+    public function test_l_echec_exige_un_motif_visible_par_l_entreprise(): void
+    {
+        Mail::fake();
+        $demande = $this->demander();
+        $super = $this->superadmin();
+
+        $this->actingAs($super)->put(route('superadmin.stickers.mettre_a_jour', $demande), ['action' => 'echec'])
+            ->assertSessionHasErrors('motif_echec');
+        $this->actingAs($super)->put(route('superadmin.stickers.mettre_a_jour', $demande), ['action' => 'echec', 'motif_echec' => 'Référence introuvable'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('echec', $demande->fresh()->statut);
+        $this->actingAs($this->admin)->get(route('admin.stickers.index'))->assertSee('Référence introuvable')->assertSee('Échec');
     }
 
     public function test_une_entreprise_ne_touche_pas_la_demande_d_une_autre(): void
