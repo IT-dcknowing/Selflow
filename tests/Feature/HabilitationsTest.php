@@ -253,6 +253,9 @@ class HabilitationsTest extends TestCase
         ]);
 
         $this->actingAs($admin)->withSession(['point_de_vente_actif_id' => $this->magasin->id]);
+        // Les immobilisations s'accordent par le superadministrateur (16/10/2026).
+        $this->entreprise->attributions = ['immobilisations'];
+        $this->entreprise->save();
 
         $this->get(route('admin.comptabilite.plan_comptable'))->assertOk();
         $this->get(route('admin.immobilisations.index'))->assertOk();

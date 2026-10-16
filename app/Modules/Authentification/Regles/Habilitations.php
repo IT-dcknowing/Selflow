@@ -251,7 +251,7 @@ class Habilitations
      * Comptabilité fermée, il ne reste que la trésorerie de caisse : le solde
      * et le journal, et les moyens de paiement. Ouverte, les encaissements,
      * décaissements et l'écriture globale suivent en plus leur attribution par
-     * le superadministrateur.
+     * le superadministrateur — les immobilisations aussi (16/10/2026).
      *
      * @param  array<string, string>  $droits
      * @return array{0: string, 1: array<string, string>}
@@ -269,7 +269,7 @@ class Habilitations
             'comptabilite_globale'        => $ouverte && $entreprise->ecritureGlobaleAccordee(),
             'comptabilite_creances'       => $ouverte,
             'comptabilite_plan_comptable' => $ouverte,
-            'immobilisations'             => $ouverte,
+            'immobilisations'             => $ouverte && $entreprise->immobilisationsAccordees(),
         ];
 
         $droits = array_filter($droits, fn ($droit) => $offert[$droit] ?? true, ARRAY_FILTER_USE_KEY);
@@ -326,6 +326,7 @@ class Habilitations
         'admin.ventes.pdf'                           => 'factures_vente',
         'admin.ventes.ticket.pdf'                    => 'factures_vente',
         'admin.ventes.avoir'                         => 'factures_vente',
+        'admin.ventes.annuler'                       => 'factures_vente',
         'admin.ventes.avoir.creer_nouveau'           => 'factures_vente',
         'admin.ventes.normaliser'                    => 'factures_vente',
         'admin.ventes.modifier'                      => 'factures_vente',

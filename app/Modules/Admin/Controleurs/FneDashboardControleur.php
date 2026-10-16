@@ -927,6 +927,12 @@ class FneDashboardControleur
                         continue;
                     }
 
+                    // Annulée avant normalisation : elle ne part pas à la DGI.
+                    if ($vente->estAnnulee() || $vente->estAnnulationInterne()) {
+                        $errors[] = "{$vente->numero_facture} : annulée avant normalisation, elle ne part pas à la DGI.";
+                        continue;
+                    }
+
                     $fneResult = \App\Modules\Admin\Services\FneService::normaliserFacture($vente);
 
                     if ($fneResult['success']) {

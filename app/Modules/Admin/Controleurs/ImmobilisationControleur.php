@@ -27,6 +27,8 @@ class ImmobilisationControleur extends Controller
 {
     public function index(Request $request): View
     {
+        self::accordees();
+
         $entrepriseId = Auth::user()->entreprise_id;
 
         $biens = Immobilisation::with(['pointDeVente', 'dotations'])
@@ -72,6 +74,8 @@ class ImmobilisationControleur extends Controller
 
     public function creer(): View
     {
+        self::accordees();
+
         $entrepriseId = Auth::user()->entreprise_id;
 
         return view('admin::immobilisations.formulaire', [
@@ -83,6 +87,8 @@ class ImmobilisationControleur extends Controller
 
     public function enregistrer(Request $request): RedirectResponse
     {
+        self::accordees();
+
         $entrepriseId = Auth::user()->entreprise_id;
 
         $donnees = $this->valider($request, $entrepriseId);
@@ -102,6 +108,8 @@ class ImmobilisationControleur extends Controller
 
     public function fiche(Immobilisation $bien): View
     {
+        self::accordees();
+
         abort_unless($bien->entreprise_id === Auth::user()->entreprise_id, 404);
 
         $bien->load(['dotations', 'pointDeVente', 'fournisseur']);
@@ -111,6 +119,8 @@ class ImmobilisationControleur extends Controller
 
     public function modifier(Request $request, Immobilisation $bien): RedirectResponse
     {
+        self::accordees();
+
         abort_unless($bien->entreprise_id === Auth::user()->entreprise_id, 404);
 
         // Une fiche dont une dotation est passée ne se retouche plus : changer
@@ -136,6 +146,8 @@ class ImmobilisationControleur extends Controller
      */
     public function passerLaDotation(DotationAmortissement $dotation): RedirectResponse
     {
+        self::accordees();
+
         abort_unless($dotation->entreprise_id === Auth::user()->entreprise_id, 404);
 
         if ($dotation->estComptabilisee()) {
@@ -152,6 +164,8 @@ class ImmobilisationControleur extends Controller
      */
     public function cloturerLExercice(Request $request): RedirectResponse
     {
+        self::accordees();
+
         $request->validate(['annee' => ['required', 'integer', 'min:2000', 'max:2100']]);
 
         $passees = AmortissementService::comptabiliserLExercice(
@@ -168,6 +182,8 @@ class ImmobilisationControleur extends Controller
      */
     public function ceder(Request $request, Immobilisation $bien): RedirectResponse
     {
+        self::accordees();
+
         abort_unless($bien->entreprise_id === Auth::user()->entreprise_id, 404);
 
         $request->validate([
@@ -235,5 +251,15 @@ class ImmobilisationControleur extends Controller
             'valeur_residuelle.lte' => 'La valeur résiduelle ne peut pas dépasser la valeur d\'acquisition.',
             'duree_mois.max' => 'Une durée d\'amortissement se compte en mois, cent ans au plus.',
         ]);
+    }
+
+    /**
+     * Les immobilisations s'accordent par le superadministrateur, comme les
+     * encaissements (16/10/2026) : la comptabilité ouverte ne suffit pas.
+     */
+    private static function accordees(): void
+    {
+        $utilisateur = \Illuminate\Support\Facades\Auth::user();
+        abort_unless($utilisateur?->estSuperAdmin() || $utilisateur?->entreprise?->immobilisationsAccordees(), 404);
     }
 }

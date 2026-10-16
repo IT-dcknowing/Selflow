@@ -53,6 +53,7 @@ Route::prefix('admin')
             Route::post('/{vente}/confirmer', [VenteControleur::class, 'confirmerCommande'])->name('confirmer');
             Route::post('/{vente}/facturer', [VenteControleur::class, 'facturer'])->name('facturer');
             Route::post('/{vente}/avoir', [VenteControleur::class, 'creerAvoir'])->name('avoir');
+            Route::post('/{vente}/annuler', [VenteControleur::class, 'annuler'])->name('annuler');
             Route::post('/{vente}/normaliser', [VenteControleur::class, 'normaliser'])->name('normaliser');
             // Workflow Devis → Commande → Facture
             Route::post('/{vente}/envoyer', [VenteControleur::class, 'envoyer'])->name('envoyer');
@@ -745,6 +746,7 @@ Route::prefix('caissier')
             Route::post('/{vente}/confirmer', [VenteControleur::class, 'confirmerCommande'])->name('confirmer');
             Route::post('/{vente}/facturer', [VenteControleur::class, 'facturer'])->name('facturer');
             Route::post('/{vente}/normaliser', [VenteControleur::class, 'normaliser'])->name('normaliser');
+            Route::post('/{vente}/annuler', [VenteControleur::class, 'annuler'])->name('annuler');
             // Workflow Devis → Commande → Facture
             Route::post('/{vente}/envoyer', [VenteControleur::class, 'envoyer'])->name('envoyer');
             Route::post('/{vente}/convertir-commande', [VenteControleur::class, 'convertirEnCommande'])->name('convertir.commande');

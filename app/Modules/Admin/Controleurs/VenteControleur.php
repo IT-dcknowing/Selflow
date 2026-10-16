@@ -1455,9 +1455,68 @@ class VenteControleur
             return back()->with('erreur', 'Cette facture ne peut plus recevoir d\'avoir.');
         }
 
+        $avoirId = self::etablirUnAvoirTotal($vente, (string) $request->raison);
+
+        $this->journaliser('creation_avoir_vente', 'Vente', $avoirId);
+
+        return redirect()->route(request()->routeIs('caissier.*') ? 'caissier.ventes.imprimer' : 'admin.ventes.imprimer', $avoirId)
+            ->with('succes', "Facture d'avoir générée avec succès ! Les stocks et écritures comptables inverses ont été validés.");
+    }
+
+    /**
+     * Annuler une facture **non normalisée** (16/10/2026).
+     *
+     * C'est courant : une vente saisie par erreur, un client qui se rétracte
+     * au comptoir. La marchandise revient en stock comme si elle n'avait pas
+     * quitté l'entrepôt, au coût de sa sortie ; les écritures sont
+     * contre-passées ; un paiement en espèces est rendu. Tout passe par un
+     * avoir total interne, pour que chaque total (chiffre d'affaires, caisse,
+     * Comptaflow) le retranche de lui-même — sans jamais partir à la DGI.
+     *
+     * Une facture normalisée ne s'annule pas : la DGI l'a certifiée, seul un
+     * avoir la corrige.
+     */
+    public function annuler(Request $request, Vente $vente): RedirectResponse
+    {
+        abort_unless($vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
+
+        $donnees = $request->validate([
+            'motif' => ['required', 'string', 'max:200'],
+        ], ['motif.required' => 'Indiquez le motif de l\'annulation.']);
+
+        $refus = match (true) {
+            $vente->normalise => 'Cette facture est normalisée : la DGI l\'a certifiée, elle ne s\'annule pas. Établissez un avoir.',
+            $vente->type_facture === 'avoir' => 'Un avoir ne s\'annule pas.',
+            $vente->etape !== 'Facture' || $vente->archived => 'Seule une facture en cours s\'annule.',
+            $vente->estAnnulee() => 'Cette facture est déjà annulée.',
+            $vente->resteAAvoirer() + Vente::TOLERANCE_AVOIR < (float) $vente->montant_ttc => 'Cette facture a déjà reçu un avoir : corrigez le reste par un avoir.',
+            default => null,
+        };
+        if ($refus) {
+            return back()->with('erreur', $refus);
+        }
+
+        DB::transaction(function () use ($vente, $donnees) {
+            self::etablirUnAvoirTotal($vente, 'Annulation : ' . $donnees['motif']);
+            $vente->update(['statut' => Vente::STATUT_ANNULEE]);
+        });
+
+        $this->journaliser('annulation_facture_vente', 'Vente', $vente->id);
+
+        return back()->with('succes', "Facture {$vente->numero_facture} annulée : le stock est réinjecté et les écritures contre-passées.");
+    }
+
+    /**
+     * L'avoir total d'une facture : la pièce d'avoir, le retour de la
+     * marchandise au coût de sa sortie, la contre-passation et, si la facture
+     * a été payée en espèces, le remboursement. Partagé par l'avoir et par
+     * l'annulation d'une facture non normalisée (16/10/2026).
+     */
+    private static function etablirUnAvoirTotal(Vente $vente, string $raison): int
+    {
         $avoirId = null;
 
-        DB::transaction(function () use ($vente, $request, &$avoirId) {
+        DB::transaction(function () use ($vente, $raison, &$avoirId) {
             $numAvoir = \App\Modules\Admin\Services\NumerotationService::genererNumeroVente(
                 $vente->pointDeVente->entreprise_id,
                 'Facture',
@@ -1473,7 +1532,7 @@ class VenteControleur
                 'date_vente' => now()->toDateString(),
                 'mode_paiement' => $vente->mode_paiement,
                 'moyen_bancaire' => $vente->moyen_bancaire,
-                'reference_paiement' => $request->raison, // Raison de l'avoir
+                'reference_paiement' => $raison, // Raison de l'avoir
                 'montant_ht' => $vente->montant_ht,
                 'montant_tva' => $vente->montant_tva,
                 'remise' => $vente->remise,
@@ -1483,7 +1542,7 @@ class VenteControleur
                 'type_facture' => 'avoir',
                 'etape' => 'Facture',
                 'parent_id' => $vente->id,
-                'raison_avoir' => $request->raison,
+                'raison_avoir' => $raison,
                 'autres_mentions' => $vente->autres_mentions,
                 'pied_de_page' => $vente->pied_de_page,
             ]);
@@ -1530,10 +1589,7 @@ class VenteControleur
             $avoirId = $avoir->id;
         });
 
-        $this->journaliser('creation_avoir_vente', 'Vente', $avoirId);
-
-        return redirect()->route(request()->routeIs('caissier.*') ? 'caissier.ventes.imprimer' : 'admin.ventes.imprimer', $avoirId)
-            ->with('succes', "Facture d'avoir générée avec succès ! Les stocks et écritures comptables inverses ont été validés.");
+        return (int) $avoirId;
     }
 
     /**
@@ -1554,6 +1610,12 @@ class VenteControleur
 
         if ($vente->etape !== 'Facture') {
             return back()->with('erreur', 'Seules les factures finalisées peuvent être normalisées.');
+        }
+
+        // Une facture annulée, et l'avoir interne qui l'annule, ne partent pas
+        // à la DGI : la plateforme ne peut créditer qu'une pièce certifiée.
+        if ($vente->estAnnulee() || $vente->estAnnulationInterne()) {
+            return back()->with('erreur', 'Cette pièce relève d\'une annulation avant normalisation : elle ne part pas à la DGI.');
         }
 
         // Ce qui manque est dit, avec de quoi le remplir : la saisie n'exige

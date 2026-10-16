@@ -622,13 +622,34 @@
                                      bouton l'offrait dès qu'elle n'était pas
                                      encore normalisée, c'est-à-dire après
                                      qu'elle avait pu être remise au client. --}}
-                                @if(!$vente->normalise)
+                                @if($vente->estAnnulee())
+                                {{-- Annulée avant normalisation : plus rien à faire. --}}
+                                <span class="badge" style="background:#fee2e2; color:#b91c1c; font-weight:700; font-size:11px; padding:4px 8px; border-radius:6px;">
+                                    <i class="fas fa-ban"></i> Annulée
+                                </span>
+                                @elseif($vente->type_facture === 'avoir' && $vente->estAnnulationInterne())
+                                <span style="color:var(--text-3); font-size:11px;" title="Avoir interne d'une annulation : il ne part pas à la DGI">Annulation interne</span>
+                                @elseif(!$vente->normalise)
                                 <form method="POST" action="{{ $isCaissier ? route('caissier.ventes.normaliser', $vente) : route('admin.ventes.normaliser', $vente) }}" style="display:inline; margin:0;">
                                     @csrf
                                     <button type="submit" class="btn btn-success btn-sm" style="font-weight:700; font-size:11px; padding:4px 8px;" title="Envoyer cette pièce à la DGI : la facture et le reçu sont certifiés ensemble.">
                                         <i class="fas fa-share-nodes"></i> Normaliser
                                     </button>
                                 </form>
+                                {{-- Annuler : seulement avant normalisation. Une
+                                     facture certifiée ne s'annule pas, elle se
+                                     corrige par un avoir (16/10/2026). --}}
+                                @if($vente->type_facture !== 'avoir')
+                                <form method="POST" action="{{ $isCaissier ? route('caissier.ventes.annuler', $vente) : route('admin.ventes.annuler', $vente) }}"
+                                      class="form-annuler-facture" style="display:inline; margin:0;"
+                                      onsubmit="var m = prompt('Motif de l\'annulation de la facture {{ $vente->numero_facture }} ?\nLe stock sera réinjecté et les écritures contre-passées.'); if (!m) return false; this.motif.value = m; return true;">
+                                    @csrf
+                                    <input type="hidden" name="motif" value="">
+                                    <button type="submit" class="btn btn-sm" style="background:#fef2f2; color:#dc2626; border:0.5px solid #fca5a5; font-weight:700; font-size:11px; padding:4px 8px;" title="Annuler cette facture non normalisée">
+                                        <i class="fas fa-ban"></i> Annuler
+                                    </button>
+                                </form>
+                                @endif
                                 @else
                                 <span style="color:var(--text-3); font-size:11px;">—</span>
                                 @endif
