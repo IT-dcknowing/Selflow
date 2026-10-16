@@ -8546,6 +8546,31 @@ clé, ne pas toucher aux utilisateurs).
 
 ---
 
+### Lot 93 — Mise hors ligne de la plateforme depuis le superadmin — **TERMINÉ le 16/10/2026**
+
+Superadmin › Pannes & assistance : une carte **Selflow est en ligne / hors
+ligne** avec le bouton **Mettre hors ligne** (message facultatif, ex. « retour
+vers 14 h ») et **Remettre en ligne**. Réservé à l'habilitation
+`administration_interne`.
+
+Hors ligne, `BloquerSiHorsLigne` (groupes `web` et `api`) renvoie à tous —
+sauf aux superadministrateurs — la page `errors/hors-ligne` en **503**
+(`Retry-After: 600`) : « Maintenance évolutive en cours — ne vous inquiétez
+pas », vos données sont intactes, vos pièces normalisées restent valables,
+le message du superadmin, le **téléphone et le courriel de l'assistance**, un
+bouton Réessayer et un rechargement automatique toutes les 2 minutes. L'API
+répond 503 en JSON. La **connexion** reste ouverte, sans quoi personne ne
+pourrait rallumer.
+
+L'état est un fichier (`storage/framework/selflow-hors-ligne.json`), pas une
+ligne en base : lu à chaque requête pour le prix d'un `is_file`, et
+disponible même si la base tombe. En urgence sans écran :
+`rm storage/framework/selflow-hors-ligne.json` rallume.
+
+- `MiseHorsLigneTest` (2). Suite : 1 802 épreuves, 1 797 passantes.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

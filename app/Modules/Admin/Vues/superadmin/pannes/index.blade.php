@@ -5,6 +5,45 @@
 @section('contenu')
 <div style="max-width:1200px; margin:0 auto;">
 
+    {{-- Mise hors ligne (16/10/2026) : attaque, gros travaux. Les
+         superadministrateurs gardent l'accès pour rallumer. --}}
+    <div class="card" style="padding:18px 20px; margin-bottom:18px; border-left:4px solid {{ $horsLigne ? '#dc2626' : '#16a34a' }};">
+        <div style="display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap;">
+            <div style="flex:1; min-width:280px;">
+                <h3 style="font-size:15px; font-weight:800; margin-bottom:4px;">
+                    <i class="fas fa-power-off" style="color:{{ $horsLigne ? '#dc2626' : '#16a34a' }};"></i>
+                    @if($horsLigne)
+                        Selflow est <span style="color:#dc2626;">hors ligne</span>
+                    @else
+                        Selflow est <span style="color:#16a34a;">en ligne</span>
+                    @endif
+                </h3>
+                <p style="font-size:12.5px; color:var(--text-3); line-height:1.6;">
+                    @if($horsLigne)
+                        Depuis le {{ $horsLigne['depuis'] ? \Illuminate\Support\Carbon::parse($horsLigne['depuis'])->format('d/m/Y à H:i') : '—' }}{{ $horsLigne['par'] ? ' par ' . $horsLigne['par'] : '' }}.
+                        Les utilisateurs voient la page « maintenance évolutive, ne vous inquiétez pas » avec les contacts ci-dessous ; l'API répond 503.
+                    @else
+                        En cas d'attaque ou de gros travaux, coupez l'accès : les utilisateurs verront une page rassurante
+                        (« maintenance évolutive, ne vous inquiétez pas ») avec le téléphone et le courriel de l'assistance.
+                        Les superadministrateurs gardent l'accès.
+                    @endif
+                </p>
+            </div>
+            <form method="POST" action="{{ route('superadmin.pannes.hors_ligne') }}" style="margin:0; display:flex; flex-direction:column; gap:8px; min-width:280px;"
+                  onsubmit="return confirm(@js($horsLigne ? 'Remettre Selflow en ligne pour tous ?' : 'Mettre Selflow hors ligne pour tous les utilisateurs ?'));">
+                @csrf
+                @if($horsLigne)
+                    <input type="hidden" name="action" value="rallumer">
+                    <button type="submit" class="btn" style="background:#16a34a; color:#fff; border:none;"><i class="fas fa-power-off"></i> Remettre en ligne</button>
+                @else
+                    <input type="hidden" name="action" value="couper">
+                    <input type="text" name="message" class="form-control" maxlength="500" placeholder="Message facultatif (ex. retour prévu vers 14 h)">
+                    <button type="submit" class="btn" style="background:#dc2626; color:#fff; border:none;"><i class="fas fa-power-off"></i> Mettre hors ligne</button>
+                @endif
+            </form>
+        </div>
+    </div>
+
     {{-- Les contacts de l'assistance : ce que voit l'utilisateur sur la page
          de maintenance. --}}
     <div class="card" style="padding:18px 20px; margin-bottom:18px;">

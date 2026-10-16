@@ -38,7 +38,9 @@ class SuperadminPanneControleur
             'paiement_numeros'     => ParametrePlateforme::lire(\App\Modules\Admin\Regles\PaiementParReference::PARAMETRE_NUMEROS),
         ];
 
-        return view('admin::superadmin.pannes.index', compact('pannes', 'corrigees', 'assistance'));
+        $horsLigne = \App\Modules\Admin\Regles\MiseHorsLigne::active() ? \App\Modules\Admin\Regles\MiseHorsLigne::etat() : null;
+
+        return view('admin::superadmin.pannes.index', compact('pannes', 'corrigees', 'assistance', 'horsLigne'));
     }
 
     public function corriger(PanneConsignee $panne): RedirectResponse
@@ -71,5 +73,31 @@ class SuperadminPanneControleur
         ParametrePlateforme::ecrire(\App\Modules\Admin\Regles\PaiementParReference::PARAMETRE_NUMEROS, $donnees['paiement_numeros'] ?? null);
 
         return back()->with('succes', 'Les contacts sont enregistrés : l\'assistance sur la page de maintenance, le service commercial sur l\'offre sur mesure.');
+    }
+
+    /**
+     * Mettre la plateforme hors ligne, ou la rallumer (16/10/2026). Tout le
+     * monde voit la page de maintenance évolutive, sauf les superadministrateurs.
+     */
+    public function horsLigne(Request $request): RedirectResponse
+    {
+        $donnees = $request->validate([
+            'action'  => ['required', 'in:couper,rallumer'],
+            'message' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        if ($donnees['action'] === 'rallumer') {
+            \App\Modules\Admin\Regles\MiseHorsLigne::rallumer();
+
+            return back()->with('succes', 'Selflow est de nouveau en ligne pour tous les utilisateurs.');
+        }
+
+        $utilisateur = Auth::user();
+        \App\Modules\Admin\Regles\MiseHorsLigne::couper(
+            $donnees['message'] ?? null,
+            trim(($utilisateur->prenom ?? '') . ' ' . ($utilisateur->nom ?? '')) ?: $utilisateur->email
+        );
+
+        return back()->with('succes', 'Selflow est hors ligne : les utilisateurs voient la page de maintenance évolutive. Vous seul(e) et les superadministrateurs gardez l\'accès.');
     }
 }

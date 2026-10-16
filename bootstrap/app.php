@@ -42,6 +42,12 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ]);
 
+        // Mise hors ligne par le superadministrateur (16/10/2026) : avant tout
+        // le reste, et sur les deux groupes — une API ouverte pendant une
+        // attaque laisserait la porte de derrière ouverte.
+        $middleware->appendToGroup('web', \App\Http\Middleware\BloquerSiHorsLigne::class);
+        $middleware->appendToGroup('api', \App\Http\Middleware\BloquerSiHorsLigne::class);
+
         // Les écrans ordinaires : large, mais borné. Une boucle dans une page
         // ne doit pas pouvoir occuper le serveur à elle seule.
         $middleware->appendToGroup('web', 'throttle:web');
