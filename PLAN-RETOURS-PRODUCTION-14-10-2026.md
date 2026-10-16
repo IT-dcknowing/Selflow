@@ -198,3 +198,23 @@ notée et DC-Knowing repousse l'échéance depuis la fiche de l'entreprise.
 
 **À faire** : caisse paginée pour les grands catalogues ; CSP à nonces et
 secret `external/*` par entreprise (moyen terme).
+
+## Retours du 16/10/2026 (suite)
+
+| Retour | Fait |
+|---|---|
+| Montants Comptaflow trop élevés | lot 95 : analyse (factures d'essai) + diagnostic ; la liaison ne multiplie rien |
+| Facture modifiée : écritures recalculées ; annulée en rouge + motif | lots 95, 97 |
+| Trésorerie : n'encaisser que le dû | lot 96 + `selflow:corriger-tresorerie` |
+| Remise globale d'achat déséquilibrée | lot 98 |
+| Config : rayons des seuls métiers ajoutés | lot 98 |
+| Sur mesure renouvelé par référence | lot 98 |
+| URGENT lettrage (erreur 1062) | lot 99 |
+| Suppression d'entreprise lente → corbeille 30 j | lot 100 |
+| Pannes en deux onglets paginés | lot 101 |
+| Accès immédiat à l'inscription + avis d'activation | lot 102 |
+| Alertes multi-canal (courriel + WhatsApp) + destinataires | lot 103 |
+| Maintenance & traçabilité (trafic, KPI, IP) | lot 104 |
+| Traçabilité par entreprise (audit) | lot 105 |
+| Contre-attaque | **refusée** (illégal) ; défense outillée |
+| Relais WhatsApp | à brancher (URL d'un relais) |

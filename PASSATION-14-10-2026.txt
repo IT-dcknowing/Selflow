@@ -184,3 +184,36 @@ EN PRODUCTION, DANS L'ORDRE :
   6. Vérifier OPcache actif ; racine web = public/
   7. Superadmin › Pannes & assistance : contacts + numéros de paiement.
   8. Relancer la suppression de « eve disagn » si pas encore faite.
+
+
+11. SUITE DU 16/10/2026 — lots 95 à 105 (main 232398c)
+------------------------------------------------------
+- 95/96 Montants : la liaison Comptaflow ne multiplie rien ; factures d'essai
+  a 7 milliards. Facture modifiee -> ecritures contre-passees/repassees.
+  Tresorerie plafonnee au du. Commandes :
+    php artisan selflow:diagnostic-montants "DC-KNOWING CGA"
+    php artisan selflow:corriger-tresorerie "DC-KNOWING CGA" --appliquer
+    php artisan selflow:recomptabiliser "DC-KNOWING CGA" <PIECE> --appliquer
+- 97 Annulation en fenetre, facture annulee en rouge + motif.
+- 98 Remise globale d'achat ; rayons des seuls metiers ajoutes ; sur mesure
+  par reference.
+- 99 (URGENT) Code de lettrage unique : fin de l'erreur 1062 a l'encaissement.
+- 100 Corbeille des entreprises : suppression instantanee, effacement en
+  arriere-plan, restauration 30 j. Migration 2026_10_16_000002.
+- 101 Pannes en deux onglets pagines ; message hors-ligne modifiable.
+- 102 Acces immediat a l'inscription + avis "compte en cours d'activation".
+- 103 Alertes superadmin multi-canal (courriel + WhatsApp via relais) ;
+  destinataires reglables dans Pannes & assistance.
+- 104 Maintenance & tracabilite : trafic, KPI, graphe, activite par IP,
+  blocage/deblocage d'IP. Migration 2026_10_16_000003.
+- 105 Tracabilite par entreprise (audit). Migration 2026_10_16_000004.
+
+EN PRODUCTION :
+  git pull origin main
+  php artisan migrate --force   (2026_10_16_000002, _000003, _000004)
+  php artisan optimize:clear && php artisan optimize
+  Verifier le cron queue:work (corbeille + effacements).
+  Pannes & assistance : renseigner les destinataires d'alertes (courriels,
+  numeros WhatsApp) et, pour WhatsApp, l'URL d'un relais.
+  REFUS : pas de contre-attaque (illegal). Defense = hors ligne + blocage IP
+  + alertes + signalement hebergeur/CERT.
