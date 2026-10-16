@@ -740,6 +740,11 @@
             <a href="{{ route('superadmin.entreprises') }}" class="nav-item {{ request()->routeIs('superadmin.entreprises*') ? 'active' : '' }}">
                 <i class="fas fa-building"></i> Entreprises
             </a>
+            @php $__enCorbeille = \App\Modules\Admin\Modeles\Entreprise::enCorbeille()->count(); @endphp
+            <a href="{{ route('superadmin.corbeille') }}" class="nav-item {{ request()->routeIs('superadmin.corbeille*') ? 'active' : '' }}">
+                <i class="fas fa-trash-can"></i> Corbeille
+                @if($__enCorbeille)<span style="margin-left:auto; background:#64748b; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700;">{{ $__enCorbeille }}</span>@endif
+            </a>
             <a href="{{ route('superadmin.utilisateurs') }}" class="nav-item {{ request()->routeIs('superadmin.utilisateurs*') ? 'active' : '' }}">
                 <i class="fas fa-users-gear"></i> Habilitations &amp; Accès
             </a>

@@ -94,6 +94,7 @@ class Entreprise extends Model
     ];
 
     protected $casts = [
+        'corbeille_le'       => 'datetime',
         'secteur_activite'   => 'array',
         'modules_actifs'     => 'array',
         'modules_autorises'  => 'array',
@@ -176,6 +177,36 @@ class Entreprise extends Model
         // `null` sur une base dont la migration vient de passer : on retient le
         // comportement d'avant, pour ne rien changer sans qu'on l'ait demandé.
         return $this->{$colonne} ?? true;
+    }
+
+    /** Combien de jours une entreprise reste en corbeille avant l'effacement réel. */
+    public const JOURS_EN_CORBEILLE = 30;
+
+    /** En corbeille : supprimée, mais pas encore effacée (retour du 16/10/2026). */
+    public function estEnCorbeille(): bool
+    {
+        return $this->corbeille_le !== null;
+    }
+
+    /** Les jours restants avant l'effacement définitif, 0 si l'échéance est passée. */
+    public function joursAvantEffacement(): int
+    {
+        if (!$this->corbeille_le) {
+            return self::JOURS_EN_CORBEILLE;
+        }
+
+        return max(0, self::JOURS_EN_CORBEILLE - (int) $this->corbeille_le->diffInDays(now()));
+    }
+
+    /** Les entreprises actives : tout sauf la corbeille. */
+    public function scopeHorsCorbeille($query)
+    {
+        return $query->whereNull('corbeille_le');
+    }
+
+    public function scopeEnCorbeille($query)
+    {
+        return $query->whereNotNull('corbeille_le');
     }
 
     public function pointsDeVente(): HasMany

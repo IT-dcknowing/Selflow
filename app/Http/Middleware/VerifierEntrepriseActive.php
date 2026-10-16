@@ -23,6 +23,17 @@ class VerifierEntrepriseActive
             // Le superadmin n'est jamais bloqué par le statut d'une entreprise
             if (!$user->estSuperAdmin()) {
                 $entreprise = $user->entreprise;
+                // En corbeille : supprimée côté plateforme, l'accès est coupé
+                // jusqu'à la restauration (16/10/2026).
+                if ($entreprise && $entreprise->estEnCorbeille()) {
+                    Auth::logout();
+                    $request->session()->invalidate();
+                    $request->session()->regenerateToken();
+
+                    return redirect()->route('connexion')->withErrors([
+                        'email' => 'Votre espace a été fermé. Pour le rouvrir, contactez le support.',
+                    ]);
+                }
                 if ($entreprise && $entreprise->statut === 'bloque') {
                     Auth::logout();
                     

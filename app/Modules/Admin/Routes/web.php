@@ -606,6 +606,11 @@ Route::prefix('superadmin')
             ->whereNumber('etape')->name('entreprises.parcours.enregistrer');
         Route::post('/entreprises/{entreprise}/toggle-status', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'toggleStatus'])->name('entreprises.toggle_status');
         Route::delete('/entreprises/{entreprise}', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'supprimer'])->name('entreprises.supprimer');
+        // ── Corbeille des entreprises (16/10/2026) ──
+        Route::get('/corbeille', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'corbeille'])->name('corbeille');
+        Route::post('/corbeille/{entreprise}/restaurer', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'restaurer'])->name('corbeille.restaurer');
+        Route::delete('/corbeille/{entreprise}', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'viderUne'])->name('corbeille.vider_une');
+        Route::delete('/corbeille', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'viderTout'])->name('corbeille.vider_tout');
         Route::get('/utilisateurs', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'utilisateurs'])->name('utilisateurs');
         Route::put('/utilisateurs/{utilisateur}', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'modifierUtilisateur'])->name('utilisateurs.modifier');
 
