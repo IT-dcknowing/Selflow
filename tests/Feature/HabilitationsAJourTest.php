@@ -131,16 +131,18 @@ class HabilitationsAJourTest extends TestCase
         ]);
 
         $offerts = $this->droitsOfferts($entreprise);
-        foreach (['comptabilite_creances', 'comptabilite_plan_comptable', 'immobilisations', 'tresorerie_codes_journaux'] as $present) {
+        foreach (['comptabilite_creances', 'comptabilite_plan_comptable', 'tresorerie_codes_journaux'] as $present) {
             $this->assertArrayHasKey($present, $offerts);
         }
-        // Encaissements, décaissements, écriture globale : seulement accordés par le superadmin.
+        // Encaissements, décaissements, écriture globale, immobilisations :
+        // seulement accordés par le superadmin.
         $this->assertArrayNotHasKey('tresorerie_encaissements', $offerts);
+        $this->assertArrayNotHasKey('immobilisations', $offerts);
 
-        $entreprise->attributions = ['encaissements', 'decaissements', 'comptabilite_globale'];
+        $entreprise->attributions = ['encaissements', 'decaissements', 'comptabilite_globale', 'immobilisations'];
         $entreprise->save();
         $offerts = $this->droitsOfferts($entreprise->fresh());
-        foreach (['tresorerie_encaissements', 'tresorerie_decaissements', 'comptabilite_globale'] as $present) {
+        foreach (['tresorerie_encaissements', 'tresorerie_decaissements', 'comptabilite_globale', 'immobilisations'] as $present) {
             $this->assertArrayHasKey($present, $offerts);
         }
     }

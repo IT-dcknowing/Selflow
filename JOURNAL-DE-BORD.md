@@ -8365,6 +8365,34 @@ réapparaît dès que l'écran revient.
 
 ---
 
+### Lot 87 — Immobilisations sur attribution ; annuler une facture non normalisée — **TERMINÉ le 16/10/2026**
+
+Branche `immobilisations-et-annulation`. Retours du propriétaire le 16/10.
+
+- **Immobilisations** : comme les encaissements, elles s'accordent désormais
+  par le superadministrateur (attribution `immobilisations`) — la comptabilité
+  ouverte ne suffit plus, ni pour l'écran (404 sinon), ni pour la case du
+  personnel.
+- **Annuler une facture** (cas courant : saisie en double, client qui se
+  rétracte) : bouton « Annuler » dans la colonne Actions, avec motif, **pour
+  une facture non normalisée seulement**. La marchandise revient en stock au
+  coût de sa sortie, comme si elle n'avait pas quitté l'entrepôt ; les
+  écritures sont contre-passées (le timbre reste dû, décision du 14/10) ; un
+  paiement en espèces est rendu. Mécanique : un **avoir total interne**
+  (`VenteControleur::etablirUnAvoirTotal`, partagé avec l'avoir), si bien que
+  chaque total — chiffre d'affaires, caisse, Comptaflow — le retranche de
+  lui-même. La facture passe « Annulée » (badge rouge).
+- **Une facture normalisée ne s'annule pas** : le bouton n'apparaît pas, la
+  route refuse et renvoie vers l'avoir. Une facture annulée, et l'avoir
+  interne qui l'annule, ne partent jamais à la DGI (normalisation unitaire et
+  par lot).
+
+- `AnnulationFactureTest` (5) ; `AmortissementTest`, `HabilitationsTest`,
+  `HabilitationsAJourTest` redressés (attribution des immobilisations).
+- Suite : 1 780 épreuves, 1 775 passantes, 5 sautées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

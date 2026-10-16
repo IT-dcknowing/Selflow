@@ -669,6 +669,9 @@ class Entreprise extends Model
         'comptabilite_globale' => 'Opération & écriture globale — saisie et écritures générales',
         'grand_livre'          => 'Grand livre — consultation du grand livre comptable',
         'lettrage'             => 'Lettrage — lettrage des comptes et factures',
+        // Accordées à part, comme les encaissements (16/10/2026) : la
+        // comptabilité ouverte ne suffit plus à les proposer.
+        'immobilisations'      => 'Immobilisations — biens, dotations et cessions',
         'balance'              => 'Balance de contrôle — accordée à part : la balance se tient dans Comptaflow',
     ];
 
@@ -681,7 +684,14 @@ class Entreprise extends Model
     /** Ce que la carte du superadministrateur coche, au-delà du socle. */
     public const ATTRIBUTIONS_AVANCEES = [
         'encaissements', 'decaissements', 'comptabilite_globale', 'grand_livre', 'lettrage', 'balance',
+        'immobilisations',
     ];
+
+    /** Les immobilisations sont-elles accordées par le superadmin ? */
+    public function immobilisationsAccordees(): bool
+    {
+        return $this->aAttribution('immobilisations');
+    }
 
     /** Les encaissements sont-ils accordés par le superadmin ? */
     public function encaissementsAccordes(): bool

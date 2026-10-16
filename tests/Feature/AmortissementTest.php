@@ -40,6 +40,8 @@ class AmortissementTest extends TestCase
         // Les immobilisations sont derrière le garde-fou `comptabilite` depuis
         // le lot 55 : une entreprise qui amortit ses biens tient ses livres.
         $this->entreprise->comptabilite_activee = true;
+        // Et elles s'accordent par le superadministrateur (16/10/2026).
+        $this->entreprise->attributions = ['immobilisations'];
         $this->entreprise->save();
 
         $this->siege = PointDeVente::create([

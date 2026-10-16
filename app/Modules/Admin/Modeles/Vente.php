@@ -550,6 +550,25 @@ class Vente extends Model
      * entièrement avoirée en sort (chantier 8.2) ; `deja_avoire` dit ce qui a
      * déjà été rendu, pour que l'écran annonce le reste (chantier 8.3).
      */
+    /** Statut d'une facture non normalisée annulée (16/10/2026). */
+    public const STATUT_ANNULEE = 'Annulée';
+
+    public function estAnnulee(): bool
+    {
+        return $this->statut === self::STATUT_ANNULEE;
+    }
+
+    /**
+     * L'avoir interne qui annule une facture non normalisée : son parent n'a
+     * jamais été certifié, la plateforme ne pourrait pas le créditer.
+     */
+    public function estAnnulationInterne(): bool
+    {
+        return $this->type_facture === 'avoir'
+            && $this->parent_id
+            && ! (bool) self::query()->whereKey($this->parent_id)->value('normalise');
+    }
+
     public function scopeAvoirables($requete)
     {
         return $requete
