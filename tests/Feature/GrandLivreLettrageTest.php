@@ -448,4 +448,21 @@ class GrandLivreLettrageTest extends TestCase
 
         $this->assertNotNull($etranger->fresh());
     }
+
+    /** « poissonnerie entente », 16/10/2026 : un lettrage défait faisait reprendre un code existant (1062). */
+    public function test_le_code_suivant_ne_reprend_jamais_un_code_existant(): void
+    {
+        foreach (['A', 'B', 'C'] as $code) {
+            \App\Modules\Admin\Modeles\Lettrage::create(['entreprise_id' => $this->entreprise->id, 'code' => $code, 'date_lettrage' => now()->toDateString()]);
+        }
+        \App\Modules\Admin\Modeles\Lettrage::where('code', 'B')->delete();
+
+        $methode = new \ReflectionMethod(\App\Modules\Admin\Services\LettrageService::class, 'prochainCode');
+        $methode->setAccessible(true);
+
+        $this->assertSame('D', $methode->invoke(null, $this->entreprise->id));
+
+        \App\Modules\Admin\Modeles\Lettrage::create(['entreprise_id' => $this->entreprise->id, 'code' => 'Z', 'date_lettrage' => now()->toDateString()]);
+        $this->assertSame('AA', $methode->invoke(null, $this->entreprise->id));
+    }
 }
