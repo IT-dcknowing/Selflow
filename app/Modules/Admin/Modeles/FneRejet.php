@@ -157,6 +157,59 @@ class FneRejet extends Model
         return self::CAUSE_DGI;
     }
 
+    /**
+     * Le refus tient-il à un point de vente que la DGI ne tient pas pour actif ?
+     *
+     * Retour de production du 16/10/2026 : ce refus se perdait dans le message
+     * « point de vente non reconnu », qui invite à corriger une orthographe
+     * alors qu'il n'y a rien à corriger dans Selflow — il faut activer
+     * l'établissement sur l'espace FNE. Reconnu sur le message de la plateforme,
+     * le seul indice disponible (`FneService` est gelé).
+     */
+    public static function messageDitPointDeVenteInactif(?string $message): bool
+    {
+        $texte = mb_strtolower((string) $message);
+        if ($texte === '') {
+            return false;
+        }
+
+        $sujet = preg_match('/point\s*(de|of)?\s*(vente|sale)|pointofsale|establishment|[ée]tablissement/u', $texte) === 1;
+        $etat  = preg_match('/inacti|d[ée]sactiv|non[\s-]+activ|pas\s+(encore\s+)?activ|not\s+activ|disabled|suspendu|bloqu/u', $texte) === 1;
+
+        return $sujet && $etat;
+    }
+
+    public function concernePointDeVenteInactif(): bool
+    {
+        return self::messageDitPointDeVenteInactif(
+            $this->message . ' ' . json_encode($this->champs ?? [], JSON_UNESCAPED_UNICODE)
+        );
+    }
+
+    /** La phrase dite à l'utilisateur, la même partout où une normalisation échoue. */
+    public static function phrasePointDeVenteInactif(?string $pointDeVente): string
+    {
+        return sprintf(
+            "Normalisation refusée par la DGI : le point de vente « %s » n'est pas activé sur votre espace FNE. "
+            . "Activez-le sur le portail FNE (ou demandez-le à votre conseiller), puis relancez la normalisation. "
+            . "Rien n'est à corriger dans Selflow.",
+            $pointDeVente ?: 'sélectionné'
+        );
+    }
+
+    /**
+     * Le motif à afficher pour un résultat `FneService` en échec : la phrase
+     * explicite si l'établissement n'est pas activé, sinon le message brut.
+     */
+    public static function motifLisible(array $resultat, ?string $pointDeVente): string
+    {
+        $message = (string) ($resultat['message'] ?? '');
+
+        return self::messageDitPointDeVenteInactif($message)
+            ? self::phrasePointDeVenteInactif($pointDeVente)
+            : ($message !== '' ? $message : 'Erreur inconnue');
+    }
+
     /** La DGI n'a jamais examiné la pièce : il n'y a rien à relever, il y a à réessayer. */
     public function estReseau(): bool
     {

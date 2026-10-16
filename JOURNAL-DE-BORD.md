@@ -8464,6 +8464,29 @@ paiement et ses étapes. Le pass cadeau et le sur-mesure ne demandent rien.
 
 ---
 
+### Lot 90 — Échec de normalisation : un point de vente non activé est dit tel quel — **TERMINÉ le 16/10/2026**
+
+Retour du 16/10/2026 : un refus de la DGI pour **établissement non activé**
+sur l'espace FNE tombait dans le message « point de vente non reconnu »,
+qui invite à corriger une orthographe alors qu'il n'y a rien à corriger dans
+Selflow.
+
+`FneRejet::messageDitPointDeVenteInactif()` reconnaît le cas sur le message de
+la plateforme (point de vente / établissement + inactif, désactivé, non
+activé, disabled, suspendu…). Le bouton Normaliser (factures et bordereaux)
+le teste **avant** la relève et la correction de nom, et rend : « le point de
+vente « X » n'est pas activé sur votre espace FNE. Activez-le sur le portail
+FNE, puis relancez la normalisation. Rien n'est à corriger dans Selflow. »
+`FneRejet::motifLisible()` donne la même phrase dans la normalisation par lot
+(écran et job). Le message de repli des factures cite désormais le motif
+rendu par la plateforme. **Aucun fichier gelé touché** : la lecture se fait
+sur le message consigné.
+
+- 3 épreuves ajoutées à `CycleFneTroisCasTest`. Suite : 1 794 épreuves,
+  1 789 passantes, 5 ignorées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

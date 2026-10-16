@@ -972,6 +972,17 @@ class AchatControleur
                 ]]);
         }
 
+        // Un établissement non activé sur l'espace FNE : rien à corriger dans
+        // Selflow, ni orthographe ni relevé — il faut le dire tel quel.
+        if ($rejet && $rejet->concernePointDeVenteInactif()) {
+            return back()
+                ->with('erreur', FneRejet::phrasePointDeVenteInactif($achat->pointDeVente?->nom))
+                ->with('erreur_action', [[
+                    'url'   => route('admin.fne.rejets'),
+                    'label' => 'Voir le refus de la DGI',
+                ]]);
+        }
+
         if ($rejet && $rejet->cause === FneRejet::CAUSE_DGI) {
             \Illuminate\Support\Facades\Artisan::call('portail-fne:importer');
             $entreprise = $rejet->entreprise ?? $achat->pointDeVente?->entreprise ?? Auth::user()->entreprise;
