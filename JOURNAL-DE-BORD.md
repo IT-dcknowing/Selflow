@@ -8715,6 +8715,34 @@ de vente. Le diagnostic liste aussi les opérations déséquilibrées.
 
 ---
 
+### Lot 97 — Annulation en fenêtre, facture annulée en rouge, reprise des écritures — **TERMINÉ le 16/10/2026**
+
+- **Fenêtre d'annulation** centrée dans la page, au lieu de la boîte du
+  navigateur, avec un motif obligatoire. Comptabilité fermée : « Le stock sera
+  réinjecté. » seulement, sans parler d'écritures ; même règle pour le message
+  de confirmation.
+- **Facture annulée en rouge** : ligne rouge, statut « Annulée » en rouge (il
+  s'affichait « Avance »), et sous l'action « Annulée », le **motif**. Le
+  document affiche un bandeau « FACTURE ANNULÉE — Motif : … » ; le statut est
+  en rouge (`Vente::motifAnnulation()`, lu sur l'avoir interne). Le bloc de
+  certification n'est pas touché.
+- **Les deux opérations déséquilibrées de la production** (VTE-250926-003,
+  4 000 F d'écart ; ACH-240926-005, 1 180 F) viennent d'écritures passées par
+  une version antérieure. Nouvelle commande
+  `php artisan selflow:recomptabiliser "<entreprise>" <pièce> [--appliquer]`.
+  - Une opération déséquilibrée, jamais partie chez Comptaflow, est supprimée.
+  - Les autres sont contre-passées (`ComptabiliteService::contrePasserLaPiece`,
+    généralisée aux achats).
+  - Les écritures sont ensuite repassées sur la pièce et sur ce que la
+    trésorerie a réellement encaissé ou décaissé.
+  - Une pièce normalisée n'est pas modifiée.
+- La trésorerie de production a été reprise par `selflow:corriger-tresorerie`
+  (510,7 milliards ramenés au dû).
+
+- 3 épreuves ajoutées. Suite : 1 812 épreuves, 1 807 passantes.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
