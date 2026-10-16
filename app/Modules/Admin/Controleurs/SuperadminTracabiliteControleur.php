@@ -158,7 +158,7 @@ class SuperadminTracabiliteControleur
             ->when($request->filled('du'), fn ($q) => $q->whereDate('created_at', '>=', $request->date('du')))
             ->when($request->filled('au'), fn ($q) => $q->whereDate('created_at', '<=', $request->date('au')))
             ->orderByDesc('id')
-            ->paginate(40)
+            ->paginate(20)
             ->withQueryString();
 
         $entreprises = \App\Modules\Admin\Modeles\Entreprise::orderBy('nom')->get(['id', 'nom']);

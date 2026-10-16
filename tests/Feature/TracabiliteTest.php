@@ -43,6 +43,21 @@ class TracabiliteTest extends TestCase
         $this->assertSame($avant, Visite::count(), 'Le superadmin n\'est pas tracé.');
     }
 
+    public function test_l_audit_par_entreprise_est_pagine(): void
+    {
+        for ($i = 1; $i <= 25; $i++) {
+            \App\Modules\Admin\Modeles\JournalAudit::create([
+                'utilisateur_id' => $this->membre->id, 'entreprise_id' => $this->membre->entreprise_id,
+                'action' => 'action_test_' . $i, 'entite' => 'Vente', 'entite_id' => $i,
+            ]);
+        }
+
+        $this->actingAs($this->superadmin)->get(route('superadmin.tracabilite.audit'))
+            ->assertOk()->assertSee('sur <strong>25</strong>', false)->assertSee('page 1 / 2');
+        $this->actingAs($this->superadmin)->get(route('superadmin.tracabilite.audit', ['page' => 2]))
+            ->assertOk()->assertSee('page 2 / 2');
+    }
+
     public function test_le_tableau_de_tracabilite_s_affiche(): void
     {
         Visite::create(['ip' => '10.0.0.9', 'methode' => 'GET', 'chemin' => 'admin/ventes', 'statut' => 200, 'duree_ms' => 42, 'cree_le' => now()]);

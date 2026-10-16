@@ -43,6 +43,10 @@
         @if($journal->isEmpty())
             <p style="padding:30px; text-align:center; color:var(--text-3);">Aucune action enregistrée pour ces critères.</p>
         @else
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; padding:12px 16px; border-bottom:1px solid var(--border); font-size:12.5px; color:var(--text-3);">
+            <span>Actions <strong>{{ $journal->firstItem() }}</strong> à <strong>{{ $journal->lastItem() }}</strong> sur <strong>{{ number_format($journal->total(), 0, ',', ' ') }}</strong> — page {{ $journal->currentPage() }} / {{ $journal->lastPage() }}</span>
+            @if($journal->hasPages())<div>{{ $journal->links() }}</div>@endif
+        </div>
         <table class="table" style="width:100%; font-size:12.5px;">
             <thead><tr><th>Quand</th><th>Action</th><th>Entreprise</th><th>Qui</th><th>D'où (IP)</th><th>Pièce</th></tr></thead>
             <tbody>
@@ -65,7 +69,7 @@
             @endforeach
             </tbody>
         </table>
-        <div style="padding:12px 16px;">{{ $journal->links() }}</div>
+        @if($journal->hasPages())<div style="padding:12px 16px;">{{ $journal->links() }}</div>@endif
         @endif
     </div>
 </div>

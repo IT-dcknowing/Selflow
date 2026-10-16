@@ -163,6 +163,19 @@ class Entreprise extends Model
     }
 
     /**
+     * Les réglages d'une entreprise qui naît (retour du 16/10/2026) : la
+     * normalisation automatique est **décochée**. Le client vérifie ses
+     * premières pièces avant de les envoyer à la DGI, puis coche la case
+     * dans ses paramètres s'il le souhaite. Les entreprises déjà en service
+     * gardent leur réglage ; la colonne garde son défaut en base, pour ne
+     * rien changer à celles qui n'ont jamais ouvert leurs paramètres.
+     */
+    public const REGLAGES_DE_DEPART = [
+        'normalisation_auto_factures' => false,
+        'normalisation_auto_recus'    => false,
+    ];
+
+    /**
      * Cette pièce doit-elle être certifiée dès son émission ?
      *
      * Le réglage est distinct pour la facture et pour le reçu. Le défaut est
