@@ -697,6 +697,7 @@ Route::prefix('superadmin')
         Route::prefix('pannes')->name('pannes.')->group(function () {
             Route::get('/', [\App\Modules\Admin\Controleurs\SuperadminPanneControleur::class, 'index'])->name('index');
             Route::post('/assistance', [\App\Modules\Admin\Controleurs\SuperadminPanneControleur::class, 'assistance'])->name('assistance');
+            Route::post('/hors-ligne', [\App\Modules\Admin\Controleurs\SuperadminPanneControleur::class, 'horsLigne'])->name('hors_ligne');
             Route::post('/{panne}/corriger', [\App\Modules\Admin\Controleurs\SuperadminPanneControleur::class, 'corriger'])->name('corriger');
         });
 

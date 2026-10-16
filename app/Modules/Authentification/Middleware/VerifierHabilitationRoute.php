@@ -89,6 +89,8 @@ class VerifierHabilitationRoute
         'superadmin.pannes.index'      => 'tableau_de_bord_superadmin',
         'superadmin.pannes.corriger'   => 'tableau_de_bord_superadmin',
         'superadmin.pannes.assistance' => 'tableau_de_bord_superadmin',
+        // Couper la plateforme pour tous : réservé à l'administration interne.
+        'superadmin.pannes.hors_ligne' => 'administration_interne',
 
         'superadmin.admins.index'         => 'administration_interne',
         'superadmin.admins.creer'         => 'administration_interne',
