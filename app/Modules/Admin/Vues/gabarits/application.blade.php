@@ -1554,6 +1554,7 @@
 
         @unless(request()->routeIs('superadmin.*'))
             @include('admin::partials.avis-stickers')
+            @include('admin::partials.avis-activation')
         @endunless
         @yield('contenu')
 
