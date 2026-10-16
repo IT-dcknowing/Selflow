@@ -85,4 +85,20 @@ class RegistreDesPannesTest extends TestCase
         $this->assertSame('support@dc-knowing.com', ParametrePlateforme::lire('assistance_email'));
         $this->assertSame('+225 27 22 00 00 00', ParametrePlateforme::lire('assistance_telephone'));
     }
+
+    /** 16/10/2026 : une panne corrigée passe dans l'onglet « Corrigées », paginé. */
+    public function test_les_deux_onglets_separent_ouvertes_et_corrigees(): void
+    {
+        $this->get('/_panne-registre');
+        $panne = PanneConsignee::sole();
+        $this->actingAs($this->superadmin)->post(route('superadmin.pannes.corriger', $panne));
+
+        // Onglet ouvertes (défaut) : la panne corrigée n'y est plus.
+        $this->get(route('superadmin.pannes.index'))->assertOk()
+            ->assertSee('Corrigées', false)->assertDontSee('/_panne-registre', false);
+
+        // Onglet corrigées : elle y est.
+        $this->get(route('superadmin.pannes.index', ['onglet' => 'corrigees']))->assertOk()
+            ->assertSee($panne->code);
+    }
 }
