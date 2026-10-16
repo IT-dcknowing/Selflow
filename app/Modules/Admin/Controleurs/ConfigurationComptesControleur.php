@@ -33,6 +33,11 @@ class ConfigurationComptesControleur
             'lignes'     => $lignes,
             'categories' => Categorie::where('entreprise_id', $entreprise->id)->orderBy('nom')->get(),
             'types'      => Produit::TYPES,
+            // Retour du 16/10/2026 : une section « Articles » à côté des types.
+            'articles'   => Produit::with('categorieRelation')
+                ->where('entreprise_id', $entreprise->id)
+                ->orderBy('nom')
+                ->get(['id', 'nom', 'reference', 'type', 'categorie_id', 'entreprise_id', 'compte_vente', 'compte_achat']),
             'comptes'    => PlanComptable::obtenirComptesPrioritaires($entreprise->id),
             'defauts'    => [
                 'compte_vente' => config('selflow.plan_comptable_defaut.vente_defaut'),
@@ -52,7 +57,12 @@ class ConfigurationComptesControleur
             'stock'                   => ['nullable', 'array'],
             'stock.*.compte_stock'     => ['nullable', 'regex:/^3\d{3,9}$/'],
             'stock.*.compte_variation' => ['nullable', 'regex:/^(603|73)\d{1,7}$/'],
+            'article'                  => ['nullable', 'array'],
+            'article.*.compte_vente'   => ['nullable', 'regex:/^7\d{3,9}$/'],
+            'article.*.compte_achat'   => ['nullable', 'regex:/^6\d{3,9}$/'],
         ], [
+            'article.*.compte_vente.regex' => 'Un compte de vente est un compte de classe 7.',
+            'article.*.compte_achat.regex' => "Un compte d'achat est un compte de classe 6.",
             'config.*.compte_vente.regex' => 'Un compte de vente est un compte de classe 7.',
             'config.*.compte_achat.regex' => "Un compte d'achat est un compte de classe 6.",
             'stock.*.compte_stock.regex'  => 'Un compte de stock est un compte de classe 3.',
@@ -107,6 +117,34 @@ class ConfigurationComptesControleur
                     'compte_stock'     => trim((string) ($valeurs['compte_stock'] ?? '')) ?: null,
                     'compte_variation' => trim((string) ($valeurs['compte_variation'] ?? '')) ?: null,
                 ]);
+            }
+
+            // L'exception d'un article : le compte saisi devient le sien, et
+            // passe devant tout. Vide, l'article retourne à ce qui s'hérite.
+            // Seuls les champs modifiés arrivent (la page désactive les autres
+            // avant l'envoi) : un catalogue de mille articles dépasserait
+            // sinon le plafond de champs du serveur.
+            $articles = (array) $request->input('article', []);
+            if ($articles !== []) {
+                $produits = Produit::where('entreprise_id', $entreprise->id)
+                    ->whereIn('id', array_keys($articles))
+                    ->get()
+                    ->keyBy('id');
+
+                foreach ($articles as $produitId => $valeurs) {
+                    $produit = $produits->get($produitId);
+                    if (!$produit) {
+                        continue;
+                    }
+
+                    foreach (['compte_vente', 'compte_achat'] as $champ) {
+                        if (array_key_exists($champ, (array) $valeurs)) {
+                            $produit->$champ = trim((string) $valeurs[$champ]) ?: null;
+                        }
+                    }
+
+                    $produit->save();
+                }
             }
         });
 

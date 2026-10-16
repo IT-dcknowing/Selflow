@@ -13,8 +13,8 @@
 <div style="margin-bottom:18px; padding:14px 18px; background:#eff6ff; border:1px solid #93c5fd; border-radius:10px; color:#1e3a8a; font-size:12.5px; line-height:1.6;">
     <strong><i class="fas fa-circle-info"></i> Le plus précis l'emporte.</strong>
     Un article prend d'abord le compte de son <strong>type</strong>, sinon celui de sa <strong>catégorie</strong>,
-    sinon la <strong>configuration générale</strong>. Une fiche produit peut porter sa propre exception :
-    elle passe alors devant tout. Un champ laissé vide n'impose rien — l'article garde le compte de sa
+    sinon la <strong>configuration générale</strong>. Un <strong>article</strong> peut porter sa propre exception
+    (onglet « Par article », ou sa fiche) : elle passe alors devant tout. Un champ laissé vide n'impose rien — l'article garde le compte de sa
     famille, sinon {{ $defauts['compte_vente'] }} à la vente et {{ $defauts['compte_achat'] }} à l'achat.
     <br>Les écritures déjà passées ne sont pas réécrites.
 </div>
@@ -53,6 +53,7 @@
             <button type="button" class="actif" data-onglet="general">Configuration générale</button>
             <button type="button" data-onglet="categorie">Par catégorie</button>
             <button type="button" data-onglet="type">Par type</button>
+            <button type="button" data-onglet="article">Par article</button>
         </div>
 
         <div class="cfg-panneau actif" data-panneau="general">
@@ -98,6 +99,34 @@
                 </tbody>
             </table>
         </div>
+
+        <div class="cfg-panneau" data-panneau="article">
+            @if($articles->isEmpty())
+                <p style="color:var(--text-3); font-size:13px;">Aucun article n'est encore créé.</p>
+            @else
+            <input type="search" class="form-control cfg-filtre" placeholder="Rechercher un article…" style="max-width:320px; margin-bottom:10px;">
+            <p style="font-size:12px; color:var(--text-3); margin-bottom:8px;">
+                Un compte saisi ici devient l'exception de l'article et passe devant tout le reste. Vide, l'article prend le compte hérité.
+            </p>
+            <div style="max-height:460px; overflow:auto;">
+            <table class="cfg-table">
+                <thead><tr><th>Article</th><th>Compte hérité</th><th>Compte de l'article</th></tr></thead>
+                <tbody>
+                @foreach($articles as $article)
+                    @php $exception = \App\Modules\Admin\Services\ImputationService::estUneException($article, $champ) ? $article->$champ : ''; @endphp
+                    <tr data-article="{{ mb_strtolower($article->nom . ' ' . $article->reference) }}">
+                        <td>{{ $article->nom }} <span style="color:var(--text-3); font-size:11.5px;">{{ $article->reference }}</span></td>
+                        <td style="color:var(--text-3); font-family:monospace;">{{ \App\Modules\Admin\Services\ImputationService::compteHerite($article, $champ) }}</td>
+                        <td><input type="text" class="form-control cfg-article" list="{{ $liste }}"
+                                   name="article[{{ $article->id }}][{{ $champ }}]"
+                                   value="{{ $exception }}" data-initial="{{ $exception }}"></td>
+                    </tr>
+                @endforeach
+                </tbody>
+            </table>
+            </div>
+            @endif
+        </div>
     </div>
     @endforeach
 
@@ -138,6 +167,23 @@ document.querySelectorAll('[data-section]').forEach(function (section) {
             section.querySelectorAll('[data-onglet]').forEach(b => b.classList.toggle('actif', b === bouton));
             section.querySelectorAll('[data-panneau]').forEach(p => p.classList.toggle('actif', p.dataset.panneau === bouton.dataset.onglet));
         });
+    });
+});
+
+document.querySelectorAll('.cfg-filtre').forEach(function (champ) {
+    champ.addEventListener('input', function () {
+        var q = champ.value.trim().toLowerCase();
+        champ.closest('[data-panneau]').querySelectorAll('tr[data-article]').forEach(function (tr) {
+            tr.style.display = !q || tr.dataset.article.indexOf(q) !== -1 ? '' : 'none';
+        });
+    });
+});
+
+// Seules les exceptions modifiées partent : un grand catalogue dépasserait
+// sinon le nombre de champs qu'accepte le serveur.
+document.querySelector('form[action$="configuration-des-comptes"]').addEventListener('submit', function () {
+    this.querySelectorAll('.cfg-article').forEach(function (champ) {
+        if (champ.value.trim() === (champ.dataset.initial || '')) champ.disabled = true;
     });
 });
 </script>
