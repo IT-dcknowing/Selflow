@@ -40,6 +40,7 @@ trait JournaliseActions
             $user = Auth::user();
             JournalAudit::create([
                 'utilisateur_id'    => $user?->id,
+                'entreprise_id'     => $user?->entreprise_id,
                 'action'            => $action,
                 'entite'            => $entite,
                 'entite_id'         => $entiteId,
