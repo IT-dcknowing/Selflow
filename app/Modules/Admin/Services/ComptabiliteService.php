@@ -789,6 +789,21 @@ class ComptabiliteService
      */
     private static function compteEtJournalFinancier(int $entrepriseId, string $modePaiement): array
     {
+        // Le mobile money a son compte (5215… à 5219…) et son journal : il
+        // partait en caisse, faute d'être reconnu (16/10/2026).
+        if (str_starts_with(strtolower($modePaiement), 'mobile money')) {
+            $parts = explode(' : ', $modePaiement);
+            $intitule = isset($parts[1]) ? trim($parts[1]) : '';
+            $mobiles = CodeJournal::mobileMoney()->where('entreprise_id', $entrepriseId);
+            $journal = ($intitule !== '' ? (clone $mobiles)->where('intitule', $intitule)->first() : null)
+                ?? $mobiles->orderBy('code')->first();
+            if ($journal) {
+                return [$journal->compte, $journal->code];
+            }
+
+            return [config('selflow.plan_comptable_defaut.banque_defaut'), 'BQE'];
+        }
+
         $isBanque = str_starts_with(strtolower($modePaiement), 'banque');
         if (!$isBanque) {
             return [config('selflow.plan_comptable_defaut.caisse'), 'CAI'];

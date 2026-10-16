@@ -564,7 +564,7 @@
                                     <select name="banque_id" id="banqueSelect" class="form-control" style="flex:1;">
                                         <option value="">— Choisir un compte banque —</option>
                                         @foreach($banques as $b)
-                                        <option value="{{ $b->id }}">{{ $b->intitule }} ({{ $b->code }} - {{ $b->compte }})</option>
+                                        <option value="{{ $b->id }}">{{ $b->intitule }} ({{ $b->code }})</option>
                                         @endforeach
                                     </select>
                                     <button type="button" class="btn btn-primary" onclick="ouvrirModalNouvelleBanque()" style="padding:0 14px;"><i class="fas fa-plus"></i></button>
@@ -589,13 +589,20 @@
                         <div id="selectionMobileMoneyContainer" style="display:none; margin-bottom:16px;">
                             <div class="form-group">
                                 <label class="form-label">Opérateur Mobile Money</label>
-                                <select id="mobileMoneyOperateurSelect" class="form-control" onchange="document.getElementById('mobileMoneyOperateurInput').value = this.value">
+                                {{-- Les comptes de mobile money déclarés dans les moyens de
+                                     paiement (16/10/2026) : la liste était écrite en dur, et
+                                     l'encaissement partait en caisse. --}}
+                                @php $__mobiles = \App\Modules\Admin\Modeles\CodeJournal::mobileMoney()->where('entreprise_id', auth()->user()->entreprise_id)->orderBy('intitule')->get(); @endphp
+                                <select id="mobileMoneyOperateurSelect" name="mobile_money_journal_id" class="form-control"
+                                        onchange="document.getElementById('mobileMoneyOperateurInput').value = this.selectedOptions[0]?.dataset.code || ''">
                                     <option value="">— Sélectionner l'opérateur —</option>
-                                    <option value="MTN">MTN Mobile Money</option>
-                                    <option value="MOOV">MOOV Money</option>
-                                    <option value="ORANGE">Orange Money</option>
-                                    <option value="WAVE">Wave</option>
+                                    @foreach($__mobiles as $m)
+                                    <option value="{{ $m->id }}" data-code="{{ $m->code }}">{{ $m->intitule }}</option>
+                                    @endforeach
                                 </select>
+                                @if($__mobiles->isEmpty())
+                                    <small style="font-size:11px; color:var(--text-3);">Aucun compte de mobile money : ajoutez-en un dans Trésorerie › Moyens de paiement.</small>
+                                @endif
                             </div>
                         </div>
 
@@ -791,10 +798,14 @@
                 <label class="form-label">Intitulé <span style="color:var(--danger)">*</span></label>
                 <input type="text" id="banqueIntituleInput" class="form-control" placeholder="Ex: Journal Société Générale" required>
             </div>
+            {{-- Le compte ne se demande que si la comptabilité est ouverte ;
+                 sinon le serveur pose 521000 (16/10/2026). --}}
+            @if(auth()->user()->entreprise?->comptabiliteOuverte())
             <div class="form-group">
                 <label class="form-label">Compte comptable <span style="color:var(--danger)">*</span></label>
                 <input type="text" id="banqueCompteInput" class="form-control" placeholder="Ex: 521100" required>
             </div>
+            @endif
             <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:24px;">
                 <button type="button" class="btn btn-outline" onclick="fermerModalNouvelleBanque()">Annuler</button>
                 <button type="submit" class="btn btn-primary">Enregistrer</button>
@@ -1788,7 +1799,7 @@ function soumettreNouvelleBanque(e) {
     e.preventDefault();
     const code = document.getElementById('banqueCodeInput').value;
     const intitule = document.getElementById('banqueIntituleInput').value;
-    const compte = document.getElementById('banqueCompteInput').value;
+    const compte = document.getElementById('banqueCompteInput')?.value || '';
     
     const routeCreation = "{{ request()->routeIs('caissier.*') ? route('caissier.banques.creer') : route('admin.banques.creer') }}";
     

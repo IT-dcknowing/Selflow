@@ -8393,6 +8393,36 @@ Branche `immobilisations-et-annulation`. Retours du propriétaire le 16/10.
 
 ---
 
+### Lot 88 — Moyens de paiement : comptes masqués, mobile money à sa place — **TERMINÉ le 16/10/2026**
+
+Branche `moyens-de-paiement`. Retour du propriétaire (image 1 : la liste des
+banques montrait les comptes et contenait MTN, Moov, Orange, Wave).
+
+**Vérifié.** Moyens de paiement (comptabilité fermée) et codes journaux
+(comptabilité ouverte) sont **la même table** (`codes_journaux`), vue de deux
+côtés : supprimer l'un supprime l'autre, et ce qui est créé d'un côté paraît
+de l'autre avec son compte.
+
+**Trouvé.** Le mobile money est un journal « Banque » sur 5215… à 5219… : il
+s'affichait parmi les banques, tandis que le mode « Mobile Money » proposait
+quatre opérateurs écrits en dur — et **l'encaissement partait en caisse
+(571)**, `compteEtJournalFinancier` ne reconnaissant que « Banque … ».
+
+**Correctif.**
+- `CodeJournal::banques()` / `mobileMoney()` / `estMobileMoney()` : les listes
+  de banques (caisse, modification, achats, créances, bons de livraison) ne
+  contiennent plus le mobile money, et **n'affichent plus de numéro de compte**.
+- Le mode « Mobile Money » propose les comptes déclarés dans les moyens de
+  paiement ; la pièce porte « Mobile Money : <compte> », et l'écriture de
+  règlement va sur le compte et le journal de l'opérateur.
+- Ajout rapide d'une banque (+) : le compte n'est demandé que si la
+  comptabilité est ouverte (521000 sinon). Les moyens de paiement gagnent le
+  type « Mobile Money » (compte libre posé à partir de 521500).
+
+- `MoyensDePaiementMobileMoneyTest` (4). Suite verte.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

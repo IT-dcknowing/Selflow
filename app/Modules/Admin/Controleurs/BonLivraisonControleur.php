@@ -303,7 +303,7 @@ class BonLivraisonControleur extends Controller
             $vente, FacturationCommandeService::quantitesDuBon($bl, $vente)
         );
 
-        $banques = CodeJournal::where('type', 'Banque')->where('entreprise_id', $entreprise->id)->orderBy('intitule')->get();
+        $banques = CodeJournal::banques()->where('entreprise_id', $entreprise->id)->orderBy('intitule')->get();
 
         return view('admin::factures.vente', compact('bl', 'vente', 'vendeur', 'dejaPaye', 'banques', 'montantAFacturer'));
     }

@@ -50,7 +50,7 @@ class AchatControleur
             ?? \App\Modules\Admin\Modeles\PointDeVente::where('entreprise_id', $entreprise->id)
                 ->orderBy('id')
                 ->value('id');
-        $banques = CodeJournal::where('type', 'Banque')
+        $banques = CodeJournal::banques()
             ->where('entreprise_id', $entreprise->id)
             ->orderBy('intitule')
             ->get();
@@ -212,6 +212,13 @@ class AchatControleur
             if ($request->mode_paiement === 'Banque' && $request->filled('banque_id')) {
                 $codeJournal = CodeJournal::where('entreprise_id', Auth::user()->entreprise_id)->findOrFail($request->banque_id);
                 $modePaiementFinal = 'Banque : ' . $codeJournal->intitule;
+            }
+            // Le mobile money choisi parmi les comptes de l'entreprise : il porte
+            // son journal et son compte (16/10/2026 — il partait en caisse).
+            if ($request->mode_paiement === 'Mobile Money' && $request->filled('mobile_money_journal_id')) {
+                $journalMobile = CodeJournal::mobileMoney()->where('entreprise_id', Auth::user()->entreprise_id)->findOrFail($request->mobile_money_journal_id);
+                $modePaiementFinal = 'Mobile Money : ' . $journalMobile->intitule;
+                $request->merge(['mobile_money_operateur' => $journalMobile->code]);
             }
 
             // Générer le numéro de facture INTERNE (référentiel système)
@@ -650,7 +657,7 @@ class AchatControleur
         $achat->load(['fournisseur', 'pointDeVente.entreprise', 'details.produit']);
         $dejaPaye = \App\Modules\Admin\Modeles\TresorerieJournal::where('reference_document', $achat->numero_facture)->sum('montant_sortie');
         // Les banques, pour le règlement saisi à « Valider & Facturer ».
-        $banques = CodeJournal::where('type', 'Banque')->where('entreprise_id', Auth::user()->entreprise_id)->orderBy('intitule')->get();
+        $banques = CodeJournal::banques()->where('entreprise_id', Auth::user()->entreprise_id)->orderBy('intitule')->get();
         return view('admin::factures.achat', compact('achat', 'dejaPaye', 'banques'));
     }
 

@@ -260,7 +260,7 @@
                     <select name="banque_id" id="reglementBanqueSelect" class="form-control">
                         <option value="">— Choisir un compte banque —</option>
                         @foreach($banques as $b)
-                        <option value="{{ $b->id }}">{{ $b->intitule }} ({{ $b->code }} - {{ $b->compte }})</option>
+                        <option value="{{ $b->id }}">{{ $b->intitule }} ({{ $b->code }})</option>
                         @endforeach
                     </select>
                 </div>

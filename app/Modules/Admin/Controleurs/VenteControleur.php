@@ -61,7 +61,7 @@ class VenteControleur
             ->get();
 
         $categories = $produits->pluck('categorie')->unique()->sort()->values();
-        $banques = CodeJournal::where('type', 'Banque')->where('entreprise_id', $entreprise->id)->orderBy('intitule')->get();
+        $banques = CodeJournal::banques()->where('entreprise_id', $entreprise->id)->orderBy('intitule')->get();
 
         return view('admin::ventes.nouvelle', compact('clients', 'produits', 'categories', 'pointDeVenteId', 'banques'));
     }
@@ -234,6 +234,13 @@ class VenteControleur
             if ($request->mode_paiement === 'Banque' && $request->filled('banque_id')) {
                 $codeJournal = CodeJournal::where('entreprise_id', Auth::user()->entreprise_id)->findOrFail($request->banque_id);
                 $modePaiementFinal = 'Banque : ' . $codeJournal->intitule;
+            }
+            // Le mobile money choisi parmi les comptes de l'entreprise : il porte
+            // son journal et son compte (16/10/2026 — il partait en caisse).
+            if ($request->mode_paiement === 'Mobile Money' && $request->filled('mobile_money_journal_id')) {
+                $journalMobile = CodeJournal::mobileMoney()->where('entreprise_id', Auth::user()->entreprise_id)->findOrFail($request->mobile_money_journal_id);
+                $modePaiementFinal = 'Mobile Money : ' . $journalMobile->intitule;
+                $request->merge(['mobile_money_operateur' => $journalMobile->code]);
             }
 
             // Génération numéro de facture
@@ -640,7 +647,7 @@ class VenteControleur
             $facturesDispo = $facturesDispoQuery->latest()->get();
         }
 
-        $banques = \App\Modules\Admin\Modeles\CodeJournal::where('type', 'Banque')->where('entreprise_id', $entreprise->id)->orderBy('intitule')->get();
+        $banques = \App\Modules\Admin\Modeles\CodeJournal::banques()->where('entreprise_id', $entreprise->id)->orderBy('intitule')->get();
 
         return view('admin::ventes.factures', compact('ventes', 'etapeActive', 'nbDV', 'nbBC', 'nbBL', 'nbFacture', 'type', 'voirArchives', 'facturesDispo', 'banques'));
     }
@@ -663,7 +670,7 @@ class VenteControleur
         $dejaPaye = TresorerieJournal::where('reference_document', $vente->numero_facture)->sum('montant_entree');
 
         // Les banques, pour le règlement saisi à « Valider & Facturer ».
-        $banques = CodeJournal::where('type', 'Banque')->where('entreprise_id', Auth::user()->entreprise_id)->orderBy('intitule')->get();
+        $banques = CodeJournal::banques()->where('entreprise_id', Auth::user()->entreprise_id)->orderBy('intitule')->get();
 
         return view('admin::factures.vente', compact('vente', 'vendeur', 'dejaPaye', 'banques'));
     }
@@ -784,7 +791,7 @@ class VenteControleur
             ->orderBy('nom')
             ->get();
         $categories = $produits->pluck('categorie')->unique()->sort()->values();
-        $banques = CodeJournal::where('type', 'Banque')->where('entreprise_id', $entreprise->id)->orderBy('intitule')->get();
+        $banques = CodeJournal::banques()->where('entreprise_id', $entreprise->id)->orderBy('intitule')->get();
 
         return view('admin::ventes.modifier', compact('vente', 'clients', 'produits', 'categories', 'banques'));
     }
