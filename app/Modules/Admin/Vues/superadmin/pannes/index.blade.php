@@ -37,11 +37,26 @@
                     <button type="submit" class="btn" style="background:#16a34a; color:#fff; border:none;"><i class="fas fa-power-off"></i> Remettre en ligne</button>
                 @else
                     <input type="hidden" name="action" value="couper">
-                    <input type="text" name="message" class="form-control" maxlength="500" placeholder="Message facultatif (ex. retour prévu vers 14 h)">
+                    <label class="form-label" style="margin:0;">Message affiché aux utilisateurs <small style="color:var(--text-3);">(facultatif)</small></label>
+                    <input type="text" name="message" class="form-control" maxlength="500" placeholder="Ex. : retour prévu vers 14 h">
                     <button type="submit" class="btn" style="background:#dc2626; color:#fff; border:none;"><i class="fas fa-power-off"></i> Mettre hors ligne</button>
                 @endif
             </form>
         </div>
+
+        {{-- Hors ligne : le message actuel reste visible et modifiable (16/10/2026). --}}
+        @if($horsLigne)
+        <form method="POST" action="{{ route('superadmin.pannes.hors_ligne') }}" style="margin:12px 0 0; display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap;">
+            @csrf
+            <input type="hidden" name="action" value="couper">
+            <div class="form-group" style="margin:0; flex:1; min-width:280px;">
+                <label class="form-label">Message affiché aux utilisateurs</label>
+                <input type="text" name="message" class="form-control" maxlength="500"
+                       value="{{ $horsLigne['message'] ?? '' }}" placeholder="Ex. : retour prévu vers 14 h">
+            </div>
+            <button type="submit" class="btn btn-outline"><i class="fas fa-pen"></i> Mettre à jour le message</button>
+        </form>
+        @endif
     </div>
 
     {{-- Les contacts de l'assistance : ce que voit l'utilisateur sur la page
@@ -78,17 +93,27 @@
     <div class="card" style="padding:14px 20px; margin-bottom:14px; font-size:13px; color:var(--text-2); line-height:1.7;">
         <i class="fas fa-circle-info" style="color:var(--primary);"></i>
         Chaque ligne est un défaut, avec le nombre de fois où il s'est produit. Cliquez sur le code pour voir l'erreur.
-        Une panne <strong>corrigée quitte la liste</strong> : à la main, ou d'elle-même quand le fichier fautif a été
-        modifié depuis (correctif déployé). Si elle se reproduit, elle revient.
-        <strong>{{ $pannes->count() }}</strong> ouverte{{ $pannes->count() > 1 ? 's' : '' }} · {{ $corrigees }} corrigée{{ $corrigees > 1 ? 's' : '' }} ces 7 derniers jours.
+        Une panne <strong>corrigée passe dans l'onglet « Corrigées »</strong> : à la main, ou d'elle-même quand le
+        fichier fautif a été modifié depuis (correctif déployé). Si elle se reproduit, elle revient côté « Ouvertes ».
+    </div>
+
+    <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
+        <a href="{{ route('superadmin.pannes.index', ['onglet' => 'ouvertes']) }}"
+           class="btn btn-sm {{ $onglet === 'ouvertes' ? 'btn-primary' : 'btn-outline' }}">
+            <i class="fas fa-triangle-exclamation"></i> Ouvertes <strong>{{ $nbOuvertes }}</strong>
+        </a>
+        <a href="{{ route('superadmin.pannes.index', ['onglet' => 'corrigees']) }}"
+           class="btn btn-sm {{ $onglet === 'corrigees' ? 'btn-primary' : 'btn-outline' }}">
+            <i class="fas fa-circle-check"></i> Corrigées <strong>{{ $nbCorrigees }}</strong>
+        </a>
     </div>
 
     <div class="card" style="padding:0; overflow-x:auto;">
         @if($pannes->isEmpty())
-            <p style="padding:30px; text-align:center; color:var(--text-3);"><i class="fas fa-circle-check" style="color:var(--success);"></i> Aucune panne ouverte.</p>
+            <p style="padding:30px; text-align:center; color:var(--text-3);"><i class="fas fa-circle-check" style="color:var(--success);"></i> {{ $onglet === 'ouvertes' ? 'Aucune panne ouverte.' : 'Aucune panne corrigée.' }}</p>
         @else
         <table class="table" style="width:100%;">
-            <thead><tr><th>Code</th><th>Adresse</th><th>Fois</th><th>Dernière</th><th></th></tr></thead>
+            <thead><tr><th>Code</th><th>Adresse</th><th>Fois</th><th>{{ $onglet === 'ouvertes' ? 'Dernière' : 'Corrigée le' }}</th><th></th></tr></thead>
             <tbody>
             @foreach($pannes as $panne)
                 <tr class="ligne-panne" data-panne="{{ $panne->id }}">
@@ -102,12 +127,23 @@
                         <span style="color:var(--text-3); font-weight:700;">{{ $panne->methode }}</span> {{ $panne->url ?? '—' }}
                     </td>
                     <td><strong>{{ $panne->occurrences }}</strong></td>
-                    <td style="font-size:12px; white-space:nowrap;">{{ $panne->derniere_le?->format('d/m/Y H:i') }}</td>
+                    <td style="font-size:12px; white-space:nowrap;">
+                        @if($onglet === 'ouvertes')
+                            {{ $panne->derniere_le?->format('d/m/Y H:i') }}
+                        @else
+                            {{ $panne->corrigee_le?->format('d/m/Y H:i') }}
+                            @if($panne->corrigee_par)<div style="font-size:11px; color:var(--text-3);">{{ $panne->corrigee_par }}</div>@endif
+                        @endif
+                    </td>
                     <td style="text-align:right;">
+                        @if($onglet === 'ouvertes')
                         <form method="POST" action="{{ route('superadmin.pannes.corriger', $panne) }}" style="display:inline;">
                             @csrf
                             <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-check"></i> Corrigée</button>
                         </form>
+                        @else
+                        <span class="badge" style="background:#ecfdf5; color:#047857; font-size:11px; padding:4px 8px; border-radius:6px; font-weight:700;"><i class="fas fa-circle-check"></i> Corrigée</span>
+                        @endif
                     </td>
                 </tr>
                 <tr id="detail-panne-{{ $panne->id }}" class="detail-panne" hidden>
@@ -128,6 +164,7 @@
             @endforeach
             </tbody>
         </table>
+        <div style="padding:12px 16px;">{{ $pannes->links() }}</div>
         @endif
     </div>
 </div>

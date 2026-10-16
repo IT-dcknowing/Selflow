@@ -8815,6 +8815,20 @@ Migration `2026_10_16_000002` (colonnes `corbeille_le`, `corbeille_par`).
 
 ---
 
+### Lot 101 — Pannes : deux onglets (ouvertes / corrigées), paginées — **TERMINÉ le 16/10/2026**
+
+Superadmin › Pannes & assistance : une panne corrigée ne disparaît plus, elle
+passe dans l'onglet **Corrigées** (date et auteur de la correction). Deux
+onglets avec compteurs, **Ouvertes** et **Corrigées**, chacun paginé (20 par
+page). Si une panne corrigée se reproduit, elle revient dans Ouvertes.
+
+Mise hors ligne : le **message affiché aux utilisateurs** est maintenant visible
+et modifiable pendant la coupure (« Mettre à jour le message »), sans rallumer.
+
+- `RegistreDesPannesTest` (+1). Suite : 1 822 épreuves, 1 817 passantes.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

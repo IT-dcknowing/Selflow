@@ -19,15 +19,24 @@ use Illuminate\View\View;
  */
 class SuperadminPanneControleur
 {
-    public function index(): View
+    public function index(\Illuminate\Http\Request $request): View
     {
         PanneConsignee::fermerCellesCorrigeesParUnDeploiement();
 
-        $pannes = PanneConsignee::ouvertes()
-            ->with(['entreprise:id,nom', 'utilisateur:id,nom,prenom,email'])
-            ->orderByDesc('derniere_le')
-            ->get();
+        // Deux onglets (16/10/2026) : les pannes ouvertes, et celles corrigées —
+        // une panne corrigée ne disparaît plus, elle passe de l'autre côté. Les
+        // deux tableaux sont paginés.
+        $onglet = $request->query('onglet') === 'corrigees' ? 'corrigees' : 'ouvertes';
 
+        $pannes = PanneConsignee::query()
+            ->when($onglet === 'ouvertes', fn ($q) => $q->whereNull('corrigee_le')->orderByDesc('derniere_le'))
+            ->when($onglet === 'corrigees', fn ($q) => $q->whereNotNull('corrigee_le')->orderByDesc('corrigee_le'))
+            ->with(['entreprise:id,nom', 'utilisateur:id,nom,prenom,email'])
+            ->paginate(20)
+            ->withQueryString();
+
+        $nbOuvertes  = PanneConsignee::whereNull('corrigee_le')->count();
+        $nbCorrigees = PanneConsignee::whereNotNull('corrigee_le')->count();
         $corrigees = PanneConsignee::whereNotNull('corrigee_le')->where('corrigee_le', '>=', now()->subDays(7))->count();
 
         $assistance = [
@@ -40,7 +49,7 @@ class SuperadminPanneControleur
 
         $horsLigne = \App\Modules\Admin\Regles\MiseHorsLigne::active() ? \App\Modules\Admin\Regles\MiseHorsLigne::etat() : null;
 
-        return view('admin::superadmin.pannes.index', compact('pannes', 'corrigees', 'assistance', 'horsLigne'));
+        return view('admin::superadmin.pannes.index', compact('pannes', 'corrigees', 'assistance', 'horsLigne', 'onglet', 'nbOuvertes', 'nbCorrigees'));
     }
 
     public function corriger(PanneConsignee $panne): RedirectResponse
@@ -92,12 +101,17 @@ class SuperadminPanneControleur
             return back()->with('succes', 'Selflow est de nouveau en ligne pour tous les utilisateurs.');
         }
 
+        // Déjà hors ligne : on ne fait que mettre à jour le message affiché.
+        $dejaHorsLigne = \App\Modules\Admin\Regles\MiseHorsLigne::active();
+
         $utilisateur = Auth::user();
         \App\Modules\Admin\Regles\MiseHorsLigne::couper(
             $donnees['message'] ?? null,
             trim(($utilisateur->prenom ?? '') . ' ' . ($utilisateur->nom ?? '')) ?: $utilisateur->email
         );
 
-        return back()->with('succes', 'Selflow est hors ligne : les utilisateurs voient la page de maintenance évolutive. Vous seul(e) et les superadministrateurs gardez l\'accès.');
+        return back()->with('succes', $dejaHorsLigne
+            ? 'Message de maintenance mis à jour.'
+            : 'Selflow est hors ligne : les utilisateurs voient la page de maintenance évolutive. Vous seul(e) et les superadministrateurs gardez l\'accès.');
     }
 }
