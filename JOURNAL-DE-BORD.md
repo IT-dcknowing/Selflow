@@ -8743,6 +8743,31 @@ de vente. Le diagnostic liste aussi les opérations déséquilibrées.
 
 ---
 
+### Lot 98 — Remise globale des achats, rayons des seuls métiers ajoutés, sur mesure payé par référence — **TERMINÉ le 16/10/2026**
+
+- **ACH-240926-005 restait déséquilibrée après reprise** (59 000 au débit,
+  57 820 au crédit). Cause : `ventilationAchat()` ignorait la **remise
+  globale**. La charge et la TVA déductible restaient au brut, le
+  fournisseur était crédité au net. Corrigé : même rapport qu'à la vente,
+  et la TVA retenue est celle de la pièce. Toute facture d'achat avec une
+  remise globale était touchée. En production, relancer
+  `selflow:recomptabiliser "DC-KNOWING CGA" ACH-240926-005 --appliquer`
+  après le déploiement.
+- **Configuration › rayons** : quand on ajoute un métier, l'étape 4 ne
+  propose que les rayons des métiers **nouveaux** ; ceux déjà en place sont
+  au catalogue. L'étape 5 (prix, stock) ne montre que les articles qui
+  viennent d'arriver. Les numéros de compte suivent la case
+  « Comptabilité » cochée à l'étape 3.
+- **Facturation › Sur mesure › Renouveler** ouvre aussi le paiement par
+  référence : opérateur, référence, et **montant convenu dans le devis**
+  saisi par le client. Le paiement arrive au superadmin (Paiements
+  d'abonnement), qui le confirme. Solo, Business et Premium l'avaient
+  déjà (lot 89).
+
+- 3 épreuves ajoutées. Suite : 1 815 épreuves, 1 810 passantes.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

@@ -93,13 +93,11 @@
                     <form method="POST" action="{{ route('admin.abonnement.renouveler') }}">
                         @csrf
                         <input type="hidden" name="depuis" value="facturation">
-                        @if(($offre['prix'] ?? 0) > 0)
-                            <button type="button" class="btn btn-primary" style="width:100%; justify-content:center;"
-                                    onclick="var c = this.nextElementSibling; c.style.display = c.style.display === 'none' ? 'block' : 'none';"><i class="fas fa-rotate"></i> Renouveler</button>
-                            @include('admin::abonnements.partials.champs-paiement', ['montant' => $offre['prix']])
-                        @else
-                            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;"><i class="fas fa-rotate"></i> Renouveler</button>
-                        @endif
+                        {{-- Toutes les offres renouvelables, sur mesure comprise, se
+                             règlent par référence de transaction (16/10/2026). --}}
+                        <button type="button" class="btn btn-primary" style="width:100%; justify-content:center;"
+                                onclick="var c = this.nextElementSibling; c.style.display = c.style.display === 'none' ? 'block' : 'none';"><i class="fas fa-rotate"></i> Renouveler</button>
+                        @include('admin::abonnements.partials.champs-paiement', ['montant' => ($offre['prix'] ?? 0) > 0 ? $offre['prix'] : null])
                     </form>
                 @elseif($superieure)
                     <form method="POST" action="{{ route('admin.abonnement.enregistrer') }}">

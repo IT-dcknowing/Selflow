@@ -98,4 +98,24 @@ class PaiementAbonnementParReferenceTest extends TestCase
         $this->actingAs($admin)->post(route('admin.abonnement.enregistrer'), ['offre' => Abonnements::PASS_CADEAU])->assertSessionHas('succes');
         $this->assertSame(0, PaiementAbonnement::count());
     }
+
+    /** 16/10/2026 : l'offre sur mesure se renouvelle aussi par référence, au montant du devis. */
+    public function test_le_sur_mesure_se_renouvelle_par_reference_au_montant_convenu(): void
+    {
+        $this->entreprise->forceFill(['plan_abonnement' => Abonnements::SUR_MESURE])->save();
+
+        $this->actingAs($this->admin)->get(route('admin.entreprise.parametres'))->assertOk()
+            ->assertSee('Paiement du montant convenu dans votre devis');
+
+        $this->post(route('admin.abonnement.renouveler'), ['depuis' => 'facturation', 'operateur_paiement' => 'WAVE', 'reference_paiement' => 'TX-1234'])
+            ->assertSessionHasErrors('montant');
+
+        $this->post(route('admin.abonnement.renouveler'), [
+            'depuis' => 'facturation', 'operateur_paiement' => 'WAVE', 'reference_paiement' => 'TX-1234', 'montant' => 150000,
+        ])->assertSessionHasNoErrors();
+
+        $paiement = PaiementAbonnement::sole();
+        $this->assertSame(Abonnements::SUR_MESURE, $paiement->offre);
+        $this->assertSame(150000, (int) $paiement->montant);
+    }
 }

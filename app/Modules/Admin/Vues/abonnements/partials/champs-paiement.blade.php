@@ -4,15 +4,22 @@
     Styles en ligne : le bloc sert sur la page des offres (sans le gabarit de
     l'application) comme dans la section Facturation.
 
-    @param  int  $montant
+    @param  int|null  $montant  null pour l'offre sur mesure : le client saisit le montant convenu
 --}}
 @php
     $numeros = \App\Modules\Admin\Regles\PaiementParReference::numerosDuCabinet();
 @endphp
 <div class="champs-paiement" style="display:none; text-align:left; margin-top:10px; background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:12px;">
+    @if($montant)
     <div style="font-size:12.5px; font-weight:800; color:#92400e; margin-bottom:6px;">
         Paiement : {{ number_format($montant, 0, ',', ' ') }} F
     </div>
+    @else
+    {{-- Offre sur mesure : le montant est celui du devis convenu. --}}
+    <div style="font-size:12.5px; font-weight:800; color:#92400e; margin-bottom:6px;">Paiement du montant convenu dans votre devis</div>
+    <input type="number" name="montant" min="1" step="1" placeholder="Montant payé (F)"
+           style="width:100%; height:36px; border:1px solid #E2E8F0; border-radius:8px; padding:4px 8px; margin-bottom:8px; font-family:inherit;">
+    @endif
     @if($numeros)
         <div style="font-size:11.5px; color:#92400e; margin-bottom:4px;">Déposez le montant sur un numéro du cabinet DC-Knowing :</div>
         <ul style="font-size:12px; font-weight:700; color:#78350f; margin:0 0 8px 16px; line-height:1.6;">
