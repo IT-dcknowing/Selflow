@@ -149,7 +149,7 @@ class LettrageService
 
         try {
             return self::lettrer($entrepriseId, $compte, $ecritures->pluck('id')->all());
-        } catch (\InvalidArgumentException) {
+        } catch (\InvalidArgumentException|\Illuminate\Database\QueryException) {
             // Une condition a changé entre la lecture et l'écriture — une autre
             // session a lettré entre-temps. Le lettrage manuel reste possible ;
             // faire échouer l'encaissement pour autant serait disproportionné.
@@ -242,8 +242,39 @@ class LettrageService
      */
     private static function prochainCode(int $entrepriseId): string
     {
-        $rang = Lettrage::where('entreprise_id', $entrepriseId)->count() + 1;
+        // Le rang suit le plus grand code déjà posé, et non le nombre de
+        // lettrages : un lettrage défait faisait baisser le compte, et le code
+        // suivant retombait sur un code existant — erreur 1062 en pleine vente
+        // (« poissonnerie entente », 16/10/2026).
+        $rang = Lettrage::withoutGlobalScopes()->where('entreprise_id', $entrepriseId)
+            ->pluck('code')
+            ->map(fn ($code) => self::rangDuCode((string) $code))
+            ->max() ?? 0;
 
+        do {
+            $code = self::codeDuRang(++$rang);
+        } while (Lettrage::withoutGlobalScopes()->where('entreprise_id', $entrepriseId)->where('code', $code)->exists());
+
+        return $code;
+    }
+
+    /** A → 1, Z → 26, AA → 27 ; tout autre code compte pour 0. */
+    private static function rangDuCode(string $code): int
+    {
+        if (!preg_match('/^[A-Z]+$/', $code)) {
+            return 0;
+        }
+
+        $rang = 0;
+        foreach (str_split($code) as $lettre) {
+            $rang = $rang * 26 + (ord($lettre) - 64);
+        }
+
+        return $rang;
+    }
+
+    private static function codeDuRang(int $rang): string
+    {
         $code = '';
 
         while ($rang > 0) {

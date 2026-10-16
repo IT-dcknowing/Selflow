@@ -8768,6 +8768,27 @@ de vente. Le diagnostic liste aussi les opérations déséquilibrées.
 
 ---
 
+### Lot 99 — URGENT : erreur 1062 sur le code de lettrage à l'encaissement — **TERMINÉ le 16/10/2026**
+
+En production, chez « poissonnerie entente », une vente comptant tombait en
+erreur : `Duplicate entry '21-S' for key 'lettrages_entreprise_id_code_unique'`.
+`LettrageService::prochainCode()` calculait le code suivant à partir du
+**nombre** de lettrages (+1). Dès qu'un lettrage avait été défait, ce nombre
+baissait et le code retombait sur un code existant. Le lettrage d'office qui
+suit chaque règlement (`lettrerLaPiece`) faisait alors échouer **toute la
+vente**.
+
+Corrigé :
+- le code suit désormais le **plus grand code posé** (A=1 … Z=26, AA=27…),
+  puis avance jusqu'à un code libre ;
+- `lettrerLaPiece` attrape aussi une erreur de base : le lettrage d'office
+  ne fait plus jamais échouer un encaissement, le lettrage manuel reste
+  possible.
+
+- 1 épreuve. Aucune migration.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
