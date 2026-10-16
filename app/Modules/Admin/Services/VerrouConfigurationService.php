@@ -51,6 +51,20 @@ class VerrouConfigurationService
         'production'    => ['table' => 'ordres_production',    'par' => 'entreprise_id'],
     ];
 
+    /** @var array<string, bool> */
+    private static array $tracesPresentes = [];
+
+    /**
+     * La table et sa colonne existent-elles ? Demandé une fois par processus :
+     * sur un MySQL mutualisé, interroger `information_schema` à chaque
+     * affichage coûtait plus que tout le reste de l'écran (audit du 16/10/2026).
+     */
+    private static function tracePresente(string $table, string $colonne): bool
+    {
+        return self::$tracesPresentes["{$table}.{$colonne}"] ??=
+            Schema::hasTable($table) && Schema::hasColumn($table, $colonne);
+    }
+
     /**
      * Les modules que l'entreprise ne peut plus refermer, et pourquoi.
      *
@@ -66,8 +80,7 @@ class VerrouConfigurationService
             // manquer sur une base partiellement migrée : ni l'un ni l'autre
             // ne doit faire tomber l'écran de configuration.
             if (in_array($module, Entreprise::MODULES_STRUCTURELS, true)
-                || !Schema::hasTable($trace['table'])
-                || !Schema::hasColumn($trace['table'], $trace['par'])) {
+                || !self::tracePresente($trace['table'], $trace['par'])) {
                 continue;
             }
 

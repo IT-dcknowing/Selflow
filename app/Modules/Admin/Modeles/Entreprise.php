@@ -392,8 +392,8 @@ class Entreprise extends Model
              'valeur' => trim(($this->gerant_nom ?? '') . ' ' . ($this->gerant_prenom ?? '')) ?: null,
              'note' => 'Représentant légal déclaré.'],
             ['champ' => 'Points de vente',
-             'valeur' => $this->pointsDeVente()->count() > 0
-                 ? $this->pointsDeVente()->count() . ' déclaré(s)'
+             'valeur' => $this->nombreDePointsDeVente() > 0
+                 ? $this->nombreDePointsDeVente() . ' déclaré(s)'
                  : null,
              'note' => 'Leur nom doit être identique des deux côtés : la FNE refuse une facture dont le point de vente lui est inconnu.'],
         ];
@@ -557,7 +557,7 @@ class Entreprise extends Model
 
         // Compté à la demande : la question ne se pose qu'aux écrans de
         // blocage, et une requête de plus sur chaque page ne se justifie pas.
-        if ($this->exists && $this->pointsDeVente()->count() === 0) {
+        if ($this->exists && $this->nombreDePointsDeVente() === 0) {
             $manquants[] = [
                 'cle'     => 'point_de_vente',
                 'libelle' => 'Au moins un point de vente — son nom part à la DGI avec chaque facture',
@@ -620,7 +620,7 @@ class Entreprise extends Model
             $manquants[] = ['cle' => 'regime_imposition', 'libelle' => 'Le régime d\'imposition', 'ou' => 'fiscal'];
         }
 
-        if ($this->exists && $this->pointsDeVente()->count() === 0) {
+        if ($this->exists && $this->nombreDePointsDeVente() === 0) {
             $manquants[] = ['cle' => 'point_de_vente', 'libelle' => 'Un point de vente déclaré sur votre espace FNE', 'ou' => 'points_de_vente'];
         }
 
@@ -863,5 +863,35 @@ class Entreprise extends Model
     public static function libelleModule(string $module): string
     {
         return self::LIBELLES_MODULES[$module] ?? ucfirst(str_replace('_', ' ', $module));
+    }
+
+    /**
+     * Le nombre de points de vente, compté une fois par requête.
+     *
+     * Le middleware d'inscription, le gabarit et les écrans de blocage le
+     * demandaient trois à neuf fois par page (audit de performance du
+     * 16/10/2026). La mémoire vit dans le conteneur, qui naît et meurt avec la
+     * requête — comme `ConfigurationCompte::pour` ; créer ou supprimer un
+     * point de vente l'oublie.
+     */
+    public function nombreDePointsDeVente(): int
+    {
+        if (!$this->exists) {
+            return 0;
+        }
+
+        $memoire = app()->bound('selflow.points_de_vente_comptes') ? app('selflow.points_de_vente_comptes') : [];
+
+        if (!array_key_exists($this->id, $memoire)) {
+            $memoire[$this->id] = $this->pointsDeVente()->count();
+            app()->instance('selflow.points_de_vente_comptes', $memoire);
+        }
+
+        return $memoire[$this->id];
+    }
+
+    public static function oublierLesPointsDeVente(): void
+    {
+        app()->forgetInstance('selflow.points_de_vente_comptes');
     }
 }

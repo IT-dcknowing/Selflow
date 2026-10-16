@@ -23,3 +23,30 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# Compression et cache des fichiers statiques (audit de performance du
+# 16/10/2026) : sans gzip, une page partait à 100-190 Ko et la caisse à
+# près de 2 Mo ; sans durée de cache, polices et icônes étaient redemandées
+# à chaque visite. Sans effet si les modules Apache sont absents.
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css text/javascript application/javascript application/json image/svg+xml
+</IfModule>
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 30 days"
+    ExpiresByType application/javascript "access plus 30 days"
+    ExpiresByType text/javascript "access plus 30 days"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType application/font-woff2 "access plus 1 year"
+    ExpiresByType image/png "access plus 30 days"
+    ExpiresByType image/jpeg "access plus 30 days"
+    ExpiresByType image/svg+xml "access plus 30 days"
+    ExpiresByType image/x-icon "access plus 30 days"
+</IfModule>
+
+# Fichiers sensibles : jamais servis, même si la racine web était mal posée.
+<FilesMatch "^\.(env|git)|\.(sqlite|log|bak|sql)$">
+    Require all denied
+</FilesMatch>

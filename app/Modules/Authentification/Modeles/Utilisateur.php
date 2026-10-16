@@ -38,6 +38,8 @@ class Utilisateur extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        // Jamais sérialisé : un `response()->json($utilisateur)` le livrerait.
+        'jeton_api',
     ];
 
     protected function casts(): array

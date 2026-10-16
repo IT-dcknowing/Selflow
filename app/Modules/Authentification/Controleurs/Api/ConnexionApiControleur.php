@@ -61,8 +61,10 @@ class ConnexionApiControleur
 
         // Générer un jeton d'accès unique
         $jeton = Str::random(80);
+        // Seule l'empreinte est gardée en base (audit du 16/10/2026) : une
+        // copie de la base ne livre plus de quoi se connecter.
         $utilisateur->update([
-            'jeton_api' => $jeton
+            'jeton_api' => hash('sha256', $jeton)
         ]);
 
         return response()->json([

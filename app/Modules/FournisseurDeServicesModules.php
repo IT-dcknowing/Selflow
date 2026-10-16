@@ -28,19 +28,24 @@ class FournisseurDeServicesModules extends ServiceProvider
 
         $dossiersModules = array_filter(glob($cheminModules . '/*'), 'is_dir');
 
+        // Routes en cache (`php artisan optimize`) : les recharger à chaque
+        // requête annulait le cache — 396 routes relues pour rien (audit de
+        // performance du 16/10/2026).
+        $routesEnCache = $this->app->routesAreCached();
+
         foreach ($dossiersModules as $cheminModule) {
             $nomModule = basename($cheminModule);
 
             // Enregistrer les routes
             $cheminRoute = $cheminModule . '/Routes/web.php';
-            if (file_exists($cheminRoute)) {
+            if (!$routesEnCache && file_exists($cheminRoute)) {
                 Route::middleware('web')
                     ->group($cheminRoute);
             }
 
             // Enregistrer les routes API
             $cheminRouteApi = $cheminModule . '/Routes/api.php';
-            if (file_exists($cheminRouteApi)) {
+            if (!$routesEnCache && file_exists($cheminRouteApi)) {
                 Route::middleware('api')
                     ->prefix('api')
                     ->group($cheminRouteApi);

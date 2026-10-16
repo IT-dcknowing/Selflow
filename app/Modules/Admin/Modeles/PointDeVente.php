@@ -13,6 +13,14 @@ class PointDeVente extends Model
 
     protected $table = 'points_de_vente';
 
+    protected static function booted(): void
+    {
+        // Le compte mémorisé par `Entreprise::nombreDePointsDeVente()`.
+        $oublier = fn () => Entreprise::oublierLesPointsDeVente();
+        static::created($oublier);
+        static::deleted($oublier);
+    }
+
     protected $fillable = [
         'entreprise_id',
         'nom',

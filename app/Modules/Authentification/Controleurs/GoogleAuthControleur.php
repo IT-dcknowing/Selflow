@@ -28,7 +28,7 @@ class GoogleAuthControleur
     public function callback(): RedirectResponse
     {
         try {
-            $googleUser = Socialite::driver('google')->stateless()->user();
+            $googleUser = Socialite::driver('google')->user();
         } catch (\Exception $e) {
             return redirect()->route('connexion')
                 ->withErrors(['connexion_erreur' => 'Authentification Google échouée. Veuillez réessayer.']);
