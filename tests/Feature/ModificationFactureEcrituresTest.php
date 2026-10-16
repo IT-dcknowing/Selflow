@@ -96,4 +96,42 @@ class ModificationFactureEcrituresTest extends TestCase
         $this->assertSame(-200000.0, $this->solde('7'));
         $this->assertSame(0.0, $this->solde('411'));
     }
+
+    /** Le client tend plus que le dû : la différence est rendue, elle n'entre pas en caisse. */
+    public function test_la_tresorerie_n_encaisse_que_le_du(): void
+    {
+        $this->post(route('admin.ventes.enregistrer'), [
+            'etape' => 'Facture', 'type_piece' => Vente::TYPE_FACTURE, 'client_id' => $this->client->id,
+            'mode_paiement' => 'Espèces', 'montant_paye' => 500000000000,
+            'articles' => [['produit_id' => $this->prestation->id, 'quantite' => 1, 'unite' => 'unité']],
+        ])->assertSessionDoesntHaveErrors();
+
+        $vente = Vente::firstOrFail();
+        $du = (float) $vente->montant_ttc + (float) $vente->timbre_quittance + (float) $vente->montant_autres_taxes;
+
+        $this->assertEqualsWithDelta($du, (float) TresorerieJournal::sum('montant_entree'), 0.01);
+        $this->assertEqualsWithDelta($du, (float) TresorerieJournal::first()->solde_resultat, 0.01);
+        $this->assertEqualsWithDelta($du, $this->solde('57'), 0.01);
+    }
+
+    public function test_la_commande_ramene_les_encaissements_passes_au_du(): void
+    {
+        $this->post(route('admin.ventes.enregistrer'), [
+            'etape' => 'Facture', 'type_piece' => Vente::TYPE_FACTURE, 'client_id' => $this->client->id,
+            'mode_paiement' => 'Espèces',
+            'articles' => [['produit_id' => $this->prestation->id, 'quantite' => 1, 'unite' => 'unité']],
+        ]);
+        // Un encaissement d'avant le plafond, écrit sans passer par le modèle.
+        TresorerieJournal::withoutGlobalScopes()->first()->newQuery()->withoutGlobalScopes()
+            ->update(['montant_entree' => 999999999, 'solde_resultat' => 999999999]);
+
+        $this->artisan('selflow:corriger-tresorerie', ['entreprise' => $this->entreprise->id])->assertSuccessful();
+        $this->assertSame(999999999.0, (float) TresorerieJournal::sum('montant_entree'), 'aperçu : rien n\'est écrit');
+
+        $this->artisan('selflow:corriger-tresorerie', ['entreprise' => $this->entreprise->id, '--appliquer' => true])->assertSuccessful();
+        $vente = Vente::firstOrFail();
+        $du = (float) $vente->montant_ttc + (float) $vente->timbre_quittance + (float) $vente->montant_autres_taxes;
+        $this->assertEqualsWithDelta($du, (float) TresorerieJournal::sum('montant_entree'), 0.01);
+        $this->assertEqualsWithDelta($du, (float) TresorerieJournal::first()->solde_resultat, 0.01);
+    }
 }
