@@ -120,7 +120,7 @@ class AbonnementControleur
     /** @param array{operateur_paiement: string, reference_paiement: string} $reglement */
     private function declarerLePaiement(\App\Modules\Admin\Modeles\Entreprise $entreprise, string $offre, string $nature, array $reglement, ?int $montant = null): PaiementAbonnement
     {
-        return PaiementAbonnement::create([
+        $paiement = PaiementAbonnement::create([
             'entreprise_id'      => $entreprise->id,
             'utilisateur_id'     => Auth::id(),
             'offre'              => $offre,
@@ -131,6 +131,25 @@ class AbonnementControleur
             'reference_paiement' => trim($reglement['reference_paiement']),
             'statut'             => 'recu',
         ]);
+
+        // Alerte aux destinataires configurés : un paiement à confirmer
+        // (16/10/2026). Le superadmin l'active depuis Paiements d'abonnement.
+        try {
+            \App\Modules\Admin\Services\AlerteSuperadminService::alerter(
+                \App\Modules\Admin\Services\AlerteSuperadminService::PAIEMENT,
+                'Paiement à confirmer : ' . $entreprise->nom,
+                'Entreprise : ' . $entreprise->nom . "\n"
+                . 'Offre : ' . Abonnements::libelle($offre) . ' (' . $nature . ")\n"
+                . 'Montant : ' . number_format((float) $paiement->montant, 0, ',', ' ') . " F\n"
+                . 'Opérateur : ' . $paiement->operateur_paiement . "\n"
+                . 'Référence : ' . $paiement->reference_paiement . "\n"
+                . 'À confirmer dans Superadmin › Paiements d\'abonnement.'
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Alerte paiement non envoyée : ' . $e->getMessage());
+        }
+
+        return $paiement;
     }
 
     /** Depuis la section Facturation, on y revient ; sinon, au tableau de bord. */

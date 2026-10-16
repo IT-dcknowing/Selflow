@@ -45,6 +45,9 @@ class SuperadminPanneControleur
             'commercial_email'     => ParametrePlateforme::lire(ParametrePlateforme::COMMERCIAL_EMAIL),
             'commercial_telephone' => ParametrePlateforme::lire(ParametrePlateforme::COMMERCIAL_TELEPHONE),
             'paiement_numeros'     => ParametrePlateforme::lire(\App\Modules\Admin\Regles\PaiementParReference::PARAMETRE_NUMEROS),
+            'alertes_emails'       => ParametrePlateforme::lire(ParametrePlateforme::ALERTES_EMAILS),
+            'alertes_whatsapp'     => ParametrePlateforme::lire(ParametrePlateforme::ALERTES_WHATSAPP),
+            'alertes_whatsapp_webhook' => ParametrePlateforme::lire(ParametrePlateforme::ALERTES_WHATSAPP_WEBHOOK),
         ];
 
         $horsLigne = \App\Modules\Admin\Regles\MiseHorsLigne::active() ? \App\Modules\Admin\Regles\MiseHorsLigne::etat() : null;
@@ -71,8 +74,12 @@ class SuperadminPanneControleur
             'commercial_email'     => ['nullable', 'email', 'max:191'],
             'commercial_telephone' => ['nullable', 'string', 'max:40'],
             'paiement_numeros'     => ['nullable', 'string', 'max:1000'],
+            'alertes_emails'       => ['nullable', 'string', 'max:2000'],
+            'alertes_whatsapp'     => ['nullable', 'string', 'max:1000'],
+            'alertes_whatsapp_webhook' => ['nullable', 'url', 'max:500'],
         ], [
             'assistance_email.email' => 'L\'adresse de l\'assistance n\'est pas valide.',
+            'alertes_whatsapp_webhook.url' => 'L\'adresse du relais WhatsApp doit être une URL valide.',
         ]);
 
         ParametrePlateforme::ecrire(ParametrePlateforme::ASSISTANCE_EMAIL, $donnees['assistance_email'] ?? null);
@@ -80,8 +87,11 @@ class SuperadminPanneControleur
         ParametrePlateforme::ecrire(ParametrePlateforme::COMMERCIAL_EMAIL, $donnees['commercial_email'] ?? null);
         ParametrePlateforme::ecrire(ParametrePlateforme::COMMERCIAL_TELEPHONE, $donnees['commercial_telephone'] ?? null);
         ParametrePlateforme::ecrire(\App\Modules\Admin\Regles\PaiementParReference::PARAMETRE_NUMEROS, $donnees['paiement_numeros'] ?? null);
+        ParametrePlateforme::ecrire(ParametrePlateforme::ALERTES_EMAILS, $donnees['alertes_emails'] ?? null);
+        ParametrePlateforme::ecrire(ParametrePlateforme::ALERTES_WHATSAPP, $donnees['alertes_whatsapp'] ?? null);
+        ParametrePlateforme::ecrire(ParametrePlateforme::ALERTES_WHATSAPP_WEBHOOK, $donnees['alertes_whatsapp_webhook'] ?? null);
 
-        return back()->with('succes', 'Les contacts sont enregistrés : l\'assistance sur la page de maintenance, le service commercial sur l\'offre sur mesure.');
+        return back()->with('succes', 'Les contacts et destinataires d\'alertes sont enregistrés.');
     }
 
     /**

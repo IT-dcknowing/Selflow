@@ -8844,6 +8844,33 @@ confirmé (Superadmin › Paiements d'abonnement).
 
 ---
 
+### Lot 103 — Alertes superadmin : courriel multi-destinataires + WhatsApp — **TERMINÉ le 16/10/2026**
+
+`AlerteSuperadminService::alerter($type, $sujet, $corps)` : un seul point
+d'envoi pour ce que DC-Knowing doit savoir sans ouvrir l'application —
+**création d'entreprise, demande de stickers, paiement reçu, panne, attaque**.
+Ne lève jamais : une alerte qui échoue ne fait pas échouer l'action.
+
+- **Destinataires réglables** dans Pannes & assistance (plus en dur) :
+  courriels des alertes (un par ligne), numéros WhatsApp, et l'URL d'un relais
+  WhatsApp. À défaut de courriels configurés, les adresses du cabinet
+  (`it.dcknowing@gmail.com` corrigée) restent destinataires.
+- **Courriel** : à tous les destinataires.
+- **WhatsApp** : POST au relais configuré (API Meta, Twilio ou pont
+  auto-hébergé) avec le message et les numéros ; sans relais, l'alerte est
+  journalisée — WhatsApp n'a pas d'envoi direct depuis un serveur.
+- Événements branchés : l'alerte de panne (remplace les adresses en dur du
+  gestionnaire d'erreurs), l'inscription, la demande de stickers, le paiement
+  d'abonnement.
+
+- `AlerteSuperadminTest` (5). Suite : 1 828 épreuves, 1 823 passantes.
+
+**À faire côté exploitation** : pour WhatsApp, renseigner l'URL d'un relais
+(Meta WhatsApp Cloud API, Twilio, ou un pont). Les numéros fournis
+(+225 07 67 13 19 93, +225 01 70 51 89 67) sont enregistrés comme destinataires.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

@@ -73,6 +73,21 @@ class DemandeStickerControleur extends Controller
         // L'accusé de réception, à qui a demandé.
         EnvoiCourriel::envoyer(Auth::user()->email, new DemandeStickersRecue($demande, false));
 
+        // Alerte aux destinataires configurés (courriel + WhatsApp), 16/10/2026.
+        try {
+            \App\Modules\Admin\Services\AlerteSuperadminService::alerter(
+                \App\Modules\Admin\Services\AlerteSuperadminService::DEMANDE_STICKERS,
+                'Demande de stickers : ' . (Auth::user()->entreprise?->nom ?? ''),
+                'Entreprise : ' . (Auth::user()->entreprise?->nom ?? '—') . "\n"
+                . 'Quantité : ' . number_format($demande->quantite, 0, ',', ' ') . " stickers\n"
+                . 'Opérateur : ' . ($demande->operateur_paiement ?? '—') . "\n"
+                . 'Référence : ' . ($demande->reference_paiement ?? '—') . "\n"
+                . 'Le ' . now()->format('d/m/Y à H:i') . '.'
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Alerte stickers non envoyée : ' . $e->getMessage());
+        }
+
         return redirect()->route('admin.stickers.index')->with('succes',
             'Demande de ' . number_format($demande->quantite, 0, ',', ' ') . ' stickers transmise à DC-Knowing, qui les achète pour vous auprès de la DGI.'
             . ($parti ? '' : ' Le courriel n\'a pas pu partir : la demande est enregistrée et visible par DC-Knowing dans son espace.'));

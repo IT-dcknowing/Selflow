@@ -189,6 +189,23 @@ class InscriptionControleur
             Auth::login($utilisateur);
             $request->session()->regenerate();
 
+            // Alerte au superadministrateur : une entreprise vient de s'inscrire
+            // (16/10/2026). Enveloppée : une alerte qui échoue ne gâche pas une
+            // inscription réussie.
+            try {
+                \App\Modules\Admin\Services\AlerteSuperadminService::alerter(
+                    \App\Modules\Admin\Services\AlerteSuperadminService::CREATION_ENTREPRISE,
+                    'Nouvelle entreprise inscrite : ' . $entreprise->nom,
+                    "Entreprise : {$entreprise->nom}\n"
+                    . 'Administrateur : ' . trim(($utilisateur->prenom ?? '') . ' ' . ($utilisateur->nom ?? '')) . "\n"
+                    . "Courriel : {$utilisateur->email}\n"
+                    . 'Téléphone : ' . ($entreprise->telephone ?: '—') . "\n"
+                    . 'Le ' . now()->format('d/m/Y à H:i') . '.'
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Alerte inscription non envoyée : ' . $e->getMessage());
+            }
+
             // L'inscription terminée — complète ou « sans remplir la suite » —
             // mène aux offres, en cartes.
             $redirection = redirect()->route('admin.abonnement.choisir')
