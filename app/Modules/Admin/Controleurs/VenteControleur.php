@@ -1530,10 +1530,16 @@ class VenteControleur
             return back()->with('erreur', $refus);
         }
 
+        // Trois tentatives : l'annulation verrouille les fiches de stock que
+        // la caisse, au même instant, peut tenir pour une vente du même
+        // article. MySQL tranche alors en sacrifiant l'une des deux (erreur
+        // 1213, constatée en production le 16/10/2026) ; Laravel ne rejoue la
+        // transaction que si on le lui demande. Rien ne sort de la base ici
+        // (pas d'appel à la DGI), rejouer est donc sans risque.
         DB::transaction(function () use ($vente, $donnees) {
             self::etablirUnAvoirTotal($vente, 'Annulation : ' . $donnees['motif']);
             $vente->update(['statut' => Vente::STATUT_ANNULEE]);
-        });
+        }, 3);
 
         $this->journaliser('annulation_facture_vente', 'Vente', $vente->id);
 
@@ -1622,7 +1628,7 @@ class VenteControleur
             self::rembourserLAvoirEnEspeces($avoir, $vente);
 
             $avoirId = $avoir->id;
-        });
+        }, 3); // rejouée en cas de deadlock, comme l'annulation
 
         return (int) $avoirId;
     }
