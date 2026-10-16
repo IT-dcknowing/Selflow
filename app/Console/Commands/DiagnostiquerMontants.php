@@ -41,18 +41,21 @@ class DiagnostiquerMontants extends Command
         $f = fn ($n) => number_format((float) $n, 0, ',', ' ');
         $sites = $entreprise->pointsDeVente()->pluck('id');
 
-        $ventes = Vente::withoutGlobalScopes()->with('details')
+        $pieces = Vente::withoutGlobalScopes()->with('details')
             ->whereIn('point_de_vente_id', $sites)
             ->where('etape', 'Facture')
-            ->where('type_piece', '!=', 'avoir')
             ->get();
-        $actives = $ventes->reject(fn ($v) => $v->statut === Vente::STATUT_ANNULEE);
+        // Les avoirs se reconnaissent à `type_facture`, non à `type_piece`.
+        $avoirs = $pieces->filter(fn ($v) => $v->type_facture === 'avoir');
+        $actives = $pieces->reject(fn ($v) => $v->type_facture === 'avoir' || $v->statut === Vente::STATUT_ANNULEE);
         $du = fn (Vente $v) => (float) $v->montant_ttc + (float) $v->montant_autres_taxes + (float) $v->timbre_quittance;
 
         $this->info("══ {$entreprise->nom} (n° {$entreprise->id}) ══");
 
         // 1. Les factures
         $this->line("\n1. FACTURES DE VENTE : {$actives->count()} — TTC total " . $f($actives->sum('montant_ttc')) . ' F');
+        $this->line('   Avoirs : ' . $avoirs->count() . ' — TTC total ' . $f($avoirs->sum('montant_ttc')) . ' F'
+            . ' ; chiffre d\'affaires net ' . $f($actives->sum('montant_ttc') - $avoirs->sum('montant_ttc')) . ' F');
         $this->table(['Facture', 'Date', 'TTC', 'Lignes', 'Qté max', 'Prix max'],
             $actives->sortByDesc('montant_ttc')->take(10)->map(fn ($v) => [
                 $v->numero_facture, optional($v->date_vente)->format('d/m/Y'), $f($v->montant_ttc),
@@ -80,11 +83,23 @@ class DiagnostiquerMontants extends Command
         }
 
         $parPiece = $tresorerie->groupBy('reference_document');
-        $tropEncaisse = $actives->map(fn ($v) => [
-            'v' => $v, 'du' => $du($v),
-            'encaisse' => (float) optional($parPiece->get($v->numero_facture))->sum('montant_entree'),
-            'n' => optional($parPiece->get($v->numero_facture))->where('montant_entree', '>', 0)->count() ?? 0,
-        ])->filter(fn ($l) => $l['encaisse'] > $l['du'] + 1);
+        $tropEncaisse = $actives->map(function ($v) use ($parPiece, $du) {
+            $mouvements = $parPiece->get($v->numero_facture, collect());
+
+            return [
+                'v' => $v, 'du' => $du($v),
+                'encaisse' => (float) $mouvements->sum('montant_entree'),
+                'n' => $mouvements->where('montant_entree', '>', 0)->count(),
+            ];
+        })->filter(fn ($l) => $l['encaisse'] > $l['du'] + 1);
+
+        // Encaissements par pièce, les plus gros : d'où viennent les montants.
+        $this->line('   Plus gros encaissements cumulés par pièce :');
+        $this->table(['Pièce', 'Encaissé', 'Nb mouvements', 'Libellé du premier'],
+            $parPiece->map(fn ($m, $ref) => [
+                $ref ?: '—', (float) $m->sum('montant_entree'), $m->where('montant_entree', '>', 0)->count(),
+                mb_substr((string) $m->first()->libelle, 0, 45),
+            ])->sortByDesc(1)->take(12)->map(fn ($l) => [$l[0], $f($l[1]), $l[2], $l[3]])->values()->all());
         $this->line('   Factures encaissées au-delà de leur montant : ' . $tropEncaisse->count());
         if ($tropEncaisse->isNotEmpty()) {
             $this->table(['Facture', 'Dû', 'Encaissé', 'Nb encaissements'],
