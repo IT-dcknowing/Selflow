@@ -21,6 +21,12 @@ class ParametrePlateforme extends Model
     public const COMMERCIAL_EMAIL = 'commercial_email';
     public const COMMERCIAL_TELEPHONE = 'commercial_telephone';
 
+    // Destinataires des alertes de la plateforme (16/10/2026) : création
+    // d'entreprise, demande de stickers, paiement, panne, attaque.
+    public const ALERTES_EMAILS = 'alertes_emails';        // un courriel par ligne
+    public const ALERTES_WHATSAPP = 'alertes_whatsapp';    // un numéro par ligne
+    public const ALERTES_WHATSAPP_WEBHOOK = 'alertes_whatsapp_webhook'; // URL du relais WhatsApp
+
     /**
      * Lire un réglage. Jamais d'exception : la page de maintenance l'appelle
      * alors que la base peut justement être en cause.

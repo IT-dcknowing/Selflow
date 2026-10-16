@@ -97,20 +97,21 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
-            // Une alerte par courriel, comme avant — sans jamais bloquer la page.
+            // Une alerte aux destinataires configurés (courriel + WhatsApp),
+            // sans jamais bloquer la page. Les adresses ne sont plus en dur :
+            // elles se règlent dans Pannes & assistance (16/10/2026).
             try {
-                $msg  = "Alerte Production : Panne détectée sur Selflow\n\n";
-                $msg .= "Référence : " . \App\Exceptions\Panne::reference($e) . "\n";
-                $msg .= "URL de la page : " . $request->fullUrl() . "\n";
-                $msg .= "Erreur : " . $e->getMessage() . "\n";
-                $msg .= "Fichier : " . $e->getFile() . "\n";
-                $msg .= "Ligne : " . $e->getLine() . "\n\n";
-                $msg .= "Le détail est au registre des pannes du superadministrateur.\n";
+                $corps  = 'Référence : ' . \App\Exceptions\Panne::reference($e) . "\n";
+                $corps .= 'URL : ' . $request->fullUrl() . "\n";
+                $corps .= 'Erreur : ' . $e->getMessage() . "\n";
+                $corps .= 'Fichier : ' . $e->getFile() . ':' . $e->getLine() . "\n\n";
+                $corps .= 'Le détail est au registre des pannes du superadministrateur.';
 
-                \Illuminate\Support\Facades\Mail::raw($msg, function ($mail) {
-                    $mail->to(['meledjeagnimel17@gmail.com', 'it.dcknowin@gmail.com'])
-                         ->subject("[Selflow - Alerte Technique] Dysfonctionnement détecté en production");
-                });
+                \App\Modules\Admin\Services\AlerteSuperadminService::alerter(
+                    \App\Modules\Admin\Services\AlerteSuperadminService::PANNE,
+                    'Panne détectée en production',
+                    $corps
+                );
             } catch (\Throwable $mailError) {
                 // L'envoi peut échouer (SMTP non configuré) : la page s'affiche quand même.
             }

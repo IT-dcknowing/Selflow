@@ -86,6 +86,26 @@
                 <label class="form-label">Numéros de paiement du cabinet <small style="color:var(--text-3);">(un par ligne — stickers et abonnements)</small></label>
                 <textarea name="paiement_numeros" class="form-control" rows="3" placeholder="Wave : 07 00 00 00 00&#10;Orange Money : 07 00 00 00 01">{{ old('paiement_numeros', $assistance['paiement_numeros'] ?? '') }}</textarea>
             </div>
+            <div class="form-group" style="margin:0; grid-column:1 / -1; border-top:1px solid var(--border); padding-top:14px;">
+                <h4 style="font-size:13.5px; font-weight:800; margin-bottom:4px;"><i class="fas fa-bell" style="color:var(--primary);"></i> Alertes de la plateforme — qui reçoit quoi</h4>
+                <p style="font-size:12px; color:var(--text-3); line-height:1.6;">
+                    Une création d'entreprise, une demande de stickers, un paiement reçu, une panne ou une attaque
+                    déclenche une alerte. Indiquez les destinataires ci-dessous.
+                </p>
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label class="form-label">Courriels des alertes <small style="color:var(--text-3);">(un par ligne)</small></label>
+                <textarea name="alertes_emails" class="form-control" rows="3" placeholder="meledjeagnimel17@gmail.com&#10;it.dcknowing@gmail.com">{{ old('alertes_emails', $assistance['alertes_emails'] ?? '') }}</textarea>
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label class="form-label">Numéros WhatsApp des alertes <small style="color:var(--text-3);">(un par ligne)</small></label>
+                <textarea name="alertes_whatsapp" class="form-control" rows="3" placeholder="+225 07 67 13 19 93&#10;+225 01 70 51 89 67">{{ old('alertes_whatsapp', $assistance['alertes_whatsapp'] ?? '') }}</textarea>
+            </div>
+            <div class="form-group" style="margin:0; grid-column:1 / -1;">
+                <label class="form-label">Relais WhatsApp — URL <small style="color:var(--text-3);">(API Meta, Twilio ou pont auto-hébergé)</small></label>
+                <input type="text" name="alertes_whatsapp_webhook" class="form-control" value="{{ old('alertes_whatsapp_webhook', $assistance['alertes_whatsapp_webhook'] ?? '') }}" placeholder="https://… — à défaut, les alertes WhatsApp sont journalisées">
+                <small style="color:var(--text-3); font-size:11px;">WhatsApp ne s'envoie pas directement depuis le serveur : sans relais, le courriel reste le canal principal.</small>
+            </div>
             <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Enregistrer</button>
         </form>
     </div>
