@@ -144,6 +144,32 @@ class SuperadminTracabiliteControleur
         return array_slice($temps, 0, 20, true);
     }
 
+    /**
+     * La traçabilité par entreprise (16/10/2026) : tout ce qui se fait —
+     * création, modification, suppression — qui l'a fait, quand, et d'où.
+     */
+    public function audit(Request $request): View
+    {
+        $journal = \App\Modules\Admin\Modeles\JournalAudit::query()
+            ->with(['utilisateur:id,nom,prenom,email,role', 'entreprise:id,nom'])
+            ->when($request->filled('entreprise'), fn ($q) => $q->where('entreprise_id', $request->integer('entreprise')))
+            ->when($request->filled('utilisateur'), fn ($q) => $q->where('utilisateur_id', $request->integer('utilisateur')))
+            ->when($request->filled('action'), fn ($q) => $q->where('action', 'like', '%' . $request->string('action') . '%'))
+            ->when($request->filled('du'), fn ($q) => $q->whereDate('created_at', '>=', $request->date('du')))
+            ->when($request->filled('au'), fn ($q) => $q->whereDate('created_at', '<=', $request->date('au')))
+            ->orderByDesc('id')
+            ->paginate(40)
+            ->withQueryString();
+
+        $entreprises = \App\Modules\Admin\Modeles\Entreprise::orderBy('nom')->get(['id', 'nom']);
+
+        return view('admin::superadmin.tracabilite.audit', [
+            'journal'      => $journal,
+            'entreprises'  => $entreprises,
+            'filtres'      => $request->only(['entreprise', 'utilisateur', 'action', 'du', 'au']),
+        ]);
+    }
+
     public function bloquer(Request $request): RedirectResponse
     {
         $donnees = $request->validate([

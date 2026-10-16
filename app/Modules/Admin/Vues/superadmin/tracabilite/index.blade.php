@@ -16,6 +16,11 @@
         <div style="background:#fef2f2; border:1px solid #fca5a5; color:#991b1b; border-radius:10px; padding:12px 16px; margin-bottom:14px; font-weight:600;">{{ session('erreur') ?? $errors->first() }}</div>
     @endif
 
+    <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
+        <a href="{{ route('superadmin.tracabilite.index') }}" class="btn btn-sm btn-primary"><i class="fas fa-chart-line"></i> Trafic & IP</a>
+        <a href="{{ route('superadmin.tracabilite.audit') }}" class="btn btn-sm btn-outline"><i class="fas fa-list-check"></i> Traçabilité par entreprise</a>
+    </div>
+
     <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
         <div style="font-size:12.5px; color:var(--text-3);">
             <i class="fas fa-circle" style="color:{{ $active ? '#16a34a' : '#94a3b8' }}; font-size:8px;"></i>

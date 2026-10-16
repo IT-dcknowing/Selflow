@@ -8906,6 +8906,25 @@ CERT national. C'est ce qui est outillé ici.
 
 ---
 
+### Lot 105 — Traçabilité par entreprise (audit : qui, quoi, quand, d'où) — **TERMINÉ le 16/10/2026**
+
+Deuxième onglet de Maintenance & traçabilité : **Traçabilité par entreprise**.
+Le journal d'audit (`journal_audit`, déjà alimenté par le trait
+`JournaliseActions` dans onze modules) gagne une colonne `entreprise_id`,
+renseignée à l'écriture et rétro-remplie depuis l'utilisateur de chaque ligne.
+
+L'écran liste chaque action — création, modification, suppression,
+normalisation, annulation… — avec **qui** (nom, courriel, rôle), **quand**
+(à la seconde), **d'où** (adresse IP), l'entreprise et la pièce concernée.
+Filtres : entreprise, action, période ; paginé (40 par page). Libellés
+humanisés (`creation_vente` → « Création — Vente »).
+
+Migration `2026_10_16_000004`.
+
+- `AuditParEntrepriseTest` (2). Suite : 1 835 épreuves, 1 830 passantes.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

@@ -92,6 +92,7 @@ class VerifierHabilitationRoute
         // Couper la plateforme pour tous : réservé à l'administration interne.
         'superadmin.pannes.hors_ligne' => 'administration_interne',
         'superadmin.tracabilite.index'     => 'administration_interne',
+        'superadmin.tracabilite.audit'     => 'administration_interne',
         'superadmin.tracabilite.ip'        => 'administration_interne',
         'superadmin.tracabilite.bloquer'   => 'administration_interne',
         'superadmin.tracabilite.debloquer' => 'administration_interne',
