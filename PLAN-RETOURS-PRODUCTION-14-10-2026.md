@@ -180,3 +180,21 @@ notée et DC-Knowing repousse l'échéance depuis la fiche de l'entreprise.
 | Fin du pass cadeau : bloquer ? | **oui** — l'accès est bloqué à la fin des 7 jours (lot 83, épreuve au lot 85) |
 | « Suivant » du domaine bloquait la page | lot 85 : le parcours se déroule dans la section, sans soumettre |
 | Erreur 500 à la suppression d'une entreprise | lot 84 ; **« eve disagn » a perdu ses utilisateurs avant l'erreur : relancer sa suppression une fois déployé** |
+
+## Retours du 16/10/2026
+
+| Retour | Fait |
+|---|---|
+| Comptabilité : habilitations proposées = ce que l'entreprise dispose | lot 86 |
+| Immobilisations seulement sur attribution du superadmin | lot 87 |
+| Annuler une facture non normalisée, stock réinjecté ; pas d'« Annuler » sur une normalisée | lot 87 |
+| Moyens de paiement : pas de numéro de compte, Mobile Money à part, moyens = codes journaux | lot 88 |
+| Stickers et abonnements payés par référence ; suivi superadmin En cours / Terminé / Échec ; heures, priorité, avis « stock renouvelé » | lot 89 |
+| Normalisation refusée pour point de vente non activé : le dire clairement | lot 90 |
+| Configuration des comptes : section Articles | lot 91 |
+| Liaison Comptaflow : créer ou lier un dossier existant, exercices, déverser maintenant ou plus tard | lot 92 — **Comptaflow doit honorer `comptaflow_company_id` au provisionnement** |
+| Mettre l'application hors ligne (maintenance évolutive) | lot 93 |
+| Lenteur ; audit de sécurité complet | lot 94 — voir le journal ; **.env serveur à compléter** |
+
+**À faire** : caisse paginée pour les grands catalogues ; CSP à nonces et
+secret `external/*` par entreprise (moyen terme).

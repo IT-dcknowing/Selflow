@@ -146,3 +146,41 @@ Aucun fichier du périmètre FNE gelé n'a été modifié.
 - 85 Le parcours se déroule dans la section « Domaine d'activité » de la
   création ; la fin du pass cadeau bloque l'accès.
 - Aucune migration nouvelle.
+
+
+10. SUITE DU 16/10/2026 — lots 86 à 94 (main a288a0d)
+-----------------------------------------------------
+- 86 Habilitations offertes = ce que l'entreprise dispose (compta fermée :
+  « Trésorerie » seule).
+- 87 Immobilisations sur attribution ; annulation d'une facture non normalisée
+  (avoir interne, stock réinjecté) ; pas d'annulation d'une normalisée.
+- 88 Moyens de paiement : sans numéro de compte ; Mobile Money séparé.
+- 89 Paiement par référence (stickers, abonnements) ; Superadmin › Demandes
+  de stickers et › Paiements d'abonnement ; saisir les NUMÉROS DE PAIEMENT
+  du cabinet dans Pannes & assistance.
+- 90 « Point de vente non activé sur votre espace FNE » dit tel quel.
+- 91 Configuration des comptes : onglet « Par article ».
+- 92 Liaisons Comptaflow : créer / lier un dossier existant, exercices,
+  déverser maintenant ou plus tard. CÔTÉ COMPTAFLOW : honorer
+  comptaflow_company_id + conserver_acces dans /companies/provision.
+- 93 Bouton « Mettre hors ligne » (Pannes & assistance). Secours sans écran :
+  rm storage/framework/selflow-hors-ligne.json
+- 94 Sécurité : HSTS, cookie Secure, jeton API haché (les apps mobiles
+  restent connectées), OAuth Google avec state, scripts de debug retirés.
+  Performance : gzip/cache .htaccess, routes en cache effectives, comptages
+  mémorisés, vente sans N+1, SMTP 5 s.
+
+EN PRODUCTION, DANS L'ORDRE :
+  1. git pull ; composer install --no-dev -o --classmap-authoritative
+  2. php artisan migrate --force          (2026_10_16_000001 : stickers,
+                                           paiements_abonnements)
+  3. .env : APP_ENV=production  APP_DEBUG=false (déjà fait)
+            SESSION_SECURE_COOKIE=true
+            CACHE_STORE=file  SESSION_DRIVER=file
+            QUEUE_CONNECTION=database  LOG_LEVEL=warning
+            EXTERNAL_SYNC_SECRET=<long et aléatoire>
+  4. php artisan optimize:clear && php artisan optimize
+  5. php artisan storage:link
+  6. Vérifier OPcache actif ; racine web = public/
+  7. Superadmin › Pannes & assistance : contacts + numéros de paiement.
+  8. Relancer la suppression de « eve disagn » si pas encore faite.
