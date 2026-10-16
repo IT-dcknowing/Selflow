@@ -49,7 +49,24 @@ class SuperadminLiaisonControleur extends Controller
 
         $comptaflowCompanies = $this->fetchComptaflowEntreprises();
 
-        return view('admin::superadmin.liaisons.index', compact('entreprises', 'demandes', 'comptaflowCompanies'));
+        // Le nom du dossier Comptaflow, par identifiant : une liaison montre
+        // à quel dossier elle mène, et le choix « lier » se fait sur des noms.
+        $dossiersComptaflow = collect($comptaflowCompanies)
+            ->filter(fn ($d) => is_array($d) && isset($d['id']))
+            ->mapWithKeys(fn ($d) => [(int) $d['id'] => (string) ($d['nom'] ?? $d['name'] ?? $d['raison_sociale'] ?? ('Dossier #' . $d['id']))])
+            ->all();
+
+        // Les exercices de chaque entreprise, et ceux qu'elle a demandés.
+        $exercices = LiaisonComptaflowService::exercicesParEntreprise();
+        $anneesDemandees = \App\Modules\Admin\Modeles\DemandeExercicesAnterieurs::where('statut', \App\Modules\Admin\Modeles\DemandeExercicesAnterieurs::EN_ATTENTE)
+            ->get(['entreprise_id', 'annees_demandees'])
+            ->groupBy('entreprise_id')
+            ->map(fn ($l) => $l->pluck('annees_demandees')->flatten()->map(fn ($a) => (int) $a)->unique()->values()->all())
+            ->all();
+
+        return view('admin::superadmin.liaisons.index', compact(
+            'entreprises', 'demandes', 'comptaflowCompanies', 'dossiersComptaflow', 'exercices', 'anneesDemandees'
+        ));
     }
 
     /**
@@ -65,21 +82,37 @@ class SuperadminLiaisonControleur extends Controller
      * appartenait à cette entreprise. La clé continue d'être délivrée par
      * Comptaflow, et personne ne la saisit.
      */
-    public function validerDemande(Entreprise $entreprise): RedirectResponse
+    public function validerDemande(Request $request, Entreprise $entreprise): RedirectResponse
     {
+        $donnees = $request->validate([
+            'mode'                  => ['nullable', 'in:creer,lier'],
+            'comptaflow_company_id' => ['nullable', 'required_if:mode,lier', 'integer', 'min:1'],
+            'deverser'              => ['nullable', 'boolean'],
+            'annees'                => ['nullable', 'array'],
+            'annees.*'              => ['integer', 'between:2000,2100'],
+        ], [
+            'comptaflow_company_id.required_if' => 'Choisissez le dossier Comptaflow auquel lier l\'entreprise.',
+        ]);
+
         $spontanee = !$entreprise->demandeComptaflowEnAttente();
 
-        $resultat = LiaisonComptaflowService::valider($entreprise);
+        $resultat = LiaisonComptaflowService::valider($entreprise, false, [
+            'comptaflow_company_id' => ($donnees['mode'] ?? 'creer') === 'lier' ? (int) $donnees['comptaflow_company_id'] : null,
+            'deverser'              => (bool) ($donnees['deverser'] ?? false),
+            'annees'                => $donnees['annees'] ?? [],
+            'par'                   => $request->user()?->id,
+        ]);
 
         if (!$resultat['success']) {
             return back()->with('error', "❌ « {$entreprise->nom} » : " . $resultat['message']);
         }
 
+        \Illuminate\Support\Facades\Cache::forget('comptaflow.dossiers');
+
         // L'entreprise n'a rien demandé : elle doit lire, en ouvrant ses
         // paramètres, qu'un dossier lui a été ouvert et avec quels accès.
-        $mot = $spontanee
-            ? "Dossier ouvert à l'initiative du support ; l'entreprise le voit dans ses paramètres."
-            : $resultat['message'];
+        $mot = ($spontanee ? "Dossier ouvert à l'initiative du support ; l'entreprise le voit dans ses paramètres. " : '')
+            . $resultat['message'];
 
         return back()->with('success', "✅ « {$entreprise->nom} » : " . $mot);
     }
@@ -177,13 +210,27 @@ class SuperadminLiaisonControleur extends Controller
      */
     private function fetchComptaflowEntreprises(): array
     {
+        if (!config('selflow.comptaflow_api_secret')) {
+            return [];
+        }
+
+        // Deux minutes de mémoire : l'écran se recharge à chaque action, et
+        // attendre Comptaflow cinq secondes à chaque fois ralentissait tout.
+        // Un échec n'est pas retenu : le prochain affichage réessaie.
+        if (is_array($connus = \Illuminate\Support\Facades\Cache::get('comptaflow.dossiers'))) {
+            return $connus;
+        }
+
         try {
             $response = Http::timeout(5)->post($this->url('/api/external/list-companies'), [
                 'secret' => config('selflow.comptaflow_api_secret'),
             ]);
 
             if ($response->successful() && $response->json('success')) {
-                return $response->json('companies', []);
+                $dossiers = (array) $response->json('companies', []);
+                \Illuminate\Support\Facades\Cache::put('comptaflow.dossiers', $dossiers, 120);
+
+                return $dossiers;
             }
         } catch (\Throwable $e) {
             Log::warning('[LIAISON] Impossible de contacter Comptaflow list-companies : ' . $e->getMessage());

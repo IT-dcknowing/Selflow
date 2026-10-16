@@ -107,8 +107,24 @@ class LiaisonComptaflowService
      *
      * @return array{success: bool, message: string}
      */
-    public static function valider(Entreprise $entreprise, bool $rejouer = false): array
+    /**
+     * Les choix du superadministrateur (retour du 16/10/2026), tous facultatifs :
+     *
+     * - `comptaflow_company_id` : lier à un dossier **existant** plutôt que
+     *   d'en créer un. Chaque côté garde alors ses accès d'origine : ni
+     *   l'adresse ni l'empreinte du mot de passe de Selflow ne partent, pour ne
+     *   rien écraser chez Comptaflow ;
+     * - `annees` : les exercices Selflow à déverser — les exercices antérieurs
+     *   cochés sont accordés comme le serait une demande de l'entreprise ;
+     * - `deverser` : déverser l'historique maintenant, ou plus tard (depuis
+     *   les paramètres de l'entreprise). Le référentiel part toujours.
+     *
+     * @param  array{comptaflow_company_id?: ?int, annees?: array<int, int>, deverser?: bool, par?: ?int}  $options
+     */
+    public static function valider(Entreprise $entreprise, bool $rejouer = false, array $options = []): array
     {
+        $cible = !empty($options['comptaflow_company_id']) ? (int) $options['comptaflow_company_id'] : null;
+
         // `$rejouer` sert à réannoncer le dossier à Comptaflow sans le délier.
         //
         // Un dossier lié avant que Selflow n'annonce son exercice comptable
@@ -128,7 +144,7 @@ class LiaisonComptaflowService
 
         try {
             $reponse = Http::timeout(self::DELAI)
-                ->post(self::url('/api/external/companies/provision'), self::dossier($entreprise));
+                ->post(self::url('/api/external/companies/provision'), self::dossier($entreprise, $cible));
         } catch (\Throwable $e) {
             Log::error('Provisionnement Comptaflow : ' . $e->getMessage());
 
@@ -172,19 +188,112 @@ class LiaisonComptaflowService
             'comptaflow_refus_motif'    => null,
         ])->save();
 
-        // Le référentiel part dans la foulée : sans plan comptable, sans
-        // journaux et sans tiers, la première écriture déversée retomberait
-        // chez Comptaflow sur des comptes qu'il ne connaît pas.
-        $deversement = DeversementReferentielService::deverser($entreprise->fresh());
+        // Les exercices antérieurs cochés sont accordés ici, comme le serait
+        // une demande de l'entreprise : c'est le même registre qui les laisse
+        // partir (`DeversementHistoriqueService::exercicesPermis`).
+        self::accorderLesExercices($entreprise, (array) ($options['annees'] ?? []), $options['par'] ?? null);
 
-        self::prevenirLeTitulaire($entreprise->fresh());
+        $note = '';
+        if ($cible !== null && (int) $reponse->json('company_id') !== $cible) {
+            $note = sprintf(
+                ' Attention : Comptaflow a rattaché le dossier n° %s, et non le n° %d demandé.',
+                $reponse->json('company_id') ?? '—',
+                $cible
+            );
+        }
+
+        // Déverser maintenant : l'historique part derrière le référentiel.
+        // Sinon le référentiel seul — sans plan comptable, sans journaux et
+        // sans tiers, la première écriture retomberait chez Comptaflow sur
+        // des comptes qu'il ne connaît pas.
+        $deversement = !empty($options['deverser'])
+            ? DeversementHistoriqueService::lancer($entreprise->fresh())
+            : DeversementReferentielService::deverser($entreprise->fresh());
+
+        if ($cible === null) {
+            self::prevenirLeTitulaire($entreprise->fresh());
+        }
 
         return [
             'success' => true,
-            'message' => 'Liaison ouverte. ' . ($deversement['success']
-                ? $deversement['message']
-                : 'Le référentiel n\'a pas suivi : ' . $deversement['message']),
+            'message' => ($cible !== null ? 'Liaison ouverte sur le dossier existant. ' : 'Liaison ouverte. ')
+                . ($deversement['success']
+                    ? $deversement['message']
+                    : 'Le référentiel n\'a pas suivi : ' . $deversement['message'])
+                . (empty($options['deverser']) ? " L'historique se déversera plus tard, depuis les paramètres de l'entreprise." : '')
+                . $note,
         ];
+    }
+
+    /**
+     * Accorder les exercices antérieurs cochés par le superadministrateur.
+     *
+     * @param  array<int, int|string>  $annees
+     */
+    public static function accorderLesExercices(Entreprise $entreprise, array $annees, ?int $par = null): void
+    {
+        $anterieures = collect($annees)->map(fn ($a) => (int) $a)
+            ->filter(fn ($a) => $a >= 2000 && $a < (int) now()->year)
+            ->diff(\App\Modules\Admin\Modeles\DemandeExercicesAnterieurs::anneesAccordees($entreprise->id))
+            ->unique()->sort()->values()->all();
+
+        if ($anterieures === []) {
+            return;
+        }
+
+        // Une demande de l'entreprise encore en attente est tranchée par ce
+        // choix : elle ne doit pas rester ouverte à côté.
+        \App\Modules\Admin\Modeles\DemandeExercicesAnterieurs::where('entreprise_id', $entreprise->id)
+            ->where('statut', \App\Modules\Admin\Modeles\DemandeExercicesAnterieurs::EN_ATTENTE)
+            ->get()
+            ->each(function ($demande) use ($anterieures, $par) {
+                $accordees = array_values(array_intersect(array_map('intval', (array) $demande->annees_demandees), $anterieures));
+                $demande->update([
+                    'statut'           => $accordees === []
+                        ? \App\Modules\Admin\Modeles\DemandeExercicesAnterieurs::REFUSEE
+                        : \App\Modules\Admin\Modeles\DemandeExercicesAnterieurs::VALIDEE,
+                    'annees_accordees' => $accordees,
+                    'traitee_par'      => $par,
+                    'traitee_at'       => now(),
+                    'motif_refus'      => $accordees === [] ? "Exercices non retenus à l'ouverture de la liaison." : null,
+                ]);
+            });
+
+        $dejaAccordees = \App\Modules\Admin\Modeles\DemandeExercicesAnterieurs::anneesAccordees($entreprise->id);
+        $restantes = array_values(array_diff($anterieures, $dejaAccordees));
+
+        if ($restantes !== []) {
+            \App\Modules\Admin\Modeles\DemandeExercicesAnterieurs::create([
+                'entreprise_id'    => $entreprise->id,
+                'annees_demandees' => $restantes,
+                'annees_accordees' => $restantes,
+                'statut'           => \App\Modules\Admin\Modeles\DemandeExercicesAnterieurs::VALIDEE,
+                'traitee_par'      => $par,
+                'traitee_at'       => now(),
+            ]);
+        }
+    }
+
+    /**
+     * Les exercices (années civiles) où l'entreprise a passé des opérations,
+     * l'année en cours comprise — ce que le superadministrateur peut cocher.
+     *
+     * @return array<int, array<int, int>>  par entreprise
+     */
+    public static function exercicesParEntreprise(?int $entrepriseId = null): array
+    {
+        return \App\Modules\Admin\Modeles\Operation::withoutGlobalScopes()
+            ->when($entrepriseId, fn ($q) => $q->where('entreprise_id', $entrepriseId))
+            ->selectRaw('entreprise_id, MIN(date_operation) as premiere, MAX(date_operation) as derniere')
+            ->groupBy('entreprise_id')
+            ->get()
+            ->mapWithKeys(function ($ligne) {
+                $de = (int) \Illuminate\Support\Carbon::parse($ligne->premiere)->year;
+                $a  = max((int) \Illuminate\Support\Carbon::parse($ligne->derniere)->year, (int) now()->year);
+
+                return [(int) $ligne->entreprise_id => range($de, $a)];
+            })
+            ->all();
     }
 
     /**
@@ -473,8 +582,28 @@ class LiaisonComptaflowService
      *
      * @return array<string, mixed>
      */
-    private static function dossier(Entreprise $entreprise): array
+    private static function dossier(Entreprise $entreprise, ?int $dossierExistant = null): array
     {
+        if ($dossierExistant !== null) {
+            // Un dossier qui existe déjà chez Comptaflow a ses propres comptes
+            // et ses propres accès : chacun garde les siens (16/10/2026). Ni
+            // adresse ni empreinte de mot de passe ne partent, rien ne s'écrase.
+            return [
+                'secret'                => config('selflow.comptaflow_api_secret'),
+                'selflow_company_id'    => $entreprise->id,
+                'comptaflow_company_id' => $dossierExistant,
+                'mode'                  => 'lier',
+                'conserver_acces'       => true,
+                'entreprise'            => [
+                    'nom'               => $entreprise->nom,
+                    'ncc'               => $entreprise->ncc,
+                    'rccm'              => $entreprise->rccm,
+                    'regime_imposition' => $entreprise->regime_imposition,
+                ],
+                'exercice'              => self::exerciceOuvert($entreprise),
+            ];
+        }
+
         $admin = $entreprise->utilisateurs()
             ->where('role', 'admin')
             ->orderBy('created_at')

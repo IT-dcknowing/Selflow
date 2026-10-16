@@ -1630,6 +1630,25 @@
                     </p>
                     <form method="POST" action="{{ route('admin.entreprise.comptaflow.demander') }}" style="margin:0;">
                         @csrf
+                        {{-- Plus d'un exercice : cocher ceux à déverser (16/10/2026). --}}
+                        @php
+                            $exercicesSelflow = \App\Modules\Admin\Services\LiaisonComptaflowService::exercicesParEntreprise($entreprise->id)[$entreprise->id] ?? [];
+                        @endphp
+                        @if(count($exercicesSelflow) > 1)
+                            <div style="margin-bottom:14px; padding:12px 14px; background:#fff; border:1px solid var(--border); border-radius:8px; font-size:12.5px; line-height:1.7;">
+                                <strong>Exercices à déverser dans Comptaflow</strong><br>
+                                @foreach($exercicesSelflow as $annee)
+                                    <label style="display:inline-flex; align-items:center; gap:5px; margin-right:14px; font-weight:600;">
+                                        @if($annee >= (int) now()->year)
+                                            <input type="checkbox" checked disabled> {{ $annee }} <small style="color:var(--text-3); font-weight:400;">(en cours)</small>
+                                        @else
+                                            <input type="checkbox" name="annees[]" value="{{ $annee }}"> {{ $annee }}
+                                        @endif
+                                    </label>
+                                @endforeach
+                                <div style="color:var(--text-3); font-size:11.5px;">L'exercice en cours part toujours ; les exercices antérieurs sont accordés à la validation.</div>
+                            </div>
+                        @endif
                         <button type="submit" class="btn btn-primary" style="padding:10px 22px;font-weight:700;gap:8px;">
                             <i class="fas fa-link"></i> Demander la liaison Comptaflow
                         </button>

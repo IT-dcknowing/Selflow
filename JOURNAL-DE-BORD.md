@@ -8508,6 +8508,44 @@ une configuration par type).
 
 ---
 
+### Lot 92 — Liaison Comptaflow : créer ou lier, exercices, déverser maintenant ou plus tard — **TERMINÉ le 16/10/2026**
+
+Superadmin › Liaisons : « Valider » et « Lier maintenant » ouvrent une fenêtre
+de liaison :
+
+- **Créer un nouveau dossier** (comme avant : les accès Selflow ouvrent le
+  compte comptable) ou **Lier à un dossier existant**, choisi dans la liste
+  que Comptaflow rend (`list-companies`, « #id — nom » ; les dossiers déjà
+  liés sont grisés). En liaison sur dossier existant, le provisionnement
+  porte `comptaflow_company_id`, `mode: lier`, `conserver_acces: true` et
+  **n'envoie ni l'adresse ni l'empreinte du mot de passe** : chaque côté garde
+  ses accès d'origine, rien n'est écrasé. Si Comptaflow rattache un autre
+  dossier que celui demandé, le message le dit.
+- **Exercices Selflow à déverser** : années où l'entreprise a des opérations ;
+  l'exercice en cours part toujours, les antérieurs cochés sont **accordés**
+  (registre `DemandeExercicesAnterieurs`, le même qui commande
+  `DeversementHistoriqueService`). Une demande de l'entreprise en attente est
+  tranchée par ce choix ; ses années sont surlignées en jaune.
+- **Déverser les écritures maintenant** (case) : coché, l'historique part
+  derrière le référentiel (`DeversementHistoriqueService::lancer`) ; décoché,
+  seul le référentiel part, l'historique attend le bouton des paramètres.
+- La colonne « ID Comptaflow » montre le **nom** du dossier sous l'identifiant.
+- La liste de Comptaflow est gardée deux minutes en cache (les échecs ne le
+  sont pas) : l'écran attendait jusqu'à 5 s à chaque affichage.
+
+Côté entreprise, **Demander la liaison** montre, s'il y a plus d'un exercice,
+des cases pour cocher les exercices antérieurs à déverser ; ils deviennent une
+demande d'exercices en attente.
+
+**À faire côté Comptaflow** (hors de ce dépôt) : honorer
+`comptaflow_company_id` + `conserver_acces` dans
+`/api/external/companies/provision` (rattacher au dossier existant, rendre sa
+clé, ne pas toucher aux utilisateurs).
+
+- `LiaisonComptaflowChoixTest` (5). Suite : 1 800 épreuves, 1 795 passantes.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

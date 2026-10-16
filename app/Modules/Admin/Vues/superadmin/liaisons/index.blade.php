@@ -147,13 +147,10 @@
                 @endif
             </div>
             <div style="display:flex; gap:8px; align-items:center;">
-                <form method="POST" action="{{ route('superadmin.liaisons.valider', $dem) }}" style="margin:0;"
-                      onsubmit="return confirm('Ouvrir un dossier Comptaflow pour « {{ $dem->nom }} » ?')">
-                    @csrf
-                    <button type="submit" class="btn btn-primary btn-sm" style="padding:7px 14px;">
-                        <i class="fas fa-check"></i> Valider
-                    </button>
-                </form>
+                <button type="button" class="btn btn-primary btn-sm" style="padding:7px 14px;"
+                        onclick="ouvrirLiaison(@js($dem->uuid), @js($dem->nom))">
+                    <i class="fas fa-check"></i> Valider
+                </button>
                 <button type="button" class="btn btn-outline btn-sm" style="padding:7px 14px;"
                         {{-- L'`uuid`, et non le numéro de ligne : c'est lui que
                              portent les adresses, et le numéro dirait combien
@@ -231,6 +228,9 @@
                             <span style="background:#dbeafe; color:#1d4ed8; padding:3px 8px; border-radius:6px; font-family:monospace; font-weight:700; font-size:12px;">
                                 #{{ $ent->comptaflow_company_id }}
                             </span>
+                            @if(isset($dossiersComptaflow[(int) $ent->comptaflow_company_id]))
+                                <div style="font-size:11.5px; color:var(--text-2); margin-top:4px; font-weight:600;">{{ $dossiersComptaflow[(int) $ent->comptaflow_company_id] }}</div>
+                            @endif
                         @else
                             <span style="color:var(--text-3); font-size:12px;">—</span>
                         @endif
@@ -319,12 +319,10 @@
                                     </button>
                                 </form>
                             @elseif($ent->demandeComptaflowEnAttente())
-                                <form method="POST" action="{{ route('superadmin.liaisons.valider', $ent) }}" style="display:inline;">
-                                    @csrf
-                                    <button type="submit" class="btn btn-primary btn-sm" style="padding:5px 10px; font-size:11px;">
-                                        <i class="fas fa-check"></i> Valider
-                                    </button>
-                                </form>
+                                <button type="button" class="btn btn-primary btn-sm" style="padding:5px 10px; font-size:11px;"
+                                        onclick="ouvrirLiaison(@js($ent->uuid), @js($ent->nom))">
+                                    <i class="fas fa-check"></i> Valider
+                                </button>
                             @else
                                 {{-- Le superadministrateur ouvre le dossier de
                                      sa propre initiative : un client qui
@@ -332,13 +330,10 @@
                                      cliquer dans un écran pour l'obtenir.
                                      La clé reste délivrée par Comptaflow —
                                      personne ne la saisit. --}}
-                                <form method="POST" action="{{ route('superadmin.liaisons.valider', $ent) }}" style="display:inline;"
-                                      onsubmit="return confirm('Ouvrir un dossier Comptaflow pour « {{ $ent->nom }} » ? Ses accès Selflow y ouvriront le compte.')">
-                                    @csrf
-                                    <button type="submit" class="btn btn-primary btn-sm" style="padding:5px 10px; font-size:11px;">
-                                        <i class="fas fa-plug"></i> Lier maintenant
-                                    </button>
-                                </form>
+                                <button type="button" class="btn btn-primary btn-sm" style="padding:5px 10px; font-size:11px;"
+                                        onclick="ouvrirLiaison(@js($ent->uuid), @js($ent->nom))">
+                                    <i class="fas fa-plug"></i> Lier maintenant
+                                </button>
                             @endif
                         </div>
                     </td>
@@ -356,7 +351,7 @@
     </h3>
     <div style="font-size:12px; color:var(--text-3); line-height:1.6;">
         {{ count($comptaflowCompanies) }} dossier(s) répondent côté Comptaflow. Cette liste sert
-        au rapprochement à l'œil ; aucune liaison ne s'ouvre depuis ici.
+        au rapprochement ; pour rattacher une entreprise à l'un d'eux, « Lier maintenant » puis « Lier à un dossier existant ».
     </div>
 </div>
 @endif
@@ -395,8 +390,102 @@
     </div>
 </div>
 
+{{-- ═══════════════════════════════════════════════════════════ --}}
+{{-- MODAL : ouvrir la liaison (retour du 16/10/2026)            --}}
+{{-- Créer un dossier ou lier un dossier existant ; déverser     --}}
+{{-- maintenant ou plus tard ; les exercices Selflow à déverser. --}}
+{{-- ═══════════════════════════════════════════════════════════ --}}
+@php
+    $dejaLies = $entreprises->pluck('comptaflow_company_id')->filter()->map(fn ($i) => (int) $i)->all();
+    $exercicesParUuid = $entreprises->mapWithKeys(fn ($e) => [$e->uuid => [
+        'annees'    => $exercices[$e->id] ?? [(int) now()->year],
+        'demandees' => $anneesDemandees[$e->id] ?? [],
+    ]]);
+@endphp
+<div class="modal-overlay" id="modalLiaison">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 style="font-size:15px; font-weight:700; margin:0;">
+                <i class="fas fa-plug" style="color:var(--primary)"></i>
+                Liaison Comptaflow — <span id="liaison-nom"></span>
+            </h3>
+            <button type="button" onclick="document.getElementById('modalLiaison').style.display='none'"
+                    style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-3);">&times;</button>
+        </div>
+        <form method="POST" id="form-liaison" action="" style="margin:0;">
+            @csrf
+            <div class="modal-body" style="display:flex; flex-direction:column; gap:14px; font-size:13px;">
+                <div>
+                    <label class="form-label">Dossier Comptaflow</label>
+                    <label style="display:flex; gap:8px; align-items:flex-start; margin-bottom:6px; cursor:pointer;">
+                        <input type="radio" name="mode" value="creer" checked onchange="basculerModeLiaison()">
+                        <span><strong>Créer un nouveau dossier</strong><br><small style="color:var(--text-3);">Les accès Selflow ouvrent le compte comptable (même adresse, même mot de passe).</small></span>
+                    </label>
+                    <label style="display:flex; gap:8px; align-items:flex-start; cursor:pointer;">
+                        <input type="radio" name="mode" value="lier" onchange="basculerModeLiaison()" {{ empty($dossiersComptaflow) ? 'disabled' : '' }}>
+                        <span><strong>Lier à un dossier existant</strong><br><small style="color:var(--text-3);">{{ empty($dossiersComptaflow) ? 'Comptaflow ne répond pas ou ne connaît aucun dossier.' : 'Chaque côté garde ses accès d\'origine.' }}</small></span>
+                    </label>
+                    <select name="comptaflow_company_id" id="liaison-dossier" class="form-control" style="margin-top:8px; display:none;">
+                        <option value="">— Choisir le dossier Comptaflow —</option>
+                        @foreach($dossiersComptaflow as $idDossier => $nomDossier)
+                            <option value="{{ $idDossier }}" {{ in_array($idDossier, $dejaLies, true) ? 'disabled' : '' }}>
+                                #{{ $idDossier }} — {{ $nomDossier }}{{ in_array($idDossier, $dejaLies, true) ? ' (déjà lié)' : '' }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Exercices Selflow à déverser</label>
+                    <div id="liaison-annees" style="display:flex; gap:14px; flex-wrap:wrap;"></div>
+                    <small style="color:var(--text-3); font-size:11px;">L'exercice en cours part toujours. Les exercices cochés en jaune ont été demandés par l'entreprise.</small>
+                </div>
+                <label style="display:flex; gap:8px; align-items:flex-start; cursor:pointer; padding:10px 12px; background:var(--bg3); border-radius:8px;">
+                    <input type="hidden" name="deverser" value="0">
+                    <input type="checkbox" name="deverser" value="1" checked>
+                    <span><strong>Déverser les écritures maintenant</strong><br><small style="color:var(--text-3);">Décoché : seul le référentiel part ; l'historique se déversera plus tard, depuis les paramètres de l'entreprise.</small></span>
+                </label>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="document.getElementById('modalLiaison').style.display='none'">Annuler</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-plug"></i> Ouvrir la liaison</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
     var GABARIT_REFUS = "{{ route('superadmin.liaisons.refuser', ['entreprise' => '__ID__']) }}";
+    var GABARIT_VALIDER = "{{ route('superadmin.liaisons.valider', ['entreprise' => '__ID__']) }}";
+    var EXERCICES = @json($exercicesParUuid);
+    var ANNEE_EN_COURS = {{ (int) now()->year }};
+    function ouvrirLiaison(id, nom) {
+        document.getElementById('liaison-nom').textContent = nom;
+        document.getElementById('form-liaison').action = GABARIT_VALIDER.replace('__ID__', id);
+        var infos = EXERCICES[id] || { annees: [ANNEE_EN_COURS], demandees: [] };
+        var boite = document.getElementById('liaison-annees');
+        boite.innerHTML = '';
+        infos.annees.forEach(function (annee) {
+            var courant = annee >= ANNEE_EN_COURS;
+            var demandee = infos.demandees.indexOf(annee) !== -1;
+            var label = document.createElement('label');
+            label.style.cssText = 'display:inline-flex;align-items:center;gap:5px;font-weight:600;padding:4px 8px;border-radius:6px;' + (demandee ? 'background:#fef9c3;' : '');
+            var c = document.createElement('input');
+            c.type = 'checkbox'; c.name = 'annees[]'; c.value = annee;
+            c.checked = courant || demandee; c.disabled = courant;
+            label.appendChild(c);
+            label.appendChild(document.createTextNode(' ' + annee + (courant ? ' (en cours)' : '')));
+            boite.appendChild(label);
+        });
+        document.querySelector('#form-liaison input[value=creer]').checked = true;
+        basculerModeLiaison();
+        document.getElementById('modalLiaison').style.display = 'flex';
+    }
+    function basculerModeLiaison() {
+        var lier = document.querySelector('#form-liaison input[name=mode]:checked').value === 'lier';
+        var choix = document.getElementById('liaison-dossier');
+        choix.style.display = lier ? 'block' : 'none';
+        choix.required = lier;
+    }
 
     function ouvrirRefus(id, nom) {
         document.getElementById('refus-nom').textContent = nom;
