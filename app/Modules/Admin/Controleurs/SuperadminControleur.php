@@ -19,6 +19,8 @@ use App\Modules\Admin\Services\ExpressionSqlPortable;
 
 class SuperadminControleur
 {
+    use \App\Modules\Admin\Traits\JournaliseActions;
+
     /**
      * Afficher le tableau de bord SuperAdmin avec KPIs enrichis.
      */
@@ -101,7 +103,7 @@ class SuperadminControleur
      */
     public function entreprises(): View
     {
-        $entreprises = Entreprise::with('fneCredential')->orderBy('nom', 'asc')->paginate(10);
+        $entreprises = Entreprise::horsCorbeille()->with('fneCredential')->orderBy('nom', 'asc')->paginate(10);
         return view('admin::superadmin.entreprises.index', compact('entreprises'));
     }
 
@@ -466,26 +468,93 @@ class SuperadminControleur
      */
     public function supprimer(Entreprise $entreprise): RedirectResponse
     {
-        $nom = $entreprise->nom;
-
-        // Utilisateurs, puis points de vente, puis l'entreprise, sans
-        // transaction : en production la base a refusé la deuxième étape
-        // (une vente pointe vers une autre), et l'entreprise est restée sans
-        // ses utilisateurs (15/10/2026). Tout part désormais d'un bloc, en
-        // suivant les dépendances du schéma — ou rien ne part.
-        try {
-            $effacees = \App\Modules\Admin\Services\SuppressionEntrepriseService::supprimer($entreprise);
-        } catch (\Throwable $e) {
-            report($e);
-
-            return redirect()->route('superadmin.entreprises')->with('erreur',
-                "L'entreprise « {$nom} » n'a pas pu être supprimée ; rien n'a été effacé. Référence : "
-                . \App\Exceptions\Panne::reference($e) . '.');
+        // La suppression ne fait plus que dater la mise en corbeille :
+        // instantané (16/10/2026). L'effacement réel, qui suivait toutes les
+        // dépendances dans la requête, dépassait cinq minutes sur la base de
+        // production et le navigateur rendait la main avant la fin. L'entreprise
+        // reste 30 jours en corbeille, restaurable ; passé ce délai — ou sur
+        // « Vider la corbeille » — l'effacement part en arrière-plan.
+        if ($entreprise->estEnCorbeille()) {
+            return redirect()->route('superadmin.corbeille')->with('erreur', "« {$entreprise->nom} » est déjà en corbeille.");
         }
 
+        $entreprise->forceFill([
+            'corbeille_le'  => now(),
+            'corbeille_par' => \Illuminate\Support\Facades\Auth::id(),
+        ])->save();
+
+        Utilisateur::where('entreprise_id', $entreprise->id)->update(['statut' => 'inactif']);
+
+        $this->journaliser('mise_en_corbeille_entreprise', 'Entreprise', $entreprise->id);
+
         return redirect()->route('superadmin.entreprises')->with('succes', sprintf(
-            "L'entreprise « %s » a été supprimée avec toutes ses données (%d lignes : utilisateurs, points de vente, pièces, stock, écritures…).",
-            $nom, array_sum($effacees)
+            "« %s » est placée en corbeille. Elle y reste %d jours, restaurable à tout moment, avant son effacement définitif.",
+            $entreprise->nom, Entreprise::JOURS_EN_CORBEILLE
+        ));
+    }
+
+    /**
+     * La corbeille : les entreprises supprimées, en attente d'effacement.
+     */
+    public function corbeille(): View
+    {
+        $entreprises = Entreprise::enCorbeille()
+            ->withCount('utilisateurs')
+            ->orderByDesc('corbeille_le')
+            ->paginate(15);
+
+        return view('admin::superadmin.corbeille', compact('entreprises'));
+    }
+
+    /**
+     * Restaurer une entreprise de la corbeille : elle redevient active, ses
+     * utilisateurs aussi.
+     */
+    public function restaurer(Entreprise $entreprise): RedirectResponse
+    {
+        if (!$entreprise->estEnCorbeille()) {
+            return redirect()->route('superadmin.corbeille')->with('erreur', "« {$entreprise->nom} » n'est pas en corbeille.");
+        }
+
+        $entreprise->forceFill(['corbeille_le' => null, 'corbeille_par' => null])->save();
+        Utilisateur::where('entreprise_id', $entreprise->id)
+            ->where('statut', 'inactif')->update(['statut' => 'actif']);
+
+        $this->journaliser('restauration_entreprise', 'Entreprise', $entreprise->id);
+
+        return redirect()->route('superadmin.corbeille')->with('succes', "« {$entreprise->nom} » est restaurée : elle et ses utilisateurs ont de nouveau accès.");
+    }
+
+    /**
+     * Effacer définitivement une entreprise de la corbeille, en arrière-plan.
+     */
+    public function viderUne(Entreprise $entreprise): RedirectResponse
+    {
+        if (!$entreprise->estEnCorbeille()) {
+            return redirect()->route('superadmin.corbeille')->with('erreur', "« {$entreprise->nom} » n'est pas en corbeille.");
+        }
+
+        \App\Jobs\EffacerEntreprise::dispatch($entreprise->id);
+        $this->journaliser('effacement_entreprise', 'Entreprise', $entreprise->id);
+
+        return redirect()->route('superadmin.corbeille')->with('succes', "Effacement définitif de « {$entreprise->nom} » lancé. Il s'achève en arrière-plan dans un instant.");
+    }
+
+    /**
+     * Vider toute la corbeille : chaque entreprise est effacée en arrière-plan.
+     */
+    public function viderTout(): RedirectResponse
+    {
+        $ids = Entreprise::enCorbeille()->pluck('id');
+
+        foreach ($ids as $id) {
+            \App\Jobs\EffacerEntreprise::dispatch($id);
+        }
+
+        $this->journaliser('vidage_corbeille', 'Entreprise', null, [], ['nombre' => $ids->count()]);
+
+        return redirect()->route('superadmin.corbeille')->with('succes', sprintf(
+            '%d entreprise(s) en cours d\'effacement définitif en arrière-plan.', $ids->count()
         ));
     }
 

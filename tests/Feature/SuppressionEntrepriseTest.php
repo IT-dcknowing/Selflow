@@ -76,9 +76,15 @@ class SuppressionEntrepriseTest extends TestCase
             'role' => 'superadmin', 'habilitations' => Habilitations::PLATEFORME,
         ]);
 
+        // Supprimer place en corbeille (instantané) ; l'effacement réel suit en
+        // arrière-plan — on le joue ici pour vérifier la cascade (16/10/2026).
         $this->actingAs($superadmin)->delete(route('superadmin.entreprises.supprimer', $aSupprimer))
             ->assertRedirect(route('superadmin.entreprises'))
             ->assertSessionHas('succes');
+
+        $this->assertTrue($aSupprimer->fresh()->estEnCorbeille());
+
+        (new \App\Jobs\EffacerEntreprise($aSupprimer->id))->handle();
 
         $this->assertDatabaseMissing('entreprises', ['id' => $aSupprimer->id]);
         $this->assertDatabaseMissing('utilisateurs', ['email' => 'eve@exemple.ci']);
@@ -105,8 +111,20 @@ class SuppressionEntrepriseTest extends TestCase
             'nom' => 'Super', 'prenom' => 'Admin', 'email' => 'super@exemple.ci', 'password' => bcrypt('x'),
             'role' => 'superadmin', 'habilitations' => Habilitations::PLATEFORME,
         ]);
+        // La mise en corbeille réussit toujours (c'est une mise à jour).
         $this->actingAs($superadmin)->delete(route('superadmin.entreprises.supprimer', $entreprise))
-            ->assertSessionHas('erreur', fn ($m) => str_contains($m, 'rien n\'a été effacé'));
+            ->assertSessionHas('succes');
+
+        // L'effacement réel, lui, est atomique : la base refuse la suppression,
+        // la transaction est annulée, et rien n'est effacé. Le job remonte
+        // l'erreur (la file le rejouera) sans laisser une entreprise à moitié
+        // effacée.
+        try {
+            (new \App\Jobs\EffacerEntreprise($entreprise->id))->handle();
+            $this->fail('La suppression refusée par la base aurait dû lever une exception.');
+        } catch (\Throwable $e) {
+            // attendu
+        }
 
         $this->assertSame($avant + 1, Utilisateur::count(), 'Les utilisateurs sont toujours là.');
         $this->assertDatabaseHas('entreprises', ['id' => $entreprise->id]);

@@ -275,3 +275,6 @@ if (config('selflow.portail_fne.scraper.actif')) {
 Schedule::command('selflow:renouveler-cles-comptaflow')
     ->monthlyOn(1, '03:00')
     ->withoutOverlapping();
+
+// La corbeille des entreprises : effacement définitif après 30 jours (16/10/2026).
+Schedule::command('selflow:purger-corbeille')->dailyAt('03:30')->withoutOverlapping();

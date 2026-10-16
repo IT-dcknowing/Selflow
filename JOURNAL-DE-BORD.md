@@ -8789,6 +8789,32 @@ Corrigé :
 
 ---
 
+### Lot 100 — Corbeille des entreprises + suppression instantanée — **TERMINÉ le 16/10/2026**
+
+En production, supprimer une entreprise dépassait cinq minutes et le navigateur
+rendait la main avant la fin : l'effacement suivait toutes les dépendances du
+schéma **dans la requête**, et l'introspection d'`information_schema` (lente sur
+le MySQL mutualisé) se refaisait à chaque fois.
+
+- **Supprimer = mettre en corbeille**, instantané : `corbeille_le` est daté,
+  l'entreprise quitte les listes, ses utilisateurs passent « inactif » et
+  n'entrent plus (`VerifierEntrepriseActive`).
+- **Corbeille** (Superadmin › Corbeille, paginée) : chaque entreprise avec les
+  jours restants avant effacement, **Restaurer** (rouvre l'entreprise et ses
+  utilisateurs) et **Effacer** ; **Vider la corbeille** en haut.
+- **Effacement réel en arrière-plan** (`EffacerEntreprise`, file) : retiré de
+  la requête, atomique, rejouable. Le graphe des dépendances est mis en
+  cache par processus (fin des cinq minutes).
+- **Purge planifiée** : `selflow:purger-corbeille` chaque jour à 3 h 30 efface
+  les entreprises en corbeille depuis plus de 30 jours.
+
+Migration `2026_10_16_000002` (colonnes `corbeille_le`, `corbeille_par`).
+
+- `CorbeilleEntreprisesTest` (5) ; `SuppressionEntrepriseTest` mis à jour.
+  Suite : 1 821 épreuves, 1 816 passantes.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

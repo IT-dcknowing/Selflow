@@ -25,6 +25,9 @@ class SuppressionEntrepriseService
     /** Tables qui ne se vident jamais par ce chemin. */
     private const EPARGNEES = ['migrations', 'sessions', 'cache', 'cache_locks', 'jobs', 'failed_jobs', 'job_batches', 'password_reset_tokens'];
 
+    /** @var array<string, array>|null  Le graphe des dépendances, calculé une fois par processus. */
+    private static ?array $liensEnCache = null;
+
     /**
      * @return array<string, int> lignes effacées, par table
      */
@@ -122,6 +125,16 @@ class SuppressionEntrepriseService
      */
     private static function liens(): array
     {
+        // Le graphe des dépendances est le même pour toute la vie du
+        // déploiement : l'introspection du schéma (information_schema, lente
+        // sur un MySQL mutualisé) se faisait pourtant à chaque suppression, et
+        // c'est elle — et non les effacements — qui tenait la requête plus de
+        // cinq minutes. On la lit une fois, et on la garde en mémoire du
+        // processus.
+        if (self::$liensEnCache !== null) {
+            return self::$liensEnCache;
+        }
+
         $liens = [];
         $tables = array_map(fn ($t) => $t['name'], Schema::getTables());
 
@@ -166,7 +179,7 @@ class SuppressionEntrepriseService
             $liens[$parent] = array_values($parCle);
         }
 
-        return $liens;
+        return self::$liensEnCache = $liens;
     }
 
     private static function acceptePasDeValeur(string $table, string $colonne): bool

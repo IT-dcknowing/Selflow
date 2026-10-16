@@ -91,6 +91,10 @@ class VerifierHabilitationRoute
         'superadmin.pannes.assistance' => 'tableau_de_bord_superadmin',
         // Couper la plateforme pour tous : réservé à l'administration interne.
         'superadmin.pannes.hors_ligne' => 'administration_interne',
+        'superadmin.corbeille'            => 'gestion_entreprises',
+        'superadmin.corbeille.restaurer'  => 'gestion_entreprises',
+        'superadmin.corbeille.vider_une'  => 'gestion_entreprises',
+        'superadmin.corbeille.vider_tout' => 'gestion_entreprises',
 
         'superadmin.admins.index'         => 'administration_interne',
         'superadmin.admins.creer'         => 'administration_interne',
