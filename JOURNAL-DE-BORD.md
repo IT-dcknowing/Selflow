@@ -8829,6 +8829,21 @@ et modifiable pendant la coupure (« Mettre à jour le message »), sans rallume
 
 ---
 
+### Lot 102 — Accès immédiat à l'inscription, avis « compte en cours d'activation » — **TERMINÉ le 16/10/2026**
+
+Dès qu'une entreprise saisit la référence de son paiement (à l'inscription
+comme dans Facturation), elle entre dans la plateforme — rien n'est bloqué,
+`estATerme` ne ferme qu'à l'échéance passée. Un bandeau la rassure sur chaque
+écran (`partials/avis-activation`) : « Votre compte est en cours d'activation.
+Vous pouvez déjà travailler. Votre paiement (réf. …) est en cours de
+vérification — l'activation complète intervient dès que DC-Knowing le confirme,
+en général sous 5 minutes. » Il disparaît de lui-même une fois le paiement
+confirmé (Superadmin › Paiements d'abonnement).
+
+- `PaiementAbonnementParReferenceTest` (+1). Suite : 1 823 épreuves, 1 818 passantes.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

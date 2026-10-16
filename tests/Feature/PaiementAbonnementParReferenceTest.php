@@ -118,4 +118,23 @@ class PaiementAbonnementParReferenceTest extends TestCase
         $this->assertSame(Abonnements::SUR_MESURE, $paiement->offre);
         $this->assertSame(150000, (int) $paiement->montant);
     }
+
+    /** 16/10/2026 : un paiement en attente affiche l'avis « compte en cours d'activation ». */
+    public function test_l_avis_d_activation_s_affiche_tant_que_le_paiement_n_est_pas_confirme(): void
+    {
+        $this->actingAs($this->admin)->post(route('admin.abonnement.renouveler'), [
+            'depuis' => 'facturation', 'operateur_paiement' => 'WAVE', 'reference_paiement' => 'TX-AVIS-1',
+        ])->assertSessionHasNoErrors();
+
+        $paiement = \App\Modules\Admin\Modeles\PaiementAbonnement::sole();
+
+        $this->get(route('admin.entreprise.parametres'))->assertOk()
+            ->assertSee('en cours d\'activation', false)
+            ->assertSee('TX-AVIS-1');
+
+        // Confirmé : l'avis disparaît.
+        $this->actingAs($this->superadmin)->put(route('superadmin.paiements.traiter', $paiement), ['action' => 'activer']);
+        $this->actingAs($this->admin)->get(route('admin.entreprise.parametres'))->assertOk()
+            ->assertDontSee('en cours d\'activation', false);
+    }
 }
