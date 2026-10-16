@@ -8871,6 +8871,41 @@ Ne lève jamais : une alerte qui échoue ne fait pas échouer l'action.
 
 ---
 
+### Lot 104 — Maintenance & traçabilité : trafic, KPI, graphe, blocage d'IP — **TERMINÉ le 16/10/2026**
+
+Nouvelle section Superadmin › **Maintenance & traçabilité** (habilitation
+`administration_interne`).
+
+- **Journal du trafic** : `JournaliserVisite` enregistre chaque requête web
+  (IP, page, statut, durée, compte, entreprise, session) après la réponse,
+  sans ralentir la page, sauf celles du superadministrateur. Désactivable
+  (« Mettre en pause »). Table `visites`, purgée au-delà de 30 jours
+  (`selflow:purger-visites`, planifiée).
+- **KPI (24 h)** : requêtes, visiteurs (IP), comptes connectés, entreprises
+  actives, temps moyen, erreurs 5xx, refus (401/403/429).
+- **Graphe** des requêtes par heure (24 h), en direct (actualisation auto 20 s).
+- **Pages les plus consultées** (7 j) avec le temps moyen.
+- **Activité par adresse IP** (24 h) : requêtes, pages distinctes, erreurs,
+  dernière vue ; la fiche d'une IP donne ses pages, le **temps estimé par
+  page** (écart entre requêtes, approximation des journaux serveur) et le
+  journal détaillé.
+- **Blocage d'IP** : `BloquerIpInterdite` (en tête des deux groupes) répond
+  **403** à une IP bloquée, avant toute route — elle ne voit plus rien, ni
+  l'URL. Bloquer / débloquer depuis la page ; une alerte part au blocage.
+  Table `ip_bloquees`, liste en cache, lecture jamais bloquante.
+
+Migration `2026_10_16_000003`.
+
+- `TracabiliteTest` (5). Suite : 1 833 épreuves, 1 828 passantes.
+
+**Note défense (demande du 16/10)** : pas de « contre-attaque ». Riposter
+contre une IP est illégal et frappe souvent des tiers dont l'adresse est
+usurpée. La défense tient en : page de maintenance (hors ligne), blocage d'IP,
+limitation de débit déjà en place, alertes, et signalement à l'hébergeur et au
+CERT national. C'est ce qui est outillé ici.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
