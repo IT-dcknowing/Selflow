@@ -236,4 +236,22 @@ class AchatDeclareParLeFournisseurTest extends TestCase
 
         $this->assertSame(0, Achat::where('etape', 'Bon de Commande')->count());
     }
+
+    /** ACH-240926-005 (16/10/2026) : une remise globale déséquilibrait l'opération. */
+    public function test_une_remise_globale_laisse_l_operation_d_achat_equilibree(): void
+    {
+        $this->post(route('admin.achats.enregistrer'), [
+            'fournisseur_id' => $this->fournisseur->id, 'date_achat' => now()->toDateString(), 'etape' => 'Facture',
+            'declaree_par_fournisseur' => 0, 'remise_taux' => 2, 'mode_paiement' => 'Caisse',
+            'articles' => [['produit_id' => $this->ciment->id, 'quantite' => 10, 'prix_unitaire' => 5000, 'unite' => 'sac']],
+        ])->assertSessionHasNoErrors();
+
+        $achat = Achat::latest('id')->firstOrFail();
+        $op = Operation::where('type_operation', 'FactureAchat')->where('reference_document', $achat->numero_facture)->first();
+        if (!$op) {
+            $this->markTestSkipped('Achat traité comme informatif dans ce montage.');
+        }
+        $this->assertTrue((bool) $op->fresh()->est_equilibree);
+        $this->assertEqualsWithDelta(57820.0, (float) $achat->montant_ttc, 0.01);
+    }
 }

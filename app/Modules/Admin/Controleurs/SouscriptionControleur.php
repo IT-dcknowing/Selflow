@@ -203,7 +203,10 @@ class SouscriptionControleur
 
         // C'est ici que la souscription s'effectue : familles, articles,
         // comptes et modules. Tout ce qui précède n'était qu'un choix.
+        $avant = now()->subSecond();
         $bilan = SouscriptionProfilService::souscrire($entreprise, $choix['profils'] ?? [], $retenues);
+        $ajoutes = Produit::where('entreprise_id', $entreprise->id)->where('created_at', '>=', $avant)->pluck('id')->all();
+        session(["souscription_articles.{$entreprise->id}" => $ajoutes ?: null]);
 
         // Les modules décochés à l'étape 3 le restent : la souscription ouvre
         // ce que le métier demande, la préférence de l'utilisateur prime.
@@ -270,6 +273,7 @@ class SouscriptionControleur
             'souscription_etape'       => self::DERNIERE_ETAPE,
             'souscription_terminee_le' => now(),
         ]);
+        session()->forget("souscription_articles.{$entreprise->id}");
 
         if ($this->pourLeSuperadmin()) {
             return redirect()->route('superadmin.entreprises')
@@ -489,16 +493,33 @@ class SouscriptionControleur
                   'modulesAutorises' => $entreprise->modulesAutorises(),
                   'modulesVerrouilles' => VerrouConfigurationService::modulesVerrouilles($entreprise)],
 
-            4 => ['familles' => Famille::with(['typeArticle', 'profil'])
-                    ->whereHas('profil', fn ($q) => $q->whereIn('code', $choix['profils'] ?? []))
-                    ->withCount('articles')
-                    ->orderBy('profil_id')->orderBy('code')->get()],
+            // Seuls les rayons des métiers **ajoutés** cette fois-ci (16/10/2026) :
+            // ceux des métiers déjà en place sont déjà dans le catalogue, les
+            // remontrer laissait croire qu'il fallait les choisir de nouveau.
+            // Le numéro de compte, lui, suit la case « Comptabilité » de
+            // l'étape 3.
+            4 => (function () use ($choix, $entreprise) {
+                $nouveaux = array_values(array_diff($choix['profils'] ?? [], VerrouConfigurationService::profilsAcquis($entreprise)));
+                $modules = $choix['modules'] ?? $entreprise->modules_actifs ?? [];
+
+                return [
+                    'familles' => Famille::with(['typeArticle', 'profil'])
+                        ->whereHas('profil', fn ($q) => $q->whereIn('code', $nouveaux !== [] ? $nouveaux : ($choix['profils'] ?? [])))
+                        ->withCount('articles')
+                        ->orderBy('profil_id')->orderBy('code')->get(),
+                    'seulementLesNouveaux' => $nouveaux !== [],
+                    'comptaChoisie' => $entreprise->comptabiliteOuverte() && in_array('comptabilite', (array) $modules, true),
+                ];
+            })(),
 
             // Le stock d'ouverture se pose sur un point de vente : sans site
             // enregistré, la colonne n'aurait nulle part où écrire, et le champ
             // ne ferait qu'avaler la saisie. On la retire plutôt que de mentir.
+            // Les articles qui viennent d'arriver, s'il y en a : les prix des
+            // anciens se reprennent depuis le catalogue.
             5 => ['articles' => Produit::with(['categorieRelation', 'stocks'])
                     ->where('entreprise_id', $entreprise->id)
+                    ->when(session("souscription_articles.{$entreprise->id}"), fn ($q, $ids) => $q->whereIn('id', $ids))
                     ->orderBy('reference')->get(),
                   'siteDuStock' => $this->siteDuStock($entreprise)],
 

@@ -317,11 +317,15 @@
 
     {{-- ══ 4. Les rayons ══ --}}
     @elseif($etape === 4)
+        @php $comptaOuverte = $comptaChoisie ?? $comptaOuverte; @endphp
         <div class="sous-tete">
             <h2>Vos rayons</h2>
             <p>Tout est coché : décochez ce que vous ne vendez pas. Chaque rayon apporte ses
                articles{{ $comptaOuverte ? ' et ses comptes comptables' : '' }}. Rien n'est définitif — vous pourrez en
                ajouter et en archiver ensuite.</p>
+            @if(!empty($seulementLesNouveaux))
+            <p style="margin-top:6px; font-size:12.5px; color:var(--text-3);">Seuls les rayons des métiers que vous venez d'ajouter sont proposés : ceux des métiers déjà en place sont dans votre catalogue.</p>
+            @endif
         </div>
 
         <div class="liste">

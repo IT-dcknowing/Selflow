@@ -1066,11 +1066,19 @@ class ComptabiliteService
         // imprecision comptable, c'est une deduction indue.
         $sansTva = $achat->type_facture === 'bapa';
 
+        // La remise globale, comme à la vente : `montant_ht` est porté avant
+        // elle, `montant_ttc` après. Sans ce rapport, la charge et la TVA
+        // déductible restaient au brut et le crédit du fournisseur au net —
+        // ACH-240926-005 : 59 000 au débit, 57 820 au crédit (16/10/2026).
+        $ratio = ((float) $achat->remise > 0 && (float) $achat->montant_ht > 0)
+            ? max(0, ((float) $achat->montant_ht - (float) $achat->remise) / (float) $achat->montant_ht)
+            : 1.0;
+
         $comptes = [];
         $tva = [];
         foreach ($achat->details as $detail) {
             $remiseLigne = (float) ($detail->remise_taux ?? 0);
-            $ht = $detail->quantite * $detail->prix_unitaire * (1 - $remiseLigne / 100);
+            $ht = $detail->quantite * $detail->prix_unitaire * (1 - $remiseLigne / 100) * $ratio;
             if ($ht > 0) {
                 $compte = ImputationService::compteAchat($detail->produit);
                 if (!isset($comptes[$compte])) {
@@ -1094,7 +1102,9 @@ class ComptabiliteService
         // Le repli sur `montant_tva` ne doit pas rattraper ce que l'on vient
         // d'ecarter : un bordereau dont la piece porterait une TVA — saisie a
         // tort, ou heritee d'une conversion — la verrait revenir ici.
-        $total = $sansTva ? 0.0 : (array_sum($tva) > 0 ? array_sum($tva) : (float) ($achat->montant_tva ?? 0));
+        // Le total de la pièce prime quand il existe : c'est lui qui fait le
+        // TTC crédité au fournisseur, et l'opération tombe juste.
+        $total = $sansTva ? 0.0 : ((float) ($achat->montant_tva ?? 0) > 0 ? (float) $achat->montant_tva : array_sum($tva));
 
         return [
             'comptes' => $comptes,

@@ -580,4 +580,27 @@ class ParcoursSouscriptionTest extends TestCase
             . 'installation neuve ne peut pas franchir la première étape de la souscription.'
         );
     }
+
+    /** 16/10/2026 : ajouter un métier ne remontre que ses rayons, sans comptes si la compta n'est pas cochée. */
+    public function test_ajouter_un_metier_ne_propose_que_ses_rayons(): void
+    {
+        \App\Modules\Admin\Services\SouscriptionProfilService::souscrire($this->entreprise, ['boutique_quartier']);
+        $this->entreprise->update(['souscription_etape' => 5]);
+
+        $anciens = \App\Modules\Admin\Modeles\Referentiel\Famille::whereHas('profil', fn ($q) => $q->where('code', 'boutique_quartier'))->pluck('nom')->all();
+        $nouveaux = \App\Modules\Admin\Modeles\Referentiel\Famille::whereHas('profil', fn ($q) => $q->where('code', 'depot_boissons'))->get();
+        $propres = array_diff($anciens, $nouveaux->pluck('nom')->all());
+
+        $this->actingAs($this->admin)->withSession(["souscription.{$this->entreprise->id}" => [
+            'profils' => ['boutique_quartier', 'depot_boissons'], 'modules' => ['principal', 'ventes', 'stock', 'produits'],
+        ]]);
+
+        $page = $this->get(route('admin.souscription.index', ['etape' => 4]))->assertOk()->getContent();
+
+        $this->assertStringContainsString(e($nouveaux->first()->nom), $page);
+        foreach ($propres as $nom) {
+            $this->assertStringNotContainsString('>' . e($nom) . '<', $page, "Le rayon « {$nom} » est déjà en place.");
+        }
+        $this->assertStringNotContainsString('class="cpt"', $page, 'Pas de numéro de compte sans comptabilité.');
+    }
 }
