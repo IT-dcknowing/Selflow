@@ -216,5 +216,8 @@ secret `external/*` par entreprise (moyen terme).
 | Alertes multi-canal (courriel + WhatsApp) + destinataires | lot 103 |
 | Maintenance & traçabilité (trafic, KPI, IP) | lot 104 |
 | Traçabilité par entreprise (audit) | lot 105 |
+| URGENT deadlock 1213 à l'annulation (poissonnerie EDEN) | lot 106 |
+| Normalisation automatique décochée par défaut | lot 107 |
+| Pagination de l'audit (20 par page) | lot 107 |
 | Contre-attaque | **refusée** (illégal) ; défense outillée |
 | Relais WhatsApp | à brancher (URL d'un relais) |
