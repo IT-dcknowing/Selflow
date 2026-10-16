@@ -8638,6 +8638,52 @@ courriels B2B et stickers en file d'attente.
 
 ---
 
+### Lot 95 — Montants Selflow / Comptaflow : analyse et correctifs — **TERMINÉ le 16/10/2026**
+
+Signalement : des montants de centaines de milliards dans Comptaflow après la
+liaison. **Analyse** : la liaison ne multiplie rien. Elle envoie
+`(float) $ecriture->debit` et `credit` tels quels, avec une clé d'idempotence
+(`cle_selflow`) qui empêche le doublon. Les montants sont déjà énormes **dans
+Selflow** : 167 090 052 100 F de chiffre d'affaires pour 32 factures, soit un
+panier moyen de 5,2 milliards, et une facture du 24/09 à environ 39,3
+milliards TTC (33,27 milliards HT × 1,18). Comptaflow affiche 211,6 milliards
+au débit, soit la facturation plus les règlements, ce qui reste du même ordre.
+
+Deux défauts réels de Selflow ont été trouvés :
+
+1. **Modifier une facture ne corrigeait pas sa comptabilité.** Les lignes, le
+   stock et la trésorerie étaient refaits, mais pas les écritures : une facture
+   saisie trop haut puis corrigée restait trop haute dans les livres et dans
+   Comptaflow. Corrigé : `ComptabiliteService::contrePasserLaVente()`
+   contre-passe les opérations de facturation et de règlement de la pièce
+   (type `ContrePassationVente`, jamais deux fois), puis les écritures sont
+   repassées sur les montants corrigés, à la date de la facture. Les
+   contre-passations partent chez Comptaflow comme le reste.
+2. **La trésorerie ne s'accorde pas avec les ventes** : 555 milliards
+   encaissés pour 167 milliards facturés. Les mouvements orphelins ou
+   encaissés deux fois sont à identifier sur les données de production.
+   Nouvelle commande, en lecture seule :
+   `php artisan selflow:diagnostic-montants "DC-KNOWING CGA"`. Elle donne :
+   - les 10 plus grosses factures, avec la quantité et le prix maximum ;
+   - les mouvements de trésorerie sans pièce ;
+   - les factures encaissées au-delà de leur montant ;
+   - les factures dont la classe 7 comptabilisée diffère du HT ;
+   - le débit par statut Comptaflow.
+
+**Valeurs d'origine** : chaque ligne déversée porte maintenant
+`numero_saisie_original`, `compte_tiers_original`, `compte_debit_original` et
+`compte_credit_original`. Comptaflow peut ainsi afficher les valeurs Selflow
+sous les siennes. Aujourd'hui, seuls les comptes généraux le sont.
+
+**Reste à faire** : les factures déjà corrigées avant ce lot gardent leurs
+anciennes écritures. On les repère avec le diagnostic (section 3) ; les
+reprendre se fait par une modification sans changement, qui contre-passe et
+repasse.
+
+- `ModificationFactureEcrituresTest` (1). Suite : 1 807 épreuves, 1 802 passantes.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

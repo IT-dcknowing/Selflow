@@ -229,6 +229,14 @@ class DeverserOperationComptaflow implements ShouldQueue
             // ligne arrivait seule dans sa pièce, déséquilibrée.
             'operation_selflow'  => self::cleOperation($entreprise, $operation ?? $ecriture->operation),
             'point_de_vente'     => $ecriture->pointDeVente?->nom,
+            // Les valeurs d'origine, nommées comme telles (16/10/2026) :
+            // Comptaflow renumérote la saisie et les tiers à sa convention ;
+            // il les affiche sous les siennes comme il le fait déjà pour les
+            // comptes généraux.
+            'numero_saisie_original' => ($operation ?? $ecriture->operation)?->numero_saisie,
+            'compte_tiers_original'  => $ecriture->compte_tiers,
+            'compte_debit_original'  => $ecriture->compte_debit,
+            'compte_credit_original' => $ecriture->compte_credit,
         ];
     }
 

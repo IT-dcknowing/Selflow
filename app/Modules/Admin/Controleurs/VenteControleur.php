@@ -1064,6 +1064,24 @@ class VenteControleur
                     'reference_document' => $vente->numero_facture,
                 ]);
             }
+
+            // La comptabilité suit la modification : les anciennes écritures
+            // sont contre-passées, les nouvelles passées sur les montants
+            // corrigés (16/10/2026). Sans cela, les livres — et Comptaflow —
+            // gardaient le montant d'avant la correction.
+            if ($etaitFacturee) {
+                \App\Modules\Admin\Services\ComptabiliteService::contrePasserLaVente($vente);
+            }
+            if ($vente->fresh()->etape === 'Facture') {
+                \App\Modules\Admin\Services\ComptabiliteService::genererEcrituresVente(
+                    $vente->fresh(),
+                    $statutVente === 'Crédit' ? 0 : $montantPaye,
+                    $modePaiementFinal,
+                    null, // la date de la facture, non celle de la correction
+                    $request->mode_paiement === 'Banque' ? $request->moyen_bancaire : null,
+                    $request->mode_paiement === 'Banque' ? $request->reference_paiement : null
+                );
+            }
         });
 
         $routeRetour = request()->routeIs('caissier.*') ? 'caissier.ventes.factures' : 'admin.ventes.factures';
