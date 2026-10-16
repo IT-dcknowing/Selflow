@@ -365,12 +365,34 @@ class EntrepriseControleur
      * valeur qu'aucun autre code ne reconnaît : le déversement, qui attend
      * `active`, s'arrêtait donc net après cette « réussite ».
      */
-    public function demanderComptaflow(): RedirectResponse
+    public function demanderComptaflow(Request $request): RedirectResponse
     {
         $utilisateur = Auth::user();
         $entreprise  = $utilisateur->entreprise;
 
+        // Plus d'un exercice : l'entreprise coche ceux qu'elle veut voir
+        // partir (16/10/2026). L'exercice en cours part toujours ; les
+        // antérieurs deviennent une demande que le superadministrateur tranche
+        // en ouvrant la liaison.
+        $anterieurs = array_values(array_filter(
+            \App\Modules\Admin\Services\LiaisonComptaflowService::exercicesParEntreprise($entreprise->id)[$entreprise->id] ?? [],
+            fn ($a) => $a < (int) now()->year
+        ));
+        $donnees = $request->validate([
+            'annees'   => ['nullable', 'array'],
+            'annees.*' => ['integer', \Illuminate\Validation\Rule::in($anterieurs)],
+        ]);
+
         $resultat = \App\Modules\Admin\Services\LiaisonComptaflowService::demander($entreprise, $utilisateur);
+
+        if ($resultat['success'] && !empty($donnees['annees'])) {
+            \App\Modules\Admin\Modeles\DemandeExercicesAnterieurs::create([
+                'entreprise_id'    => $entreprise->id,
+                'annees_demandees' => collect($donnees['annees'])->map(fn ($a) => (int) $a)->unique()->sort()->values()->all(),
+                'statut'           => \App\Modules\Admin\Modeles\DemandeExercicesAnterieurs::EN_ATTENTE,
+                'demandee_par'     => $utilisateur->id,
+            ]);
+        }
 
         return $resultat['success']
             ? back()->with('succes', $resultat['message'])
