@@ -558,6 +558,23 @@ class Vente extends Model
         return $this->statut === self::STATUT_ANNULEE;
     }
 
+    /** Le motif saisi à l'annulation, lu sur l'avoir interne qui l'a portée. */
+    public function motifAnnulation(): ?string
+    {
+        if (!$this->estAnnulee()) {
+            return null;
+        }
+
+        $raison = self::withoutGlobalScopes()
+            ->where('parent_id', $this->id)
+            ->where('type_facture', 'avoir')
+            ->where('raison_avoir', 'like', 'Annulation : %')
+            ->latest('id')
+            ->value('raison_avoir');
+
+        return $raison ? \Illuminate\Support\Str::after($raison, 'Annulation : ') : null;
+    }
+
     /**
      * L'avoir interne qui annule une facture non normalisée : son parent n'a
      * jamais été certifié, la plateforme ne pourrait pas le créditer.

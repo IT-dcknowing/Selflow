@@ -134,4 +134,27 @@ class ModificationFactureEcrituresTest extends TestCase
         $this->assertEqualsWithDelta($du, (float) TresorerieJournal::sum('montant_entree'), 0.01);
         $this->assertEqualsWithDelta($du, (float) TresorerieJournal::first()->solde_resultat, 0.01);
     }
+
+    public function test_recomptabiliser_repare_une_operation_desequilibree(): void
+    {
+        $this->post(route('admin.ventes.enregistrer'), [
+            'etape' => 'Facture', 'type_piece' => Vente::TYPE_FACTURE, 'client_id' => $this->client->id,
+            'mode_paiement' => 'Espèces',
+            'articles' => [['produit_id' => $this->prestation->id, 'quantite' => 1, 'unite' => 'unité']],
+        ]);
+        $vente = Vente::firstOrFail();
+
+        // Une opération passée par une version antérieure : la classe 7 à 104 000.
+        $op = Operation::withoutGlobalScopes()->where('type_operation', 'FactureVente')->firstOrFail();
+        EcritureComptable::withoutGlobalScopes()->where('operation_id', $op->id)->where('compte_credit', 'like', '7%')
+            ->update(['credit' => 104000]);
+        $op->forceFill(['est_equilibree' => false])->save();
+
+        $this->artisan('selflow:recomptabiliser', ['entreprise' => $this->entreprise->id, 'piece' => $vente->numero_facture, '--appliquer' => true])
+            ->assertSuccessful();
+
+        $this->assertSame(0, Operation::withoutGlobalScopes()->where('est_equilibree', false)->count());
+        $this->assertSame(-100000.0, $this->solde('7'));
+        $this->assertSame(0.0, $this->solde('411'));
+    }
 }

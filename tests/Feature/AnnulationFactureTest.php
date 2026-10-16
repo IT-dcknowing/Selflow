@@ -167,4 +167,32 @@ class AnnulationFactureTest extends TestCase
         $this->post(route('admin.ventes.annuler', $facture), [])->assertSessionHasErrors('motif');
         $this->assertNotSame(Vente::STATUT_ANNULEE, $facture->fresh()->statut);
     }
+
+    /** Retour du 16/10/2026 : la facture annulée est en rouge, avec son motif, ici et sur le document. */
+    public function test_la_facture_annulee_montre_son_motif(): void
+    {
+        $facture = $this->facture();
+        $this->post(route('admin.ventes.annuler', $facture), ['motif' => 'Quantité mal saisie']);
+
+        $this->assertSame('Quantité mal saisie', $facture->fresh()->motifAnnulation());
+        $this->get(route('admin.ventes.factures', ['etape' => 'Facture']))->assertOk()
+            ->assertSee('Motif : Quantité mal saisie')
+            ->assertSee('modal-annulation', false);
+        $this->get(route('admin.ventes.imprimer', $facture))->assertOk()->assertSee('mal saisie')->assertSee('getAnnulationBlock', false);
+    }
+
+    /** Comptabilité fermée : on ne parle pas d'écritures. */
+    public function test_sans_comptabilite_le_message_ne_parle_que_du_stock(): void
+    {
+        $facture = $this->facture();
+        $this->entreprise->forceFill(['comptabilite_activee' => false])->save();
+        $this->entreprise->update(['modules_actifs' => array_values(array_diff($this->entreprise->modules_actifs, ['comptabilite']))]);
+
+        if ($this->entreprise->fresh()->comptabiliteOuverte()) {
+            $this->markTestSkipped('Comptabilité ouverte par attribution dans ce montage.');
+        }
+
+        $this->post(route('admin.ventes.annuler', $facture), ['motif' => 'Erreur'])
+            ->assertSessionHas('succes', fn ($m) => !str_contains($m, 'écritures'));
+    }
 }

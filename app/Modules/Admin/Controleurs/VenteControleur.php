@@ -1537,7 +1537,8 @@ class VenteControleur
 
         $this->journaliser('annulation_facture_vente', 'Vente', $vente->id);
 
-        return back()->with('succes', "Facture {$vente->numero_facture} annulée : le stock est réinjecté et les écritures contre-passées.");
+        return back()->with('succes', "Facture {$vente->numero_facture} annulée : le stock est réinjecté"
+            . (Auth::user()->entreprise?->comptabiliteOuverte() ? ' et les écritures contre-passées.' : '.'));
     }
 
     /**

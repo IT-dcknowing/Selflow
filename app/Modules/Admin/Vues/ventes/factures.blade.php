@@ -385,7 +385,7 @@
                     // c'est le réglage de l'entreprise qui le dit.
                     $normalisationAutomatique = $entrepriseNormalisation?->normaliseAutomatiquement($vente) ?? true;
                 @endphp
-                <tr @if($vente->normalise) style="background:#ecfdf5; border-left:4px solid #10b981;" @else style="background:#fffbeb; border-left:4px solid #f59e0b;" @endif>
+                <tr @if($vente->estAnnulee()) style="background:#fef2f2; border-left:4px solid #dc2626;" @elseif($vente->normalise) style="background:#ecfdf5; border-left:4px solid #10b981;" @else style="background:#fffbeb; border-left:4px solid #f59e0b;" @endif>
                     @if($activerSelectionGroup)
                     <td style="text-align: center; white-space: nowrap;">
                         @if(!$vente->normalise)
@@ -444,7 +444,9 @@
                                 </span>
                             @endif
                         @else
-                            @if($vente->statut === 'Payé')
+                            @if($vente->estAnnulee())
+                                <span style="background:#dc2626; color:#fff; padding:4px 10px; border-radius:20px; font-weight:700;">Annulée</span>
+                            @elseif($vente->statut === 'Payé')
                                 <span style="background:#e6fdf5; color:#0f766e; padding:4px 10px; border-radius:20px; font-weight:700;">Payé</span>
                             @elseif($vente->statut === 'Crédit')
                                 <span style="background:#fef2f2; color:#991b1b; padding:4px 10px; border-radius:20px; font-weight:700;">Crédit</span>
@@ -624,9 +626,14 @@
                                      qu'elle avait pu être remise au client. --}}
                                 @if($vente->estAnnulee())
                                 {{-- Annulée avant normalisation : plus rien à faire. --}}
-                                <span class="badge" style="background:#fee2e2; color:#b91c1c; font-weight:700; font-size:11px; padding:4px 8px; border-radius:6px;">
-                                    <i class="fas fa-ban"></i> Annulée
-                                </span>
+                                <div style="white-space:normal; max-width:220px;">
+                                    <span class="badge" style="background:#dc2626; color:#fff; font-weight:700; font-size:11px; padding:4px 8px; border-radius:6px;">
+                                        <i class="fas fa-ban"></i> Annulée
+                                    </span>
+                                    @if($motifAnnulation = $vente->motifAnnulation())
+                                        <div style="font-size:11px; color:#b91c1c; margin-top:4px;">Motif : {{ $motifAnnulation }}</div>
+                                    @endif
+                                </div>
                                 @elseif($vente->type_facture === 'avoir' && $vente->estAnnulationInterne())
                                 <span style="color:var(--text-3); font-size:11px;" title="Avoir interne d'une annulation : il ne part pas à la DGI">Annulation interne</span>
                                 @elseif(!$vente->normalise)
@@ -642,7 +649,8 @@
                                 @if($vente->type_facture !== 'avoir')
                                 <form method="POST" action="{{ $isCaissier ? route('caissier.ventes.annuler', $vente) : route('admin.ventes.annuler', $vente) }}"
                                       class="form-annuler-facture" style="display:inline; margin:0;"
-                                      onsubmit="var m = prompt('Motif de l\'annulation de la facture {{ $vente->numero_facture }} ?\nLe stock sera réinjecté et les écritures contre-passées.'); if (!m) return false; this.motif.value = m; return true;">
+                                      data-numero="{{ $vente->numero_facture }}"
+                                      onsubmit="return demanderMotifAnnulation(this);">
                                     @csrf
                                     <input type="hidden" name="motif" value="">
                                     <button type="submit" class="btn btn-sm" style="background:#fef2f2; color:#dc2626; border:0.5px solid #fca5a5; font-weight:700; font-size:11px; padding:4px 8px;" title="Annuler cette facture non normalisée">
@@ -1705,4 +1713,57 @@ function annulerJobArrierePlan() {
 }
 </style>
 @endif
+
+{{-- Le motif de l'annulation, dans une vraie fenêtre (16/10/2026) : la boîte
+     du navigateur ne se mettait pas en forme et disait « écritures » à une
+     entreprise qui n'a pas de comptabilité. --}}
+@php $__comptaOuverte = auth()->user()->entreprise?->comptabiliteOuverte(); @endphp
+<div id="modal-annulation" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,.5); z-index:10000; align-items:center; justify-content:center; padding:16px;">
+    <div style="background:#fff; border-radius:14px; width:100%; max-width:460px; box-shadow:0 24px 60px rgba(0,0,0,.25); overflow:hidden;">
+        <div style="padding:18px 22px; border-bottom:1px solid var(--border); display:flex; gap:12px; align-items:center;">
+            <span style="width:38px; height:38px; border-radius:10px; background:#fee2e2; color:#dc2626; display:flex; align-items:center; justify-content:center;"><i class="fas fa-ban"></i></span>
+            <div>
+                <div style="font-weight:800; font-size:15px;">Annuler la facture <span id="annulation-numero"></span></div>
+                <div style="font-size:12.5px; color:var(--text-3);">
+                    Le stock sera réinjecté{{ $__comptaOuverte ? ' et les écritures contre-passées' : '' }}.
+                </div>
+            </div>
+        </div>
+        <div style="padding:18px 22px;">
+            <label class="form-label" for="annulation-motif">Motif de l'annulation <span style="color:var(--danger);">*</span></label>
+            <textarea id="annulation-motif" class="form-control" rows="3" maxlength="200" placeholder="Ex. : erreur de saisie sur la quantité"></textarea>
+            <div id="annulation-erreur" style="display:none; color:#dc2626; font-size:12px; margin-top:6px;">Indiquez le motif de l'annulation.</div>
+        </div>
+        <div style="padding:14px 22px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px;">
+            <button type="button" class="btn btn-outline" onclick="fermerAnnulation()">Retour</button>
+            <button type="button" class="btn" style="background:#dc2626; color:#fff; border:none;" onclick="confirmerAnnulation()"><i class="fas fa-ban"></i> Annuler la facture</button>
+        </div>
+    </div>
+</div>
+<script>
+var formulaireAnnulation = null;
+function demanderMotifAnnulation(form) {
+    if (form.dataset.confirme === '1') return true;
+    formulaireAnnulation = form;
+    document.getElementById('annulation-numero').textContent = form.dataset.numero || '';
+    document.getElementById('annulation-motif').value = '';
+    document.getElementById('annulation-erreur').style.display = 'none';
+    document.getElementById('modal-annulation').style.display = 'flex';
+    setTimeout(function () { document.getElementById('annulation-motif').focus(); }, 50);
+    return false;
+}
+function fermerAnnulation() {
+    document.getElementById('modal-annulation').style.display = 'none';
+    formulaireAnnulation = null;
+}
+function confirmerAnnulation() {
+    var motif = document.getElementById('annulation-motif').value.trim();
+    if (!motif) { document.getElementById('annulation-erreur').style.display = 'block'; return; }
+    if (!formulaireAnnulation) return;
+    formulaireAnnulation.motif.value = motif;
+    formulaireAnnulation.dataset.confirme = '1';
+    formulaireAnnulation.submit();
+}
+document.getElementById('modal-annulation').addEventListener('click', function (e) { if (e.target === this) fermerAnnulation(); });
+</script>
 @endsection

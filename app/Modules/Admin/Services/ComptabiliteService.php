@@ -202,9 +202,23 @@ class ComptabiliteService
      */
     public static function contrePasserLaVente(Vente $vente): int
     {
-        $entrepriseId = $vente->pointDeVente->entreprise_id;
-        $reference = $vente->numero_facture;
+        return self::contrePasserLaPiece(
+            $vente->pointDeVente->entreprise_id, $vente->numero_facture,
+            ['FactureVente', 'ReglementVente'], self::TYPE_CONTRE_PASSATION_VENTE
+        );
+    }
 
+    /** Le type des opérations qui défont un achat repris. */
+    public const TYPE_CONTRE_PASSATION_ACHAT = 'ContrePassationAchat';
+
+    /**
+     * Contre-passer les opérations d'une pièce, une fois chacune.
+     *
+     * @param  array<int, string>  $types  les types d'opération à défaire
+     * @return int  le nombre d'opérations contre-passées
+     */
+    public static function contrePasserLaPiece(int $entrepriseId, string $reference, array $types, string $typeContre): int
+    {
         $operations = Operation::withoutGlobalScopes()
             ->with(['ecritures' => fn ($q) => $q->withoutGlobalScopes()])
             ->where('entreprise_id', $entrepriseId)
@@ -212,19 +226,19 @@ class ComptabiliteService
             ->get();
 
         $dejaDefaites = $operations
-            ->where('type_operation', self::TYPE_CONTRE_PASSATION_VENTE)
+            ->where('type_operation', $typeContre)
             ->map(fn ($op) => (string) \Illuminate\Support\Str::after((string) $op->libelle_general, 'saisie '))
             ->all();
 
-        $aDefaire = $operations->filter(fn ($op) => in_array($op->type_operation, ['FactureVente', 'ReglementVente'], true)
+        $aDefaire = $operations->filter(fn ($op) => in_array($op->type_operation, $types, true)
             && !in_array((string) $op->numero_saisie, $dejaDefaites, true));
 
-        DB::transaction(function () use ($aDefaire) {
+        DB::transaction(function () use ($aDefaire, $typeContre) {
             foreach ($aDefaire as $origine) {
                 $annulation = Operation::creer(
                     $origine->entreprise_id, $origine->point_de_vente_id, now()->toDateString(),
-                    self::TYPE_CONTRE_PASSATION_VENTE, $origine->code_journal, $origine->reference_document,
-                    'Contre-passation (facture modifiée) — saisie ' . $origine->numero_saisie
+                    $typeContre, $origine->code_journal, $origine->reference_document,
+                    'Contre-passation (pièce reprise) — saisie ' . $origine->numero_saisie
                 );
 
                 foreach ($origine->ecritures as $ecriture) {

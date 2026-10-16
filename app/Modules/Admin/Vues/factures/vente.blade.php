@@ -617,6 +617,7 @@ var DATA = {
         ],
         mode: {!! json_encode($vente->mode_paiement) !!},
         statut: {!! json_encode($vente->statut) !!},
+        motif_annulation: @json($vente->motifAnnulation()),
         deja_paye: {{ $vente->type_facture === 'avoir' ? $vente->montant_ttc : ($dejaPaye ?? 0) }},
         // Ce que le client a tendu, et ce qu'on lui a rendu. Le second se
         // calcule cote serveur -- `Vente::monnaieRendue()` -- plutot qu'ici :
@@ -1069,6 +1070,17 @@ function blocCertificationFne(d) {
     </div>`;
 }
 
+// Une facture annulée le dit sur le document, avec son motif (16/10/2026).
+function getAnnulationBlock(d) {
+    if (d.statut !== 'Annulée') return '';
+    var motif = d.motif_annulation ? String(d.motif_annulation).replace(/[&<>"]/g, function (c) {
+        return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c];
+    }) : '';
+    return `<div style="margin:0 0 14px;padding:10px 14px;border:1.5px solid #dc2626;background:#fef2f2;border-radius:8px;color:#b91c1c;font-size:12px;">
+        <strong style="letter-spacing:.04em;">FACTURE ANNULÉE</strong>${motif ? ' — Motif : ' + motif : ''}
+    </div>`;
+}
+
 function getAvoirBlock(d) {
     if (d.type_facture !== 'avoir') return '';
 
@@ -1144,6 +1156,7 @@ function statusColor(statut, themeColor) {
     if (statut === 'Payé')   return '#059669';
     if (statut === 'Crédit') return '#dc2626';
     if (statut === 'Avance') return '#d97706';
+    if (statut === 'Annulée') return '#dc2626';
     return themeColor;
 }
 
@@ -1212,7 +1225,7 @@ function model1(d) {
             </div>
         </div>
         
-        ${getValiditeBlock(d)}${getAvoirBlock(d)}
+        ${getAnnulationBlock(d)}${getValiditeBlock(d)}${getAvoirBlock(d)}
         <table class="tbl-articles" style="border-collapse:collapse;font-size:11px;margin-bottom:16px">
             ${colgroupArticles()}
             <thead>
@@ -1348,7 +1361,7 @@ function model2(d) {
                     ${d.ref_bl ? `<span style="font-weight:600;">Livré selon BL : </span>${d.ref_bl}` : ''}
                 </div>` : ''}
             </div>
-            ${getValiditeBlock(d)}${getAvoirBlock(d)}
+            ${getAnnulationBlock(d)}${getValiditeBlock(d)}${getAvoirBlock(d)}
             <table class="tbl-articles" style="border-collapse:collapse;font-size:11px;margin-bottom:14px">
                 ${colgroupArticles()}
                 <thead>
@@ -1481,7 +1494,7 @@ function model3(d) {
             </div>
         </div>
 
-        ${getValiditeBlock(d)}${getAvoirBlock(d)}
+        ${getAnnulationBlock(d)}${getValiditeBlock(d)}${getAvoirBlock(d)}
         <table class="tbl-articles" style="border-collapse:collapse;font-size:11px;margin-bottom:16px">
             ${colgroupArticles()}
             <thead>
@@ -1717,7 +1730,7 @@ function modelStandard(d) {
             <div>Type de facturation : <strong>${d.client.template || '—'}</strong></div>
         </div>
         
-        ${getValiditeBlock(d)}${getAvoirBlock(d)}
+        ${getAnnulationBlock(d)}${getValiditeBlock(d)}${getAvoirBlock(d)}
         <!-- Tableau des Articles -->
         <table class="table-m4 tbl-articles">
             ${colgroupArticlesM4()}
