@@ -112,8 +112,15 @@ class DiagnostiquerMontants extends Command
         $ecritures = EcritureComptable::withoutGlobalScopes()->where('entreprise_id', $entreprise->id)->get();
         $this->line("\n3. ÉCRITURES : " . $ecritures->count() . ' lignes — débit ' . $f($ecritures->sum('debit'))
             . ' F, crédit ' . $f($ecritures->sum('credit')) . ' F');
-        $this->line('   Opérations déséquilibrées : '
-            . Operation::withoutGlobalScopes()->where('entreprise_id', $entreprise->id)->where('est_equilibree', false)->count());
+        $desequilibrees = Operation::withoutGlobalScopes()->where('entreprise_id', $entreprise->id)->where('est_equilibree', false)->get();
+        $this->line('   Opérations déséquilibrées : ' . $desequilibrees->count());
+        if ($desequilibrees->isNotEmpty()) {
+            $this->table(['Saisie', 'Type', 'Pièce', 'Débit', 'Crédit'], $desequilibrees->map(fn ($op) => [
+                $op->numero_saisie, $op->type_operation, $op->reference_document,
+                $f($ecritures->where('operation_id', $op->id)->sum('debit')),
+                $f($ecritures->where('operation_id', $op->id)->sum('credit')),
+            ])->all());
+        }
 
         $parRef = $ecritures->groupBy('reference_document');
         $ecarts = $actives->map(function ($v) use ($parRef) {

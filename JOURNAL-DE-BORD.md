@@ -8684,6 +8684,37 @@ repasse.
 
 ---
 
+### Lot 96 — Trésorerie plafonnée au dû — **TERMINÉ le 16/10/2026**
+
+Le diagnostic lancé en production sur DC-KNOWING CGA a donné ceci.
+
+- **La liaison est juste** : le débit déversé (`synced`) vaut
+  211 642 049 049 F, soit exactement le « Total débit » de Comptaflow.
+- **95 % du chiffre d'affaires vient de 4 factures d'essai** du 24/09
+  (VTE-240926-001 à 004) : prix unitaire de 7 milliards, ≈ 158,5 milliards
+  TTC à elles quatre. Il n'y a que des données de test.
+- **La trésorerie (555 milliards) dépassait les factures (167 milliards)**
+  parce que le **montant tendu par le client** entrait tel quel en caisse.
+  VTE-240926-012 : 59 millions dus, 500 milliards « encaissés » ; 004 :
+  39,3 milliards dus, 50 milliards. Le même défaut, à petite échelle (la
+  monnaie rendue), touche 10 factures. La comptabilité, elle, retenait le dû :
+  trésorerie et compta ne s'accordaient plus.
+
+**Corrigé** : `TresorerieJournal::plafonnerALaPiece()`, à la création de
+tout mouvement. Un encaissement rattaché à une pièce de vente ne dépasse pas
+ce qui reste dû sur elle ; la différence est la monnaie rendue. Le solde
+cumulé suit. Un seul endroit couvre la caisse, la modification, l'API
+mobile, les créances, les commandes et le B2B.
+
+**Reprise des données** : `php artisan selflow:corriger-tresorerie
+"<entreprise>"` montre les encaissements à ramener au dû ; avec
+`--appliquer`, elle les corrige et recalcule le solde cumulé de chaque point
+de vente. Le diagnostic liste aussi les opérations déséquilibrées.
+
+- 2 épreuves ajoutées. Suite : 1 809 épreuves, 1 804 passantes.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
