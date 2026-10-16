@@ -59,8 +59,8 @@
         <p>{{ $entreprise ? 'Votre espace est prêt. Retenez l\'offre qui vous convient — elle évolue avec vous.' : 'Ventes, achats, stock, facturation et normalisation DGI. Commencez gratuitement.' }}</p>
     </header>
 
-    @if(session('erreur'))
-        <div class="alerte" style="margin-top:-50px; position:relative;">{{ session('erreur') }}</div>
+    @if(session('erreur') || $errors->any())
+        <div class="alerte" style="margin-top:-50px; position:relative;">{{ session('erreur') ?? $errors->first() }}</div>
     @endif
 
     <main class="cartes">
@@ -100,9 +100,15 @@
                             <button type="button" class="bouton secondaire" disabled><i class="fas fa-circle-check"></i> Votre offre actuelle</button>
                         @elseif($code === Abonnements::PASS_CADEAU && $passDejaPris)
                             <button type="button" class="bouton secondaire" disabled>Déjà utilisé</button>
+                        @elseif(($offre['prix'] ?? 0) > 0)
+                            {{-- Offre payante : le paiement par référence s'ouvre sous la carte. --}}
+                            <button type="button" class="bouton" onclick="var c = this.nextElementSibling; c.style.display = c.style.display === 'none' ? 'block' : 'none';">
+                                Choisir {{ $offre['nom'] }}
+                            </button>
+                            @include('admin::abonnements.partials.champs-paiement', ['montant' => $offre['prix']])
                         @else
                             <button type="submit" class="bouton {{ $code === Abonnements::SUR_MESURE ? 'secondaire' : '' }}">
-                                {{ $code === Abonnements::SUR_MESURE ? 'Être contacté' : ($code === Abonnements::PASS_CADEAU ? 'Activer mon pass' : 'Choisir ' . $offre['nom']) }}
+                                {{ $code === Abonnements::SUR_MESURE ? 'Être contacté' : 'Activer mon pass' }}
                             </button>
                         @endif
                     </form>

@@ -284,6 +284,7 @@ Route::prefix('admin')
             Route::get('/', [\App\Modules\Admin\Controleurs\DemandeStickerControleur::class, 'index'])->name('index');
             Route::post('/', [\App\Modules\Admin\Controleurs\DemandeStickerControleur::class, 'enregistrer'])->name('enregistrer');
             Route::post('/{demande}/annuler', [\App\Modules\Admin\Controleurs\DemandeStickerControleur::class, 'annuler'])->name('annuler');
+            Route::post('/{demande}/avis-vu', [\App\Modules\Admin\Controleurs\DemandeStickerControleur::class, 'avisVu'])->name('avis_vu');
         });
 
         // ── Module Fiscalité & DGI (Gestion FNE) ──
@@ -684,6 +685,12 @@ Route::prefix('superadmin')
             // Le timbre de quittance est un réglage de la plateforme, non un
             // choix de l'entreprise : il se reporte ici, avec les clés.
             Route::post('/{entreprise}/timbre', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'basculerTimbre'])->name('timbre');
+        });
+
+        // ── Paiements d'abonnement déclarés par référence (16/10/2026) ──
+        Route::prefix('paiements')->name('paiements.')->group(function () {
+            Route::get('/', [\App\Modules\Admin\Controleurs\SuperadminPaiementControleur::class, 'index'])->name('index');
+            Route::put('/{paiement}', [\App\Modules\Admin\Controleurs\SuperadminPaiementControleur::class, 'traiter'])->name('traiter');
         });
 
         // ── Registre des pannes et contacts de l'assistance (15/10/2026) ──

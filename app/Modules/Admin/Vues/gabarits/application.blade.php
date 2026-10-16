@@ -763,6 +763,13 @@
             </a>
             @endif
 
+            @if(auth()->user()->aHabilitation('gestion_entreprises'))
+            @php $__paiementsOuverts = \App\Modules\Admin\Modeles\PaiementAbonnement::whereIn('statut', \App\Modules\Admin\Modeles\PaiementAbonnement::A_TRAITER)->count(); @endphp
+            <a href="{{ route('superadmin.paiements.index') }}" class="nav-item {{ request()->routeIs('superadmin.paiements*') ? 'active' : '' }}">
+                <i class="fas fa-money-check-dollar"></i> Paiements d'abonnement
+                @if($__paiementsOuverts)<span style="margin-left:auto; background:#ef4444; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700;">{{ $__paiementsOuverts }}</span>@endif
+            </a>
+            @endif
             @php $__pannesOuvertes = \App\Modules\Admin\Modeles\PanneConsignee::ouvertes()->count(); @endphp
             <a href="{{ route('superadmin.pannes.index') }}" class="nav-item {{ request()->routeIs('superadmin.pannes*') ? 'active' : '' }}">
                 <i class="fas fa-bug"></i> Pannes &amp; assistance
@@ -776,7 +783,7 @@
             <a href="{{ route('superadmin.fne.index') }}" class="nav-item {{ request()->routeIs('superadmin.fne*') ? 'active' : '' }}">
                 <i class="fas fa-key"></i> Gestion FNE
             </a>
-            @php $__stickersOuverts = \App\Modules\Admin\Modeles\DemandeSticker::whereIn('statut', ['recue', 'en_cours', 'achetee'])->count(); @endphp
+            @php $__stickersOuverts = \App\Modules\Admin\Modeles\DemandeSticker::whereIn('statut', \App\Modules\Admin\Modeles\DemandeSticker::A_TRAITER)->count(); @endphp
             <a href="{{ route('superadmin.stickers.index') }}" class="nav-item {{ request()->routeIs('superadmin.stickers*') ? 'active' : '' }}">
                 <i class="fas fa-ticket"></i> Demandes de stickers
                 @if($__stickersOuverts)<span style="margin-left:auto; background:#ef4444; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700;">{{ $__stickersOuverts }}</span>@endif
@@ -1540,6 +1547,9 @@
             </div>
         @endif
 
+        @unless(request()->routeIs('superadmin.*'))
+            @include('admin::partials.avis-stickers')
+        @endunless
         @yield('contenu')
 
         @if($__aTerme && !$__surFacturation)

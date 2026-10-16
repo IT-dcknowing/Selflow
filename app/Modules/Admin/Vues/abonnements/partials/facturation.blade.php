@@ -42,6 +42,20 @@
         <div class="facturation-tuile"><span>Utilisateurs</span><strong>{{ $entreprise->utilisateurs()->count() }} / {{ Abonnements::enChiffres($entreprise->quota_utilisateurs) }}</strong></div>
     </div>
 
+    @php $dernierPaiement = \App\Modules\Admin\Modeles\PaiementAbonnement::where('entreprise_id', $entreprise->id)->latest()->first(); @endphp
+    @if($dernierPaiement)
+        @php [$fondP, $texteP] = $dernierPaiement->couleurs(); @endphp
+        <div style="border:1px solid var(--border); border-radius:10px; padding:10px 14px; font-size:12.5px; margin-bottom:16px;">
+            <strong>Dernier paiement</strong> — {{ \App\Modules\Admin\Regles\Abonnements::libelle($dernierPaiement->offre) }},
+            {{ number_format((float) $dernierPaiement->montant, 0, ',', ' ') }} F, référence {{ $dernierPaiement->reference_paiement }} :
+            <span style="font-weight:700; padding:2px 8px; border-radius:20px; background:{{ $fondP }}; color:{{ $texteP }};">{{ $dernierPaiement->libelleStatut() }}</span>
+            <span style="color:var(--text-3);">
+                @foreach($dernierPaiement->etapes() as $etape) · {{ $etape['libelle'] }} {{ $etape['le']?->format('d/m/Y H:i') }} @endforeach
+            </span>
+            @if($dernierPaiement->motif_echec)<div style="color:#b91c1c; margin-top:4px;">Motif : {{ $dernierPaiement->motif_echec }}</div>@endif
+        </div>
+    @endif
+
     @if($entreprise->abonnement_demande)
         <div style="background:#EFF6FF; border:1px solid #BFDBFE; color:#1E40AF; border-radius:10px; padding:10px 14px; font-size:12.5px; margin-bottom:16px;">
             <i class="fas fa-hourglass-half"></i>
@@ -79,16 +93,26 @@
                     <form method="POST" action="{{ route('admin.abonnement.renouveler') }}">
                         @csrf
                         <input type="hidden" name="depuis" value="facturation">
-                        <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;"><i class="fas fa-rotate"></i> Renouveler</button>
+                        @if(($offre['prix'] ?? 0) > 0)
+                            <button type="button" class="btn btn-primary" style="width:100%; justify-content:center;"
+                                    onclick="var c = this.nextElementSibling; c.style.display = c.style.display === 'none' ? 'block' : 'none';"><i class="fas fa-rotate"></i> Renouveler</button>
+                            @include('admin::abonnements.partials.champs-paiement', ['montant' => $offre['prix']])
+                        @else
+                            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;"><i class="fas fa-rotate"></i> Renouveler</button>
+                        @endif
                     </form>
                 @elseif($superieure)
                     <form method="POST" action="{{ route('admin.abonnement.enregistrer') }}">
                         @csrf
                         <input type="hidden" name="depuis" value="facturation">
                         <input type="hidden" name="offre" value="{{ $code }}">
-                        <button type="submit" class="btn {{ $code === Abonnements::SUR_MESURE ? 'btn-outline' : 'btn-primary' }}" style="width:100%; justify-content:center;">
-                            {{ $code === Abonnements::SUR_MESURE ? 'Être contacté' : 'Passer à ' . $offre['nom'] }}
-                        </button>
+                        @if(($offre['prix'] ?? 0) > 0)
+                            <button type="button" class="btn btn-primary" style="width:100%; justify-content:center;"
+                                    onclick="var c = this.nextElementSibling; c.style.display = c.style.display === 'none' ? 'block' : 'none';">Passer à {{ $offre['nom'] }}</button>
+                            @include('admin::abonnements.partials.champs-paiement', ['montant' => $offre['prix']])
+                        @else
+                            <button type="submit" class="btn btn-outline" style="width:100%; justify-content:center;">Être contacté</button>
+                        @endif
                     </form>
                 @else
                     <button type="button" class="btn btn-outline" disabled style="width:100%; justify-content:center; opacity:.55;">Offre inférieure</button>

@@ -35,12 +35,43 @@
                             onclick="document.getElementById('quantite').value={{ $q }}; estimer();">{{ number_format($q, 0, ',', ' ') }}</button>
                 @endforeach
             </div>
+            {{-- Toute autre quantité se saisit librement. --}}
             <input type="number" name="quantite" id="quantite" class="form-control" min="{{ Demande::QUANTITE_MIN }}" step="1" required
-                   value="{{ old('quantite', 500) }}" oninput="estimer()" style="margin-bottom:6px;">
-            <p style="font-size:12px; color:var(--text-2); margin-bottom:14px;">
-                Montant estimé : <strong id="estimation">—</strong>
-                <span style="color:var(--text-3);">({{ number_format($prixUnitaire, 0, ',', ' ') }} F l'unité, tarif indicatif ; le prix fait foi à l'achat)</span>
+                   value="{{ old('quantite', 500) }}" oninput="estimer()" placeholder="Saisissez la quantité" style="margin-bottom:10px;">
+
+            <label class="form-label">Montant estimé</label>
+            <input type="text" id="estimation" class="form-control" readonly tabindex="-1"
+                   style="background:#f0f9ff; border-color:#bae6fd; color:#075985; font-weight:800; font-size:16px; cursor:default; margin-bottom:4px;">
+            <p style="font-size:11.5px; color:var(--text-3); margin-bottom:14px;">
+                {{ number_format($prixUnitaire, 0, ',', ' ') }} F l'unité, tarif indicatif ; le prix fait foi à l'achat.
             </p>
+
+            {{-- Le paiement, en attendant l'API : un dépôt sur le numéro du
+                 cabinet, puis la référence de la transaction (16/10/2026). --}}
+            <div style="border:1px solid #fde68a; background:#fffbeb; border-radius:10px; padding:12px 14px; margin-bottom:14px;">
+                <div style="font-size:12.5px; font-weight:800; color:#92400e; margin-bottom:6px;"><i class="fas fa-mobile-screen"></i> Paiement</div>
+                @php $numeros = \App\Modules\Admin\Regles\PaiementParReference::numerosDuCabinet(); @endphp
+                @if($numeros)
+                    <p style="font-size:12px; color:#92400e; line-height:1.6; margin-bottom:8px;">Déposez le montant sur un numéro du cabinet DC-Knowing :</p>
+                    <ul style="font-size:12.5px; font-weight:700; color:#78350f; margin:0 0 10px 18px; line-height:1.7;">
+                        @foreach($numeros as $numero)<li>{{ $numero }}</li>@endforeach
+                    </ul>
+                @else
+                    <p style="font-size:12px; color:#92400e; margin-bottom:8px;">Déposez le montant sur le numéro du cabinet DC-Knowing communiqué par l'assistance.</p>
+                @endif
+                <label class="form-label">Opérateur utilisé <span style="color:var(--danger)">*</span></label>
+                <select name="operateur_paiement" class="form-control" required style="margin-bottom:10px;">
+                    <option value="">— Choisir l'opérateur —</option>
+                    @foreach(\App\Modules\Admin\Regles\PaiementParReference::OPERATEURS as $code => $libelle)
+                        <option value="{{ $code }}" @selected(old('operateur_paiement') === $code)>{{ $libelle }}</option>
+                    @endforeach
+                </select>
+                <label class="form-label">Référence de la transaction <span style="color:var(--danger)">*</span></label>
+                <input type="text" name="reference_paiement" class="form-control" required maxlength="100"
+                       value="{{ old('reference_paiement') }}" placeholder="Reçue par SMS après le dépôt">
+                @error('reference_paiement')<small style="color:var(--danger);">{{ $message }}</small>@enderror
+                @error('operateur_paiement')<small style="color:var(--danger);">{{ $message }}</small>@enderror
+            </div>
 
             <label class="form-label">Point de vente concerné</label>
             <select name="point_de_vente_id" class="form-control" style="margin-bottom:14px;">
@@ -80,16 +111,29 @@
             <p style="padding:30px; text-align:center; color:var(--text-3); font-size:13px;">Aucune demande pour l'instant.</p>
         @else
             <table class="table" style="width:100%;">
-                <thead><tr><th>Date</th><th>Quantité</th><th>Site</th><th>Statut</th><th></th></tr></thead>
+                <thead><tr><th>Date</th><th>Quantité</th><th>Priorité</th><th>Site</th><th>Statut</th><th></th></tr></thead>
                 <tbody>
                 @foreach($demandes as $d)
+                    @php [$fond, $texte] = $d->couleurs(); @endphp
                     <tr>
-                        <td style="font-size:12.5px;">{{ $d->created_at->format('d/m/Y H:i') }}</td>
+                        <td style="font-size:12.5px; white-space:nowrap;">{{ $d->created_at->format('d/m/Y H:i') }}</td>
                         <td><strong>{{ number_format($d->quantite, 0, ',', ' ') }}</strong>
-                            @if($d->urgence === 'urgente')<span style="color:var(--danger); font-size:11px; font-weight:700;"> urgent</span>@endif</td>
+                            <div style="font-size:11px; color:var(--text-3);">{{ number_format((float) $d->montant_estime, 0, ',', ' ') }} F</div></td>
+                        <td>
+                            <span style="font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; {{ $d->urgence === 'urgente' ? 'background:#fee2e2; color:#b91c1c;' : 'background:#f1f5f9; color:#475569;' }}">
+                                {{ $d->urgence === 'urgente' ? 'Urgente' : 'Normale' }}
+                            </span>
+                        </td>
                         <td style="font-size:12.5px;">{{ $d->pointDeVente?->nom ?? 'Tous' }}</td>
                         <td>
-                            <span style="font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:20px; background:{{ $d->statut === 'livree' ? '#ecfdf5' : ($d->statut === 'annulee' ? '#f1f5f9' : '#eff6ff') }}; color:{{ $d->statut === 'livree' ? '#047857' : ($d->statut === 'annulee' ? '#64748b' : '#1d4ed8') }};">{{ $d->libelleStatut() }}</span>
+                            <span style="font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:20px; background:{{ $fond }}; color:{{ $texte }};">{{ $d->libelleStatut() }}</span>
+                            {{-- La traçabilité : chaque étape et son heure. --}}
+                            <div class="etapes-demande">
+                                @foreach($d->etapes() as $etape)
+                                    <div><span>{{ $etape['libelle'] }}</span> {{ $etape['le']?->format('d/m/Y H:i') }}</div>
+                                @endforeach
+                            </div>
+                            @if($d->motif_echec)<div style="font-size:11.5px; color:#b91c1c; margin-top:4px;">Motif : {{ $d->motif_echec }}</div>@endif
                             @if($d->note_dcknowing)<div style="font-size:11.5px; color:var(--text-2); margin-top:4px;">{{ $d->note_dcknowing }}</div>@endif
                         </td>
                         <td>
@@ -110,11 +154,18 @@
 </div>
 @endsection
 
+@section('styles')
+<style>
+    .etapes-demande { margin-top:6px; font-size:11px; color:var(--text-3); line-height:1.6; border-left:2px solid var(--border); padding-left:8px; }
+    .etapes-demande span { font-weight:700; color:var(--text-2); }
+</style>
+@endsection
+
 @section('scripts')
 <script>
 function estimer() {
     var q = parseInt(document.getElementById('quantite').value, 10) || 0;
-    document.getElementById('estimation').textContent = new Intl.NumberFormat('fr-FR').format(q * {{ $prixUnitaire }}) + ' F CFA';
+    document.getElementById('estimation').value = new Intl.NumberFormat('fr-FR').format(q * {{ $prixUnitaire }}) + ' F CFA';
 }
 document.addEventListener('DOMContentLoaded', estimer);
 </script>

@@ -2,7 +2,9 @@
 
 namespace App\Modules\Admin\Controleurs;
 
+use App\Modules\Admin\Modeles\PaiementAbonnement;
 use App\Modules\Admin\Modeles\ParametrePlateforme;
+use App\Modules\Admin\Regles\PaiementParReference;
 use App\Modules\Admin\Regles\Abonnements;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -47,6 +49,15 @@ class AbonnementControleur
             return $this->retour($request)->with('erreur', 'Le pass cadeau a déjà été utilisé par votre entreprise : il ne s\'offre qu\'une fois.');
         }
 
+        // Une offre payante se règle par dépôt sur le numéro du cabinet : la
+        // référence de la transaction est exigée, et le superadministrateur
+        // l'active (16/10/2026, en attendant l'API de paiement).
+        $paiement = null;
+        if (self::estPayante($offre)) {
+            $reglement = $request->validate(PaiementParReference::regles(), PaiementParReference::messages());
+            $paiement = $this->declarerLePaiement($entreprise, $offre, 'souscription', $reglement);
+        }
+
         Abonnements::appliquer($entreprise, $offre);
 
         $message = match ($offre) {
@@ -55,9 +66,9 @@ class AbonnementControleur
                 . $entreprise->fresh()->abonnement_expire_le->format('d/m/Y') . '.',
             Abonnements::SUR_MESURE => 'Votre demande d\'offre sur mesure est notée : le service commercial vous contacte.'
                 . $this->contactsEnPhrase(),
-            default => 'Offre « ' . Abonnements::libelle($offre) . ' » retenue. DC-Knowing vous contacte pour le règlement'
-                . ' (' . number_format(Abonnements::offres()[$offre]['prix'], 0, ',', ' ') . ' F par mois).'
-                . $this->contactsEnPhrase(),
+            default => 'Offre « ' . Abonnements::libelle($offre) . ' » retenue. Votre paiement de '
+                . number_format((float) $paiement->montant, 0, ',', ' ') . ' F (référence ' . $paiement->reference_paiement
+                . ') est transmis à DC-Knowing, qui le vérifie et active votre abonnement.',
         };
 
         return $this->retour($request)->with('succes', $message);
@@ -78,6 +89,12 @@ class AbonnementControleur
             return $this->retour($request)->with('erreur', 'Choisissez d\'abord une offre : le pass cadeau ne se renouvelle pas.');
         }
 
+        $paiement = null;
+        if (self::estPayante($offre)) {
+            $reglement = $request->validate(PaiementParReference::regles(), PaiementParReference::messages());
+            $paiement = $this->declarerLePaiement($entreprise, $offre, 'renouvellement', $reglement);
+        }
+
         $entreprise->forceFill([
             'abonnement_demande'    => $offre,
             'abonnement_demande_le' => now(),
@@ -85,9 +102,32 @@ class AbonnementControleur
         ])->save();
 
         return $this->retour($request)->with('succes',
-            'Demande de renouvellement de l\'offre « ' . Abonnements::libelle($offre) . ' » enregistrée. '
-            . 'Le paiement en ligne arrive bientôt ; d\'ici là, DC-Knowing vous contacte pour le règlement.'
-            . $this->contactsEnPhrase());
+            'Renouvellement de l\'offre « ' . Abonnements::libelle($offre) . ' » demandé. '
+            . ($paiement
+                ? 'Votre paiement (référence ' . $paiement->reference_paiement . ') est transmis à DC-Knowing, qui le vérifie et prolonge votre abonnement.'
+                : 'Le service commercial vous contacte.' . $this->contactsEnPhrase()));
+    }
+
+    /** Les offres qui se paient : Solo, Business, Premium. */
+    private static function estPayante(string $offre): bool
+    {
+        return (int) (Abonnements::offres()[$offre]['prix'] ?? 0) > 0;
+    }
+
+    /** @param array{operateur_paiement: string, reference_paiement: string} $reglement */
+    private function declarerLePaiement(\App\Modules\Admin\Modeles\Entreprise $entreprise, string $offre, string $nature, array $reglement): PaiementAbonnement
+    {
+        return PaiementAbonnement::create([
+            'entreprise_id'      => $entreprise->id,
+            'utilisateur_id'     => Auth::id(),
+            'offre'              => $offre,
+            'nature'             => $nature,
+            'mois'               => 1,
+            'montant'            => (int) Abonnements::offres()[$offre]['prix'],
+            'operateur_paiement' => $reglement['operateur_paiement'],
+            'reference_paiement' => trim($reglement['reference_paiement']),
+            'statut'             => 'recu',
+        ]);
     }
 
     /** Depuis la section Facturation, on y revient ; sinon, au tableau de bord. */

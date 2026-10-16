@@ -607,6 +607,7 @@ class Habilitations
         'admin.stickers.index'          => 'stickers_commande',
         'admin.stickers.enregistrer'    => 'stickers_commande',
         'admin.stickers.annuler'        => 'stickers_commande',
+        'admin.stickers.avis_vu' => 'stickers_commande',
         'admin.fne.gestion.donnees'     => 'fne_gestion',
         'admin.fne.situation'           => 'fne_gestion',
         'admin.fne.situation.donnees'   => 'fne_gestion',

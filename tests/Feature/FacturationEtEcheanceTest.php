@@ -55,7 +55,7 @@ class FacturationEtEcheanceTest extends TestCase
 
     public function test_renouveler_avant_l_echeance_note_la_demande(): void
     {
-        $this->actingAs($this->admin)->post(route('admin.abonnement.renouveler'), ['depuis' => 'facturation'])
+        $this->actingAs($this->admin)->post(route('admin.abonnement.renouveler'), ['depuis' => 'facturation', 'operateur_paiement' => 'WAVE', 'reference_paiement' => 'TX-0002'])
             ->assertRedirect(route('admin.entreprise.parametres') . '#facturation')
             ->assertSessionHas('succes');
 
@@ -96,7 +96,7 @@ class FacturationEtEcheanceTest extends TestCase
     {
         $this->aTerme();
 
-        $this->actingAs($this->admin)->post(route('admin.abonnement.enregistrer'), ['offre' => Abonnements::PREMIUM, 'depuis' => 'facturation'])
+        $this->actingAs($this->admin)->post(route('admin.abonnement.enregistrer'), ['offre' => Abonnements::PREMIUM, 'depuis' => 'facturation', 'operateur_paiement' => 'WAVE', 'reference_paiement' => 'TX-0001'])
             ->assertSessionHas('succes');
 
         $e = $this->entreprise->fresh();
@@ -143,7 +143,7 @@ class FacturationEtEcheanceTest extends TestCase
         ])->assertSessionHas('erreur');
 
         // Choisir une offre reste possible depuis la facturation.
-        $this->actingAs($this->admin)->post(route('admin.abonnement.enregistrer'), ['offre' => Abonnements::SOLO, 'depuis' => 'facturation'])
+        $this->actingAs($this->admin)->post(route('admin.abonnement.enregistrer'), ['offre' => Abonnements::SOLO, 'depuis' => 'facturation', 'operateur_paiement' => 'WAVE', 'reference_paiement' => 'TX-0001'])
             ->assertSessionHas('succes');
     }
 }

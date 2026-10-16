@@ -8423,6 +8423,47 @@ quatre opérateurs écrits en dur — et **l'encaissement partait en caisse
 
 ---
 
+### Lot 89 — Paiement par référence : stickers et abonnements — **TERMINÉ le 16/10/2026**
+
+Branche `paiement-par-reference`. En attendant l'API de paiement : l'entreprise
+dépose le montant sur un numéro du cabinet DC-Knowing et saisit l'opérateur et
+la référence de la transaction ; le superadministrateur vérifie et confirme.
+Les numéros du cabinet se saisissent dans Superadmin › Pannes & assistance.
+Migration `2026_10_16_000001` (rejouable).
+
+**Stickers** (`admin.stickers.index`) : choix de l'opérateur, quantité saisie
+librement (ou d'un clic), **montant estimé dans un champ non modifiable**,
+référence de la transaction exigée. Superadmin : colonnes **Priorité** et
+**Paiement**, trois boutons — **En cours** (reçu), **Terminé** (acheté ; le
+stock et le solde relevés sur l'espace FNE du client se saisissent en même
+temps), **Échec** (motif obligatoire, visible par l'entreprise). Badges :
+vert terminé, rouge échec/annulé, jaune en cours. « Livrée sur l'espace FNE »
+est retirée (les demandes livrées passent « achetées »). **Chaque étape garde
+son heure**, affichée de la première à la dernière des deux côtés. Le compteur
+du menu ne compte plus que « Reçue » et « En cours ».
+
+**Avis « stock renouvelé »** chez l'entreprise (bandeau jusqu'à « J'ai
+compris ») : avec le stock et le solde s'ils ont été saisis, sinon « vous
+pouvez normaliser ; le stock et le solde seront à jour après la première
+normalisation ». Saisir le stock et le solde écrit `fne_sticker_balance` et
+`fne_solde_provision` de l'entreprise : **donnée FNE touchée à la demande
+expresse du propriétaire** (exception 3 de CLAUDE.md) ; la prochaine
+normalisation les remet à la valeur de la plateforme.
+
+**Abonnements** : choisir une offre payante (Solo, Business, Premium) — sur la
+page des offres après l'inscription comme dans la section Facturation —,
+renouveler ou monter en gamme ouvre le paiement par référence
+(`PaiementAbonnement`). Superadmin › **Paiements d'abonnement** : En cours,
+**Confirmer / Activer** (l'échéance avance d'un mois depuis la plus tardive de
+« maintenant » et de l'échéance en cours ; une entreprise à terme est
+débloquée), Échec avec motif. La section Facturation montre le dernier
+paiement et ses étapes. Le pass cadeau et le sur-mesure ne demandent rien.
+
+- `DemandeStickersTest` (9, réécrit), `PaiementAbonnementParReferenceTest` (4),
+  épreuves d'abonnement redressées. Suite : 1 791 épreuves, 1 786 passantes.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
