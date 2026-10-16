@@ -634,6 +634,55 @@ class CycleFneTroisCasTest extends TestCase
         $this->assertFalse((bool) $achat->refresh()->normalise);
     }
 
+    /* ═══════════════ Point de vente non activé (retour du 16/10/2026) ═══════════════ */
+
+    private function refusPointDeVenteInactif(): array
+    {
+        return [
+            'message' => 'Point of sale is not active',
+            'errors'  => [
+                'pointOfSale' => [
+                    'inactive' => "Ce point de vente n'est pas activé sur votre espace FNE.",
+                ],
+            ],
+        ];
+    }
+
+    public function test_un_point_de_vente_non_active_est_dit_tel_quel_sur_la_facture(): void
+    {
+        $this->laDgiRepond($this->refusPointDeVenteInactif(), 400);
+        $vente = $this->uneFacture('FA-0090');
+
+        $this->actingAs($this->unAdmin())
+            ->post(route('admin.ventes.normaliser', $vente))
+            ->assertRedirect();
+
+        $this->assertStringContainsString("n'est pas activé sur votre espace FNE", session('erreur'));
+        $this->assertStringContainsString('FACTURATION SIEGE', session('erreur'));
+        $this->assertNull(session('avertissement'));
+        $this->assertTrue(FneRejet::sole()->concernePointDeVenteInactif());
+    }
+
+    public function test_un_point_de_vente_non_active_est_dit_tel_quel_sur_le_bordereau(): void
+    {
+        $this->laDgiRepond($this->refusPointDeVenteInactif(), 400);
+        $achat = $this->unBordereau('BA-0090');
+
+        $this->actingAs($this->unAdmin())
+            ->post(route('admin.achats.normaliser', $achat))
+            ->assertRedirect();
+
+        $this->assertStringContainsString("n'est pas activé sur votre espace FNE", session('erreur'));
+    }
+
+    public function test_un_nom_mal_ecrit_n_est_pas_pris_pour_un_point_inactif(): void
+    {
+        $this->assertFalse(FneRejet::messageDitPointDeVenteInactif(json_encode($this->refusPointDeVente(), JSON_UNESCAPED_UNICODE)));
+        $this->assertTrue(FneRejet::messageDitPointDeVenteInactif('Établissement désactivé'));
+        $this->assertStringContainsString("n'est pas activé", FneRejet::motifLisible(['message' => 'pointOfSale disabled'], 'Siège'));
+        $this->assertSame('Montant invalide', FneRejet::motifLisible(['message' => 'Montant invalide'], 'Siège'));
+    }
+
     /* ═══════════════ Les rouages de la simulation ═══════════════ */
 
     /**

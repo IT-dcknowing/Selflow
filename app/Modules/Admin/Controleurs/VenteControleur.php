@@ -1652,6 +1652,17 @@ class VenteControleur
             ->latest('id')
             ->first();
 
+        // Un établissement non activé sur l'espace FNE : rien à corriger dans
+        // Selflow, ni orthographe ni relevé — il faut le dire tel quel.
+        if ($rejet && $rejet->concernePointDeVenteInactif()) {
+            return back()
+                ->with('erreur', FneRejet::phrasePointDeVenteInactif($vente->pointDeVente?->nom))
+                ->with('erreur_action', [[
+                    'url'   => route('admin.fne.rejets'),
+                    'label' => 'Voir le refus de la DGI',
+                ]]);
+        }
+
         if ($rejet && $rejet->cause === FneRejet::CAUSE_DGI) {
             ScraperPortailFneService::relancerApresRejet($rejet->login);
 
@@ -1749,7 +1760,9 @@ class VenteControleur
 
         return back()->with(
             'erreur',
-            "La normalisation n'a pas abouti. Consultez l'écran des rejets FNE pour le détail."
+            "La normalisation n'a pas abouti."
+            . ($rejet?->message ? ' Motif rendu : ' . \Illuminate\Support\Str::limit($rejet->message, 300) : '')
+            . " Le détail est sur l'écran des rejets FNE."
         );
     }
 

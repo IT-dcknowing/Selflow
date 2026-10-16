@@ -146,7 +146,7 @@ class BatchNormalisationJob implements ShouldQueue
 
                         // Échec de la normalisation : on arrête immédiatement la boucle pour éviter des trous
                         $statusData['status'] = 'failed';
-                        $statusData['error'] = "Échec sur {$invoice->numero_facture} : " . ($fneResult['message'] ?? 'Erreur inconnue');
+                        $statusData['error'] = "Échec sur {$invoice->numero_facture} : " . FneRejet::motifLisible($fneResult, $invoice->pointDeVente?->nom);
                         $statusData['last_updated'] = now()->toDateTimeString();
                         file_put_contents($statusPath, json_encode($statusData));
                         Log::warning("BatchNormalisationJob arrêté à {$invoice->numero_facture} : " . $statusData['error']);
@@ -174,7 +174,7 @@ class BatchNormalisationJob implements ShouldQueue
 
                         // Échec de la normalisation : on arrête
                         $statusData['status'] = 'failed';
-                        $statusData['error'] = "Échec sur {$invoice->numero_facture} : " . ($fneResult['message'] ?? 'Erreur inconnue');
+                        $statusData['error'] = "Échec sur {$invoice->numero_facture} : " . FneRejet::motifLisible($fneResult, $invoice->pointDeVente?->nom);
                         $statusData['last_updated'] = now()->toDateTimeString();
                         file_put_contents($statusPath, json_encode($statusData));
                         Log::warning("BatchNormalisationJob arrêté à {$invoice->numero_facture} : " . $statusData['error']);
