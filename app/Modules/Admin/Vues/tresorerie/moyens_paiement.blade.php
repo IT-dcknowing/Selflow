@@ -61,8 +61,8 @@
                                      font-size:11px;font-weight:700;
                                      background:{{ $moyen->type === 'Caisse' ? '#fffbeb' : '#eff6ff' }};
                                      color:{{ $moyen->type === 'Caisse' ? '#92400e' : '#1e40af' }};">
-                            <i class="fas {{ $moyen->type === 'Caisse' ? 'fa-cash-register' : 'fa-building-columns' }}"></i>
-                            {{ $moyen->type }}
+                            <i class="fas {{ $moyen->type === 'Caisse' ? 'fa-cash-register' : ($moyen->estMobileMoney() ? 'fa-mobile-screen' : 'fa-building-columns') }}"></i>
+                            {{ $moyen->estMobileMoney() ? 'Mobile Money' : $moyen->type }}
                         </span>
                     </td>
                     <td style="font-weight:600;">{{ $moyen->intitule }}</td>
@@ -142,7 +142,8 @@
                 <div class="form-group">
                     <label class="form-label">Type *</label>
                     <select name="type" class="form-control" required>
-                        <option value="Banque">Banque — compte bancaire ou monnaie électronique</option>
+                        <option value="Banque">Banque — compte bancaire</option>
+                        <option value="Mobile Money">Mobile Money — MTN, Moov, Orange, Wave…</option>
                         <option value="Caisse">Caisse — espèces</option>
                     </select>
                 </div>

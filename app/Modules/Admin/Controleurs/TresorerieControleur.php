@@ -314,6 +314,13 @@ class TresorerieControleur
 
     public function creerMoyenDePaiement(Request $request): RedirectResponse
     {
+        // « Mobile Money » est un journal de banque sur un compte 5215… à
+        // 5219… : il se choisit ici comme un type à part (16/10/2026).
+        $mobile = $request->input('type') === 'Mobile Money';
+        if ($mobile) {
+            $request->merge(['type' => 'Banque']);
+        }
+
         $request->validate([
             'type'     => ['required', 'string', Rule::in(self::TYPES_DE_PAIEMENT)],
             'code'     => ['required', 'string', 'max:50'],
@@ -333,10 +340,12 @@ class TresorerieControleur
             'type'          => $request->input('type'),
             'code'          => strtoupper($request->input('code')),
             'intitule'      => $request->input('intitule'),
-            'compte'        => $request->input('type') === 'Banque' ? '521000' : '571000',
+            'compte'        => $mobile
+                ? CodeJournal::prochainCompteMobileMoney((int) Auth::user()->entreprise_id)
+                : ($request->input('type') === 'Banque' ? '521000' : '571000'),
         ]);
 
-        return redirect()->back()->with('succes', 'Moyen de paiement créé.');
+        return redirect()->back()->with('succes', $mobile ? 'Compte de mobile money créé.' : 'Moyen de paiement créé.');
     }
 
     /**
@@ -377,10 +386,12 @@ class TresorerieControleur
 
     public function creerBanqueAjax(Request $request): JsonResponse
     {
+        // Comptabilité fermée, le compte n'est pas demandé (16/10/2026) : il
+        // est posé par le serveur, comme dans les moyens de paiement.
         $request->validate([
             'code'     => 'required|string|max:50',
             'intitule' => 'required|string|max:255',
-            'compte'   => 'required|string|max:50',
+            'compte'   => 'nullable|string|max:50',
         ]);
 
         $journal = CodeJournal::create([
@@ -388,7 +399,7 @@ class TresorerieControleur
             'type'          => 'Banque',
             'code'          => strtoupper($request->code),
             'intitule'      => $request->intitule,
-            'compte'        => $request->compte,
+            'compte'        => $request->filled('compte') ? $request->compte : '521000',
         ]);
 
         return response()->json([
@@ -396,7 +407,8 @@ class TresorerieControleur
             'banque' => [
                 'id'            => $journal->id,
                 'nom'           => $journal->intitule,
-                'numero_compte' => $journal->code . ' - ' . $journal->compte,
+                // Le compte ne s'affiche pas dans les listes de règlement.
+                'numero_compte' => $journal->code,
                 'code'          => $journal->code,
                 'intitule'      => $journal->intitule,
                 'compte'        => $journal->compte,

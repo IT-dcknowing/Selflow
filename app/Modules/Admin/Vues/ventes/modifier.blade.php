@@ -348,7 +348,7 @@
                                 <select name="banque_id" id="banqueSelect" class="form-control" style="flex:1;" {{ $modeSimple === 'Banque' ? 'required' : '' }}>
                                     <option value="">— Choisir un compte banque —</option>
                                     @foreach($banques as $b)
-                                    <option value="{{ $b->id }}" {{ $selectedBanqueId === $b->id ? 'selected' : '' }}>{{ $b->intitule }} ({{ $b->code }} - {{ $b->compte }})</option>
+                                    <option value="{{ $b->id }}" {{ $selectedBanqueId === $b->id ? 'selected' : '' }}>{{ $b->intitule }} ({{ $b->code }})</option>
                                     @endforeach
                                 </select>
                                 <button type="button" class="btn btn-primary" onclick="ouvrirModalNouvelleBanque()" style="padding:0 14px;"><i class="fas fa-plus"></i></button>
@@ -449,10 +449,14 @@
                 <label class="form-label">Intitulé <span style="color:var(--danger)">*</span></label>
                 <input type="text" id="banqueIntituleInput" class="form-control" placeholder="Ex: Journal Société Générale" required>
             </div>
+            {{-- Le compte ne se demande que si la comptabilité est ouverte ;
+                 sinon le serveur pose 521000 (16/10/2026). --}}
+            @if(auth()->user()->entreprise?->comptabiliteOuverte())
             <div class="form-group">
                 <label class="form-label">Compte comptable <span style="color:var(--danger)">*</span></label>
                 <input type="text" id="banqueCompteInput" class="form-control" placeholder="Ex: 521100" required>
             </div>
+            @endif
             <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:24px;">
                 <button type="button" class="btn btn-outline" onclick="fermerModalNouvelleBanque()">Annuler</button>
                 <button type="submit" class="btn btn-primary">Enregistrer</button>
@@ -1144,7 +1148,7 @@ function soumettreNouvelleBanque(e) {
     e.preventDefault();
     const code = document.getElementById('banqueCodeInput').value;
     const intitule = document.getElementById('banqueIntituleInput').value;
-    const compte = document.getElementById('banqueCompteInput').value;
+    const compte = document.getElementById('banqueCompteInput')?.value || '';
     
     const routeCreation = "{{ request()->routeIs('caissier.*') ? route('caissier.banques.creer') : route('admin.banques.creer') }}";
     

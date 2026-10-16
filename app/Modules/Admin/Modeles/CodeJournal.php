@@ -86,4 +86,68 @@ class CodeJournal extends Model
     {
         return ['systeme' => 'boolean', 'archive_le' => 'datetime'];
     }
+
+    // ══════════════ Banques et mobile money (16/10/2026) ══════════════
+    //
+    // Le mobile money est rangé en journal « Banque » à partir de 521500
+    // (voir TrousseauEntrepriseService). Les deux s'affichaient donc mêlés :
+    // MTN, Moov, Orange et Wave dans la liste des banques, pendant que le mode
+    // « Mobile Money » proposait quatre opérateurs écrits en dur et versait
+    // l'encaissement **en caisse (571)**.
+
+    /** Les subdivisions de 521 réservées au mobile money. */
+    public const PREFIXES_MOBILE_MONEY = ['5215', '5216', '5217', '5218', '5219'];
+
+    public function estMobileMoney(): bool
+    {
+        return $this->type === 'Banque' && self::compteMobileMoney((string) $this->compte);
+    }
+
+    public static function compteMobileMoney(string $compte): bool
+    {
+        foreach (self::PREFIXES_MOBILE_MONEY as $prefixe) {
+            if (str_starts_with($compte, $prefixe)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Les banques proprement dites, sans le mobile money. */
+    public function scopeBanques($requete)
+    {
+        // Une seule condition groupée : un `orWhere` au premier niveau
+        // échapperait au filtre de l'entreprise posé avant le scope.
+        return $requete->where('type', 'Banque')->where(function ($q) {
+            $q->whereNull('compte')->orWhere(function ($r) {
+                foreach (self::PREFIXES_MOBILE_MONEY as $prefixe) {
+                    $r->where('compte', 'not like', $prefixe . '%');
+                }
+            });
+        });
+    }
+
+    /** Les comptes de mobile money (MTN, Moov, Orange, Wave…). */
+    public function scopeMobileMoney($requete)
+    {
+        return $requete->where('type', 'Banque')->where(function ($q) {
+            foreach (self::PREFIXES_MOBILE_MONEY as $prefixe) {
+                $q->orWhere('compte', 'like', $prefixe . '%');
+            }
+        });
+    }
+
+    /** Le prochain compte libre de mobile money pour une entreprise. */
+    public static function prochainCompteMobileMoney(int $entrepriseId): string
+    {
+        $pris = self::where('entreprise_id', $entrepriseId)->pluck('compte')->filter()->all();
+        foreach (range(521500, 521990, 10) as $numero) {
+            if (! in_array((string) $numero, $pris, true)) {
+                return (string) $numero;
+            }
+        }
+
+        return '521999';
+    }
 }

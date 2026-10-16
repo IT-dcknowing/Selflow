@@ -292,7 +292,7 @@ class ComptabiliteControleur
 
         $dettesFournisseurs = array_filter($dettesFournisseurs, fn($f) => $f['solde'] > 0);
 
-        $banques = CodeJournal::where('type', 'Banque')->where('entreprise_id', $entreprise->id)->orderBy('intitule')->get();
+        $banques = CodeJournal::banques()->where('entreprise_id', $entreprise->id)->orderBy('intitule')->get();
 
         return view('admin::comptabilite.creances', compact('creancesClients', 'dettesFournisseurs', 'banques'));
     }
