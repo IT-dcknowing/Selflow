@@ -120,6 +120,8 @@ class InscriptionControleur
         try {
             // 1. Créer l'entreprise avec tous les champs
             $entreprise = Entreprise::create([
+                // Normalisation automatique décochée par défaut (16/10/2026).
+                ...Entreprise::REGLAGES_DE_DEPART,
                 'nom'                 => trim($request->nom_entreprise),
                 'email'               => trim($request->email),
                 'telephone'           => trim($request->telephone ?? ''),

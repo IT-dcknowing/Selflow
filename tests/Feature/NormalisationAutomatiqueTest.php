@@ -292,4 +292,22 @@ class NormalisationAutomatiqueTest extends TestCase
         $this->assertStringContainsString('est décochée dans vos', $corps);
         $this->assertStringNotContainsString('part à la certification dès son émission', $corps);
     }
+
+    /** Retour du 16/10/2026 : une entreprise qui s'inscrit part décochée. */
+    public function test_une_nouvelle_entreprise_nait_avec_la_normalisation_decochee(): void
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+        $this->seed(\Database\Seeders\ReferentielSeeder::class);
+        auth()->logout();
+
+        $this->post(route('inscription.traitement'), [
+            'nom_entreprise' => 'Boutique décochée', 'nom' => 'Yao', 'prenom' => 'Ama',
+            'email' => 'ama@exemple.ci', 'password' => 'un-mot-de-passe',
+            'password_confirmation' => 'un-mot-de-passe', 'conditions' => '1',
+        ]);
+
+        $nouvelle = Entreprise::where('nom', 'Boutique décochée')->firstOrFail();
+        $this->assertFalse((bool) $nouvelle->normalisation_auto_factures);
+        $this->assertFalse((bool) $nouvelle->normalisation_auto_recus);
+    }
 }

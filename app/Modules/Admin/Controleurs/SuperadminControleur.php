@@ -225,6 +225,8 @@ class SuperadminControleur
 
         // Créer l'entreprise
         $entreprise = Entreprise::create([
+            // Normalisation automatique décochée par défaut (16/10/2026).
+            ...Entreprise::REGLAGES_DE_DEPART,
             'nom'                    => $request->nom,
             'forme_juridique'        => $request->forme_juridique,
             'gerant_nom'             => $request->gerant_nom,

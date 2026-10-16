@@ -61,6 +61,8 @@ class GoogleAuthControleur
 
             // Créer entreprise temporaire [PENDING_ONBOARDING] pour le flux d'onboarding
             $entreprise = Entreprise::create([
+                // Normalisation automatique décochée par défaut (16/10/2026).
+                ...Entreprise::REGLAGES_DE_DEPART,
                 'nom'                 => '[PENDING_ONBOARDING]',
                 'email'               => $googleUser->getEmail(),
                 'modules_actifs'      => ['principal', 'ventes', 'achats', 'stock', 'production', 'comptabilite', 'points_de_vente', 'personnel', 'b2b', 'fne'],

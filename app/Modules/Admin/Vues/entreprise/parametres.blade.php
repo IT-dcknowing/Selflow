@@ -1057,7 +1057,7 @@
                         <label
                             style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:14px;background:var(--bg3);border-radius:10px;border:1px solid var(--border);">
                             <input type="checkbox" name="normalisation_auto" value="1"
-                                {{ old('normalisation_auto', $entreprise->normalisation_auto_factures ?? true) ? 'checked' : '' }}
+                                {{ old('normalisation_auto', $entreprise->normalisation_auto_factures ?? false) ? 'checked' : '' }}
                                 style="margin-top:3px;width:16px;height:16px;cursor:pointer;">
                             <div>
                                 <div style="font-weight:600;font-size:13px;color:var(--text);">

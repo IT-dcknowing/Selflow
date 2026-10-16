@@ -8925,6 +8925,53 @@ Migration `2026_10_16_000004`.
 
 ---
 
+### Lot 106 — Annulation de facture : deadlock 1213 en production — **TERMINÉ le 16/10/2026**
+
+**Constat (poissonnerie EDEN, caisse).** `POST caissier/ventes/{uuid}/annuler`
+tombait en `SQLSTATE[40001] 1213 Deadlock` sur
+`select * from stocks where produit_id = 20265 and point_de_vente_id = 38 … for update`,
+dans `etablirUnAvoirTotal()` appelée par `annuler()`.
+
+**Cause.** L'annulation numérote l'avoir, insère la pièce et ses lignes, puis
+verrouille les fiches de stock une à une. Une vente encaissée au même instant
+sur le même site tient ces verrous dans un autre ordre : MySQL sacrifie l'une
+des deux transactions. C'est un incident de concurrence normal en InnoDB ;
+l'anomalie était de ne pas le rejouer — `DB::transaction()` ne retente que si
+on lui donne un nombre de tentatives, et seulement au niveau le plus haut.
+
+**Correctif.** Trois tentatives sur la transaction d'`annuler()` et sur celle
+d'`etablirUnAvoirTotal()` (qui est de premier niveau quand l'avoir total est
+établi directement). Rejouer est sans risque : rien ne sort de la base dans
+ces transactions — aucun appel à la DGI, la normalisation est hors du
+périmètre de l'annulation (une facture normalisée ne s'annule pas). La
+création de vente, qui peut appeler la FNE, n'a **pas** reçu de rejeu.
+
+- `AnnulationFactureTest` et suites voisines : vertes.
+
+---
+
+### Lot 107 — Normalisation automatique décochée par défaut ; audit paginé par 20 — **TERMINÉ le 16/10/2026**
+
+**Normalisation.** Une entreprise qui naît — inscription, connexion Google,
+création par le superadmin, synchronisation externe — reçoit
+`Entreprise::REGLAGES_DE_DEPART` : `normalisation_auto_factures` et
+`normalisation_auto_recus` à **faux**. La case des paramètres s'affiche
+décochée quand la colonne est vide. Les entreprises déjà en service gardent
+leur réglage, et la colonne garde son défaut en base : les changer d'office
+aurait suspendu la certification de caisses qui tournent.
+
+Hors périmètre gelé : c'est un réglage de l'entreprise qui décide *quand*
+envoyer, ni le payload ni les colonnes `fne_*` ne bougent.
+
+**Audit.** La traçabilité par entreprise passe à 20 lignes par page, avec un
+bandeau « Actions x à y sur N — page p / P » et la pagination en haut comme
+en bas.
+
+- `NormalisationAutomatiqueTest` (+1), `TracabiliteTest` (+1). Suite :
+  1 837 épreuves, 1 832 passantes, 5 ignorées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
