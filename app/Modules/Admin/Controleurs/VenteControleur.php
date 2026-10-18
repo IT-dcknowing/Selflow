@@ -510,7 +510,24 @@ class VenteControleur
         // Le retest de production : « il n'y a pas de message pour confirmer
         // la validation de l'enregistrement ». Le message nomme la pièce et
         // disparaît en trois secondes.
-        return redirect()->route($routeRetour, ['etape' => $etape])
+        // La pièce s'affiche aussitôt, prête à imprimer (retour du
+        // 18/10/2026) : qui n'a pas la liste des factures revient à l'écran de
+        // vente, et la facture s'y ouvre quand même.
+        $prefixe = request()->routeIs('caissier.*') ? 'caissier' : 'admin';
+        $retour = \App\Modules\Authentification\Regles\Habilitations::ouvre(Auth::user(), $routeRetour)
+            ? redirect()->route($routeRetour, ['etape' => $etape])
+            : redirect()->route($prefixe . '.ventes.nouvelle');
+
+        if ($venteCreee) {
+            $retour->with('piece_a_imprimer', [
+                'numero'  => $venteCreee->numero_facture,
+                'libelle' => $libelles[$etape] ?? $etape,
+                'facture' => route($prefixe . '.ventes.imprimer', [$venteCreee, 'integre' => 1]),
+                'ticket'  => route($prefixe . '.ventes.ticket', [$venteCreee, 'integre' => 1]),
+            ]);
+        }
+
+        return $retour
             ->with('succes', $piece . ' enregistré(e) avec succès.'
                 . (!empty($normalisationEcartee) ? ' Non normalisée : informations fiscales à compléter.' : ''))
             ->with('succes_duree', 3000)
@@ -663,12 +680,28 @@ class VenteControleur
 
 
 
+    /**
+     * Qui peut lire et imprimer cette pièce.
+     *
+     * Toujours : la pièce doit être de l'entreprise. Ensuite, qui tient
+     * « Factures vente » les lit toutes ; qui n'a que « Nouvelle vente »
+     * n'imprime que **les siennes** — la facture qu'il vient d'établir pour
+     * le client devant lui (retour du 18/10/2026), et pas celles des autres.
+     */
+    private static function verifierLAccesALaPiece(Vente $vente): void
+    {
+        $utilisateur = Auth::user();
+
+        abort_unless($vente->pointDeVente->entreprise_id === $utilisateur->entreprise_id, 404);
+
+        if (! $utilisateur->aHabilitation('factures_vente')) {
+            abort_unless((int) $vente->utilisateur_id === (int) $utilisateur->id, 404);
+        }
+    }
+
     public function imprimer(Vente $vente): View
     {
-        abort_unless(
-            $vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id,
-            404
-        );
+        self::verifierLAccesALaPiece($vente);
 
         $vendeur = $vente->utilisateur;
 
@@ -694,10 +727,7 @@ class VenteControleur
      */
     public function pdf(Vente $vente, \App\Modules\Admin\Services\DocumentPdfService $pdf): \Symfony\Component\HttpFoundation\Response
     {
-        abort_unless(
-            $vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id,
-            404
-        );
+        self::verifierLAccesALaPiece($vente);
 
         $vente->load(['details.produit', 'details.taxes', 'taxesPersonnalisees', 'client', 'pointDeVente.entreprise', 'parent']);
         $dejaPaye = TresorerieJournal::where('reference_document', $vente->numero_facture)->sum('montant_entree');
@@ -720,10 +750,7 @@ class VenteControleur
      */
     public function pdfTicket(Vente $vente, \App\Modules\Admin\Services\DocumentPdfService $pdf): \Symfony\Component\HttpFoundation\Response
     {
-        abort_unless(
-            $vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id,
-            404
-        );
+        self::verifierLAccesALaPiece($vente);
 
         $vente->load(['details.produit', 'client', 'pointDeVente.entreprise']);
         $dejaPaye = TresorerieJournal::where('reference_document', $vente->numero_facture)->sum('montant_entree');
@@ -737,10 +764,7 @@ class VenteControleur
 
     public function imprimerTicket(Vente $vente): View
     {
-        abort_unless(
-            $vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id,
-            404
-        );
+        self::verifierLAccesALaPiece($vente);
 
         $vendeur = $vente->utilisateur;
         $dejaPaye = TresorerieJournal::where('reference_document', $vente->numero_facture)->sum('montant_entree');

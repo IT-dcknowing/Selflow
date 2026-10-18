@@ -589,7 +589,18 @@
         && \App\Modules\Admin\Regles\Abonnements::estATerme(auth()->user()->entreprise);
     $__surFacturation = request()->routeIs('admin.entreprise.parametres');
 @endphp
-<body class="{{ $__aTerme ? 'abonnement-a-terme' : '' }} {{ $__aTerme && $__surFacturation ? 'sur-facturation' : '' }}">
+<body class="{{ $__aTerme ? 'abonnement-a-terme' : '' }} {{ $__aTerme && $__surFacturation ? 'sur-facturation' : '' }}{{ request()->boolean('integre') ? ' integre' : '' }}">
+{{-- Mode intégré (18/10/2026) : la pièce ouverte dans la fenêtre qui suit
+     l'enregistrement d'une vente. Seul le document s'affiche — ni menu, ni
+     barre, ni visite guidée, ni lien vers une liste que le vendeur n'a pas. --}}
+@if(request()->boolean('integre'))
+<style>
+    body.integre .sidebar, body.integre .topbar, body.integre .alerte-stickers,
+    body.integre .banner-apercu, body.integre #visite-guidee,
+    body.integre a.print-btn[href*="/ventes/factures"] { display: none !important; }
+    body.integre .main-wrap { margin-left: 0 !important; padding-top: 0 !important; }
+</style>
+@endif
 @if($__aTerme)
 <style>
     /* Rien ne se clique dans l'espace… */
@@ -1477,6 +1488,54 @@
         <script>try { localStorage.removeItem('selflow_vente_panier'); } catch (e) {}</script>
         @endif
 
+        {{-- La pièce qu'on vient d'établir, affichée aussitôt et prête à
+             imprimer (retour du 18/10/2026) — y compris pour qui n'a pas
+             l'écran des factures. --}}
+        @if(is_array(session('piece_a_imprimer')))
+            @php $__piece = session('piece_a_imprimer'); @endphp
+            <div id="piece-a-imprimer" role="dialog" aria-modal="true" aria-labelledby="piece-a-imprimer-titre"
+                 style="position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:10050; display:flex; align-items:center; justify-content:center; padding:16px;">
+                <div style="background:var(--bg, #fff); border-radius:14px; width:min(920px, 100%); height:min(92vh, 1100px); display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,.3);">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; padding:12px 16px; border-bottom:1px solid var(--border, #e5e7eb);">
+                        <strong id="piece-a-imprimer-titre" style="font-size:15px;">
+                            <i class="fas fa-file-invoice" style="color:var(--primary);"></i>
+                            {{ $__piece['libelle'] }} {{ $__piece['numero'] }}
+                        </strong>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <button type="button" class="btn btn-primary btn-sm" data-piece-vue="{{ $__piece['facture'] }}"><i class="fas fa-file-lines"></i> Facture</button>
+                            <button type="button" class="btn btn-outline btn-sm" data-piece-vue="{{ $__piece['ticket'] }}"><i class="fas fa-receipt"></i> Ticket</button>
+                            <button type="button" class="btn btn-success btn-sm" id="piece-a-imprimer-imprimer"><i class="fas fa-print"></i> Imprimer</button>
+                            <button type="button" class="btn btn-outline btn-sm" id="piece-a-imprimer-fermer"><i class="fas fa-xmark"></i> Fermer</button>
+                        </div>
+                    </div>
+                    <iframe id="piece-a-imprimer-cadre" src="{{ $__piece['facture'] }}" title="{{ $__piece['libelle'] }} {{ $__piece['numero'] }}"
+                            style="flex:1; width:100%; border:0; background:#fff;"></iframe>
+                </div>
+            </div>
+            <script>
+            (function () {
+                var boite = document.getElementById('piece-a-imprimer');
+                var cadre = document.getElementById('piece-a-imprimer-cadre');
+                function fermer() { boite.remove(); }
+                boite.querySelectorAll('[data-piece-vue]').forEach(function (b) {
+                    b.addEventListener('click', function () {
+                        cadre.src = b.getAttribute('data-piece-vue');
+                        boite.querySelectorAll('[data-piece-vue]').forEach(function (x) {
+                            x.classList.toggle('btn-primary', x === b);
+                            x.classList.toggle('btn-outline', x !== b);
+                        });
+                    });
+                });
+                document.getElementById('piece-a-imprimer-imprimer').addEventListener('click', function () {
+                    try { cadre.contentWindow.focus(); cadre.contentWindow.print(); } catch (e) { window.open(cadre.src, '_blank'); }
+                });
+                document.getElementById('piece-a-imprimer-fermer').addEventListener('click', fermer);
+                boite.addEventListener('click', function (e) { if (e.target === boite) fermer(); });
+                document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && document.getElementById('piece-a-imprimer')) fermer(); });
+            })();
+            </script>
+        @endif
+
         {{-- Alerte de stickers. Placee ici plutot que dans chaque vue : le
              stock peut tomber a zero pendant n'importe quelle action, et
              l'utilisateur doit le voir ou qu'il se trouve. --}}
@@ -1913,7 +1972,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 @yield('scripts')
 
+@unless(request()->boolean('integre'))
 @include('admin::partials.visite-guidee')
+@endunless
 
 {{-- Zone des toasts (pop-up de notification), alimentée par window.__flashs.
      Succès et information disparaissent seuls ; avertissement et erreur
