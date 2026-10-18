@@ -175,7 +175,7 @@ class VerifierHabilitationRoute
             $cle = 'gestion_habilitations';
         }
 
-        if (! $utilisateur->aHabilitation($cle)) {
+        if (! Habilitations::autorise($utilisateur, $nomRoute, $cle)) {
             abort(403, 'Accès refusé. Vous ne disposez pas de l\'habilitation requise pour cette page.');
         }
 

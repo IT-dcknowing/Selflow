@@ -8972,6 +8972,41 @@ en bas.
 
 ---
 
+### Lot 108 — La facture s'ouvre dès la vente ; « Annuler » devient une habilitation — **TERMINÉ le 18/10/2026**
+
+**Constat.** Après l'enregistrement, la vente renvoyait à la liste des
+factures. Le vendeur qui n'avait que « Nouvelle vente » tombait sur un refus
+et ne pouvait pas imprimer la pièce du client devant lui. Le bouton
+« Annuler » suivait « Factures vente » : tenir la liste suffisait pour
+réinjecter du stock et contre-passer.
+
+**La facture à l'écran.** L'enregistrement dépose `piece_a_imprimer` en
+session ; le gabarit ouvre alors une fenêtre au centre avec la pièce dans un
+cadre et quatre boutons : Facture, Ticket, Imprimer et Fermer. Le cadre charge la pièce en
+mode `?integre=1` : sans menu, sans barre, sans visite guidée, sans lien
+« Retour aux factures ». Qui tient la liste y revient avec la fenêtre
+ouverte, et qui ne la tient pas revient à l'écran de vente.
+
+**Le droit d'imprimer.** `Habilitations::AUSSI_OUVERTES_PAR` ouvre
+`imprimer`, `ticket`, `pdf` et `ticket.pdf` à « Nouvelle vente » ; le
+middleware et les menus passent par `Habilitations::autorise()`. Le
+contrôleur (`verifierLAccesALaPiece`) limite alors l'accès **aux ventes de
+l'utilisateur** : 404 sur celles d'un collègue.
+
+**Annuler.** Nouvelle case `ventes_annuler` (« Annuler une facture vente »)
+au catalogue : elle s'affiche d'elle-même dans l'onglet des habilitations.
+La route `ventes.annuler` l'exige, et le bouton ne s'affiche qu'à qui l'a.
+**Elle n'est accordée à personne d'office** : seul l'administrateur
+d'entreprise, qui a tout, annule encore. Il coche la case pour les autres.
+
+Hors périmètre gelé : les blocs de certification des vues de facture ne
+bougent pas (seul le bouton « Retour » du ticket se masque en mode intégré).
+
+- `ImpressionDepuisLaVenteTest` (5). Suite : 1 842 épreuves, 1 837
+  passantes, 5 ignorées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

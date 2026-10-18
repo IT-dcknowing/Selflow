@@ -108,6 +108,8 @@ class Habilitations
             'Ventes' => [
                 'nouvelle_vente'   => 'Nouvelle vente',
                 'factures_vente'   => 'Factures vente & avoirs clients',
+                // Retour du 18/10/2026 : annuler une facture se décide à part.
+                'ventes_annuler'   => 'Annuler une facture vente (non normalisée)',
                 'ventes_livraisons' => 'Bons de livraison',
             ],
         ],
@@ -326,7 +328,9 @@ class Habilitations
         'admin.ventes.pdf'                           => 'factures_vente',
         'admin.ventes.ticket.pdf'                    => 'factures_vente',
         'admin.ventes.avoir'                         => 'factures_vente',
-        'admin.ventes.annuler'                       => 'factures_vente',
+        // Annuler réinjecte le stock et contre-passe : un droit à part, que
+        // « Factures vente » ne donne pas (retour du 18/10/2026).
+        'admin.ventes.annuler'                       => 'ventes_annuler',
         'admin.ventes.avoir.creer_nouveau'           => 'factures_vente',
         'admin.ventes.normaliser'                    => 'factures_vente',
         'admin.ventes.modifier'                      => 'factures_vente',
@@ -670,6 +674,35 @@ class Habilitations
     ];
 
     /**
+     * Les routes qu'un second droit ouvre aussi.
+     *
+     * La facture qu'on vient d'établir s'imprime depuis l'écran de vente
+     * (retour du 18/10/2026) : le vendeur qui n'a que « Nouvelle vente » doit
+     * pouvoir remettre la pièce au client sans tenir la liste des factures.
+     * Le contrôleur restreint alors l'accès **à ses propres ventes**.
+     *
+     * @var array<string, string>
+     */
+    public const AUSSI_OUVERTES_PAR = [
+        'admin.ventes.imprimer'   => 'nouvelle_vente',
+        'admin.ventes.ticket'     => 'nouvelle_vente',
+        'admin.ventes.pdf'        => 'nouvelle_vente',
+        'admin.ventes.ticket.pdf' => 'nouvelle_vente',
+    ];
+
+    /** Le droit requis, ou à défaut le second droit qui ouvre la route. */
+    public static function autorise(\App\Modules\Authentification\Modeles\Utilisateur $utilisateur, string $nomRoute, string $cle): bool
+    {
+        if ($utilisateur->aHabilitation($cle)) {
+            return true;
+        }
+
+        $second = self::AUSSI_OUVERTES_PAR[self::normaliser($nomRoute)] ?? null;
+
+        return $second !== null && $utilisateur->aHabilitation($second);
+    }
+
+    /**
      * L'habilitation exigée par une route, ou `null` si la route est ouverte.
      *
      * @throws \RuntimeException si la route n'est classée nulle part
@@ -713,7 +746,7 @@ class Habilitations
 
         $cle = self::pour($nomRoute);
 
-        return $cle === null || $utilisateur->aHabilitation($cle);
+        return $cle === null || self::autorise($utilisateur, $nomRoute, $cle);
     }
 
     /**

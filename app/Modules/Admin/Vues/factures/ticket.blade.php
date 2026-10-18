@@ -137,7 +137,9 @@
     <a class="btn-print" href="{{ route($prefixeRecu . '.ventes.ticket.pdf', $vente) }}"
        style="text-decoration:none; display:inline-block;">Télécharger le PDF</a>
     <button class="btn-print" style="background:#0f766e; margin-left:8px;" onclick="window.print()">Imprimer</button>
+    @unless(request()->boolean('integre'))
     <button class="btn-print" style="background:#4b5563; margin-left:8px;" onclick="window.history.back()">Retour</button>
+    @endunless
 </div>
 
 @php

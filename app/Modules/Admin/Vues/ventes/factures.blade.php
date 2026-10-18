@@ -646,7 +646,8 @@
                                 {{-- Annuler : seulement avant normalisation. Une
                                      facture certifiée ne s'annule pas, elle se
                                      corrige par un avoir (16/10/2026). --}}
-                                @if($vente->type_facture !== 'avoir')
+                                {{-- Droit « Annuler une facture vente » (18/10/2026). --}}
+                                @if($vente->type_facture !== 'avoir' && ($peutAnnuler ??= \App\Modules\Authentification\Regles\Habilitations::ouvre(Auth::user(), 'admin.ventes.annuler')))
                                 <form method="POST" action="{{ $isCaissier ? route('caissier.ventes.annuler', $vente) : route('admin.ventes.annuler', $vente) }}"
                                       class="form-annuler-facture" style="display:inline; margin:0;"
                                       data-numero="{{ $vente->numero_facture }}"
