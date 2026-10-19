@@ -182,8 +182,9 @@ class DocumentPdfService
      */
     private function hauteurDuTicket(array $donnees): float
     {
-        $base = 130.0;                                   // en-tête, totaux, pied
-        $base += count($donnees['lignes']) * 9.0;        // une ligne d'article
+        // Police agrandie le 19/10/2026 : la hauteur suit, d'un cinquième.
+        $base = 158.0;                                   // en-tête, totaux, pied
+        $base += count($donnees['lignes']) * 11.0;       // une ligne d'article
         $base += $donnees['certification'] ? 46.0 : 0.0; // le bloc FNE
         $base += $donnees['mentions'] ? 14.0 : 0.0;
 

@@ -16,16 +16,16 @@
 <style>
     @page { margin: 4mm 3mm; }
     * { font-family: 'DejaVu Sans', sans-serif; }
-    body { margin: 0; color: #000; font-size: 7.5pt; line-height: 1.3; }
+    body { margin: 0; color: #000; font-size: 9pt; line-height: 1.3; } /* agrandi le 19/10/2026 */
     table { border-collapse: collapse; width: 100%; }
     .centre { text-align: center; }
     .droite { text-align: right; }
-    .gros { font-size: 10pt; font-weight: bold; }
+    .gros { font-size: 12pt; font-weight: bold; }
     .filet { border-top: .5pt dashed #000; height: 1pt; margin: 4pt 0; }
-    .discret { font-size: 6.5pt; }
+    .discret { font-size: 7.5pt; }
     td { vertical-align: top; padding: 1pt 0; }
-    .articles td { border-bottom: .3pt dotted #999; font-size: 7pt; }
-    .net td { border-top: .6pt solid #000; font-size: 9pt; font-weight: bold; padding-top: 3pt; }
+    .articles td { border-bottom: .3pt dotted #999; font-size: 8.5pt; }
+    .net td { border-top: .6pt solid #000; font-size: 10.5pt; font-weight: bold; padding-top: 3pt; }
     .rendu td { font-weight: bold; }
 </style>
 </head>
