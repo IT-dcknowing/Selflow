@@ -36,6 +36,8 @@
     @endif
 </div>
 
+@include('admin::partials.kpi-factures', ['kpiFactures' => $kpiFactures ?? []])
+
 {{-- Onglets du workflow vente --}}
 @if($type !== 'avoir')
 <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:1.5px solid var(--border); padding-bottom:12px; flex-wrap:wrap; align-items:center;">
