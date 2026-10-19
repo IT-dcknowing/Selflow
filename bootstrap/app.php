@@ -65,6 +65,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // Vérifier si l'entreprise rattachée est active ou bloquée
         $middleware->appendToGroup('web', \App\Http\Middleware\VerifierEntrepriseActive::class);
 
+        // Le site de travail : un membre affecté reste sur son site, et le
+        // site actif appartient à l'entreprise (19/10/2026).
+        $middleware->appendToGroup('web', \App\Http\Middleware\ImposerLeSiteDeTravail::class);
+
         // Forcer le changement de mot de passe à la 1ère connexion (Section 13)
         $middleware->appendToGroup('web', \App\Modules\Authentification\Middleware\ForcerChangementMotDePasse::class);
 

@@ -98,11 +98,26 @@ class Utilisateur extends Authenticatable
      */
     public function pointDeVenteDOuverture(): ?int
     {
-        if ($this->estCaissier()) {
+        if ($this->estAffecteAUnSite()) {
             return $this->point_de_vente_id;
         }
 
         return $this->point_de_vente_actif_id ?? $this->point_de_vente_id;
+    }
+
+    /**
+     * Ce membre est-il lié à son point de vente (19/10/2026) ?
+     *
+     * Le caissier et le responsable de point de vente travaillent sur le site
+     * où on les a affectés, et sur lui seul : leurs entrées en stock, leurs
+     * encaissements, leurs ventes concernent ce site. L'administrateur
+     * principal et l'administrateur secondaire, eux, choisissent le site
+     * qu'ils activent.
+     */
+    public function estAffecteAUnSite(): bool
+    {
+        return $this->point_de_vente_id !== null
+            && in_array($this->role, ['caissier', 'responsable_pdv'], true);
     }
 
     public function estSuperAdmin(): bool

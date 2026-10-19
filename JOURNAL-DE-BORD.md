@@ -9135,6 +9135,50 @@ superadmin ; elle refuse quiconque n'a pas d'incarnation ouverte.
 
 ---
 
+### Lot 114 — Le point de vente actif commande ce qu'on saisit — **TERMINÉ le 19/10/2026**
+
+**Constat.** « Le point de vente activé ne doit pas servir qu'à
+normaliser. » Les écrans lisaient le site de trois façons :
+
+- la session ;
+- l'affectation de la fiche ;
+- à défaut, le premier site de l'entreprise.
+
+Un membre affecté au dépôt pouvait viser un autre site par le formulaire
+(`point_de_vente_id`) ou en en activant un autre. La barre latérale
+affichait l'affectation de la fiche, même quand ce n'était pas le site que
+les écrans utilisaient.
+
+**Règle.** Un nouveau middleware, `ImposerLeSiteDeTravail` (groupe web),
+s'applique à tous les écrans.
+
+- **Membre affecté** : `Utilisateur::estAffecteAUnSite()` couvre le
+  caissier et le responsable de point de vente qui ont un site.
+  - La session porte toujours son site.
+  - Un `point_de_vente_id` ou un `site_id` qui en désigne un autre est
+    ramené au sien. Les entrées en stock, l'inventaire, les ventes et les
+    encaissements restent donc sur son dépôt.
+  - Activer un autre site lui est refusé.
+  - Les administrateurs principal et secondaire choisissent le site qu'ils
+    activent.
+- **Site actif hors entreprise** : il est oublié. C'est le cas après un
+  changement de compte.
+
+**Affichage.** La barre latérale et le titre montrent le site **actif**,
+non l'affectation de la fiche. Sans site actif, un bloc cliquable
+s'affiche :
+
+- « Activer un point de vente » mène à la page des points de vente ;
+- « Créer un point de vente », s'il n'y en a aucun, ouvre directement la
+  fenêtre de création ;
+- sans le droit de gérer les points de vente, le bloc dit « Demandez à
+  l'administrateur ».
+
+- `SiteDeTravailTest` (6). Suite : 1 868 épreuves, 1 863 passantes,
+  5 ignorées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

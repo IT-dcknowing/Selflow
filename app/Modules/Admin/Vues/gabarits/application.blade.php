@@ -641,7 +641,12 @@
     </div>
 
     @php
-        $nomPdvAffichage = session('apercu_pdv_nom') ?? session('point_de_vente_actif_nom') ?? auth()->user()->pointDeVente?->nom;
+        // Le nom affiché est celui du site **actif** — celui que les écrans
+        // utilisent —, et non l'affectation de la fiche : l'un et l'autre
+        // pouvaient différer, et l'écran disait un site quand les saisies en
+        // visaient un autre (19/10/2026). Un membre affecté a toujours le sien
+        // en session (`ImposerLeSiteDeTravail`).
+        $nomPdvAffichage = session('apercu_pdv_nom') ?? session('point_de_vente_actif_nom');
         $estApercu = session()->has('apercu_pdv_id');
         $entreprise = auth()->user()?->entreprise;
         $modulesActifs = $entreprise?->modules_actifs;
@@ -668,6 +673,35 @@
         $comptabiliteOuverte = auth()->user()->estSuperAdmin()
             || (bool) $entreprise?->comptabiliteOuverte();
     @endphp
+
+    @if(!$nomPdvAffichage && auth()->user()->entreprise_id && !request()->routeIs('superadmin.*') && !auth()->user()->estSuperAdmin())
+        {{-- Aucun site actif : on le dit, et on mène à la page où l'activer
+             — ou le créer s'il n'y en a pas encore (19/10/2026). --}}
+        @php
+            $__aDesSites = \App\Modules\Admin\Modeles\PointDeVente::where('entreprise_id', auth()->user()->entreprise_id)->exists();
+            $__peutGerer = \App\Modules\Authentification\Regles\Habilitations::ouvre(auth()->user(), 'admin.pdv.index');
+        @endphp
+        @if($__peutGerer)
+        <a href="{{ route('admin.pdv.index', $__aDesSites ? [] : ['nouveau' => 1]) }}" class="sidebar-pdv sidebar-pdv-vide" style="display:block; text-decoration:none; border:1px dashed #FFC107;">
+        @else
+        <div class="sidebar-pdv sidebar-pdv-vide" style="border:1px dashed #FFC107;">
+        @endif
+            <div class="pdv-label"><i class="fas fa-store-slash"></i> Aucun point de vente actif</div>
+            <div class="pdv-name">
+                @if(!$__peutGerer)
+                    Demandez à l'administrateur
+                @elseif($__aDesSites)
+                    <i class="fas fa-circle-play"></i> Activer un point de vente
+                @else
+                    <i class="fas fa-circle-plus"></i> Créer un point de vente
+                @endif
+            </div>
+        @if($__peutGerer)
+        </a>
+        @else
+        </div>
+        @endif
+    @endif
 
     @if($nomPdvAffichage)
     <div class="sidebar-pdv">
@@ -1358,7 +1392,7 @@
     </button>
     <div class="topbar-title">
         @yield('topbar_titre', 'Tableau de bord')
-        <span>/ {{ auth()->user()->entreprise->nom ?? 'Selflow' }} — {{ session('apercu_pdv_nom') ?? session('point_de_vente_actif_nom') ?? auth()->user()->pointDeVente?->nom ?? 'Siège' }}</span>
+        <span>/ {{ auth()->user()->entreprise->nom ?? 'Selflow' }} — {{ session('apercu_pdv_nom') ?? session('point_de_vente_actif_nom') ?? (auth()->user()->estSuperAdmin() ? 'Siège' : 'aucun point de vente actif') }}</span>
     </div>
 
     <div style="display:flex; align-items:center; gap:16px;">

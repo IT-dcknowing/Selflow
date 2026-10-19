@@ -642,6 +642,11 @@ class PointDeVenteControleur
         $entreprise = Auth::user()->entreprise;
         abort_unless($pdv->entreprise_id === $entreprise->id, 404);
 
+        // Un membre affecté à un site n'en change pas (19/10/2026).
+        if (Auth::user()->estAffecteAUnSite() && (int) Auth::user()->point_de_vente_id !== (int) $pdv->id) {
+            return back()->with('erreur', 'Vous êtes affecté à un point de vente : votre activité reste limitée à celui-ci.');
+        }
+
         session(['point_de_vente_actif_id' => $pdv->id, 'point_de_vente_actif_nom' => $pdv->nom]);
 
         // Et retenu au-delà de la session : elle meurt à la déconnexion, et le
