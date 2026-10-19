@@ -19,7 +19,9 @@ class ForcerChangementMotDePasse
     {
         $utilisateur = auth()->user();
 
-        if ($utilisateur && $utilisateur->doit_changer_password) {
+        // En assistance, le superadministrateur n'a pas à changer le mot de
+        // passe du client à sa place (19/10/2026).
+        if ($utilisateur && $utilisateur->doit_changer_password && ! session()->has('incarnation')) {
             // Autoriser uniquement les routes de changement de mot de passe
             // pour éviter une boucle de redirection infinie
             $routesAutorisees = [
