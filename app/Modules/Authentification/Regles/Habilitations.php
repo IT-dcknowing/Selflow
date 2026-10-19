@@ -450,6 +450,8 @@ class Habilitations
         'admin.comptabilite.releve_tiers'           => 'comptabilite_creances',
         'admin.comptabilite.reglement'              => 'comptabilite_creances',
         'admin.comptabilite.enregistrer_reglement'  => 'comptabilite_creances',
+        'admin.comptabilite.soldes_initiaux.enregistrer' => 'comptabilite_creances',
+        'admin.comptabilite.soldes_initiaux.supprimer'   => 'comptabilite_creances',
         'admin.comptabilite.plan_comptable'         => 'comptabilite_plan_comptable',
         'admin.comptabilite.configuration'              => 'comptabilite_plan_comptable',
         'admin.comptabilite.configuration.enregistrer'  => 'comptabilite_plan_comptable',

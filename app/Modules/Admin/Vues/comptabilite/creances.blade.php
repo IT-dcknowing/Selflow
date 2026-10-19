@@ -46,6 +46,8 @@
         display: block;
     }
 
+    @media (max-width: 820px) { .form-solde-depart { grid-template-columns: 1fr !important; } }
+
     .badge-invoice {
         display: inline-block;
         background: var(--bg3);
@@ -104,8 +106,8 @@
                         <td style="font-weight: 700; color: var(--text);">{{ $cc['nom'] }}</td>
                         <td>
                             @foreach($cc['invoices'] as $inv)
-                            <span class="badge-invoice" title="Émise le {{ $inv['date'] }}">
-                                {{ $inv['numero'] }} (Reste: {{ number_format($inv['reste'], 0, ',', ' ') }} F)
+                            <span class="badge-invoice" title="{{ !empty($inv['solde_de_depart']) ? 'Solde de départ au' : 'Émise le' }} {{ $inv['date'] }}" @if(!empty($inv['solde_de_depart'])) style="background:#fef3c7; color:#92400e;" @endif>
+                                {{ !empty($inv['solde_de_depart']) ? 'Solde de départ' : $inv['numero'] }} (Reste: {{ number_format($inv['reste'], 0, ',', ' ') }} F)
                             </span>
                             @endforeach
                         </td>
@@ -142,6 +144,87 @@
             @endif
         </div>
     </div>
+    {{-- Soldes de départ (19/10/2026) : ce que les clients devaient avant
+         Selflow. On choisit le tiers, on saisit le montant ; les règlements
+         s'en déduisent, par le même bouton que les factures. --}}
+    @php $k = $kpiSoldes['client']; @endphp
+    <div class="card soldes-depart" style="padding:18px 20px; margin-top:18px;">
+        <h3 style="font-size:15px; font-weight:800; margin-bottom:4px;"><i class="fas fa-flag-checkered" style="color:#d97706;"></i> Soldes de départ — clients</h3>
+        <p style="font-size:12.5px; color:var(--text-3); margin-bottom:14px;">Ce que chaque client vous devait à votre arrivée sur Selflow. Les règlements s'en déduisent au fur et à mesure.</p>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:12px; margin-bottom:16px;">
+            <div style="border:1px solid var(--border); border-radius:10px; padding:12px 14px;">
+                <div style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-3);">Solde initial</div>
+                <div style="font-size:19px; font-weight:800;" data-kpi="client-initial">{{ number_format($k['initial'], 0, ',', ' ') }} F</div>
+                <div style="font-size:11px; color:var(--text-3);">{{ $k['nombre'] }} client(s)</div>
+            </div>
+            <div style="border:1px solid #bbf7d0; background:#f0fdf4; border-radius:10px; padding:12px 14px;">
+                <div style="font-size:11px; text-transform:uppercase; font-weight:700; color:#166534;">Réglé</div>
+                <div style="font-size:19px; font-weight:800; color:#15803d;" data-kpi="client-regle">{{ number_format($k['regle'], 0, ',', ' ') }} F</div>
+            </div>
+            <div style="border:1px solid #fecaca; background:#fef2f2; border-radius:10px; padding:12px 14px;">
+                <div style="font-size:11px; text-transform:uppercase; font-weight:700; color:#991b1b;">Reste</div>
+                <div style="font-size:19px; font-weight:800; color:#b91c1c;" data-kpi="client-reste">{{ number_format($k['reste'], 0, ',', ' ') }} F</div>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ route('admin.comptabilite.soldes_initiaux.enregistrer') }}" style="display:grid; grid-template-columns:2fr 1fr 1fr 2fr auto; gap:10px; align-items:end; margin-bottom:14px;" class="form-solde-depart">
+            @csrf
+            <input type="hidden" name="type" value="client">
+            <div class="form-group" style="margin:0;">
+                <label class="form-label" style="font-size:11px;">Client <span style="color:var(--danger)">*</span></label>
+                <select name="tiers_id" class="form-control" required>
+                    <option value="">— Choisir le client d'abord —</option>
+                    @foreach($clients as $t)
+                    <option value="{{ $t->id }}">{{ $t->nom }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label class="form-label" style="font-size:11px;">Montant initial <span style="color:var(--danger)">*</span></label>
+                <input type="number" name="montant" class="form-control" min="1" step="1" required placeholder="0">
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label class="form-label" style="font-size:11px;">Au</label>
+                <input type="date" name="date_solde" class="form-control" value="{{ date('Y-m-d') }}" required>
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label class="form-label" style="font-size:11px;">Libellé (facultatif)</label>
+                <input type="text" name="libelle" class="form-control" maxlength="255" placeholder="Reprise de l'ancien logiciel…">
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm" style="height:38px;"><i class="fas fa-plus"></i> Enregistrer</button>
+        </form>
+
+        @php $lignes = $soldesInitiaux->where('type', 'client'); @endphp
+        @if($lignes->isNotEmpty())
+        <div class="table-wrap">
+        <table>
+            <thead><tr><th>Client</th><th>Au</th><th style="text-align:right;">Solde initial</th><th style="text-align:right;">Réglé</th><th style="text-align:right;">Reste</th><th></th></tr></thead>
+            <tbody>
+            @foreach($lignes as $sd)
+                <tr>
+                    <td style="font-weight:700;">{{ $sd->nomDuTiers() }}@if($sd->libelle)<div style="font-size:11px; color:var(--text-3); font-weight:400;">{{ $sd->libelle }}</div>@endif</td>
+                    <td>{{ $sd->date_solde->format('d/m/Y') }}</td>
+                    <td style="text-align:right;">{{ number_format((float) $sd->montant, 0, ',', ' ') }} F</td>
+                    <td style="text-align:right; color:var(--success); font-weight:600;">{{ number_format($sd->regle_calcule, 0, ',', ' ') }} F</td>
+                    <td style="text-align:right; color:var(--danger); font-weight:700;">{{ number_format($sd->reste_calcule, 0, ',', ' ') }} F</td>
+                    <td style="text-align:right;">
+                        @if($sd->regle_calcule <= 0)
+                        <form method="POST" action="{{ route('admin.comptabilite.soldes_initiaux.supprimer', $sd) }}" style="margin:0;" onsubmit="return confirm('Retirer ce solde de départ ?');">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="btn btn-outline btn-sm" title="Retirer"><i class="fas fa-trash"></i></button>
+                        </form>
+                        @elseif($sd->reste_calcule <= 0)
+                        <span style="color:var(--success); font-size:12px; font-weight:700;"><i class="fas fa-check"></i> Soldé</span>
+                        @endif
+                    </td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+        </div>
+        @endif
+    </div>
 </div>
 
 {{-- ONGLER FOURNISSEURS --}}
@@ -171,8 +254,8 @@
                         <td style="font-weight: 700; color: var(--text);">{{ $df['nom'] }}</td>
                         <td>
                             @foreach($df['invoices'] as $inv)
-                            <span class="badge-invoice" title="Émise le {{ $inv['date'] }}">
-                                {{ $inv['numero'] }} (Reste: {{ number_format($inv['reste'], 0, ',', ' ') }} F)
+                            <span class="badge-invoice" title="{{ !empty($inv['solde_de_depart']) ? 'Solde de départ au' : 'Émise le' }} {{ $inv['date'] }}" @if(!empty($inv['solde_de_depart'])) style="background:#fef3c7; color:#92400e;" @endif>
+                                {{ !empty($inv['solde_de_depart']) ? 'Solde de départ' : $inv['numero'] }} (Reste: {{ number_format($inv['reste'], 0, ',', ' ') }} F)
                             </span>
                             @endforeach
                         </td>
@@ -204,6 +287,87 @@
             </table>
             @endif
         </div>
+    </div>
+    {{-- Soldes de départ (19/10/2026) : ce que les fournisseurs devaient avant
+         Selflow. On choisit le tiers, on saisit le montant ; les règlements
+         s'en déduisent, par le même bouton que les factures. --}}
+    @php $k = $kpiSoldes['fournisseur']; @endphp
+    <div class="card soldes-depart" style="padding:18px 20px; margin-top:18px;">
+        <h3 style="font-size:15px; font-weight:800; margin-bottom:4px;"><i class="fas fa-flag-checkered" style="color:#d97706;"></i> Soldes de départ — fournisseurs</h3>
+        <p style="font-size:12.5px; color:var(--text-3); margin-bottom:14px;">Ce que chaque fournisseur attendait de vous à votre arrivée sur Selflow. Les règlements s'en déduisent au fur et à mesure.</p>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:12px; margin-bottom:16px;">
+            <div style="border:1px solid var(--border); border-radius:10px; padding:12px 14px;">
+                <div style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-3);">Solde initial</div>
+                <div style="font-size:19px; font-weight:800;" data-kpi="fournisseur-initial">{{ number_format($k['initial'], 0, ',', ' ') }} F</div>
+                <div style="font-size:11px; color:var(--text-3);">{{ $k['nombre'] }} fournisseur(s)</div>
+            </div>
+            <div style="border:1px solid #bbf7d0; background:#f0fdf4; border-radius:10px; padding:12px 14px;">
+                <div style="font-size:11px; text-transform:uppercase; font-weight:700; color:#166534;">Réglé</div>
+                <div style="font-size:19px; font-weight:800; color:#15803d;" data-kpi="fournisseur-regle">{{ number_format($k['regle'], 0, ',', ' ') }} F</div>
+            </div>
+            <div style="border:1px solid #fecaca; background:#fef2f2; border-radius:10px; padding:12px 14px;">
+                <div style="font-size:11px; text-transform:uppercase; font-weight:700; color:#991b1b;">Reste</div>
+                <div style="font-size:19px; font-weight:800; color:#b91c1c;" data-kpi="fournisseur-reste">{{ number_format($k['reste'], 0, ',', ' ') }} F</div>
+            </div>
+        </div>
+
+        <form method="POST" action="{{ route('admin.comptabilite.soldes_initiaux.enregistrer') }}" style="display:grid; grid-template-columns:2fr 1fr 1fr 2fr auto; gap:10px; align-items:end; margin-bottom:14px;" class="form-solde-depart">
+            @csrf
+            <input type="hidden" name="type" value="fournisseur">
+            <div class="form-group" style="margin:0;">
+                <label class="form-label" style="font-size:11px;">Fournisseur <span style="color:var(--danger)">*</span></label>
+                <select name="tiers_id" class="form-control" required>
+                    <option value="">— Choisir le fournisseur d'abord —</option>
+                    @foreach($fournisseurs as $t)
+                    <option value="{{ $t->id }}">{{ $t->nom }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label class="form-label" style="font-size:11px;">Montant initial <span style="color:var(--danger)">*</span></label>
+                <input type="number" name="montant" class="form-control" min="1" step="1" required placeholder="0">
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label class="form-label" style="font-size:11px;">Au</label>
+                <input type="date" name="date_solde" class="form-control" value="{{ date('Y-m-d') }}" required>
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label class="form-label" style="font-size:11px;">Libellé (facultatif)</label>
+                <input type="text" name="libelle" class="form-control" maxlength="255" placeholder="Reprise de l'ancien logiciel…">
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm" style="height:38px;"><i class="fas fa-plus"></i> Enregistrer</button>
+        </form>
+
+        @php $lignes = $soldesInitiaux->where('type', 'fournisseur'); @endphp
+        @if($lignes->isNotEmpty())
+        <div class="table-wrap">
+        <table>
+            <thead><tr><th>Fournisseur</th><th>Au</th><th style="text-align:right;">Solde initial</th><th style="text-align:right;">Réglé</th><th style="text-align:right;">Reste</th><th></th></tr></thead>
+            <tbody>
+            @foreach($lignes as $sd)
+                <tr>
+                    <td style="font-weight:700;">{{ $sd->nomDuTiers() }}@if($sd->libelle)<div style="font-size:11px; color:var(--text-3); font-weight:400;">{{ $sd->libelle }}</div>@endif</td>
+                    <td>{{ $sd->date_solde->format('d/m/Y') }}</td>
+                    <td style="text-align:right;">{{ number_format((float) $sd->montant, 0, ',', ' ') }} F</td>
+                    <td style="text-align:right; color:var(--success); font-weight:600;">{{ number_format($sd->regle_calcule, 0, ',', ' ') }} F</td>
+                    <td style="text-align:right; color:var(--danger); font-weight:700;">{{ number_format($sd->reste_calcule, 0, ',', ' ') }} F</td>
+                    <td style="text-align:right;">
+                        @if($sd->regle_calcule <= 0)
+                        <form method="POST" action="{{ route('admin.comptabilite.soldes_initiaux.supprimer', $sd) }}" style="margin:0;" onsubmit="return confirm('Retirer ce solde de départ ?');">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="btn btn-outline btn-sm" title="Retirer"><i class="fas fa-trash"></i></button>
+                        </form>
+                        @elseif($sd->reste_calcule <= 0)
+                        <span style="color:var(--success); font-size:12px; font-weight:700;"><i class="fas fa-check"></i> Soldé</span>
+                        @endif
+                    </td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+        </div>
+        @endif
     </div>
 </div>
 
@@ -293,6 +457,12 @@
 </div>
 
 <script>
+@if(session('onglet_creances') === 'fournisseurs')
+document.addEventListener('DOMContentLoaded', function () {
+    var b = document.querySelectorAll('.tab-nav-btn')[1];
+    if (b) switchTab('fournisseurs', b);
+});
+@endif
 function switchTab(tabName, btn) {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.querySelectorAll('.tab-nav-btn').forEach(b => b.classList.remove('active'));
@@ -322,7 +492,7 @@ function ouvrirModalReglement(type, btn) {
     tierData.invoices.forEach(inv => {
         const opt = document.createElement('option');
         opt.value = inv.numero;
-        opt.textContent = `${inv.numero} (Restant: ${inv.reste.toLocaleString('fr-FR')} F)`;
+        opt.textContent = `${inv.solde_de_depart ? 'Solde de départ' : inv.numero} (Restant: ${inv.reste.toLocaleString('fr-FR')} F)`;
         opt.dataset.reste = inv.reste;
         select.appendChild(opt);
     });

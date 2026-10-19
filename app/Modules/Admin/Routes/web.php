@@ -244,6 +244,9 @@ Route::prefix('admin')
                 Route::get('/creances', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'creances'])->name('creances');
                 Route::get('/tiers/{type}/{id}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'releveTiers'])->name('releve_tiers');
                 Route::post('/reglement', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'enregistrerReglement'])->name('enregistrer_reglement');
+                // Les soldes de départ des tiers (19/10/2026).
+                Route::post('/soldes-de-depart', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'enregistrerSoldeInitial'])->name('soldes_initiaux.enregistrer');
+                Route::delete('/soldes-de-depart/{solde}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'supprimerSoldeInitial'])->name('soldes_initiaux.supprimer');
                 // La configuration globale des comptes (section 6 du plan) :
                 // saisir les comptes une fois, et non sur chaque fiche.
                 Route::get('/configuration-des-comptes', [\App\Modules\Admin\Controleurs\ConfigurationComptesControleur::class, 'index'])->name('configuration');
