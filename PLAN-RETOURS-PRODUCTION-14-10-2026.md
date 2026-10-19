@@ -219,5 +219,13 @@ secret `external/*` par entreprise (moyen terme).
 | URGENT deadlock 1213 à l'annulation (poissonnerie EDEN) | lot 106 |
 | Normalisation automatique décochée par défaut | lot 107 |
 | Pagination de l'audit (20 par page) | lot 107 |
+| Facture affichée dès la vente, impression sans « Factures vente » | lot 108 |
+| « Annuler » devient une habilitation | lot 108 |
+| URGENT suppression d'admin interne (Auth introuvable) | lot 109 |
+| Reçu en plus gros caractères | lot 110 |
+| Volet Stock invisible (module fermé) + diagnostic | lot 110 |
+| Soldes de départ clients / fournisseurs | lot 111 |
+| KPI des factures vente et achat | lot 112 |
+| Switch entreprise (assistance superadmin) | lot 113 |
 | Contre-attaque | **refusée** (illégal) ; défense outillée |
 | Relais WhatsApp | à brancher (URL d'un relais) |
