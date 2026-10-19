@@ -405,4 +405,12 @@
 })();
 </script>
 
+<script>
+// Arrivée depuis « Créer un point de vente » de la barre latérale (19/10/2026).
+if (new URLSearchParams(location.search).has('nouveau')) {
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelector('[data-modal-open="modalNouveauPdv"]')?.click();
+    });
+}
+</script>
 @endsection
