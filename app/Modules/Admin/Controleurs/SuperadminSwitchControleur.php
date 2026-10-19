@@ -32,8 +32,12 @@ class SuperadminSwitchControleur
     public function index(Request $request): View
     {
         $requete = Entreprise::horsCorbeille()
-            ->withCount('utilisateurs')
-            ->with(['utilisateurs' => fn ($q) => $q->orderByRaw("CASE WHEN role = 'admin' THEN 0 ELSE 1 END")->orderBy('nom')])
+            ->withCount(['utilisateurs', 'pointsDeVente'])
+            ->with([
+                'utilisateurs' => fn ($q) => $q->orderByRaw("CASE WHEN role = 'admin' THEN 0 ELSE 1 END")->orderBy('nom'),
+                'utilisateurs.pointDeVente:id,nom',
+                'pointsDeVente' => fn ($q) => $q->orderBy('nom')->select('id', 'entreprise_id', 'nom'),
+            ])
             ->when($request->filled('q'), function ($q) use ($request) {
                 $mot = '%' . $request->string('q') . '%';
                 $q->where(fn ($w) => $w->where('nom', 'like', $mot)
@@ -54,6 +58,39 @@ class SuperadminSwitchControleur
             'entreprises' => $requete->paginate(20)->withQueryString(),
             'kpi'         => $kpi,
             'filtres'     => $request->only(['q', 'statut']),
+        ]);
+    }
+
+    /**
+     * La fiche détaillée d'une entreprise (19/10/2026) : ses points de vente —
+     * qui y est affecté, ce qui y est en stock, ce qui s'y vend —, ses
+     * utilisateurs et l'essentiel de son dossier.
+     */
+    public function entreprise(Entreprise $entreprise): View
+    {
+        $sites = $entreprise->pointsDeVente()->orderBy('nom')->get()->map(function ($site) {
+            $site->membres = Utilisateur::where('point_de_vente_id', $site->id)->orderBy('nom')->get();
+            $site->articles_en_stock = \App\Modules\Admin\Modeles\Stock::where('point_de_vente_id', $site->id)->where('quantite_disponible', '>', 0)->count();
+            $site->entrees = \App\Modules\Admin\Modeles\MouvementStock::where('point_de_vente_id', $site->id)
+                ->where('type_mouvement', \App\Modules\Admin\Modeles\MouvementStock::ENTREE)->count();
+            $site->ventes = \App\Modules\Admin\Modeles\Vente::withoutGlobalScopes()->where('point_de_vente_id', $site->id)
+                ->where('etape', 'Facture')->where(fn ($q) => $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir'))->count();
+            $site->chiffre = (float) \App\Modules\Admin\Modeles\Vente::withoutGlobalScopes()->where('point_de_vente_id', $site->id)
+                ->where('etape', 'Facture')->where(fn ($q) => $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir'))
+                ->where(fn ($q) => $q->whereNull('statut')->orWhere('statut', '!=', \App\Modules\Admin\Modeles\Vente::STATUT_ANNULEE))
+                ->sum('montant_ttc');
+
+            return $site;
+        });
+
+        $utilisateurs = $entreprise->utilisateurs()->with('pointDeVente:id,nom')
+            ->orderByRaw("CASE WHEN role = 'admin' THEN 0 ELSE 1 END")->orderBy('nom')->get();
+
+        return view('admin::superadmin.switch.entreprise', [
+            'entreprise'   => $entreprise,
+            'sites'        => $sites,
+            'utilisateurs' => $utilisateurs,
+            'articles'     => \App\Modules\Admin\Modeles\Produit::where('entreprise_id', $entreprise->id)->count(),
         ]);
     }
 

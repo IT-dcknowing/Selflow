@@ -9179,6 +9179,49 @@ s'affiche :
 
 ---
 
+### Lot 115 — Point de vente cliquable ; sites au Switch ; fiche d'entreprise ; diagnostic du stock par site — **TERMINÉ le 19/10/2026**
+
+**Barre latérale.** Le bloc du point de vente actif devient un lien vers la
+page des points de vente, avec la mention « Changer de point de vente ». Il
+reste figé pour un membre affecté à un site, pour l'aperçu et pour qui n'a
+pas le droit de gérer les points de vente.
+
+**Switch.** Une colonne « Points de vente » s'ajoute au tableau. Elle donne
+le nombre de sites et trois noms au plus ; au-delà, « … » ouvre la fiche.
+Le volet des utilisateurs indique le point de vente de chacun.
+
+**Fiche d'entreprise** (`superadmin.switch.entreprise`). Elle réunit :
+
+- le dossier : NCC, régime, RCCM, adresse, offre, comptabilité, modules ;
+- chaque point de vente : lieu, membres affectés, articles en stock,
+  entrées de stock, factures, chiffre ;
+- les utilisateurs, chacun avec « Se connecter » ;
+- le bouton « Accéder à son espace ».
+
+**Les entrées passées sont-elles restées sur leur site ?** Avant le
+lot 114, une saisie allait au site activé en session. Elle n'allait
+ailleurs que dans deux cas :
+
+- un administrateur sans site actif : l'entrée allait au site de sa fiche,
+  ou au premier site de l'entreprise ;
+- un membre affecté qui choisissait un autre site dans le formulaire, ou en
+  activait un autre.
+
+Le lot 114 ferme le second cas. Il ne déplace rien de l'historique.
+`php artisan selflow:diagnostic-stock-sites <entreprise>` (lecture seule)
+fait deux choses :
+
+- il donne, site par site, les entrées et leurs auteurs ;
+- il nomme les mouvements passés par un membre affecté hors de son site,
+  transferts exclus.
+
+Un écart se corrige par un transfert, décidé par le gérant.
+
+- `SwitchEntrepriseTest` (+2), `SiteDeTravailTest` (+3). Suite :
+  1 873 épreuves, 1 868 passantes, 5 ignorées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

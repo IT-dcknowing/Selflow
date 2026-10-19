@@ -58,7 +58,7 @@
 
     <div class="card" style="padding:0; overflow-x:auto;">
         <table class="table" style="width:100%; font-size:13px;">
-            <thead><tr><th>Entreprise</th><th>Utilisateurs</th><th>Création</th><th>Statut</th><th style="text-align:right;">Actions</th></tr></thead>
+            <thead><tr><th>Entreprise</th><th>Utilisateurs</th><th>Points de vente</th><th>Création</th><th>Statut</th><th style="text-align:right;">Actions</th></tr></thead>
             <tbody>
             @forelse($entreprises as $e)
                 <tr>
@@ -66,6 +66,14 @@
                         <span style="display:inline-flex; width:28px; height:28px; border-radius:50%; background:#6366f1; color:#fff; align-items:center; justify-content:center; font-size:11px; margin-right:8px;">{{ mb_strtoupper(mb_substr($e->nom, 0, 2)) }}</span>{{ $e->nom }}
                     </td>
                     <td><span style="background:#64748b; color:#fff; border-radius:6px; padding:2px 8px; font-size:11.5px; font-weight:700;">{{ $e->utilisateurs_count }} utilisateur(s)</span></td>
+                    {{-- Les points de vente (19/10/2026) : trois noms au plus ; au-delà,
+                         « … » ouvre la fiche détaillée de l'entreprise. --}}
+                    <td style="font-size:12px;">
+                        <a href="{{ route('superadmin.switch.entreprise', $e) }}" style="background:#0891b2; color:#fff; border-radius:6px; padding:2px 8px; font-size:11.5px; font-weight:700; text-decoration:none;" title="Voir la fiche de l'entreprise">{{ $e->points_de_vente_count }} site(s)</a>
+                        <div style="margin-top:4px; color:var(--text-2);">
+                            {{ $e->pointsDeVente->take(3)->pluck('nom')->implode(', ') }}@if($e->points_de_vente_count > 3)<a href="{{ route('superadmin.switch.entreprise', $e) }}" title="Voir tous les points de vente" style="font-weight:800; text-decoration:none; margin-left:2px;">, …</a>@endif
+                        </div>
+                    </td>
                     <td>{{ $e->created_at?->format('d/m/y') }}</td>
                     <td>
                         @if($e->statut === 'bloque')
@@ -83,7 +91,7 @@
                     </td>
                 </tr>
                 <tr id="membres-{{ $e->id }}" hidden>
-                    <td colspan="5" style="background:var(--bg3, #f1f5f9);">
+                    <td colspan="6" style="background:var(--bg3, #f1f5f9);">
                         <div style="font-size:12px; font-weight:700; color:var(--text-3); margin-bottom:8px;">Utilisateurs de {{ $e->nom }}</div>
                         <div style="display:flex; flex-wrap:wrap; gap:10px;">
                         @forelse($e->utilisateurs->where('role', '!=', 'superadmin') as $u)
@@ -91,6 +99,7 @@
                                 <div>
                                     <div style="font-weight:700;">{{ trim($u->prenom . ' ' . $u->nom) ?: $u->email }}</div>
                                     <div style="font-size:11px; color:var(--text-3);">{{ $u->email }}</div>
+                                    <div style="font-size:11px; color:#0891b2;"><i class="fas fa-store"></i> {{ $u->pointDeVente?->nom ?? 'Aucun point de vente' }}</div>
                                     <span style="background:#22c55e; color:#fff; border-radius:5px; padding:1px 6px; font-size:10.5px; font-weight:700;">{{ ['admin' => 'Administrateur', 'admin_secondaire' => 'Admin secondaire', 'responsable_pdv' => 'Responsable PDV', 'caissier' => 'Caissier'][$u->role] ?? ucfirst((string) $u->role) }}</span>
                                 </div>
                                 <form method="POST" action="{{ route('superadmin.switch.incarner', $u) }}" style="margin:0;">
@@ -105,7 +114,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="5" style="padding:30px; text-align:center; color:var(--text-3);">Aucune entreprise pour ces critères.</td></tr>
+                <tr><td colspan="6" style="padding:30px; text-align:center; color:var(--text-3);">Aucune entreprise pour ces critères.</td></tr>
             @endforelse
             </tbody>
         </table>
