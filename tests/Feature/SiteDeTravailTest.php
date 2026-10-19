@@ -117,4 +117,42 @@ class SiteDeTravailTest extends TestCase
             ->get(route('admin.tableau_de_bord'))->assertOk()->assertDontSee('Ailleurs');
         $this->assertNull(session('point_de_vente_actif_id'));
     }
+
+    public function test_le_site_actif_se_change_d_un_clic_dans_la_barre(): void
+    {
+        $this->actingAs($this->admin)->post(route('admin.pdv.activer', $this->depot));
+
+        $this->get(route('admin.tableau_de_bord'))->assertOk()
+            ->assertSee('class="sidebar-pdv sidebar-pdv-lien"', false)->assertSee('Changer de point de vente');
+    }
+
+    public function test_le_membre_affecte_n_a_pas_de_lien_pour_changer(): void
+    {
+        $caissier = Utilisateur::create([
+            'nom' => 'C', 'prenom' => 'D', 'email' => 'c2@deuxsites.ci', 'password' => bcrypt('x'),
+            'role' => 'responsable_pdv', 'statut' => 'actif', 'entreprise_id' => $this->entreprise->id,
+            'point_de_vente_id' => $this->boutique->id, 'habilitations' => ['gestion_pdv', 'tableau_de_bord_personnel'],
+        ]);
+
+        $this->actingAs($caissier)->get(route('admin.tableau_de_bord'))->assertOk()
+            ->assertSee('Boutique')->assertDontSee('Changer de point de vente');
+    }
+
+    public function test_le_diagnostic_signale_une_entree_passee_hors_du_site_de_son_auteur(): void
+    {
+        $magasinier = Utilisateur::create([
+            'nom' => 'M', 'prenom' => 'N', 'email' => 'm2@deuxsites.ci', 'password' => bcrypt('x'),
+            'role' => 'responsable_pdv', 'statut' => 'actif', 'entreprise_id' => $this->entreprise->id,
+            'point_de_vente_id' => $this->depot->id,
+        ]);
+
+        // Ce qui pouvait arriver avant le lot 114 : une entrée sur la boutique.
+        $this->actingAs($magasinier);
+        \App\Modules\Admin\Services\StockService::entree($this->riz, $this->boutique->id, 5,
+            \App\Modules\Admin\Modeles\MouvementStock::RECEPTION, ['cout_unitaire' => 10000]);
+
+        $this->artisan('selflow:diagnostic-stock-sites', ['entreprise' => $this->entreprise->id])
+            ->expectsOutputToContain('1 mouvement(s) passé(s) par un membre affecté')
+            ->assertSuccessful();
+    }
 }

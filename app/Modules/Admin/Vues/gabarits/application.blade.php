@@ -704,7 +704,18 @@
     @endif
 
     @if($nomPdvAffichage)
+    {{-- Cliquable (19/10/2026) : on change de point de vente depuis la page des
+         points de vente. Un membre affecté à un site, lui, n'en change pas. --}}
+    @php
+        $__changerDeSite = !$estApercu && !auth()->user()->estAffecteAUnSite()
+            && !request()->routeIs('superadmin.*') && !auth()->user()->estSuperAdmin()
+            && \App\Modules\Authentification\Regles\Habilitations::ouvre(auth()->user(), 'admin.pdv.index');
+    @endphp
+    @if($__changerDeSite)
+    <a href="{{ route('admin.pdv.index') }}" class="sidebar-pdv sidebar-pdv-lien" style="display:block; text-decoration:none;" title="Changer de point de vente">
+    @else
     <div class="sidebar-pdv">
+    @endif
         <div class="pdv-label">
             <i class="fas fa-store"></i> 
             @if($estApercu)
@@ -714,7 +725,12 @@
             @endif
         </div>
         <div class="pdv-name">{{ $nomPdvAffichage }}</div>
+        @if($__changerDeSite)
+        <div style="font-size:10.5px; color:rgba(255,255,255,.55); margin-top:2px;"><i class="fas fa-right-left"></i> Changer de point de vente</div>
+    </a>
+        @else
     </div>
+        @endif
     @endif
 
     @if(!request()->routeIs('superadmin.*') && auth()->user()->role !== 'superadmin')

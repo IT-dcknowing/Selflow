@@ -612,6 +612,7 @@ Route::prefix('superadmin')
         // ── Maintenance & traçabilité (16/10/2026) ──
         // Switch entreprise — l'assistance (19/10/2026).
         Route::get('/switch', [\App\Modules\Admin\Controleurs\SuperadminSwitchControleur::class, 'index'])->name('switch.index');
+        Route::get('/switch/entreprise/{entreprise}', [\App\Modules\Admin\Controleurs\SuperadminSwitchControleur::class, 'entreprise'])->name('switch.entreprise');
         Route::post('/switch/entreprise/{entreprise}', [\App\Modules\Admin\Controleurs\SuperadminSwitchControleur::class, 'acceder'])->name('switch.acceder');
         Route::post('/switch/utilisateur/{utilisateur}', [\App\Modules\Admin\Controleurs\SuperadminSwitchControleur::class, 'incarner'])->name('switch.incarner');
 

@@ -100,6 +100,7 @@ class VerifierHabilitationRoute
         // L'assistance : entrer dans l'espace d'une entreprise.
         'superadmin.switch.index'    => 'gestion_entreprises',
         'superadmin.switch.acceder'  => 'gestion_entreprises',
+        'superadmin.switch.entreprise' => 'gestion_entreprises',
         'superadmin.switch.incarner' => 'gestion_entreprises',
         'superadmin.corbeille'            => 'gestion_entreprises',
         'superadmin.corbeille.restaurer'  => 'gestion_entreprises',

@@ -98,4 +98,28 @@ class SwitchEntrepriseTest extends TestCase
         $this->actingAs($this->admin)->post(route('superadmin.switch.incarner', $this->caissier))->assertForbidden();
         $this->assertAuthenticatedAs($this->admin);
     }
+
+    public function test_la_colonne_des_points_de_vente_et_la_fiche_detaillee(): void
+    {
+        foreach (['Marcory', 'Plateau', 'Yopougon'] as $nom) {
+            PointDeVente::create(['entreprise_id' => $this->entreprise->id, 'nom' => $nom, 'ville' => 'Abidjan', 'commune' => $nom]);
+        }
+
+        // Quatre sites : trois noms, puis « … » vers la fiche.
+        $this->actingAs($this->superadmin)->get(route('superadmin.switch.index'))->assertOk()
+            ->assertSee('4 site(s)')->assertSee('Marcory, Plateau, Siège')
+            ->assertSee('title="Voir tous les points de vente"', false)
+            ->assertSee(route('superadmin.switch.entreprise', $this->entreprise), false);
+
+        $this->get(route('superadmin.switch.entreprise', $this->entreprise))->assertOk()
+            ->assertSee('Points de vente (4)')->assertSee('Yopougon')
+            ->assertSee('kouame@aiventure.ci')->assertSee('Accéder à son espace');
+    }
+
+    public function test_le_diagnostic_des_entrees_par_site(): void
+    {
+        $this->artisan('selflow:diagnostic-stock-sites', ['entreprise' => $this->entreprise->id])
+            ->expectsOutputToContain('chaque entrée est restée sur son point de vente')
+            ->assertSuccessful();
+    }
 }
