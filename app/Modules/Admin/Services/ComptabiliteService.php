@@ -499,6 +499,67 @@ class ComptabiliteService
         });
     }
 
+    /**
+     * Le règlement d'un solde de départ (19/10/2026).
+     *
+     * L'argent bouge bel et bien : la caisse ou la banque, contre le compte du
+     * tiers — comme un règlement de facture, sans facture. Le solde lui-même
+     * ne s'écrit pas ici : c'est un à-nouveau, repris de la comptabilité
+     * d'avant, que le cabinet porte dans Comptaflow.
+     */
+    public static function genererEcritureReglementSoldeInitial(
+        \App\Modules\Admin\Modeles\SoldeInitial $solde,
+        float $montant,
+        string $modePaiement,
+        string $date,
+        ?int $pdvId
+    ): void {
+        if ($montant <= 0) {
+            return;
+        }
+
+        $entrepriseId = (int) $solde->entreprise_id;
+        $refDoc = $solde->reference;
+        [$compteFinancier, $codeJournal] = self::compteEtJournalFinancier($entrepriseId, $modePaiement);
+
+        if ($solde->type === \App\Modules\Admin\Modeles\SoldeInitial::CLIENT) {
+            $client = Client::find($solde->tiers_id);
+            $compteTiersGeneral = $client?->compte_comptable ?? config('selflow.plan_comptable_defaut.client_collectif');
+            $compteTiers = self::tiersClient($client, $entrepriseId);
+            $type = 'ReglementVente';
+            $libelle = 'Rglt/' . $refDoc . '/Solde de départ ' . ($client?->nom ?? '');
+            $operationLibelle = 'Règlement client — solde de départ';
+        } else {
+            $fournisseur = Fournisseur::find($solde->tiers_id);
+            $compteTiersGeneral = $fournisseur?->compte_comptable ?? config('selflow.plan_comptable_defaut.fournisseur_collectif');
+            $compteTiers = self::tiersFournisseur($fournisseur, $entrepriseId);
+            $type = 'ReglementAchat';
+            $libelle = 'Rglt/' . $refDoc . '/Solde de départ ' . ($fournisseur?->nom ?? '');
+            $operationLibelle = 'Règlement fournisseur — solde de départ';
+        }
+
+        DB::transaction(function () use (
+            $solde, $entrepriseId, $pdvId, $date, $refDoc, $codeJournal, $compteFinancier,
+            $compteTiersGeneral, $compteTiers, $type, $libelle, $operationLibelle, $montant
+        ) {
+            $operation = Operation::creer($entrepriseId, $pdvId, $date, $type, $codeJournal, $refDoc, $operationLibelle);
+
+            if ($solde->type === \App\Modules\Admin\Modeles\SoldeInitial::CLIENT) {
+                self::ligne($operation, $entrepriseId, $pdvId, $date, $refDoc, $codeJournal,
+                    $libelle, $compteFinancier, null, null, $montant, 0);
+                self::ligne($operation, $entrepriseId, $pdvId, $date, $refDoc, $codeJournal,
+                    $libelle, null, $compteTiersGeneral, $compteTiers, 0, $montant);
+            } else {
+                self::ligne($operation, $entrepriseId, $pdvId, $date, $refDoc, $codeJournal,
+                    $libelle, $compteTiersGeneral, null, $compteTiers, $montant, 0);
+                self::ligne($operation, $entrepriseId, $pdvId, $date, $refDoc, $codeJournal,
+                    $libelle, null, $compteFinancier, null, 0, $montant);
+            }
+
+            $operation->cloturerEquilibre();
+        });
+    }
+
     // ─────────────────────────────────────────────────────────────────
     // PRODUCTION
     // ─────────────────────────────────────────────────────────────────

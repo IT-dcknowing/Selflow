@@ -240,6 +240,21 @@ class ComptabiliteControleur
             $creancesClients[$clientId]['solde'] += ($vente->montant_ttc - $regle);
         }
 
+        // Les soldes de départ (19/10/2026) : une « pièce » de plus par tiers,
+        // qui se règle comme les autres.
+        $soldesInitiaux = \App\Modules\Admin\Modeles\SoldeInitial::with(['client', 'fournisseur'])
+            ->where('entreprise_id', $entreprise->id)
+            ->orderBy('date_solde')
+            ->get()
+            ->each(function ($solde) {
+                $solde->regle_calcule = $solde->regle();
+                $solde->reste_calcule = round(max(0, (float) $solde->montant - $solde->regle_calcule), 2);
+            });
+
+        foreach ($soldesInitiaux->where('type', \App\Modules\Admin\Modeles\SoldeInitial::CLIENT) as $solde) {
+            self::ajouterLeSoldeDeDepart($creancesClients, $solde);
+        }
+
         $creancesClients = array_filter($creancesClients, fn($c) => $c['solde'] > 0);
 
         // 2. Calcul des dettes fournisseurs
@@ -290,11 +305,125 @@ class ComptabiliteControleur
             $dettesFournisseurs[$fournisseurId]['solde'] += ($achat->montant_ttc - $regle);
         }
 
+        foreach ($soldesInitiaux->where('type', \App\Modules\Admin\Modeles\SoldeInitial::FOURNISSEUR) as $solde) {
+            self::ajouterLeSoldeDeDepart($dettesFournisseurs, $solde);
+        }
+
         $dettesFournisseurs = array_filter($dettesFournisseurs, fn($f) => $f['solde'] > 0);
 
         $banques = CodeJournal::banques()->where('entreprise_id', $entreprise->id)->orderBy('intitule')->get();
 
-        return view('admin::comptabilite.creances', compact('creancesClients', 'dettesFournisseurs', 'banques'));
+        // Le tableau de bord des soldes de départ : ce qui était dû, ce qui
+        // est réglé, ce qui reste — côté clients et côté fournisseurs.
+        $kpiSoldes = [];
+        foreach ([\App\Modules\Admin\Modeles\SoldeInitial::CLIENT, \App\Modules\Admin\Modeles\SoldeInitial::FOURNISSEUR] as $type) {
+            $lot = $soldesInitiaux->where('type', $type);
+            $kpiSoldes[$type] = [
+                'initial' => (float) $lot->sum(fn ($s) => (float) $s->montant),
+                'regle'   => (float) $lot->sum('regle_calcule'),
+                'reste'   => (float) $lot->sum('reste_calcule'),
+                'nombre'  => $lot->count(),
+            ];
+        }
+
+        $clients = \App\Modules\Admin\Modeles\Client::where('entreprise_id', $entreprise->id)->orderBy('nom')->get(['id', 'nom']);
+        $fournisseurs = \App\Modules\Admin\Modeles\Fournisseur::where('entreprise_id', $entreprise->id)->orderBy('nom')->get(['id', 'nom']);
+
+        return view('admin::comptabilite.creances', compact(
+            'creancesClients', 'dettesFournisseurs', 'banques',
+            'soldesInitiaux', 'kpiSoldes', 'clients', 'fournisseurs'
+        ));
+    }
+
+    /**
+     * Le solde de départ ajouté aux pièces du tiers, pour qu'il se règle par
+     * le même bouton que ses factures.
+     *
+     * @param  array<int, array<string, mixed>>  $parTiers
+     */
+    private static function ajouterLeSoldeDeDepart(array &$parTiers, \App\Modules\Admin\Modeles\SoldeInitial $solde): void
+    {
+        $id = (int) $solde->tiers_id;
+        if (!isset($parTiers[$id])) {
+            $parTiers[$id] = [
+                'id' => $id, 'nom' => $solde->nomDuTiers(), 'invoices' => [],
+                'total_ttc' => 0, 'total_regle' => 0, 'solde' => 0,
+            ];
+        }
+
+        $parTiers[$id]['invoices'][] = [
+            'id'     => null,
+            'numero' => $solde->reference,
+            'date'   => $solde->date_solde->format('d/m/Y'),
+            'ttc'    => (float) $solde->montant,
+            'regle'  => $solde->regle_calcule,
+            'reste'  => $solde->reste_calcule,
+            'solde_de_depart' => true,
+        ];
+        $parTiers[$id]['total_ttc'] += (float) $solde->montant;
+        $parTiers[$id]['total_regle'] += $solde->regle_calcule;
+        $parTiers[$id]['solde'] += $solde->reste_calcule;
+    }
+
+    /**
+     * Saisir — ou corriger — le solde de départ d'un client ou d'un
+     * fournisseur (19/10/2026). Un seul solde par tiers ; le corriger ne
+     * peut pas le faire passer sous ce qui est déjà réglé.
+     */
+    public function enregistrerSoldeInitial(Request $request): RedirectResponse
+    {
+        $entreprise = Auth::user()->entreprise;
+
+        $donnees = $request->validate([
+            'type'       => ['required', 'in:client,fournisseur'],
+            'tiers_id'   => ['required', 'integer'],
+            'montant'    => ['required', 'numeric', 'min:1'],
+            'date_solde' => ['required', 'date'],
+            'libelle'    => ['nullable', 'string', 'max:255'],
+        ], [
+            'tiers_id.required' => 'Choisissez d\'abord le client ou le fournisseur.',
+            'montant.min'       => 'Le solde de départ doit être supérieur à zéro.',
+        ]);
+
+        $modele = $donnees['type'] === 'client' ? \App\Modules\Admin\Modeles\Client::class : \App\Modules\Admin\Modeles\Fournisseur::class;
+        $tiers = $modele::where('entreprise_id', $entreprise->id)->findOrFail($donnees['tiers_id']);
+
+        $solde = \App\Modules\Admin\Modeles\SoldeInitial::firstOrNew([
+            'entreprise_id' => $entreprise->id, 'type' => $donnees['type'], 'tiers_id' => $tiers->id,
+        ]);
+
+        if ($solde->exists && (float) $donnees['montant'] < $solde->regle()) {
+            return back()->with('erreur', sprintf(
+                'Le solde de départ de %s ne peut pas descendre sous ce qui est déjà réglé (%s F).',
+                $tiers->nom, number_format($solde->regle(), 0, ',', ' ')
+            ));
+        }
+
+        $solde->fill([
+            'montant'    => $donnees['montant'],
+            'date_solde' => $donnees['date_solde'],
+            'libelle'    => $donnees['libelle'] ?? null,
+            'reference'  => \App\Modules\Admin\Modeles\SoldeInitial::referencePour($donnees['type'], $tiers->id),
+            'cree_par'   => $solde->cree_par ?? Auth::id(),
+        ])->save();
+
+        return back()->with('succes', "Solde de départ de {$tiers->nom} enregistré : "
+            . number_format((float) $donnees['montant'], 0, ',', ' ') . ' F.')
+            ->with('onglet_creances', $donnees['type'] === 'client' ? 'clients' : 'fournisseurs');
+    }
+
+    /** Retirer un solde de départ saisi par erreur — tant qu'aucun règlement ne l'a touché. */
+    public function supprimerSoldeInitial(\App\Modules\Admin\Modeles\SoldeInitial $solde): RedirectResponse
+    {
+        abort_unless((int) $solde->entreprise_id === (int) Auth::user()->entreprise_id, 404);
+
+        if ($solde->regle() > 0) {
+            return back()->with('erreur', 'Ce solde de départ a déjà reçu des règlements : il ne se supprime plus. Corrigez son montant.');
+        }
+
+        $solde->delete();
+
+        return back()->with('succes', 'Solde de départ retiré.');
     }
 
     /**
@@ -446,6 +575,15 @@ class ComptabiliteControleur
 
         $entreprise = Auth::user()->entreprise;
 
+        // Un solde de départ se règle par le même formulaire que les factures.
+        $soldeInitial = \App\Modules\Admin\Modeles\SoldeInitial::where('entreprise_id', $entreprise->id)
+            ->where('type', $request->type)
+            ->where('reference', $request->numero_facture)
+            ->first();
+        if ($soldeInitial) {
+            return $this->reglerLeSoldeDeDepart($request, $soldeInitial);
+        }
+
         DB::transaction(function () use ($request, $entreprise) {
             $numFacture = $request->numero_facture;
             $montant = floatval($request->montant);
@@ -577,6 +715,59 @@ class ComptabiliteControleur
         });
 
         return back()->with('succes', 'Règlement enregistré avec succès.');
+    }
+
+    /**
+     * Le règlement d'un solde de départ : la trésorerie sous la référence du
+     * solde, et l'écriture caisse/banque contre le compte du tiers.
+     */
+    private function reglerLeSoldeDeDepart(Request $request, \App\Modules\Admin\Modeles\SoldeInitial $solde): RedirectResponse
+    {
+        $entreprise = Auth::user()->entreprise;
+        $montant = round((float) $request->montant, 2);
+
+        $mode = $request->mode_paiement;
+        if ($request->mode_paiement === 'Banque' && $request->filled('banque_id')) {
+            $mode = 'Banque : ' . CodeJournal::where('entreprise_id', $entreprise->id)->findOrFail($request->banque_id)->intitule;
+        }
+
+        DB::transaction(function () use ($request, $solde, $entreprise, $montant, $mode) {
+            // Relu sous verrou : deux règlements simultanés ne doivent pas
+            // dépasser le solde à eux deux.
+            \App\Modules\Admin\Modeles\SoldeInitial::whereKey($solde->id)->lockForUpdate()->first();
+            $reste = $solde->reste();
+            if ($montant > $reste + 0.01) {
+                abort(422, 'Le montant du règlement ne peut pas dépasser le reste du solde de départ (' . $reste . ' F).');
+            }
+
+            $pdvId = session('point_de_vente_actif_id')
+                ?? Auth::user()->point_de_vente_id
+                ?? PointDeVente::where('entreprise_id', $entreprise->id)->value('id');
+            $estClient = $solde->type === \App\Modules\Admin\Modeles\SoldeInitial::CLIENT;
+            $soldeActuel = TresorerieJournal::where('point_de_vente_id', $pdvId)
+                ->orderByDesc('created_at')->value('solde_resultat') ?? 0;
+
+            TresorerieJournal::create([
+                'point_de_vente_id'  => $pdvId,
+                'date_operation'     => $request->date_operation,
+                'type_operation'     => $estClient ? 'Encaissement' : 'Décaissement',
+                'libelle'            => ($estClient ? 'Règlement Client' : 'Règlement Fournisseur') . ' — Solde de départ ' . $solde->nomDuTiers(),
+                'mode_paiement'      => $mode,
+                'moyen_bancaire'     => $request->mode_paiement === 'Banque' ? $request->moyen_bancaire : null,
+                'reference_paiement' => $request->mode_paiement === 'Banque' ? $request->reference_paiement : null,
+                'montant_entree'     => $estClient ? $montant : 0,
+                'montant_sortie'     => $estClient ? 0 : $montant,
+                'solde_resultat'     => $soldeActuel + ($estClient ? $montant : -$montant),
+                'reference_document' => $solde->reference,
+            ]);
+
+            if ($entreprise->comptabiliteOuverte()) {
+                ComptabiliteService::genererEcritureReglementSoldeInitial($solde, $montant, $mode, $request->date_operation, $pdvId);
+            }
+        });
+
+        return back()->with('succes', 'Règlement du solde de départ enregistré.')
+            ->with('onglet_creances', $solde->type === 'client' ? 'clients' : 'fournisseurs');
     }
 
     /**
