@@ -9007,6 +9007,134 @@ bougent pas (seul le bouton « Retour » du ticket se masque en mode intégré).
 
 ---
 
+### Lot 109 — Supprimer un administrateur interne : « Class Auth not found » — **TERMINÉ le 19/10/2026**
+
+**Constat (production).** `DELETE superadmin/admins/{uuid}` : `Class
+"App\Modules\Admin\Controleurs\Auth" not found` à `SuperadminControleur:711`.
+La façade n'était pas importée. Un balayage de `app/` sur vingt façades n'a
+trouvé aucun autre cas : les autres occurrences sont des commentaires.
+
+**Correctif.** L'import est ajouté. L'écran refuse aussi désormais (404) de
+supprimer un compte qui n'est pas superadministrateur : il ne gère que
+l'administration interne.
+
+- `SuppressionAdminInterneTest` (3).
+
+---
+
+### Lot 110 — Reçu lisible ; « le volet Stock ne s'affiche pas » — **TERMINÉ le 19/10/2026**
+
+**Reçu.** Le client trouvait la police trop petite. Elle passe de 12 à 14 px
+à l'écran, de 7,5 à 9 pt dans le PDF, et les autres tailles suivent. La
+hauteur du ticket PDF est recalculée en conséquence. Le bloc de
+certification n'a pas bougé.
+
+**Volet Stock.** Le menu montre « Stock » si le module est ouvert pour
+l'entreprise **et** si l'utilisateur en a le droit. La matrice du personnel
+était écrite en dur : elle affichait une colonne « Stock » cochée même quand
+le module était fermé, et la case n'ouvrait rien. Elle suit maintenant le
+catalogue réduit aux modules ouverts (`Habilitations::pourLEntreprise`). Un
+encadré (`partials/modules-fermes`) nomme les modules fermés et dit où les
+ouvrir. Il s'affiche aussi au-dessus des cases d'habilitation.
+
+**Diagnostic en production.** `php artisan selflow:diagnostic-acces
+<courriel>` dit, volet par volet, si le module est ouvert, si le droit est
+coché, et ce qui manque. La commande travaille en lecture seule.
+
+- `VoletStockEtRecuTest` (3).
+
+---
+
+### Lot 111 — Soldes de départ des clients et des fournisseurs — **TERMINÉ le 19/10/2026**
+
+**Demande client.** Saisir ce que les clients devaient, et ce qu'on devait
+aux fournisseurs, avant l'arrivée sur Selflow. Le solde doit se déduire au
+fil des règlements.
+
+**Modèle.** Une table `soldes_initiaux` (migration `2026_10_19_000001`)
+contient un solde par tiers et par sens, et une référence `SD-C-000012` ou
+`SD-F-000007`. Le réglé se lit dans la trésorerie sous cette référence, et le
+reste par différence.
+
+**Écran.** La page Créances gagne, dans chaque onglet, une section
+« Soldes de départ » avec :
+
+- trois KPI : solde initial, réglé, reste ;
+- un formulaire : choisir le tiers d'abord, puis le montant, la date et un
+  libellé ;
+- la liste des soldes.
+
+Le solde entre aussi dans les pièces du tiers : le bouton « Enregistrer
+Règlement » le propose sous le nom « Solde de départ ».
+
+**Règlement.** Il passe en trésorerie (encaissement ou décaissement), sous
+verrou, sans dépasser le reste. Quand la comptabilité est ouverte, il
+produit l'écriture caisse ou banque contre le compte du tiers
+(`ComptabiliteService::genererEcritureReglementSoldeInitial`). Le solde
+lui-même ne s'écrit pas : c'est un à-nouveau, que le cabinet porte dans
+Comptaflow.
+
+**Règles.**
+
+- Un solde corrigé ne descend pas sous ce qui est réglé.
+- Un solde déjà réglé, même en partie, ne se supprime plus.
+- Un tiers d'une autre entreprise est refusé.
+
+- `SoldesDeDepartTest` (5).
+
+---
+
+### Lot 112 — KPI des factures vente et achat — **TERMINÉ le 19/10/2026**
+
+Au-dessus des listes de factures, quatre cartes donnent le nombre et le
+montant TTC, sur la période, le site et les dates affichés :
+
+- **Ventes** : vendues, hors annulées ;
+- **Annulées** ;
+- **Normalisées** ;
+- **Non normalisées**.
+
+Les avoirs, les devis et les bons de commande n'ont pas de KPI. Côté achats,
+seul le bordereau se normalise : « Non normalisés » compte les bordereaux en
+attente. Le partial est `partials/kpi-factures`.
+
+- `KpiDesFacturesTest` (3).
+
+---
+
+### Lot 113 — Superadmin : Switch entreprise (assistance) — **TERMINÉ le 19/10/2026**
+
+**Page `superadmin/switch`** (droit `gestion_entreprises`, lien
+« Switch entreprise » sous Supervision). Elle comprend :
+
+- quatre KPI : entreprises hors corbeille, actives, bloquées, utilisateurs ;
+- une recherche par entreprise, nom ou courriel, et un filtre de statut ;
+- le tableau paginé des entreprises.
+
+« Accéder » ouvre le compte de l'administrateur principal. Le bouton
+« utilisateurs » déplie les membres, chacun avec « Se connecter ».
+
+**Incarnation.** Le compte est ouvert avec `Auth::login`, et la session
+garde `incarnation` : le superadmin d'origine, l'entreprise, le membre. Un
+bandeau violet reste affiché sur toutes les pages, avec « Revenir au
+superadmin ». La route de retour est `assistance.quitter`, hors du groupe
+superadmin ; elle refuse quiconque n'a pas d'incarnation ouverte.
+
+**Garde-fous.**
+
+- On n'incarne pas un superadministrateur, ni une entreprise en corbeille.
+- L'entrée et la sortie s'écrivent au journal d'audit de l'entreprise, au
+  nom du superadmin.
+- Chaque action faite pendant l'assistance porte `_assistance_par` dans le
+  journal.
+- Le changement de mot de passe forcé du client n'est pas imposé au
+  superadmin.
+
+- `SwitchEntrepriseTest` (6). Suite : 1 862 épreuves, 1 857 passantes,
+  5 ignorées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

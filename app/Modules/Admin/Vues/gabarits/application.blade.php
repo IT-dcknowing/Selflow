@@ -751,6 +751,9 @@
             <a href="{{ route('superadmin.entreprises') }}" class="nav-item {{ request()->routeIs('superadmin.entreprises*') ? 'active' : '' }}">
                 <i class="fas fa-building"></i> Entreprises
             </a>
+            <a href="{{ route('superadmin.switch.index') }}" class="nav-item {{ request()->routeIs('superadmin.switch*') ? 'active' : '' }}">
+                <i class="fas fa-right-left"></i> Switch entreprise
+            </a>
             @php $__enCorbeille = \App\Modules\Admin\Modeles\Entreprise::enCorbeille()->count(); @endphp
             <a href="{{ route('superadmin.corbeille') }}" class="nav-item {{ request()->routeIs('superadmin.corbeille*') ? 'active' : '' }}">
                 <i class="fas fa-trash-can"></i> Corbeille
@@ -1421,6 +1424,19 @@
 <!-- ────────────────── CONTENU PRINCIPAL ────────────────── -->
 <div class="main-wrap">
     <main class="main-content">
+        {{-- Assistance (19/10/2026) : le superadministrateur travaille dans
+             l'espace d'un client. Le bandeau ne se cache pas. --}}
+        @if(is_array(session('incarnation')))
+        <div id="bandeau-assistance" style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; background:#7c3aed; color:#fff; border-radius:10px; padding:10px 16px; margin-bottom:14px; font-size:13px;">
+            <span><i class="fas fa-user-secret"></i>
+                Assistance — vous êtes dans l'espace de <strong>{{ session('incarnation.entreprise') }}</strong>
+                en tant que <strong>{{ session('incarnation.utilisateur') }}</strong>. Vos actions sont tracées à votre nom.</span>
+            <form method="POST" action="{{ route('assistance.quitter') }}" style="margin:0;">
+                @csrf
+                <button type="submit" class="btn btn-sm" style="background:#fff; color:#5b21b6; border:none; font-weight:700;"><i class="fas fa-arrow-right-from-bracket"></i> Revenir au superadmin</button>
+            </form>
+        </div>
+        @endif
 
         {{-- Les messages flash apparaissent en toast — un pop-up en surimpression,
              coin haut-droit —, non plus en bandeau : un bandeau en haut d'un écran

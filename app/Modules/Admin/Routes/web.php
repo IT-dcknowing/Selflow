@@ -610,6 +610,11 @@ Route::prefix('superadmin')
         Route::post('/entreprises/{entreprise}/toggle-status', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'toggleStatus'])->name('entreprises.toggle_status');
         Route::delete('/entreprises/{entreprise}', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'supprimer'])->name('entreprises.supprimer');
         // ── Maintenance & traçabilité (16/10/2026) ──
+        // Switch entreprise — l'assistance (19/10/2026).
+        Route::get('/switch', [\App\Modules\Admin\Controleurs\SuperadminSwitchControleur::class, 'index'])->name('switch.index');
+        Route::post('/switch/entreprise/{entreprise}', [\App\Modules\Admin\Controleurs\SuperadminSwitchControleur::class, 'acceder'])->name('switch.acceder');
+        Route::post('/switch/utilisateur/{utilisateur}', [\App\Modules\Admin\Controleurs\SuperadminSwitchControleur::class, 'incarner'])->name('switch.incarner');
+
         Route::prefix('tracabilite')->name('tracabilite.')->group(function () {
             Route::get('/', [\App\Modules\Admin\Controleurs\SuperadminTracabiliteControleur::class, 'index'])->name('index');
             Route::get('/audit', [\App\Modules\Admin\Controleurs\SuperadminTracabiliteControleur::class, 'audit'])->name('audit');
@@ -803,3 +808,9 @@ Route::prefix('caissier')
         Route::post('/banques/creer', [TresorerieControleur::class, 'creerBanqueAjax'])->name('banques.creer');
     });
 
+// Revenir au superadmin après une assistance (19/10/2026). Hors du groupe
+// superadmin : on y arrive connecté sous le compte du client. Le contrôleur
+// refuse quiconque n'a pas d'incarnation ouverte en session.
+Route::post('/assistance/quitter', [\App\Modules\Admin\Controleurs\SuperadminSwitchControleur::class, 'quitter'])
+    ->middleware('auth')
+    ->name('assistance.quitter');

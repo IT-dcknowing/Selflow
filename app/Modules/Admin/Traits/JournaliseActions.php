@@ -38,6 +38,15 @@ trait JournaliseActions
     ): void {
         try {
             $user = Auth::user();
+
+            // En assistance, l'action est faite par le superadministrateur sous
+            // le compte du client : le journal le dit (19/10/2026).
+            $incarnation = session('incarnation');
+            if (is_array($incarnation) && !empty($incarnation['superadmin_email'])) {
+                $apres = (is_array($apres) ? $apres : ($apres !== null ? ['valeur' => $apres] : []))
+                    + ['_assistance_par' => $incarnation['superadmin_email']];
+            }
+
             JournalAudit::create([
                 'utilisateur_id'    => $user?->id,
                 'entreprise_id'     => $user?->entreprise_id,
