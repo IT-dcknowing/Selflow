@@ -9,6 +9,7 @@ use App\Modules\Authentification\Modeles\Utilisateur;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -708,6 +709,10 @@ class SuperadminControleur
 
     public function supprimerAdmin(Utilisateur $utilisateur): RedirectResponse
     {
+        // Cet écran ne gère que l'administration interne : un compte d'entreprise
+        // ne se supprime pas d'ici.
+        abort_unless($utilisateur->estSuperAdmin(), 404);
+
         if ($utilisateur->id === Auth::id()) {
             return redirect()->back()->with('erreur', 'Vous ne pouvez pas vous supprimer vous-même.');
         }
