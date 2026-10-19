@@ -12,7 +12,8 @@
         }
         body {
             font-family: 'Courier New', Courier, monospace;
-            font-size: 12px;
+            /* Police agrandie le 19/10/2026 : le reçu se lisait mal. */
+            font-size: 14px;
             color: #000;
             width: 80mm;
             margin: 0;
@@ -44,7 +45,7 @@
             height: 28px;
         }
         .rne-label {
-            font-size: 10px;
+            font-size: 12px;
             font-weight: bold;
             text-transform: uppercase;
             line-height: 1.2;
@@ -65,13 +66,13 @@
             text-transform: uppercase;
         }
         .grid-info {
-            font-size: 10px;
+            font-size: 12.5px;
             line-height: 1.3;
         }
         .item-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 11px;
+            font-size: 13.5px;
             margin-top: 8px;
         }
         .item-table td {
@@ -79,7 +80,7 @@
             vertical-align: top;
         }
         .total-box {
-            font-size: 15px;
+            font-size: 18px;
             font-weight: bold;
             margin: 12px 0;
             text-align: center;
@@ -99,7 +100,7 @@
             height: 100px;
         }
         .footer-text {
-            font-size: 9px;
+            font-size: 11.5px;
             text-align: center;
             color: #444;
             margin-top: 10px;
@@ -191,7 +192,7 @@
             @endif
         </div>
     </div>
-    <div class="text-center bold" style="font-size: 11px;">
+    <div class="text-center bold" style="font-size: 13.5px;">
         @if(isset($bl))
             BL No: {{ $bl->numero_bl }}
         @elseif($estNormalise)
@@ -238,9 +239,9 @@
                     <span class="bold">{{ $d->produit ? $d->produit->nom : $d->libelle_virtuel }}</span>
                     <br>
                     @if(isset($bl))
-                        <span style="font-size:10px;">Quantité : {{ $qty }} {{ $d->unite }}</span>
+                        <span style="font-size:12.5px;">Quantité : {{ $qty }} {{ $d->unite }}</span>
                     @else
-                        <span style="font-size:10px;">{{ $qty }} x {{ number_format($d->prix_unitaire, 0, ',', ' ') }}</span>
+                        <span style="font-size:12.5px;">{{ $qty }} x {{ number_format($d->prix_unitaire, 0, ',', ' ') }}</span>
                     @endif
                 </td>
                 <td class="text-right bold">

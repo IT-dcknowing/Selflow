@@ -14,6 +14,7 @@
     $accordees = $accordees ?? [];
 @endphp
 
+@include('admin::personnel.partials.modules-fermes', ['entreprise' => $entreprise ?? null])
 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:18px;">
     @foreach($groupes as $titre => $droits)
     <div>

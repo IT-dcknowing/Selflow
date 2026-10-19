@@ -159,39 +159,28 @@
         <h2>Matrice globale des habilitations (Accès Pages)</h2>
     </div>
     <div class="table-wrap">
+        {{-- La matrice suit le catalogue et les modules ouverts (19/10/2026) :
+             elle était écrite en dur, montrait une colonne « Stock » même quand
+             le module était fermé — la case cochée n'ouvrait alors rien. --}}
+        @php
+            $__groupesMatrice = \App\Modules\Authentification\Regles\Habilitations::pourLEntreprise(auth()->user()->entreprise);
+        @endphp
+        @include('admin::personnel.partials.modules-fermes', ['entreprise' => auth()->user()->entreprise])
         <table class="matrix-table">
             <thead>
                 <tr>
                     <th rowspan="2" style="vertical-align: middle;">Personnel</th>
                     <th rowspan="2" style="vertical-align: middle;">Rôle</th>
-                    <th colspan="2" style="text-align: center; border-bottom: 2px solid var(--primary); font-weight: bold; background: #f1f5f9;">Tableau de bord</th>
-                    <th colspan="2" style="text-align: center; border-bottom: 2px solid var(--primary); font-weight: bold; background: #e2e8f0;">Ventes</th>
-                    <th colspan="2" style="text-align: center; border-bottom: 2px solid var(--primary); font-weight: bold; background: #f1f5f9;">Achats</th>
-                    <th colspan="1" style="text-align: center; border-bottom: 2px solid var(--primary); font-weight: bold; background: #e2e8f0;">Stock</th>
-                    <th colspan="4" style="text-align: center; border-bottom: 2px solid var(--primary); font-weight: bold; background: #f1f5f9;">Comptabilité</th>
-                    <th colspan="2" style="text-align: center; border-bottom: 2px solid var(--primary); font-weight: bold; background: #e2e8f0;">Points de vente</th>
-                    <th colspan="1" style="text-align: center; border-bottom: 2px solid var(--primary); font-weight: bold; background: #f1f5f9;">Produits</th>
-                    <th colspan="1" style="text-align: center; border-bottom: 2px solid var(--primary); font-weight: bold; background: #e2e8f0;">Tiers</th>
-                    <th colspan="2" style="text-align: center; border-bottom: 2px solid var(--primary); font-weight: bold; background: #f1f5f9;">Production</th>
+                    @foreach($__groupesMatrice as $titre => $droits)
+                    <th colspan="{{ count($droits) }}" style="text-align: center; border-bottom: 2px solid var(--primary); font-weight: bold; background: {{ $loop->odd ? '#f1f5f9' : '#e2e8f0' }};">{{ $titre }}</th>
+                    @endforeach
                 </tr>
                 <tr>
-                    <th style="text-align: center;" title="Tableau de bord personnel">TDB Pers</th>
-                    <th style="text-align: center;" title="Tableau de bord général">TDB Gén</th>
-                    <th style="text-align: center;" title="Nouvelle vente">N.Vente</th>
-                    <th style="text-align: center;" title="Factures Ventes">F.Vente</th>
-                    <th style="text-align: center;" title="Nouvel achat">N.Achat</th>
-                    <th style="text-align: center;" title="Factures Achats">F.Achat</th>
-                    <th style="text-align: center;" title="Stock">Stock</th>
-                    <th style="text-align: center;" title="Encaissements">Tréso Enc</th>
-                    <th style="text-align: center;" title="Opérations & écriture globale">Ecriture Glob</th>
-                    <th style="text-align: center;" title="Créances & règlements">Créances</th>
-                    <th style="text-align: center;" title="Plan Comptable">Plan Compta</th>
-                    <th style="text-align: center;" title="Points de vente">PDV</th>
-                    <th style="text-align: center;" title="Personnel">Pers</th>
-                    <th style="text-align: center;" title="Produits">Prod</th>
-                    <th style="text-align: center;" title="Clients & Fournisseurs">Tiers</th>
-                    <th style="text-align: center;" title="Fiches techniques / Recettes">Recettes</th>
-                    <th style="text-align: center;" title="Ordres de production">Ordres</th>
+                    @foreach($__groupesMatrice as $droits)
+                        @foreach($droits as $libelle)
+                        <th style="text-align: center; font-size: 10.5px; max-width: 90px; white-space: normal;" title="{{ $libelle }}">{{ \Illuminate\Support\Str::limit($libelle, 22) }}</th>
+                        @endforeach
+                    @endforeach
                 </tr>
             </thead>
             <tbody>
@@ -205,26 +194,19 @@
                         @if($pers->estAdmin() || $pers->estSuperAdmin())
                             <span class="badge badge-info btn-sm">Admin</span>
                         @else
-                            <span class="badge badge-gray btn-sm">Caissier</span>
+                            <span class="badge badge-gray btn-sm">{{ ['caissier' => 'Caissier', 'responsable_pdv' => 'Resp. PDV', 'admin_secondaire' => 'Admin second.'][$pers->role] ?? ucfirst((string) $pers->role) }}</span>
                         @endif
                     </td>
-                    {{-- Checkboxes indicatifs --}}
-                    @php
-                        $pagesCheck = [
-                            'tableau_de_bord_personnel', 'tableau_de_bord_general', 'nouvelle_vente', 'factures_vente',
-                            'nouvel_achat', 'factures_achat', 'stock_articles',
-                            'tresorerie_encaissements', 'comptabilite_globale', 'comptabilite_creances', 'comptabilite_plan_comptable', 'gestion_pdv', 'gestion_personnel',
-                            'catalogue_produits', 'tiers_clients', 'production_recettes', 'production_ordres'
-                        ];
-                    @endphp
-                    @foreach($pagesCheck as $pKey)
-                    <td style="text-align: center; font-size: 16px;">
-                        @if($pers->aHabilitation($pKey))
-                            <i class="fas fa-square-check" style="color:var(--success);"></i>
-                        @else
-                            <i class="fas fa-square" style="color:var(--border);"></i>
-                        @endif
-                    </td>
+                    @foreach($__groupesMatrice as $droits)
+                        @foreach($droits as $pKey => $libelle)
+                        <td style="text-align: center; font-size: 16px;">
+                            @if($pers->aHabilitation($pKey))
+                                <i class="fas fa-square-check" style="color:var(--success);"></i>
+                            @else
+                                <i class="fas fa-square" style="color:var(--border);"></i>
+                            @endif
+                        </td>
+                        @endforeach
                     @endforeach
                 </tr>
                 @endforeach
