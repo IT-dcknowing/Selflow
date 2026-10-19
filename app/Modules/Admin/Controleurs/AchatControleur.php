@@ -619,7 +619,33 @@ class AchatControleur
             : \App\Modules\Admin\Modeles\PointDeVente::where('entreprise_id', $entreprise->id)
                 ->orderBy('nom')->get();
 
+        // Les KPI des factures d'achat (19/10/2026), sur le site et les dates
+        // affichés. Seul le bordereau se normalise : « non normalisées » ne
+        // compte donc que les bordereaux en attente.
+        $kpiFactures = [];
+        if ($etapeActive === 'Facture') {
+            // Une requête neuve : `$compteQuery` porte déjà un `groupBy`, qui
+            // fausserait les sommes.
+            $kpiBase = Achat::whereHas('pointDeVente', fn ($q) => $q->where('entreprise_id', $entreprise->id))
+                ->when($pointDeVenteId, fn ($q) => $q->where('point_de_vente_id', $pointDeVenteId))
+                ->where(fn ($q) => $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir'))
+                ->where('etape', 'Facture')
+                ->when(request()->filled('date_debut'), fn ($q) => $q->whereDate('date_achat', '>=', request('date_debut')))
+                ->when(request()->filled('date_fin'), fn ($q) => $q->whereDate('date_achat', '<=', request('date_fin')));
+            $mesure = fn ($requete) => ['nombre' => (clone $requete)->count(), 'montant' => (float) (clone $requete)->sum('montant_ttc')];
+            $annule = ['Annulée', 'Annulé'];
+            $actifs = (clone $kpiBase)->where(fn ($q) => $q->whereNull('statut')->orWhereNotIn('statut', $annule));
+            $kpiFactures = [
+                ['libelle' => 'Achats', 'couleur' => '#2563eb', 'icone' => 'fa-bag-shopping'] + $mesure($actifs),
+                ['libelle' => 'Annulés', 'couleur' => '#dc2626', 'icone' => 'fa-ban'] + $mesure((clone $kpiBase)->whereIn('statut', $annule)),
+                ['libelle' => 'Normalisés', 'couleur' => '#16a34a', 'icone' => 'fa-certificate'] + $mesure((clone $actifs)->where('normalise', true)),
+                ['libelle' => 'Non normalisés', 'couleur' => '#d97706', 'icone' => 'fa-hourglass-half', 'note' => 'bordereaux en attente']
+                    + $mesure((clone $actifs)->bordereaux()->where(fn ($q) => $q->where('normalise', false)->orWhereNull('normalise'))),
+            ];
+        }
+
         return view('admin::achats.factures', compact(
+            'kpiFactures',
             'achats', 'etapeActive', 'section', 'nbDP', 'nbBC', 'nbFacture',
             'nbBapa', 'nbEnregistrees', 'nbDgi', 'nbEcartees',
             'facturesPortail', 'sitesDisponibles', 'entreprise'

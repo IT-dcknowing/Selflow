@@ -13,6 +13,8 @@
     </a>
 </div>
 
+@include('admin::partials.kpi-factures', ['kpiFactures' => $kpiFactures ?? []])
+
 {{-- Les onglets du cycle d'achat --}}
 <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:1.5px solid var(--border); padding-bottom:12px; flex-wrap:wrap;">
     <a href="{{ route('admin.achats.factures', ['etape' => 'Demande de prix']) }}" 

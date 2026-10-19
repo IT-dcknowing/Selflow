@@ -675,10 +675,47 @@ class VenteControleur
 
         $banques = \App\Modules\Admin\Modeles\CodeJournal::banques()->where('entreprise_id', $entreprise->id)->orderBy('intitule')->get();
 
-        return view('admin::ventes.factures', compact('ventes', 'etapeActive', 'nbDV', 'nbBC', 'nbBL', 'nbFacture', 'type', 'voirArchives', 'facturesDispo', 'banques'));
+        $kpiFactures = ($etapeActive === 'Facture' && $type !== 'avoir')
+            ? self::kpiDesFactures($entreprise->id, $pointDeVenteId, $voirArchives)
+            : [];
+
+        return view('admin::ventes.factures', compact('ventes', 'etapeActive', 'nbDV', 'nbBC', 'nbBL', 'nbFacture', 'type', 'voirArchives', 'facturesDispo', 'banques', 'kpiFactures'));
     }
 
 
+
+    /**
+     * Les KPI de la liste des factures (19/10/2026) : vendu, annulé, normalisé,
+     * non normalisé — en nombre et en montant TTC, sur la période, le site et
+     * les dates affichés. Les avoirs n'y entrent pas ; une facture annulée ne
+     * compte que dans « Annulées ».
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private static function kpiDesFactures(int $entrepriseId, ?int $pointDeVenteId, bool $archives): array
+    {
+        $base = Vente::where(fn ($q) => $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir'))
+            ->where('etape', 'Facture')
+            ->where('archived', $archives)
+            ->when($pointDeVenteId,
+                fn ($q) => $q->where('point_de_vente_id', $pointDeVenteId),
+                fn ($q) => $q->whereHas('pointDeVente', fn ($p) => $p->where('entreprise_id', $entrepriseId)))
+            ->when(request()->filled('date_debut'), fn ($q) => $q->whereDate('date_vente', '>=', request('date_debut')))
+            ->when(request()->filled('date_fin'), fn ($q) => $q->whereDate('date_vente', '<=', request('date_fin')));
+
+        $mesure = fn ($requete) => [
+            'nombre'  => (clone $requete)->count(),
+            'montant' => (float) (clone $requete)->sum('montant_ttc'),
+        ];
+        $actives = (clone $base)->where(fn ($q) => $q->whereNull('statut')->orWhere('statut', '!=', Vente::STATUT_ANNULEE));
+
+        return [
+            ['libelle' => 'Ventes', 'couleur' => '#2563eb', 'icone' => 'fa-cart-shopping'] + $mesure($actives),
+            ['libelle' => 'Annulées', 'couleur' => '#dc2626', 'icone' => 'fa-ban'] + $mesure((clone $base)->where('statut', Vente::STATUT_ANNULEE)),
+            ['libelle' => 'Normalisées', 'couleur' => '#16a34a', 'icone' => 'fa-certificate'] + $mesure((clone $actives)->where('normalise', true)),
+            ['libelle' => 'Non normalisées', 'couleur' => '#d97706', 'icone' => 'fa-hourglass-half'] + $mesure((clone $actives)->where(fn ($q) => $q->where('normalise', false)->orWhereNull('normalise'))),
+        ];
+    }
 
     /**
      * Qui peut lire et imprimer cette pièce.
