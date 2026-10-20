@@ -761,9 +761,9 @@ class ComptabiliteControleur
                 'reference_document' => $solde->reference,
             ]);
 
-            if ($entreprise->comptabiliteOuverte()) {
-                ComptabiliteService::genererEcritureReglementSoldeInitial($solde, $montant, $mode, $request->date_operation, $pdvId);
-            }
+            // Comme le règlement d'une facture : l'écriture est tenue même
+            // comptabilité fermée, pour le jour où elle s'ouvre.
+            ComptabiliteService::genererEcritureReglementSoldeInitial($solde, $montant, $mode, $request->date_operation, $pdvId);
         });
 
         return back()->with('succes', 'Règlement du solde de départ enregistré.')

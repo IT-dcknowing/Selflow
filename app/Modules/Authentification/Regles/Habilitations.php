@@ -269,7 +269,8 @@ class Habilitations
             'tresorerie_encaissements'    => $ouverte && $entreprise->encaissementsAccordes(),
             'tresorerie_decaissements'    => $ouverte && $entreprise->decaissementsAccordes(),
             'comptabilite_globale'        => $ouverte && $entreprise->ecritureGlobaleAccordee(),
-            'comptabilite_creances'       => $ouverte,
+            // Les créances relèvent de la trésorerie (20/10/2026).
+            'comptabilite_creances'       => true,
             'comptabilite_plan_comptable' => $ouverte,
             'immobilisations'             => $ouverte && $entreprise->immobilisationsAccordees(),
         ];

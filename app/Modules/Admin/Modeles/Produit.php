@@ -259,6 +259,15 @@ class Produit extends Model
                 $produit->reference = self::genererReference($produit->entreprise_id, $produit->categorie_id);
             }
         });
+
+        // Un article qui se stocke ouvre le volet Stock (20/10/2026) : une
+        // entreprise qui crée de la marchandise sans avoir fait sa
+        // configuration ne voyait nulle part ce qu'elle avait en rayon.
+        static::saved(function ($produit) {
+            if (($produit->wasRecentlyCreated || $produit->wasChanged('type')) && $produit->estStockable() && $produit->entreprise_id) {
+                Entreprise::find($produit->entreprise_id)?->ouvrirLeStockSiBesoin();
+            }
+        });
     }
 
     public static function genererReference($entrepriseId, $categorieId): string

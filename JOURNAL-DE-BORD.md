@@ -9361,6 +9361,51 @@ et la même adresse ne pouvait ni se réinscrire ni passer par Google
 
 ---
 
+### Lot 119 — Corbeille rapide ; créances sans comptabilité ; volet Stock ouvert à qui stocke — **TERMINÉ le 20/10/2026**
+
+**Corbeille : plus de cinq minutes, et rien d'effacé.** Le temps ne partait
+pas dans les effacements, mais dans le relevé du schéma.
+`SuppressionEntrepriseService::liens()` faisait quatre requêtes à
+`information_schema` par table, à chaque effacement : la mémoire du
+processus ne survit pas d'une requête web à l'autre. La requête mourait
+avant la fin, et la transaction annulait tout.
+
+- Sur MySQL, le graphe se lit maintenant en trois requêtes
+  (`TABLES`, `COLUMNS`, `KEY_COLUMN_USAGE` jointe à
+  `REFERENTIAL_CONSTRAINTS`). Si elles échouent, on revient au relevé par
+  table.
+- Le graphe est gardé en cache (`Cache`, un jour, clé liée au nombre de
+  migrations).
+- La nullabilité des colonnes est lue dans le même graphe : plus une requête
+  par colonne à vider.
+- Nouvelle commande `php artisan selflow:vider-corbeille [entreprise]` :
+  elle efface depuis le terminal, sans limite de temps, et met le graphe en
+  cache pour les effacements faits ensuite depuis l'écran.
+- Pas de MySQL dans l'environnement de travail : le chemin MySQL n'a pas
+  été exécuté ici, d'où le repli.
+
+**Créances & règlements, par défaut dans la Trésorerie.** La page, le relevé
+du tiers, le règlement et les soldes de départ sortent du middleware
+`comptabilite`. Le lien s'affiche sous « Trésorerie », et le droit est
+proposé même comptabilité fermée. Comme pour une facture, le règlement d'un
+solde de départ écrit son écriture même comptabilité fermée. Les tests
+`ComptabiliteFacultativeTest` et `HabilitationsAJourTest` sont alignés sur
+cette décision.
+
+**Volet Stock.** « Poissonnerie LA GRACE » avait des alertes de stock au
+tableau de bord, et aucun volet Stock : le module n'était pas ouvert.
+
+- Créer un article stockable, ou passer un article à un type stockable,
+  ouvre le module (`Entreprise::ouvrirLeStockSiBesoin`), s'il est autorisé
+  à l'entreprise.
+- La migration `2026_10_20_000005` ouvre le module aux entreprises qui ont
+  déjà des articles stockables.
+
+- `CreancesEtStockOuvertsTest` (5). Suite : 1 897 épreuves, 1 892
+  passantes, 5 ignorées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

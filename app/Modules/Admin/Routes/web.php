@@ -241,14 +241,18 @@ Route::prefix('admin')
              * Le refus est un 404 (Not Found -- introuvable) : l'entreprise
              * n'a rien ferme, ces ecrans n'existent pas pour elle.
              */
+            // Créances & règlements : de la trésorerie, et non des livres
+            // (20/10/2026). Suivre ce que les clients doivent et ce qu'on doit
+            // aux fournisseurs ne demande pas d'avoir ouvert la comptabilité.
+            Route::get('/creances', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'creances'])->name('creances');
+            Route::get('/tiers/{type}/{id}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'releveTiers'])->name('releve_tiers');
+            Route::post('/reglement', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'enregistrerReglement'])->name('enregistrer_reglement');
+            // Les soldes de départ des tiers (19/10/2026).
+            Route::post('/soldes-de-depart', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'enregistrerSoldeInitial'])->name('soldes_initiaux.enregistrer');
+            Route::delete('/soldes-de-depart/{solde}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'supprimerSoldeInitial'])->name('soldes_initiaux.supprimer');
+
             Route::middleware('comptabilite')->group(function () {
                 Route::get('/globale', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'globale'])->name('globale');
-                Route::get('/creances', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'creances'])->name('creances');
-                Route::get('/tiers/{type}/{id}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'releveTiers'])->name('releve_tiers');
-                Route::post('/reglement', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'enregistrerReglement'])->name('enregistrer_reglement');
-                // Les soldes de départ des tiers (19/10/2026).
-                Route::post('/soldes-de-depart', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'enregistrerSoldeInitial'])->name('soldes_initiaux.enregistrer');
-                Route::delete('/soldes-de-depart/{solde}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'supprimerSoldeInitial'])->name('soldes_initiaux.supprimer');
                 // La configuration globale des comptes (section 6 du plan) :
                 // saisir les comptes une fois, et non sur chaque fiche.
                 Route::get('/configuration-des-comptes', [\App\Modules\Admin\Controleurs\ConfigurationComptesControleur::class, 'index'])->name('configuration');
