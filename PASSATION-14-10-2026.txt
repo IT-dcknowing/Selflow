@@ -186,7 +186,7 @@ EN PRODUCTION, DANS L'ORDRE :
   8. Relancer la suppression de « eve disagn » si pas encore faite.
 
 
-11. SUITE DU 16/10/2026 — lots 95 à 113 (main 79c39fd)
+11. SUITE DU 16/10/2026 — lots 95 à 121 (main 5a7f855)
 ------------------------------------------------------
 - 95/96 Montants : la liaison Comptaflow ne multiplie rien ; factures d'essai
   a 7 milliards. Facture modifiee -> ecritures contre-passees/repassees.
@@ -219,6 +219,28 @@ EN PRODUCTION, DANS L'ORDRE :
 - 111 Soldes de depart clients/fournisseurs (Creances). Migration 2026_10_19_000001.
 - 112 KPI des factures vente et achat.
 - 113 Switch entreprise (superadmin) : acceder / se connecter / revenir, trace.
+- 114 Le site actif commande les saisies ; caissier / responsable lies a
+  leur site (middleware ImposerLeSiteDeTravail).
+- 115 Fiche d'entreprise au Switch ; selflow:diagnostic-stock-sites.
+- 116 Presence des utilisateurs ; article reference par site.
+  Migration 2026_10_20_000001.
+- 117 Voir la derniere facture ; page 403 ; section Ventes.
+- 118 Prix par site, numeros par site (VTE-BON-...), corbeille immediate,
+  adresse liberee. Migrations 2026_10_20_000002 a _000004.
+- 119 Effacement rapide (graphe en cache) ; selflow:vider-corbeille ;
+  creances sans comptabilite ; module Stock ouvert. Migration _000005.
+- 120 BAPA sur choix explicite ; selflow:requalifier-achats ; creances,
+  soldes et tiers par site. Migration _000006.
+- 121 Choix du point de vente (un : d'office ; plusieurs : fenetre) ;
+  clients de la caisse par site. Aucune migration.
+
+EN PRODUCTION (lots 114 a 121) :
+  git pull origin main
+  php artisan migrate --force
+  php artisan optimize:clear && php artisan optimize
+  php artisan selflow:vider-corbeille
+  php artisan selflow:requalifier-achats "poissonnerie LA GRACE" ACH-GUE-201026-001 ACH-191026-002 ACH-191026-001
+    (ajouter --appliquer si une piece est encore marquee bapa)
 
 EN PRODUCTION :
   git pull origin main

@@ -227,5 +227,13 @@ secret `external/*` par entreprise (moyen terme).
 | Soldes de départ clients / fournisseurs | lot 111 |
 | KPI des factures vente et achat | lot 112 |
 | Switch entreprise (assistance superadmin) | lot 113 |
+| Le point de vente actif commande les saisies ; membre affecté lié à son site | lot 114 |
+| Fiche d'entreprise, sites au Switch, diagnostic du stock par site | lot 115 |
+| Présence des utilisateurs ; chaque site voit ses articles | lot 116 |
+| Voir la dernière facture ; page d'accès refusé ; section Ventes | lot 117 |
+| Prix et numéros par point de vente ; corbeille immédiate ; adresse libérée | lot 118 |
+| Corbeille rapide ; créances sans comptabilité ; volet Stock ouvert | lot 119 |
+| BAPA sur choix explicite ; créances, soldes et tiers par site | lot 120 |
+| Choisir son point de vente ; clients de la caisse par site | lot 121 |
 | Contre-attaque | **refusée** (illégal) ; défense outillée |
 | Relais WhatsApp | à brancher (URL d'un relais) |
