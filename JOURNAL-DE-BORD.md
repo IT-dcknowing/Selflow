@@ -9553,6 +9553,31 @@ base.
 - `DoublonsPointsDeVenteTest` (5). Suite : 1 913 épreuves, 1 908
   passantes, 5 ignorées.
 
+**En production, le 20/10/2026 :** chez LA GRACE, le site 32 (« GEUDE AYA
+JAQUELINE ») ne porte rien, et tout est sur le 31. Commande à passer :
+`--fusionner=32 --vers=31 --appliquer`.
+
+---
+
+### Lot 123 — Le code du point de vente en chiffres — **TERMINÉ le 20/10/2026**
+
+Décision du propriétaire : le code des sites dans les numéros de pièce se
+compose de chiffres, plus de lettres tirées du nom.
+
+- Le code est un numéro d'ordre dans l'entreprise : 01, 02, 03… On obtient
+  par exemple `VTE-01-201026-001`.
+- Un code n'est jamais réattribué : le suivant est le plus grand plus un,
+  même après une suppression.
+- La migration `2026_10_20_000008` renumérote les sites dans leur ordre de
+  création.
+- Les numéros déjà émis (`VTE-BON-…`) ne changent pas. Les suivants
+  repartent à 001 sous le nouveau préfixe, sans croiser les anciens.
+- Le code s'affiche sur la carte de chaque point de vente, dès qu'il y en a
+  plusieurs.
+
+- `PrixEtNumerosParSiteTest` aligné. Suite : 1 913 épreuves, 1 908
+  passantes, 5 ignorées.
+
 ---
 
 ## 5 bis. La numérotation des comptes — tranché
