@@ -26,6 +26,12 @@ class Fournisseur extends Model
     protected static function booted(): void
     {
         static::creating(function (self $tiers) {
+            // Le site où le tiers naît (20/10/2026) : chaque point de vente
+            // retrouve ses tiers.
+            if (blank($tiers->point_de_vente_id)) {
+                $tiers->point_de_vente_id = \App\Modules\Admin\Services\SiteConsulte::actifPour($tiers->entreprise_id);
+            }
+
             if (blank($tiers->compte_comptable)) {
                 $tiers->compte_comptable = config('selflow.plan_comptable_defaut.fournisseur_collectif');
             }
@@ -78,5 +84,22 @@ class Fournisseur extends Model
             return self::where('entreprise_id', $entrepriseId)->where('source', 'comptaflow')->orderBy('nom')->get();
         }
         return self::where('entreprise_id', $entrepriseId)->orderBy('nom')->get();
+    }
+
+    /**
+     * Les tiers d'un point de vente (20/10/2026) : nés sur ce site, ou qui y
+     * ont des pièces. Un tiers sans site ni pièce reste commun. `null` : tous.
+     */
+    public function scopeDuSite($requete, ?int $site)
+    {
+        if (!$site) {
+            return $requete;
+        }
+
+        return $requete->where(function ($q) use ($site) {
+            $q->where('fournisseurs.point_de_vente_id', $site)
+              ->orWhereHas('achats', fn ($p) => $p->withoutGlobalScopes()->where('point_de_vente_id', $site))
+              ->orWhere(fn ($commun) => $commun->whereNull('fournisseurs.point_de_vente_id')->whereDoesntHave('achats', fn ($p) => $p->withoutGlobalScopes()));
+        });
     }
 }

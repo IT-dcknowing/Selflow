@@ -957,6 +957,13 @@ class AchatControleur
             return back()->with('erreur', 'Seules les factures finalisées peuvent être normalisées.');
         }
 
+        // Seul le bordereau (BAPA) se normalise côté achat (20/10/2026) : une
+        // facture d'achat enregistrée a été certifiée — ou non — par le
+        // fournisseur, pas par vous.
+        if (!$achat->estBapa()) {
+            return back()->with('erreur', "{$achat->numero_facture} est une facture d'achat enregistrée, pas un bordereau : elle ne se normalise pas.");
+        }
+
         $manquants = $achat->pointDeVente->entreprise->elementsNormalisationManquants();
         if ($manquants !== []) {
             return back()

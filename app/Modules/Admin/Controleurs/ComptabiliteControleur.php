@@ -191,13 +191,17 @@ class ComptabiliteControleur
     public function creances(Request $request): View
     {
         $entreprise = Auth::user()->entreprise;
+        // Le point de vente consulté (20/10/2026) : tous, ou un seul.
+        $site = \App\Modules\Admin\Services\SiteConsulte::resoudre($request);
 
         // 1. Calcul des créances clients
         $ventesImpayees = Vente::with(['client', 'pointDeVente'])
             ->whereHas('pointDeVente', function ($q) use ($entreprise) {
                 $q->where('entreprise_id', $entreprise->id);
             })
+            ->when($site, fn ($q) => $q->where('point_de_vente_id', $site))
             ->where('etape', 'Facture')
+            ->where(fn ($q) => $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir'))
             ->whereIn('statut', ['Crédit', 'Avance'])
             ->get();
 
@@ -225,25 +229,36 @@ class ComptabiliteControleur
             }
 
             $regle = floatval($reglementsVentes->get($vente->numero_facture) ?? 0);
+            // Le dû comprend les taxes parafiscales et le timbre, que le
+            // client règle aussi : sans eux, une facture soldée affichait un
+            // « reste » négatif (20/10/2026).
+            $du = (float) $vente->montant_ttc + (float) $vente->montant_autres_taxes + (float) $vente->timbre_quittance;
+            $reste = round($du - $regle, 2);
+            if ($reste <= 0.5) {
+                continue;
+            }
 
             $creancesClients[$clientId]['invoices'][] = [
                 'id' => $vente->id,
                 'numero' => $vente->numero_facture,
                 'date' => $vente->date_vente->format('d/m/Y'),
-                'ttc' => $vente->montant_ttc,
+                'ttc' => $du,
                 'regle' => $regle,
-                'reste' => $vente->montant_ttc - $regle
+                'reste' => $reste,
             ];
 
-            $creancesClients[$clientId]['total_ttc'] += $vente->montant_ttc;
+            $creancesClients[$clientId]['total_ttc'] += $du;
             $creancesClients[$clientId]['total_regle'] += $regle;
-            $creancesClients[$clientId]['solde'] += ($vente->montant_ttc - $regle);
+            $creancesClients[$clientId]['solde'] += $reste;
         }
 
         // Les soldes de départ (19/10/2026) : une « pièce » de plus par tiers,
         // qui se règle comme les autres.
         $soldesInitiaux = \App\Modules\Admin\Modeles\SoldeInitial::with(['client', 'fournisseur'])
             ->where('entreprise_id', $entreprise->id)
+            // Les soldes du site ; ceux saisis avant le 20/10/2026, sans site,
+            // restent visibles partout.
+            ->when($site, fn ($q) => $q->where(fn ($w) => $w->where('point_de_vente_id', $site)->orWhereNull('point_de_vente_id')))
             ->orderBy('date_solde')
             ->get()
             ->each(function ($solde) {
@@ -262,6 +277,7 @@ class ComptabiliteControleur
             ->whereHas('pointDeVente', function ($q) use ($entreprise) {
                 $q->where('entreprise_id', $entreprise->id);
             })
+            ->when($site, fn ($q) => $q->where('point_de_vente_id', $site))
             ->where('etape', 'Facture')
             ->whereIn('statut', ['Crédit', 'Avance'])
             ->get();
@@ -290,6 +306,9 @@ class ComptabiliteControleur
             }
 
             $regle = floatval($reglementsAchats->get($achat->numero_facture) ?? 0);
+            if ((float) $achat->montant_ttc - $regle <= 0.5) {
+                continue;
+            }
 
             $dettesFournisseurs[$fournisseurId]['invoices'][] = [
                 'id' => $achat->id,
@@ -326,12 +345,13 @@ class ComptabiliteControleur
             ];
         }
 
-        $clients = \App\Modules\Admin\Modeles\Client::where('entreprise_id', $entreprise->id)->orderBy('nom')->get(['id', 'nom']);
-        $fournisseurs = \App\Modules\Admin\Modeles\Fournisseur::where('entreprise_id', $entreprise->id)->orderBy('nom')->get(['id', 'nom']);
+        $clients = \App\Modules\Admin\Modeles\Client::where('entreprise_id', $entreprise->id)->duSite($site)->orderBy('nom')->get(['id', 'nom']);
+        $fournisseurs = \App\Modules\Admin\Modeles\Fournisseur::where('entreprise_id', $entreprise->id)->duSite($site)->orderBy('nom')->get(['id', 'nom']);
+        $filtreSite = \App\Modules\Admin\Services\SiteConsulte::pourLaVue($site);
 
         return view('admin::comptabilite.creances', compact(
             'creancesClients', 'dettesFournisseurs', 'banques',
-            'soldesInitiaux', 'kpiSoldes', 'clients', 'fournisseurs'
+            'soldesInitiaux', 'kpiSoldes', 'clients', 'fournisseurs', 'filtreSite', 'site'
         ));
     }
 
@@ -388,8 +408,12 @@ class ComptabiliteControleur
         $modele = $donnees['type'] === 'client' ? \App\Modules\Admin\Modeles\Client::class : \App\Modules\Admin\Modeles\Fournisseur::class;
         $tiers = $modele::where('entreprise_id', $entreprise->id)->findOrFail($donnees['tiers_id']);
 
+        // Le solde appartient au point de vente consulté (20/10/2026) ; sans
+        // site choisi, il reste commun.
+        $site = \App\Modules\Admin\Services\SiteConsulte::resoudre($request);
         $solde = \App\Modules\Admin\Modeles\SoldeInitial::firstOrNew([
             'entreprise_id' => $entreprise->id, 'type' => $donnees['type'], 'tiers_id' => $tiers->id,
+            'point_de_vente_id' => $site,
         ]);
 
         if ($solde->exists && (float) $donnees['montant'] < $solde->regle()) {
@@ -403,7 +427,7 @@ class ComptabiliteControleur
             'montant'    => $donnees['montant'],
             'date_solde' => $donnees['date_solde'],
             'libelle'    => $donnees['libelle'] ?? null,
-            'reference'  => \App\Modules\Admin\Modeles\SoldeInitial::referencePour($donnees['type'], $tiers->id),
+            'reference'  => $solde->reference ?: \App\Modules\Admin\Modeles\SoldeInitial::referencePour($donnees['type'], $tiers->id, $site),
             'cree_par'   => $solde->cree_par ?? Auth::id(),
         ])->save();
 
@@ -614,7 +638,10 @@ class ComptabiliteControleur
                 
                 // Calcul du reste à payer
                 $dejaPaye = TresorerieJournal::where('reference_document', $numFacture)->sum('montant_entree');
-                $reste = $vente->montant_ttc - $dejaPaye;
+                // Le dû comprend taxes parafiscales et timbre (20/10/2026),
+                // comme la page des créances et le plafond de la trésorerie.
+                $du = (float) $vente->montant_ttc + (float) $vente->montant_autres_taxes + (float) $vente->timbre_quittance;
+                $reste = round($du - $dejaPaye, 2);
 
                 if ($montant > $reste) {
                     abort(422, "Le montant du règlement ne peut pas dépasser le reste à payer (" . $reste . " F).");
@@ -650,7 +677,7 @@ class ComptabiliteControleur
 
                 // 3. Mettre à jour le statut de la facture
                 $nouveauPaye = $dejaPaye + $montant;
-                if ($nouveauPaye >= $vente->montant_ttc) {
+                if ($nouveauPaye + 0.5 >= $du) {
                     $vente->update(['statut' => 'Payé']);
                 } else {
                     $vente->update(['statut' => 'Avance']);
@@ -740,7 +767,8 @@ class ComptabiliteControleur
                 abort(422, 'Le montant du règlement ne peut pas dépasser le reste du solde de départ (' . $reste . ' F).');
             }
 
-            $pdvId = session('point_de_vente_actif_id')
+            $pdvId = $solde->point_de_vente_id
+                ?? session('point_de_vente_actif_id')
                 ?? Auth::user()->point_de_vente_id
                 ?? PointDeVente::where('entreprise_id', $entreprise->id)->value('id');
             $estClient = $solde->type === \App\Modules\Admin\Modeles\SoldeInitial::CLIENT;

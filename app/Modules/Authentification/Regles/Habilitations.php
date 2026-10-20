@@ -192,6 +192,9 @@ class Habilitations
         'produits'   => ['ventes', 'achats', 'stock'],
         'tiers'      => ['ventes', 'achats'],
         'parametres' => [],
+        // La trésorerie (solde, moyens de paiement, créances) est de toute
+        // entreprise, module « comptabilité » coché ou non (20/10/2026).
+        'comptabilite' => [],
         // Le menu « Fiscalité & DGI » suit le module comptable (ses routes aussi).
         'fne'        => ['fne', 'comptabilite'],
     ];

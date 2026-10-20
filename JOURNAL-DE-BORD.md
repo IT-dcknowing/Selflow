@@ -9406,6 +9406,71 @@ tableau de bord, et aucun volet Stock : le module n'était pas ouvert.
 
 ---
 
+### Lot 120 — BAPA sur choix explicite seulement ; créances et tiers par point de vente ; accès aux créances — **TERMINÉ le 20/10/2026**
+
+**BAPA.** Constat chez « poissonnerie LA GRACE » : trois factures `ACH-…`
+de « Fournisseur divers » étaient rangées en BAPA. Le bouton « Normaliser »
+les aurait envoyées à la DGI comme bordereaux.
+
+- **Cause.** `Achat::estBapa()` et `scopeBordereaux()` tenaient pour
+  bordereau toute pièce dont le fournisseur n'avait pas de NCC. La
+  normalisation manuelle (`AchatControleur::normaliser`) et la normalisation
+  par lot (`FneDashboardControleur::batchNormaliser`) ne vérifiaient pas le
+  type.
+- **Décision du propriétaire.** Seul `type_facture = 'bapa'`, le choix
+  explicite, fait un bordereau. Les deux chemins de normalisation refusent
+  désormais toute autre pièce d'achat.
+- **Périmètre gelé.** `FneService` n'a pas bougé. La règle de classement,
+  elle, décide de ce qui part à la DGI : on la change ici sur la demande
+  expresse du propriétaire (exception 3 de la règle d'or).
+- **Tests alignés.** `AvoirDeBapaTest` et `TroisNaturesDAchatTest`
+  encodaient l'ancienne règle.
+- **Données.** Avec le nouveau classement, les trois pièces passent d'elles-mêmes
+  en « Factures enregistrées ». Pour une pièce typée `bapa` à tort,
+  `php artisan selflow:requalifier-achats <entreprise> <numéros…>|--tous
+  [--appliquer]` la ramène en facture enregistrée ; une pièce normalisée ne
+  bouge pas.
+
+**Créances par point de vente.** Le service `SiteConsulte` et le partial
+`filtre-site` proposent « Tous les points de vente » ou un seul ; par
+défaut, c'est le site actif. Un membre affecté ne voit que son site. Le
+filtre vaut pour :
+
+- les créances clients et les dettes fournisseurs ;
+- les soldes de départ (colonne `point_de_vente_id`, unicité par tiers et
+  par site). Les soldes antérieurs, sans site, restent visibles partout.
+
+Deux corrections au passage :
+
+- le dû d'une facture de vente comprend taxes parafiscales et timbre, sur
+  la page comme au règlement. Une facture soldée ne s'affiche plus avec un
+  « reste » négatif ;
+- les avoirs sortent des créances.
+
+**Tiers par point de vente.** `clients` et `fournisseurs` gagnent
+`point_de_vente_id`, renseigné à la création depuis le site actif
+(migration `2026_10_20_000006`). Le scope `duSite` retient les tiers nés sur
+le site ou qui y ont des pièces ; un tiers sans site ni pièce reste commun.
+Les listes Clients et Fournisseurs reçoivent le même filtre de site.
+
+**« Des personnes ont l'habilitation mais pas la page. »** Il y avait trois
+causes :
+
+- le menu exigeait le module « comptabilité » dans la liste des modules
+  actifs ;
+- la route passait par `modules:comptabilite` ;
+- l'espace caissier n'avait ni la route ni le lien.
+
+Les routes des créances forment désormais leur propre groupe, sans module,
+dans l'espace admin et dans l'espace caissier. Le menu s'ouvre sur le seul
+droit, et le caissier a son lien. Le groupe Trésorerie des habilitations
+est toujours proposé.
+
+- `CreancesEtTiersParSiteTest` (7). Suite : 1 904 épreuves, 1 899
+  passantes, 5 ignorées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

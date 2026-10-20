@@ -114,11 +114,12 @@ class AvoirDeBapaTest extends TestCase
         $this->assertTrue($this->unAchat('2601234A', 'BA-2026-0001', 'bapa')->estBapa());
     }
 
-    public function test_un_fournisseur_sans_ncc_designe_aussi_un_bordereau(): void
+    public function test_un_fournisseur_sans_ncc_ne_fait_plus_un_bordereau(): void
     {
-        // C'est le chemin que `type_facture` ne dit pas : `validerFacture()`
-        // déclenche la normalisation BAPA sur ce seul critère.
-        $this->assertTrue($this->unAchat(null, 'ACH-2026-0002')->estBapa());
+        // Décision du propriétaire, 20/10/2026 : seul le choix explicite fait
+        // un bordereau. La facture de « Fournisseur divers » reste une
+        // facture d'achat enregistrée, et ne se normalise pas.
+        $this->assertFalse($this->unAchat(null, 'ACH-2026-0002')->estBapa());
     }
 
     public function test_une_facture_d_achat_ordinaire_n_est_pas_un_bordereau(): void
@@ -141,11 +142,11 @@ class AvoirDeBapaTest extends TestCase
         $autres     = Achat::horsBordereaux()->pluck('numero_facture')->all();
 
         $this->assertContains($declare->numero_facture, $bordereaux);
-        $this->assertContains($sansNcc->numero_facture, $bordereaux);
+        $this->assertNotContains($sansNcc->numero_facture, $bordereaux);
         $this->assertNotContains($ordinaire->numero_facture, $bordereaux);
 
         $this->assertContains($ordinaire->numero_facture, $autres);
-        $this->assertNotContains($sansNcc->numero_facture, $autres);
+        $this->assertContains($sansNcc->numero_facture, $autres);
     }
 
     public function test_les_deux_portees_se_partagent_toutes_les_pieces(): void

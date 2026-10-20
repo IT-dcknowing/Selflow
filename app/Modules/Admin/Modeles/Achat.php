@@ -236,8 +236,11 @@ class Achat extends Model
      */
     public function estBapa(): bool
     {
-        return $this->type_facture === 'bapa'
-            || empty($this->fournisseur?->ncc);
+        // **Seul le choix explicite fait un bordereau** (décision du
+        // propriétaire, 20/10/2026). Le fournisseur sans NCC suffisait : toute
+        // facture de « Fournisseur divers » passait en BAPA, proposée à la
+        // normalisation, sans que l'option ait été choisie.
+        return $this->type_facture === 'bapa';
     }
 
     /**
@@ -256,25 +259,13 @@ class Achat extends Model
      */
     public function scopeBordereaux($requete)
     {
-        return $requete->where(function ($q) {
-            $q->where('type_facture', 'bapa')
-              ->orWhereDoesntHave('fournisseur')
-              ->orWhereHas('fournisseur', function ($qf) {
-                  $qf->whereNull('ncc')->orWhere('ncc', '');
-              });
-        });
+        return $requete->where('type_facture', 'bapa');
     }
 
     /** Tout ce qui n'est pas un bordereau : la contrepartie exacte. */
     public function scopeHorsBordereaux($requete)
     {
-        return $requete->where(function ($q) {
-            $q->where(function ($qt) {
-                $qt->whereNull('type_facture')->orWhere('type_facture', '!=', 'bapa');
-            })->whereHas('fournisseur', function ($qf) {
-                $qf->whereNotNull('ncc')->where('ncc', '!=', '');
-            });
-        });
+        return $requete->where(fn ($q) => $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'bapa'));
     }
 
     public function rejets(): HasMany
