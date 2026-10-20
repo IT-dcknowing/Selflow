@@ -54,6 +54,16 @@ class ImposerLeSiteDeTravail
         if ($actif && $actif !== 'tout'
             && !PointDeVente::where('entreprise_id', $utilisateur->entreprise_id)->whereKey($actif)->exists()) {
             session()->forget(['point_de_vente_actif_id', 'point_de_vente_actif_nom']);
+            $actif = null;
+        }
+
+        // Un seul site : il est actif d'office, sans rien demander
+        // (20/10/2026). Plusieurs : la page propose de choisir.
+        if (!$actif) {
+            $sites = PointDeVente::where('entreprise_id', $utilisateur->entreprise_id)->limit(2)->get(['id', 'nom']);
+            if ($sites->count() === 1) {
+                session(['point_de_vente_actif_id' => $sites[0]->id, 'point_de_vente_actif_nom' => $sites[0]->nom]);
+            }
         }
 
         return $next($request);

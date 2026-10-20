@@ -100,13 +100,16 @@ class Client extends Model
         );
     }
 
-    public static function obtenirClientsPrioritaires($entrepriseId)
+    public static function obtenirClientsPrioritaires($entrepriseId, ?int $pointDeVenteId = null)
     {
+        // Les clients du point de vente actif (20/10/2026) : deux magasins
+        // peuvent avoir chacun leur « Kouassi », qui ne sont pas la même
+        // personne. Sans site, tous.
         $hasComptaflow = self::where('entreprise_id', $entrepriseId)->where('source', 'comptaflow')->exists();
         if ($hasComptaflow) {
-            return self::where('entreprise_id', $entrepriseId)->where('source', 'comptaflow')->orderBy('nom')->get();
+            return self::where('entreprise_id', $entrepriseId)->where('source', 'comptaflow')->duSite($pointDeVenteId)->orderBy('nom')->get();
         }
-        return self::where('entreprise_id', $entrepriseId)->orderBy('nom')->get();
+        return self::where('entreprise_id', $entrepriseId)->duSite($pointDeVenteId)->orderBy('nom')->get();
     }
 
     /**
