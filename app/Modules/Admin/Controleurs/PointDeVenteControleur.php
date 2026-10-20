@@ -205,6 +205,12 @@ class PointDeVenteControleur
                 . implode(', ', $rapport['crees']) . '. Leur ville et leur commune restent à compléter.';
         }
 
+        if (($rapport['a_verifier'] ?? []) !== []) {
+            $messages[] = 'À vérifier, non créé(s) pour ne pas faire de doublon : '
+                . implode(' ; ', $rapport['a_verifier'])
+                . '. Corrigez le nom du point existant pour qu\'il soit identique à celui déclaré au portail, puis relancez la reprise.';
+        }
+
         if ($rapport['adoptes'] !== []) {
             $messages[] = count($rapport['adoptes']) . ' point(s) déjà saisi(s) reconnu(s) au portail : '
                 . implode(', ', $rapport['adoptes']) . '.';
@@ -602,9 +608,15 @@ class PointDeVenteControleur
             return back()->withErrors(['general' => 'Quota de points de vente atteint pour votre abonnement.']);
         }
 
+        if ($refus = self::doublon($entreprise->id, (string) $request->nom, null, $request->boolean('confirmer_distinct'))) {
+            return back()->withInput()->withErrors(['nom' => $refus])->with('pdv_doublon_possible', true);
+        }
+
         $pdv = PointDeVente::create(array_merge(
             $request->only(['nom', 'ville', 'commune', 'responsable', 'telephone']),
-            ['entreprise_id' => $entreprise->id, 'statut' => 'Ouvert']
+            // La commune est facultative au formulaire, mais pas en base :
+            // l'omettre faisait tomber la création en erreur (20/10/2026).
+            ['commune' => (string) $request->input('commune', ''), 'entreprise_id' => $entreprise->id, 'statut' => 'Ouvert']
         ));
 
         // Les fiches de stock vides du nouveau site. La règle vit désormais sur
@@ -616,6 +628,28 @@ class PointDeVenteControleur
         CacheService::invaliderPointsDeVente($entreprise->id);
 
         return back()->with('succes', 'Point de vente créé avec succès.');
+    }
+
+    /**
+     * Le refus d'un doublon (20/10/2026), ou `null`.
+     *
+     * Même clé (« Guédé Aya » / « GUEDE AYA ») : refusé, c'est le même site.
+     * Nom très proche (« GEUDE AYA JAQUELINE » / « GUEDE AYA JACQUELINE ») :
+     * refusé tant qu'on n'a pas confirmé que ce sont bien deux sites.
+     */
+    private static function doublon(int $entrepriseId, string $nom, ?int $saufId, bool $confirme): ?string
+    {
+        $proche = PointDeVente::procheDe($entrepriseId, $nom, $saufId);
+        if (!$proche) {
+            return null;
+        }
+
+        if (PointDeVente::cleDuNom((string) $proche->nom) === PointDeVente::cleDuNom($nom)) {
+            return "Le point de vente « {$proche->nom} » existe déjà : c'est le même nom. Activez-le plutôt que d'en créer un second.";
+        }
+
+        return $confirme ? null
+            : "Un point de vente au nom très proche existe déjà : « {$proche->nom} ». S'il s'agit du même, corrigez son nom plutôt que d'en créer un second ; sinon, cochez « Ce n'est pas le même point de vente ».";
     }
 
     public function modifier(Request $request, PointDeVente $pdv): RedirectResponse
@@ -631,7 +665,11 @@ class PointDeVenteControleur
             'telephone'   => ['nullable', 'string', 'max:30'],
         ]);
 
-        $pdv->update($validated);
+        if ($refus = self::doublon($entreprise->id, $validated['nom'], $pdv->id, $request->boolean('confirmer_distinct'))) {
+            return back()->withInput()->withErrors(['nom' => $refus])->with('pdv_doublon_possible', true);
+        }
+
+        $pdv->update(['commune' => (string) ($validated['commune'] ?? '')] + $validated);
         CacheService::invaliderPointsDeVente($entreprise->id);
 
         return back()->with('succes', "Point de vente « {$pdv->nom} » mis à jour avec succès.");

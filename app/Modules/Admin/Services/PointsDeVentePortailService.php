@@ -107,7 +107,7 @@ class PointsDeVentePortailService
 
         $siens   = PointDeVente::where('entreprise_id', $entreprise->id)->get();
         $quota   = (int) $entreprise->quota_points_de_vente;
-        $rapport = ['releve' => true, 'crees' => [], 'adoptes' => [], 'deja_presents' => 0, 'quota_atteint' => false];
+        $rapport = ['releve' => true, 'crees' => [], 'adoptes' => [], 'a_verifier' => [], 'deja_presents' => 0, 'quota_atteint' => false];
 
         foreach ($declares as $declare) {
             $nom = trim((string) $declare->nom);
@@ -131,6 +131,19 @@ class PointsDeVentePortailService
                 } else {
                     $rapport['deja_presents']++;
                 }
+
+                continue;
+            }
+
+            // Un nom seulement proche d'un site existant (une lettre inversée,
+            // une lettre de moins) n'est pas créé (20/10/2026) : c'est presque
+            // toujours le même point, mal orthographié d'un côté. On le
+            // signale, sans renommer ce qui existe.
+            // Un voisin lui-même déclaré au portail est un autre point : le
+            // portail les distingue, on le crée.
+            $voisin = PointDeVente::procheDe((int) $entreprise->id, $nom);
+            if ($voisin && !$voisin->etablissement_fne_id) {
+                $rapport['a_verifier'][] = "« {$nom} » (portail) ressemble à « {$voisin->nom} » (Selflow)";
 
                 continue;
             }
@@ -233,6 +246,8 @@ class PointsDeVentePortailService
 
     private function nomComparable(?string $nom): string
     {
+        // Inchangé : la DGI compare le nom à la lettre près. Les noms
+        // seulement proches sont traités à part (voir `importer`).
         return mb_strtoupper(trim(preg_replace('/\s+/u', ' ', (string) $nom)));
     }
 
