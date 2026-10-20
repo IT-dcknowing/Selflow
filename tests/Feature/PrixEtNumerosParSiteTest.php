@@ -114,10 +114,10 @@ class PrixEtNumerosParSiteTest extends TestCase
         };
 
         $jour = now()->format('dmy');
-        $this->assertSame("VTE-BON-{$jour}-001", $vendre($this->bondoukou));
-        $this->assertSame("VTE-BNG-{$jour}-001", $vendre($this->bongouanou));
-        $this->assertSame("VTE-BON-{$jour}-002", $vendre($this->bondoukou));
-        $this->assertSame("VTE-BNG-{$jour}-002", $vendre($this->bongouanou));
+        $this->assertSame("VTE-01-{$jour}-001", $vendre($this->bondoukou));
+        $this->assertSame("VTE-02-{$jour}-001", $vendre($this->bongouanou));
+        $this->assertSame("VTE-01-{$jour}-002", $vendre($this->bondoukou));
+        $this->assertSame("VTE-02-{$jour}-002", $vendre($this->bongouanou));
     }
 
     public function test_une_entreprise_d_un_seul_site_garde_ses_numeros(): void

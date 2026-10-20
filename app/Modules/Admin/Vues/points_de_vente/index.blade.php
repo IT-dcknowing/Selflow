@@ -141,7 +141,7 @@
         <div class="card-body">
             <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:14px;">
                 <div>
-                    <div style="font-size:16px; font-weight:800;">{{ $pdv->nom }}</div>
+                    <div style="font-size:16px; font-weight:800;">{{ $pdv->nom }}@if($pdv->code_piece && $pointsDeVente->count() > 1) <span title="Code du site dans les numéros de pièce (VTE-{{ $pdv->code_piece }}-…)" style="font-size:11px; font-weight:700; background:var(--bg3); color:var(--primary); border-radius:6px; padding:2px 7px; vertical-align:middle;">Code {{ $pdv->code_piece }}</span>@endif</div>
                     <div style="font-size:12px; color:var(--text-3); margin-top:3px;">
                         <i class="fas fa-location-dot"></i> {{ $pdv->commune }}, {{ $pdv->ville }}
                     </div>

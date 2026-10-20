@@ -103,40 +103,23 @@ class PointDeVente extends Model
     }
 
     /**
-     * Un code court tiré du nom — « PDV-Bondoukou » donne BON —, unique dans
-     * l'entreprise : « PDV-Bongouanou », après Bondoukou, devient BNG.
+     * Le code du site dans les numéros de pièce : un numéro d'ordre dans
+     * l'entreprise — 01, 02, 03… (décision du propriétaire, 20/10/2026).
+     * Les lettres tirées du nom (BON, BNG) se devinaient mal dès que deux
+     * sites commençaient pareil. Un code donné ne se réattribue pas : le
+     * suivant prend le plus grand plus un, même après une suppression.
      */
-    public static function codeLibre(int $entrepriseId, string $nom, ?int $saufId = null): string
+    public static function codeLibre(int $entrepriseId, string $nom = '', ?int $saufId = null): string
     {
-        $propre = strtoupper(\Illuminate\Support\Str::ascii($nom));
-        $propre = preg_replace('/\b(PDV|POINT|DE|DU|VENTE|SITE|MAGASIN|BOUTIQUE)\b/', ' ', $propre);
-        $lettres = preg_replace('/[^A-Z0-9]/', '', (string) $propre);
-        $base = substr($lettres !== '' ? $lettres : 'SITE', 0, 3);
-
         $pris = \Illuminate\Support\Facades\DB::table('points_de_vente')
             ->where('entreprise_id', $entrepriseId)
             ->when($saufId, fn ($q) => $q->where('id', '!=', $saufId))
             ->whereNotNull('code_piece')
-            ->pluck('code_piece')->map(fn ($c) => strtoupper($c))->all();
+            ->pluck('code_piece')
+            ->filter(fn ($c) => ctype_digit((string) $c))
+            ->map(fn ($c) => (int) $c);
 
-        // D'abord les trois premières lettres (BON pour Bondoukou), puis la
-        // première suivie des consonnes (BNG pour Bongouanou), puis un chiffre.
-        $consonnes = preg_replace('/[AEIOUY0-9]/', '', substr($lettres, 1));
-        $candidats = array_values(array_unique(array_filter([
-            $base,
-            strlen($consonnes) >= 2 ? substr($lettres, 0, 1) . substr($consonnes, 0, 2) : null,
-            strlen($lettres) >= 3 ? substr($lettres, 0, 2) . substr($lettres, -1) : null,
-        ])));
-        foreach ($candidats as $code) {
-            if (!in_array($code, $pris, true)) {
-                return $code;
-            }
-        }
-
-        for ($i = 2; in_array($base . $i, $pris, true); $i++) {
-        }
-
-        return $base . $i;
+        return str_pad((string) (($pris->max() ?? 0) + 1), 2, '0', STR_PAD_LEFT);
     }
 
     protected $fillable = [
