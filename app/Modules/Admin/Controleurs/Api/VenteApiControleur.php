@@ -29,7 +29,7 @@ class VenteApiControleur
         $pointDeVenteId = $this->obtenirPointDeVenteId($request);
 
         $clients = Client::where('entreprise_id', $entreprise->id)->orderBy('nom')->get();
-        $produits = Produit::where('entreprise_id', $entreprise->id)->orderBy('nom')->get();
+        $produits = Produit::where('entreprise_id', $entreprise->id)->visiblesAuSite($pointDeVenteId)->orderBy('nom')->get();
         $categories = $produits->pluck('categorie')->unique()->sort()->values();
         // Banques réellement configurées côté web (CodeJournal type='Banque') —
         // le modèle Banque, séparé, n'est plus utilisé (il n'était jamais

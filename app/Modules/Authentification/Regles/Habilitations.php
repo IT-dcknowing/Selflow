@@ -319,6 +319,7 @@ class Habilitations
 
         // ── Ventes ──
         'admin.ventes.nouvelle'                      => 'nouvelle_vente',
+        'admin.ventes.derniere'                      => 'nouvelle_vente',
         'admin.ventes.enregistrer'                   => 'nouvelle_vente',
         'admin.ventes.factures'                      => 'factures_vente',
         'admin.ventes.imprimer'                      => 'factures_vente',

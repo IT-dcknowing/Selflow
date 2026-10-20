@@ -287,9 +287,17 @@
                 <i class="fas fa-list-ol"></i> Pas à pas
             </button>
         </div>
+        {{-- Sans la liste des ventes, la dernière facture (20/10/2026) : un
+             bouton qui mène à « Accès refusé » n'a rien à faire ici. --}}
+        @if(\App\Modules\Authentification\Regles\Habilitations::ouvre(auth()->user(), request()->routeIs('caissier.*') ? 'caissier.ventes.factures' : 'admin.ventes.factures'))
         <a href="{{ $routeHistorique }}" class="btn btn-outline">
             <i class="fas fa-list"></i> Voir les ventes
         </a>
+        @else
+        <a href="{{ route(request()->routeIs('caissier.*') ? 'caissier.ventes.derniere' : 'admin.ventes.derniere') }}" class="btn btn-outline">
+            <i class="fas fa-file-invoice"></i> Voir la dernière facture
+        </a>
+        @endif
     </div>
 </div>
 

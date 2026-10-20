@@ -145,4 +145,61 @@ class ArticlesParSiteTest extends TestCase
         $this->assertTrue($ref($neuf, $this->marcory), 'Jamais servi : reste partout.');
         $this->assertTrue($ref($neuf, $this->plateau));
     }
+
+    public function test_le_stock_de_chaque_site_ne_montre_que_ses_articles_meme_en_forcant_tous_les_sites(): void
+    {
+        $thiof = $this->creerA($this->marcory, 'Thiof frais');
+        $this->actingAs($this->admin);
+        StockService::entree($thiof, $this->marcory->id, 9, MouvementStock::RECEPTION, ['cout_unitaire' => 1000]);
+
+        $caissier = Utilisateur::create([
+            'nom' => 'C', 'prenom' => 'D', 'email' => 'caisse2@deuxmag.ci', 'password' => bcrypt('x'), 'role' => 'caissier',
+            'statut' => 'actif', 'entreprise_id' => $this->entreprise->id, 'point_de_vente_id' => $this->plateau->id,
+            'habilitations' => ['nouvelle_vente', 'stock_articles'],
+        ]);
+        $this->actingAs($caissier)->get(route('caissier.stock.index'))->assertOk()->assertDontSee('Thiof frais')
+            ->assertDontSee('Tous les sites');
+        $this->actingAs($caissier)->get(route('caissier.stock.index', ['point_de_vente_id' => 'tout']))->assertOk()->assertDontSee('Thiof frais');
+        $this->actingAs($caissier)->get(route('caissier.stock.index', ['point_de_vente_id' => $this->marcory->id]))->assertOk()->assertDontSee('Thiof frais');
+
+        $responsable = Utilisateur::create([
+            'nom' => 'R', 'prenom' => 'P', 'email' => 'resp@deuxmag.ci', 'password' => bcrypt('x'), 'role' => 'responsable_pdv',
+            'statut' => 'actif', 'entreprise_id' => $this->entreprise->id, 'point_de_vente_id' => $this->plateau->id,
+            'habilitations' => ['stock_articles', 'stock_mouvements', 'catalogue_produits'],
+        ]);
+        $this->actingAs($responsable)->get(route('admin.stock.index', ['point_de_vente_id' => 'tout']))->assertOk()->assertDontSee('Thiof frais');
+        $this->actingAs($responsable)->get(route('admin.stock.mouvements'))->assertOk()->assertDontSee('Thiof frais');
+        $this->actingAs($responsable)->get(route('admin.produits.index', ['tout' => 1]))->assertOk()->assertDontSee('Thiof frais');
+
+        // Et Marcory le voit.
+        $this->sur($this->marcory)->get(route('admin.stock.index'))->assertOk()->assertSee('Thiof frais');
+    }
+
+    public function test_sans_la_liste_des_ventes_le_vendeur_voit_sa_derniere_facture(): void
+    {
+        $caissier = Utilisateur::create([
+            'nom' => 'C', 'prenom' => 'D', 'email' => 'caisse3@deuxmag.ci', 'password' => bcrypt('x'), 'role' => 'caissier',
+            'statut' => 'actif', 'entreprise_id' => $this->entreprise->id, 'point_de_vente_id' => $this->plateau->id,
+            'habilitations' => ['nouvelle_vente'],
+        ]);
+
+        $page = $this->actingAs($caissier)->get(route('caissier.ventes.nouvelle'))->assertOk();
+        $page->assertSee('Voir la dernière facture')->assertDontSee('Voir les ventes');
+        $this->get(route('caissier.ventes.derniere'))->assertRedirect(route('caissier.ventes.nouvelle'))->assertSessionHas('info');
+
+        // La section de la barre s'appelle « Ventes ».
+        $this->assertStringContainsString('<span>Ventes</span>', $page->getContent());
+    }
+
+    public function test_la_page_d_acces_refuse_est_lisible(): void
+    {
+        $caissier = Utilisateur::create([
+            'nom' => 'C', 'prenom' => 'D', 'email' => 'caisse4@deuxmag.ci', 'password' => bcrypt('x'), 'role' => 'caissier',
+            'statut' => 'actif', 'entreprise_id' => $this->entreprise->id, 'point_de_vente_id' => $this->plateau->id,
+            'habilitations' => ['nouvelle_vente'],
+        ]);
+
+        $this->actingAs($caissier)->get(route('caissier.ventes.factures'))->assertForbidden()
+            ->assertSee('Accès non autorisé')->assertSee(route('caissier.tableau_de_bord'), false);
+    }
 }
