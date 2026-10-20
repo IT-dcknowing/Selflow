@@ -733,7 +733,7 @@ class StockControleur
         DB::transaction(function () use ($request, $vente, $pointDeVenteId, $entreprise, &$numeroBL) {
             // Le bon que l'on remettra : il porte le transport, et les lignes
             // réellement expédiées ci-dessous.
-            $numeroBL = NumerotationService::genererNumeroBL($entreprise->id);
+            $numeroBL = NumerotationService::genererNumeroBL($entreprise->id, (int) $vente->point_de_vente_id);
             $bl = BonLivraison::create([
                 'numero_bl'         => $numeroBL,
                 'vente_id'          => $vente->id,

@@ -251,7 +251,7 @@ class FacturationCommandeService
                 throw new \InvalidArgumentException('Aucune quantité à facturer.');
             }
 
-            $numero = NumerotationService::genererNumeroVente($entreprise->id, 'Facture');
+            $numero = NumerotationService::genererNumeroVente($entreprise->id, 'Facture', null, (int) $bc->point_de_vente_id);
 
             // ── Le mode de règlement ──
             $mode = $reglement['mode'] ?? null;

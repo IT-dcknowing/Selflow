@@ -9310,6 +9310,57 @@ un :
 
 ---
 
+### Lot 118 — Prix et numéros par point de vente ; corbeille immédiate ; adresse libérée — **TERMINÉ le 20/10/2026**
+
+**Prix par site.** « Quand je modifie les prix à Bondoukou, ça modifie
+Bongouanou aussi » : le prix vivait sur l'article, commun à l'entreprise.
+
+- La fiche de stock du site peut maintenant porter son prix
+  (`stocks.prix_vente`, migration `2026_10_20_000003`).
+- L'accesseur `Produit::prix_vente` rend le prix du site actif quand
+  l'entreprise a plusieurs sites, sinon celui de l'article. La caisse, la
+  vente et l'API le lisent donc sans changement.
+- Modifier un article sur un site n'écrit que le prix de ce site. La case
+  « Appliquer ce prix à tous les points de vente » réécrit le prix de
+  l'article et efface les prix propres aux sites.
+- Une entreprise d'un seul site n'est pas touchée.
+
+**Numéros par site.** Quand l'entreprise a plusieurs sites, le code court du
+site entre dans le numéro, et chaque site compte à partir de 1 :
+
+- `VTE-BON-201026-001` à Bondoukou, `VTE-BNG-201026-001` à Bongouanou ;
+- le code est `points_de_vente.code_piece` (migration `2026_10_20_000002`),
+  tiré du nom et unique dans l'entreprise : BON, puis BNG ;
+- la règle couvre aussi les avoirs, devis, bons de commande, bons de
+  livraison et pièces d'achat, chacun numéroté sous le site de sa pièce ;
+- une entreprise d'un seul site garde ses numéros d'aujourd'hui ;
+- le numéro reste unique dans l'entreprise, donc les règlements et la
+  trésorerie, qui s'y rattachent, ne changent pas ;
+- la FNE ne transmet pas `numero_facture` (vérifié dans `FneService`) : hors
+  du périmètre gelé.
+
+**Corbeille.** « Effacer » et « Vider la corbeille » annonçaient un
+effacement « en arrière-plan », qui n'arrivait jamais faute de file
+d'attente sur l'hébergement. L'effacement se fait maintenant dans la
+requête, qui va au bout même si le navigateur se ferme. Une entreprise qui
+résiste est laissée à la purge de la nuit, et c'est consigné au journal.
+
+**Adresse libérée.** Une entreprise en corbeille gardait ses comptes 30 jours,
+et la même adresse ne pouvait ni se réinscrire ni passer par Google
+(« Votre compte est désactivé »).
+
+- Dès la mise en corbeille, l'adresse est mise de côté
+  (`utilisateurs.email_avant_corbeille`) et remplacée par un alias
+  `@selflow.invalid`.
+- La restauration la rend, sauf si un autre compte l'a reprise entre-temps.
+- La migration `2026_10_20_000004` libère les adresses des entreprises déjà
+  en corbeille, dont celle du retour client.
+
+- `PrixEtNumerosParSiteTest` (5), `CorbeilleEntreprisesTest` (+3). Suite :
+  1 892 épreuves, 1 887 passantes, 5 ignorées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

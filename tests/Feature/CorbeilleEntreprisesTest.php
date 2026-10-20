@@ -61,14 +61,53 @@ class CorbeilleEntreprisesTest extends TestCase
         $this->assertSame('actif', $this->membre->fresh()->statut);
     }
 
-    public function test_vider_la_corbeille_lance_l_effacement_en_arriere_plan(): void
+    /** Retour du 20/10/2026 : l'effacement se fait tout de suite, plus en arrière-plan. */
+    public function test_vider_la_corbeille_efface_tout_de_suite(): void
     {
-        Queue::fake();
         $this->cible->forceFill(['corbeille_le' => now()])->save();
 
-        $this->actingAs($this->superadmin)->delete(route('superadmin.corbeille.vider_tout'))->assertRedirect();
+        $this->actingAs($this->superadmin)->delete(route('superadmin.corbeille.vider_tout'))
+            ->assertRedirect()->assertSessionHas('succes', fn ($m) => str_contains($m, '1 entreprise(s) effacée(s)'));
 
-        Queue::assertPushed(EffacerEntreprise::class, fn ($job) => $job->entrepriseId === $this->cible->id);
+        $this->assertDatabaseMissing('entreprises', ['id' => $this->cible->id]);
+    }
+
+    public function test_effacer_une_entreprise_est_immediat(): void
+    {
+        $this->cible->forceFill(['corbeille_le' => now()])->save();
+
+        $this->actingAs($this->superadmin)->delete(route('superadmin.corbeille.vider_une', $this->cible))
+            ->assertSessionHas('succes', fn ($m) => str_contains($m, 'effacée définitivement'));
+
+        $this->assertDatabaseMissing('entreprises', ['id' => $this->cible->id]);
+        $this->assertDatabaseMissing('utilisateurs', ['id' => $this->membre->id]);
+    }
+
+    public function test_la_mise_en_corbeille_libere_l_adresse_et_la_restauration_la_rend(): void
+    {
+        $this->actingAs($this->superadmin)->delete(route('superadmin.entreprises.supprimer', $this->cible));
+
+        $membre = $this->membre->fresh();
+        $this->assertSame('membre-corbeille@exemple.ci', $membre->email_avant_corbeille);
+        $this->assertStringEndsWith('@selflow.invalid', $membre->email);
+        // L'adresse est libre : une nouvelle inscription (formulaire ou Google) la reprend.
+        $this->assertFalse(Utilisateur::where('email', 'membre-corbeille@exemple.ci')->exists());
+
+        $this->post(route('superadmin.corbeille.restaurer', $this->cible))->assertSessionHas('succes');
+        $this->assertSame('membre-corbeille@exemple.ci', $this->membre->fresh()->email);
+        $this->assertNull($this->membre->fresh()->email_avant_corbeille);
+    }
+
+    public function test_la_restauration_ne_vole_pas_une_adresse_reprise(): void
+    {
+        $this->actingAs($this->superadmin)->delete(route('superadmin.entreprises.supprimer', $this->cible));
+        Utilisateur::create([
+            'nom' => 'N', 'prenom' => 'O', 'email' => 'membre-corbeille@exemple.ci', 'password' => bcrypt('x'), 'role' => 'admin',
+        ]);
+
+        $this->post(route('superadmin.corbeille.restaurer', $this->cible))
+            ->assertSessionHas('succes', fn ($m) => str_contains($m, 'reprise(s) entre-temps'));
+        $this->assertStringEndsWith('@selflow.invalid', $this->membre->fresh()->email);
     }
 
     public function test_le_job_efface_reellement_l_entreprise(): void

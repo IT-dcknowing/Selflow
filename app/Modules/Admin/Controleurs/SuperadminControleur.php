@@ -488,6 +488,15 @@ class SuperadminControleur
 
         Utilisateur::where('entreprise_id', $entreprise->id)->update(['statut' => 'inactif']);
 
+        // Les adresses sont libérées tout de suite (20/10/2026) : la même
+        // personne peut se réinscrire, par le formulaire ou par Google, sans
+        // attendre la fin des 30 jours. La restauration les rend.
+        Utilisateur::where('entreprise_id', $entreprise->id)->whereNull('email_avant_corbeille')->get()
+            ->each(fn ($u) => $u->forceFill([
+                'email_avant_corbeille' => $u->email,
+                'email' => sprintf('corbeille.%d.%d@selflow.invalid', $entreprise->id, $u->id),
+            ])->saveQuietly());
+
         $this->journaliser('mise_en_corbeille_entreprise', 'Entreprise', $entreprise->id);
 
         return redirect()->route('superadmin.entreprises')->with('succes', sprintf(
@@ -523,13 +532,27 @@ class SuperadminControleur
         Utilisateur::where('entreprise_id', $entreprise->id)
             ->where('statut', 'inactif')->update(['statut' => 'actif']);
 
+        // Les adresses reviennent — sauf celle qu'un autre compte a reprise
+        // pendant la corbeille : on ne vole pas l'adresse de quelqu'un.
+        $reprises = [];
+        Utilisateur::where('entreprise_id', $entreprise->id)->whereNotNull('email_avant_corbeille')->get()
+            ->each(function ($u) use (&$reprises) {
+                if (Utilisateur::where('email', $u->email_avant_corbeille)->where('id', '!=', $u->id)->exists()) {
+                    $reprises[] = $u->email_avant_corbeille;
+
+                    return;
+                }
+                $u->forceFill(['email' => $u->email_avant_corbeille, 'email_avant_corbeille' => null])->saveQuietly();
+            });
+
         $this->journaliser('restauration_entreprise', 'Entreprise', $entreprise->id);
 
-        return redirect()->route('superadmin.corbeille')->with('succes', "« {$entreprise->nom} » est restaurée : elle et ses utilisateurs ont de nouveau accès.");
+        return redirect()->route('superadmin.corbeille')->with('succes', "« {$entreprise->nom} » est restaurée : elle et ses utilisateurs ont de nouveau accès."
+            . ($reprises ? ' Adresse(s) reprise(s) entre-temps par un autre compte, à réattribuer depuis la fiche : ' . implode(', ', $reprises) . '.' : ''));
     }
 
     /**
-     * Effacer définitivement une entreprise de la corbeille, en arrière-plan.
+     * Effacer définitivement une entreprise de la corbeille, tout de suite.
      */
     public function viderUne(Entreprise $entreprise): RedirectResponse
     {
@@ -537,28 +560,57 @@ class SuperadminControleur
             return redirect()->route('superadmin.corbeille')->with('erreur', "« {$entreprise->nom} » n'est pas en corbeille.");
         }
 
-        \App\Jobs\EffacerEntreprise::dispatch($entreprise->id);
+        // Tout de suite, et non plus en arrière-plan (20/10/2026) : sans file
+        // d'attente qui tourne sur l'hébergement, l'effacement n'arrivait
+        // jamais. La requête va au bout même si le navigateur se ferme.
+        $nom = $entreprise->nom;
+        if (self::effacerMaintenant([$entreprise->id]) === 0) {
+            return redirect()->route('superadmin.corbeille')->with('erreur', "« {$nom} » n'a pas pu être effacée maintenant : la purge de la nuit s'en chargera. Le détail est au journal.");
+        }
         $this->journaliser('effacement_entreprise', 'Entreprise', $entreprise->id);
 
-        return redirect()->route('superadmin.corbeille')->with('succes', "Effacement définitif de « {$entreprise->nom} » lancé. Il s'achève en arrière-plan dans un instant.");
+        return redirect()->route('superadmin.corbeille')->with('succes', "« {$nom} » est effacée définitivement.");
     }
 
     /**
-     * Vider toute la corbeille : chaque entreprise est effacée en arrière-plan.
+     * Vider toute la corbeille, tout de suite.
      */
     public function viderTout(): RedirectResponse
     {
         $ids = Entreprise::enCorbeille()->pluck('id');
 
-        foreach ($ids as $id) {
-            \App\Jobs\EffacerEntreprise::dispatch($id);
-        }
+        $effacees = self::effacerMaintenant($ids->all());
 
-        $this->journaliser('vidage_corbeille', 'Entreprise', null, [], ['nombre' => $ids->count()]);
+        $this->journaliser('vidage_corbeille', 'Entreprise', null, [], ['nombre' => $effacees]);
 
         return redirect()->route('superadmin.corbeille')->with('succes', sprintf(
-            '%d entreprise(s) en cours d\'effacement définitif en arrière-plan.', $ids->count()
-        ));
+            '%d entreprise(s) effacée(s) définitivement.', $effacees
+        ) . ($effacees < $ids->count() ? ' Les autres seront effacées par la purge de la nuit.' : ''));
+    }
+
+    /**
+     * Effacer des entreprises de la corbeille dans la requête même. Une
+     * entreprise qui résiste (erreur) est laissée à la purge de la nuit, et
+     * consignée.
+     *
+     * @param  array<int, int>  $ids
+     */
+    private static function effacerMaintenant(array $ids): int
+    {
+        @set_time_limit(0);
+        ignore_user_abort(true);
+
+        $effacees = 0;
+        foreach ($ids as $id) {
+            try {
+                \App\Jobs\EffacerEntreprise::dispatchSync((int) $id);
+                $effacees += Entreprise::withoutGlobalScopes()->whereKey($id)->exists() ? 0 : 1;
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Effacement immédiat impossible', ['entreprise_id' => $id, 'erreur' => $e->getMessage()]);
+            }
+        }
+
+        return $effacees;
     }
 
     /**

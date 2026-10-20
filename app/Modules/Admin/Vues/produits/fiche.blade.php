@@ -350,6 +350,13 @@
                 <div class="form-group">
                     <label class="form-label">Prix vente</label>
                     <input type="number" name="prix_vente" class="form-control" value="{{ $produit->prix_vente }}" min="0" required>
+                    {{-- Le prix d'un site (20/10/2026). --}}
+                    @if(\App\Modules\Admin\Modeles\Produit::siteDuPrix(auth()->user()->entreprise_id))
+                    <div style="font-size:11px; color:var(--text-3); margin-top:4px;">Prix de <strong>{{ session('point_de_vente_actif_nom') }}</strong>.</div>
+                    <label style="display:flex; align-items:center; gap:6px; font-size:11.5px; margin-top:4px; cursor:pointer;">
+                        <input type="checkbox" name="prix_tous_sites" value="1"> Appliquer ce prix à tous les points de vente
+                    </label>
+                    @endif
                 </div>
                 <div class="form-group">
                     <label class="form-label">Taux TVA (%)</label>
