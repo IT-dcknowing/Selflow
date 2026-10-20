@@ -104,7 +104,8 @@ class ComptabiliteFacultativeTest extends TestCase
      */
     private const ECRANS_FERMES = [
         'admin.comptabilite.globale',
-        'admin.comptabilite.creances',
+        // `creances` en est sorti le 20/10/2026 : les créances relèvent de
+        // la trésorerie, et s'ouvrent sans comptabilité.
         'admin.comptabilite.plan_comptable',
         'admin.comptabilite.balance',
         'admin.comptabilite.grand_livre',
@@ -249,9 +250,11 @@ class ComptabiliteFacultativeTest extends TestCase
         $menu = $this->menu();
 
         foreach (['Plan Comptable', 'Grand livre', 'Balance de contrôle',
-                  'Lettrage', 'Codes Journaux', 'Créances &amp; règlements'] as $entree) {
+                  'Lettrage', 'Codes Journaux'] as $entree) {
             $this->assertStringNotContainsString($entree, $menu);
         }
+        // Les créances, si : elles relèvent de la trésorerie (20/10/2026).
+        $this->assertStringContainsString('Créances &amp; règlements', $menu);
     }
 
     public function test_la_section_s_appelle_tresorerie_quand_il_n_y_a_plus_que_la_caisse(): void

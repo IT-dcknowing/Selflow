@@ -125,26 +125,104 @@ class SuppressionEntrepriseService
      */
     private static function liens(): array
     {
-        // Le graphe des dépendances est le même pour toute la vie du
-        // déploiement : l'introspection du schéma (information_schema, lente
-        // sur un MySQL mutualisé) se faisait pourtant à chaque suppression, et
-        // c'est elle — et non les effacements — qui tenait la requête plus de
-        // cinq minutes. On la lit une fois, et on la garde en mémoire du
-        // processus.
         if (self::$liensEnCache !== null) {
             return self::$liensEnCache;
         }
 
-        $liens = [];
+        // La mémoire du processus ne suffisait pas : chaque requête web est un
+        // processus neuf, et le relevé — quatre requêtes à `information_schema`
+        // par table, plusieurs centaines en tout — se refaisait à chaque
+        // effacement. Sur le MySQL de l'hébergement, l'effacement dépassait
+        // cinq minutes avant d'avoir touché une ligne, et la requête mourait
+        // en annulant tout (retour du 20/10/2026). Le graphe se lit désormais
+        // en trois requêtes sur MySQL, et se garde en cache tant que la base
+        // ne change pas de migration.
+        $empreinte = 'selflow.graphe_suppression.' . DB::connection()->getDriverName() . '.'
+            . (Schema::hasTable('migrations') ? DB::table('migrations')->count() : 0);
+
+        return self::$liensEnCache = \Illuminate\Support\Facades\Cache::remember($empreinte, now()->addDay(), function () {
+            if (in_array(DB::connection()->getDriverName(), ['mysql', 'mariadb'], true)) {
+                try {
+                    return self::liensMysql();
+                } catch (\Throwable $e) {
+                    // Une version de MySQL qui n'aurait pas ces vues : le
+                    // relevé lent, mais juste.
+                    \Illuminate\Support\Facades\Log::warning('Graphe de suppression : repli sur le relevé par table — ' . $e->getMessage());
+                }
+            }
+
+            return self::liensParSchema();
+        });
+    }
+
+    /** Le graphe MySQL, en trois requêtes. */
+    private static function liensMysql(): array
+    {
+        $tables = array_map(fn ($t) => $t->TABLE_NAME, DB::select(
+            "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE'"
+        ));
+
+        $colonnes = [];
+        foreach (DB::select('SELECT TABLE_NAME, COLUMN_NAME, IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()') as $c) {
+            $colonnes[$c->TABLE_NAME][$c->COLUMN_NAME] = $c->IS_NULLABLE === 'YES';
+        }
+
+        $parContrainte = [];
+        foreach (DB::select("
+            SELECT k.TABLE_NAME AS t, k.COLUMN_NAME AS c, k.REFERENCED_TABLE_NAME AS ref, r.DELETE_RULE AS regle, k.CONSTRAINT_NAME AS nom
+            FROM information_schema.KEY_COLUMN_USAGE k
+            JOIN information_schema.REFERENTIAL_CONSTRAINTS r
+              ON r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND r.TABLE_NAME = k.TABLE_NAME
+            WHERE k.TABLE_SCHEMA = DATABASE() AND k.REFERENCED_TABLE_NAME IS NOT NULL
+        ") as $k) {
+            $parContrainte[$k->t . '|' . $k->nom][] = $k;
+        }
+
+        $fks = [];
+        foreach ($parContrainte as $partiesDeLaCle) {
+            $k = $partiesDeLaCle[0];
+            $fks[$k->t][] = [
+                'columns'       => array_map(fn ($p) => $p->c, $partiesDeLaCle),
+                'foreign_table' => $k->ref,
+                'on_delete'     => $k->regle,
+            ];
+        }
+
+        return self::assembler($tables, $colonnes, $fks);
+    }
+
+    /** Le graphe par le `Schema` de Laravel (le SQLite des épreuves, et le reste). */
+    private static function liensParSchema(): array
+    {
         $tables = array_map(fn ($t) => $t['name'], Schema::getTables());
+        $colonnes = [];
+        $fks = [];
+        foreach ($tables as $table) {
+            foreach (Schema::getColumns($table) as $c) {
+                $colonnes[$table][$c['name']] = (bool) $c['nullable'];
+            }
+            $fks[$table] = Schema::getForeignKeys($table);
+        }
+
+        return self::assembler($tables, $colonnes, $fks);
+    }
+
+    /**
+     * @param  array<int, string>  $tables
+     * @param  array<string, array<string, bool>>  $colonnes  table => colonne => nullable
+     * @param  array<string, array<int, array>>  $fks
+     */
+    private static function assembler(array $tables, array $colonnes, array $fks): array
+    {
+        $liens = [];
 
         foreach ($tables as $table) {
             if (in_array($table, self::EPARGNEES, true)) {
                 continue;
             }
-            $aUnId = Schema::hasColumn($table, 'id');
+            $aUnId = isset($colonnes[$table]['id']);
 
-            foreach (Schema::getForeignKeys($table) as $cle) {
+            foreach ($fks[$table] ?? [] as $cle) {
                 if (count($cle['columns']) !== 1 || ! in_array($cle['foreign_table'], $tables, true)) {
                     continue;
                 }
@@ -160,7 +238,7 @@ class SuppressionEntrepriseService
             // Les colonnes de rattachement sans contrainte déclarée : la ligne
             // appartient à l'entreprise (ou à son site), elle part avec elle.
             foreach (['entreprise_id' => 'entreprises', 'point_de_vente_id' => 'points_de_vente'] as $colonne => $parent) {
-                if ($table !== $parent && Schema::hasColumn($table, $colonne)) {
+                if ($table !== $parent && isset($colonnes[$table][$colonne])) {
                     $liens[$parent][] = [$table, $colonne, $aUnId ? 'cascade' : 'liaison'];
                 }
             }
@@ -179,17 +257,15 @@ class SuppressionEntrepriseService
             $liens[$parent] = array_values($parCle);
         }
 
-        return self::$liensEnCache = $liens;
+        // La nullabilité des colonnes, gardée avec le graphe : plus une
+        // requête par colonne à vider.
+        $liens['_nullables'] = $colonnes;
+
+        return $liens;
     }
 
     private static function acceptePasDeValeur(string $table, string $colonne): bool
     {
-        foreach (Schema::getColumns($table) as $definition) {
-            if ($definition['name'] === $colonne) {
-                return (bool) $definition['nullable'];
-            }
-        }
-
-        return false;
+        return (bool) (self::liens()['_nullables'][$table][$colonne] ?? false);
     }
 }

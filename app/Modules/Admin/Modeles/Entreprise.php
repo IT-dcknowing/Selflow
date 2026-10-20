@@ -828,6 +828,27 @@ class Entreprise extends Model
      * Les deux notions vivaient dans un seul tableau : personne ne savait si un
      * module absent venait d'un abonnement restreint ou d'une préférence.
      */
+    /**
+     * Ouvrir le module Stock quand l'entreprise tient des articles stockables
+     * (20/10/2026) — s'il lui est autorisé, et sans rien fermer d'autre.
+     */
+    public function ouvrirLeStockSiBesoin(): void
+    {
+        $actifs = $this->modules_actifs;
+        if (is_string($actifs)) {
+            $actifs = json_decode($actifs, true);
+        }
+        $actifs = is_array($actifs) ? $actifs : [];
+
+        // Vide, la liste vaut « tous les modules autorisés » : rien à ouvrir.
+        if ($actifs === [] || in_array('stock', $actifs, true) || !in_array('stock', $this->modulesAutorises(), true)) {
+            return;
+        }
+
+        $actifs[] = 'stock';
+        $this->forceFill(['modules_actifs' => array_values(array_unique($actifs))])->saveQuietly();
+    }
+
     public function moduleEstActif(string $module): bool
     {
         $actifs = $this->modules_actifs;

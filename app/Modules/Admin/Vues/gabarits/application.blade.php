@@ -1138,6 +1138,14 @@
             </a>
             @endif
 
+            {{-- Créances & règlements : par défaut, avec ou sans comptabilité
+                 (20/10/2026). --}}
+            @if(auth()->user()->aHabilitation('comptabilite_creances'))
+            <a href="{{ route('admin.comptabilite.creances') }}" class="nav-item {{ request()->routeIs('admin.comptabilite.creances') ? 'active' : '' }}">
+                <i class="fas fa-scale-balanced"></i> Créances &amp; règlements
+            </a>
+            @endif
+
             {{-- ── À partir d'ici, la comptabilité proprement dite ──────────
                  « Solde & journal » reste ouvert à tous : lire ce qu'on a en
                  caisse ne demande pas de tenir de livres.
@@ -1179,12 +1187,6 @@
             </a>
             @endif
 
-            {{-- Créances & règlements : ouvert par défaut si la comptabilité est cochée --}}
-            @if(auth()->user()->aHabilitation('comptabilite_creances'))
-            <a href="{{ route('admin.comptabilite.creances') }}" class="nav-item {{ request()->routeIs('admin.comptabilite.creances') ? 'active' : '' }}">
-                <i class="fas fa-scale-balanced"></i> Créances &amp; règlements
-            </a>
-            @endif
 
             {{-- Plan Comptable & Configuration des comptes : ouverts par défaut si la comptabilité est cochée --}}
             @if(auth()->user()->aHabilitation('comptabilite_plan_comptable'))

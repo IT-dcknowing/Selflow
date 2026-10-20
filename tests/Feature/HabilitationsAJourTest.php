@@ -115,9 +115,11 @@ class HabilitationsAJourTest extends TestCase
         ]);
 
         $offerts = $this->droitsOfferts($entreprise);
-        foreach (['tresorerie_encaissements', 'tresorerie_decaissements', 'comptabilite_globale', 'comptabilite_creances', 'comptabilite_plan_comptable', 'immobilisations'] as $absent) {
+        foreach (['tresorerie_encaissements', 'tresorerie_decaissements', 'comptabilite_globale', 'comptabilite_plan_comptable', 'immobilisations'] as $absent) {
             $this->assertArrayNotHasKey($absent, $offerts, "{$absent} ne doit pas être proposé.");
         }
+        // Les créances restent proposées, sous Trésorerie (20/10/2026).
+        $this->assertSame(['Trésorerie', 'Créances & règlements'], $offerts['comptabilite_creances']);
         $this->assertSame(['Trésorerie', 'Solde & journal'], $offerts['tresorerie_journal']);
         $this->assertSame(['Trésorerie', 'Moyens de paiement'], $offerts['tresorerie_codes_journaux']);
         $this->assertArrayNotHasKey('Comptabilité', Habilitations::pourLEntreprise($entreprise));
