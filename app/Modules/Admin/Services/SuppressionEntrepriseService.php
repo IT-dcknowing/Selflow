@@ -264,6 +264,17 @@ class SuppressionEntrepriseService
         return $liens;
     }
 
+    /**
+     * Les colonnes qui désignent une ligne de cette table : clés étrangères
+     * déclarées, et colonnes de rattachement par convention.
+     *
+     * @return array<int, array{0: string, 1: string}>  [table, colonne]
+     */
+    public static function colonnesVers(string $table): array
+    {
+        return array_map(fn ($lien) => [$lien[0], $lien[1]], self::liens()[$table] ?? []);
+    }
+
     private static function acceptePasDeValeur(string $table, string $colonne): bool
     {
         return (bool) (self::liens()['_nullables'][$table][$colonne] ?? false);

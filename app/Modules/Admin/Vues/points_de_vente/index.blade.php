@@ -226,6 +226,11 @@
                             <div class="form-group">
                                 <label class="form-label">Nom <span style="color:var(--danger)">*</span></label>
                                 <input type="text" name="nom" class="form-control" value="{{ old('nom', $pdv->nom) }}" required>
+                                @if(session('pdv_doublon_possible'))
+                                <label style="display:flex; gap:6px; align-items:center; font-size:12px; margin-top:6px; color:#92400e;">
+                                    <input type="checkbox" name="confirmer_distinct" value="1"> Ce n'est pas le même point de vente
+                                </label>
+                                @endif
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Ville <span style="color:var(--danger)">*</span></label>
@@ -270,7 +275,12 @@
             <div class="form-grid-2">
                 <div class="form-group">
                     <label class="form-label">Nom <span style="color:var(--danger)">*</span></label>
-                    <input type="text" name="nom" class="form-control" placeholder="Ex: Agence Nord" required>
+                    <input type="text" name="nom" class="form-control" placeholder="Ex: Agence Nord" value="{{ old('nom') }}" required>
+                    @if(session('pdv_doublon_possible'))
+                    <label style="display:flex; gap:6px; align-items:center; font-size:12px; margin-top:6px; color:#92400e;">
+                        <input type="checkbox" name="confirmer_distinct" value="1"> Ce n'est pas le même point de vente
+                    </label>
+                    @endif
                 </div>
                 <div class="form-group">
                     <label class="form-label">Ville <span style="color:var(--danger)">*</span></label>
@@ -407,7 +417,7 @@
 
 <script>
 // Arrivée depuis « Créer un point de vente » de la barre latérale (19/10/2026).
-if (new URLSearchParams(location.search).has('nouveau')) {
+if (new URLSearchParams(location.search).has('nouveau'){{ session('pdv_doublon_possible') && old('nom') && !old('_method') ? ' || true' : '' }}) {
     document.addEventListener('DOMContentLoaded', function () {
         document.querySelector('[data-modal-open="modalNouveauPdv"]')?.click();
     });

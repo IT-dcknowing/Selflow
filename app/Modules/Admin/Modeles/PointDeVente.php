@@ -26,6 +26,80 @@ class PointDeVente extends Model
                 $site->code_piece = self::codeLibre((int) $site->entreprise_id, (string) $site->nom);
             }
         });
+
+        // La clé d'identité suit le nom (20/10/2026) : l'index unique refuse
+        // deux sites de même clé dans une entreprise.
+        static::saving(function (PointDeVente $site) {
+            if ($site->isDirty('nom') || blank($site->cle_nom)) {
+                $site->cle_nom = self::empreinteDuNom((string) $site->nom);
+            }
+        });
+    }
+
+    /**
+     * Le nom ramené à l'essentiel : majuscules, lettres et chiffres seuls,
+     * sans les mots qui ne distinguent rien (« PDV », « point de vente »).
+     * « PDV-Guédé  Aya » → GUÉDÉAYA.
+     *
+     * **Les accents restent** : pour la DGI, « FACTURATION SIEGE » et
+     * « FACTURATION SIÈGE » sont deux noms, et la correction d'un rejet crée
+     * à dessein le point au nom exact du portail.
+     */
+    public static function cleDuNom(string $nom): string
+    {
+        $propre = mb_strtoupper($nom);
+        $propre = preg_replace('/\b(PDV|POINT\s+DE\s+VENTE|POINT\s+DE\s+FACTURATION)\b/u', ' ', $propre);
+        $cle = preg_replace('/[^\p{L}\p{N}]/u', '', (string) $propre);
+
+        return $cle !== '' ? $cle : 'SITE';
+    }
+
+    /**
+     * L'empreinte de la clé, stockée dans `cle_nom` sous index unique. Une
+     * empreinte, et non la clé : la collation de MySQL ignore accents et
+     * casse, et y confondrait « SIEGE » et « SIÈGE ».
+     */
+    public static function empreinteDuNom(string $nom): string
+    {
+        return sha1(self::cleDuNom($nom));
+    }
+
+    /** La clé sans accents, pour repérer les noms seulement proches. */
+    private static function cleSansAccents(string $nom): string
+    {
+        return preg_replace('/[^A-Z0-9]/', '', strtoupper(\Illuminate\Support\Str::ascii(self::cleDuNom($nom))));
+    }
+
+    /**
+     * Un site de l'entreprise au nom identique ou très proche — une lettre
+     * inversée, une lettre de moins : « GEUDE AYA JAQUELINE » et
+     * « GUEDE AYA JACQUELINE ». `null` si aucun.
+     */
+    public static function procheDe(int $entrepriseId, string $nom, ?int $saufId = null): ?self
+    {
+        $exacte = self::cleDuNom($nom);
+        $cle = self::cleSansAccents($nom);
+        $tolerance = max(1, (int) floor(strlen($cle) / 5));
+
+        return self::where('entreprise_id', $entrepriseId)
+            ->when($saufId, fn ($q) => $q->where('id', '!=', $saufId))
+            ->get()
+            ->first(function (self $site) use ($exacte, $cle, $tolerance) {
+                if (self::cleDuNom((string) $site->nom) === $exacte) {
+                    return true;
+                }
+                $autre = self::cleSansAccents((string) $site->nom);
+                if ($autre === $cle) {
+                    return true;
+                }
+                // « Boutique 1 » et « Boutique 2 » sont deux sites : des
+                // numéros différents ne font pas une faute de frappe.
+                if (preg_replace('/\D/', '', $autre) !== preg_replace('/\D/', '', $cle)) {
+                    return false;
+                }
+
+                return levenshtein($autre, $cle) <= $tolerance;
+            });
     }
 
     /**

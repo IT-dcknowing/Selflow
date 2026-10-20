@@ -9504,6 +9504,57 @@ décision du propriétaire.
 
 ---
 
+### Lot 122 — Points de vente en double : clé d'identité, noms proches, fusion — **TERMINÉ le 20/10/2026**
+
+**Constat.** Chez « poissonnerie LA GRACE », deux sites existent :
+« GEUDE AYA JAQUELINE », saisi à la main, et « GUEDE AYA JACQUELINE »,
+déclaré au portail. La reprise du portail ne reconnaissait un site qu'au nom
+identique à la lettre près, et la saisie à la main ne vérifiait rien.
+
+**Clé d'identité.** `points_de_vente.cle_nom` (migration
+`2026_10_20_000007`), avec un index unique par entreprise.
+
+- C'est l'empreinte (sha1) du nom ramené à l'essentiel : majuscules,
+  lettres et chiffres seuls, sans « PDV » ni « point de vente ».
+- **Les accents restent.** Pour la DGI, « FACTURATION SIEGE » et
+  « FACTURATION SIÈGE » sont deux noms, et la correction d'un rejet crée à
+  dessein le point au nom exact du portail (`EcranRejetsFneTest`).
+- L'empreinte, et non la clé lisible : la collation de MySQL confondrait
+  les accents dans l'index.
+- Reprise : un doublon exact déjà en base reçoit une clé suffixée de son
+  identifiant, pour que la migration passe.
+
+**Noms proches.** `PointDeVente::procheDe()` compare les clés sans accents,
+à une distance de Levenshtein d'au plus un cinquième de la longueur. Les
+noms aux numéros différents (« Boutique 1 » / « Boutique 2 ») restent
+distincts, comme Bondoukou et Bongouanou.
+
+- **Création et modification.** Un nom identique est refusé. Un nom proche
+  l'est tant qu'on n'a pas coché « Ce n'est pas le même point de vente ».
+- **Reprise du portail.** Le rapprochement reste à la lettre près. Un nom
+  seulement proche d'un site saisi à la main n'est plus créé : il est
+  signalé « à vérifier », sans renommer l'existant.
+
+**Bug corrigé au passage.** Créer un point de vente sans commune tombait en
+erreur 500 : la commune est facultative au formulaire, mais obligatoire en
+base.
+
+**Commande** `php artisan selflow:doublons-points-de-vente [entreprise]`.
+
+- Sans option, elle liste les paires avec, pour chacun, la déclaration au
+  portail, les ventes (dont normalisées), les achats et le stock.
+- `--fusionner=<doublon> --vers=<cible> [--appliquer]` fait passer tout ce
+  que porte le doublon sur la cible, par le graphe des clés vers
+  `points_de_vente`. Les fiches de stock s'additionnent, avec un CUMP
+  pondéré, puis le doublon est supprimé.
+- La fusion est refusée si le doublon porte une pièce normalisée : elle a
+  été certifiée sous son nom.
+
+- `DoublonsPointsDeVenteTest` (5). Suite : 1 913 épreuves, 1 908
+  passantes, 5 ignorées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
