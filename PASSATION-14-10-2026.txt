@@ -236,6 +236,8 @@ EN PRODUCTION, DANS L'ORDRE :
 - 122 Doublons de points de vente : cle d'identite (accents gardes), noms
   proches signales, selflow:doublons-points-de-vente (liste, fusion).
   Migration 2026_10_20_000007.
+- 123 Code du point de vente en chiffres (01, 02...) : VTE-01-201026-001.
+  Migration 2026_10_20_000008.
 
 EN PRODUCTION (lots 114 a 121) :
   git pull origin main
@@ -244,8 +246,8 @@ EN PRODUCTION (lots 114 a 121) :
   php artisan selflow:vider-corbeille
   php artisan selflow:requalifier-achats "poissonnerie LA GRACE" ACH-GUE-201026-001 ACH-191026-002 ACH-191026-001
     (ajouter --appliquer si une piece est encore marquee bapa)
-  php artisan selflow:doublons-points-de-vente "poissonnerie LA GRACE"
-    (puis --fusionner=<id du doublon> --vers=<id a garder> --appliquer)
+  php artisan selflow:doublons-points-de-vente --fusionner=32 --vers=31 --appliquer
+    (LA GRACE : le site 32 GEUDE AYA JAQUELINE est vide, tout est sur le 31)
 
 EN PRODUCTION :
   git pull origin main

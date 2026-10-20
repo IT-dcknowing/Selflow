@@ -236,5 +236,6 @@ secret `external/*` par entreprise (moyen terme).
 | BAPA sur choix explicite ; créances, soldes et tiers par site | lot 120 |
 | Choisir son point de vente ; clients de la caisse par site | lot 121 |
 | Doublons de points de vente : clé d'identité, noms proches, fusion | lot 122 |
+| Code du point de vente en chiffres (01, 02…) | lot 123 |
 | Contre-attaque | **refusée** (illégal) ; défense outillée |
 | Relais WhatsApp | à brancher (URL d'un relais) |
