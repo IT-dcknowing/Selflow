@@ -29,8 +29,16 @@ class ProduitControleur
             'type'      => array_key_exists((string) $request->query('type'), Produit::TYPES) ? (string) $request->query('type') : '',
         ];
 
+        // Le catalogue d'un site : ses articles (20/10/2026). L'administrateur
+        // peut afficher tout le catalogue de l'entreprise (`?tout=1`) ; un
+        // membre affecté à un site, non.
+        $siteDuCatalogue = (! Auth::user()->estAffecteAUnSite() && $request->boolean('tout'))
+            ? null
+            : session('point_de_vente_actif_id');
+
         $produits   = Produit::where('entreprise_id', $entreprise->id)
             ->actifs()
+            ->visiblesAuSite($siteDuCatalogue)
             ->when($filtres['q'] !== '', function ($q) use ($filtres) {
                 $terme = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $filtres['q']) . '%';
                 $q->where(fn ($w) => $w->where('nom', 'like', $terme)->orWhere('reference', 'like', $terme));
@@ -65,7 +73,7 @@ class ProduitControleur
             ->get();
 
         return view('admin::produits.index', compact(
-            'produits', 'produits_archives', 'comptes', 'categories', 'syscohadaKws', 'filtres'
+            'produits', 'produits_archives', 'comptes', 'categories', 'syscohadaKws', 'filtres', 'siteDuCatalogue'
         ));
     }
 
@@ -184,6 +192,9 @@ class ProduitControleur
                 'quantite_disponible' => 0,
                 'stock_minimum'       => $isDefault ? $request->input('stock_minimum', 5) : 5,
                 'stock_maximum'       => 100,
+                // Référencé sur le site où on le crée, et non sur tous
+                // (20/10/2026). Sans site actif, partout, comme avant.
+                'reference'           => $defaultPdvId ? $isDefault : true,
             ]);
         }
 
@@ -470,6 +481,40 @@ class ProduitControleur
         }
 
         return back()->with(['succes' => 'Produit mis à jour avec succès.'] + self::avertissementInventaire($produit, $entreprise));
+    }
+
+    /**
+     * Référencer un article sur un point de vente, ou l'en retirer
+     * (20/10/2026) : le site ne le propose plus en caisse ni en stock.
+     * Un membre affecté ne règle que son site (`ImposerLeSiteDeTravail`).
+     */
+    public function referencer(Request $request, Produit $produit): RedirectResponse
+    {
+        abort_unless($produit->entreprise_id === Auth::user()->entreprise_id, 404);
+
+        $donnees = $request->validate([
+            'point_de_vente_id' => ['required', 'integer'],
+            'reference'         => ['required', 'boolean'],
+        ]);
+        $site = \App\Modules\Admin\Modeles\PointDeVente::where('entreprise_id', $produit->entreprise_id)
+            ->findOrFail($donnees['point_de_vente_id']);
+
+        $fiche = \App\Modules\Admin\Modeles\Stock::firstOrNew(['produit_id' => $produit->id, 'point_de_vente_id' => $site->id]);
+        $referencer = (bool) $donnees['reference'];
+
+        if (!$referencer && (float) $fiche->quantite_disponible > 0) {
+            return back()->with('erreur', "« {$produit->nom} » a encore du stock à {$site->nom} : transférez-le ou soldez-le avant de le retirer de ce site.");
+        }
+
+        if (!$fiche->exists) {
+            $fiche->fill(['quantite_disponible' => 0, 'stock_minimum' => 5, 'stock_maximum' => 100]);
+        }
+        $fiche->reference = $referencer;
+        $fiche->save();
+
+        return back()->with('succes', $referencer
+            ? "« {$produit->nom} » est maintenant proposé à {$site->nom}."
+            : "« {$produit->nom} » n'est plus proposé à {$site->nom}.");
     }
 
     /**

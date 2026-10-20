@@ -308,6 +308,31 @@ class Produit extends Model
      * quand une raison de plus d'écarter un article apparaîtra — un article
      * périmé, un article suspendu —, elle se posera ici.
      */
+    /**
+     * Les articles qui concernent ce point de vente (20/10/2026).
+     *
+     * Le catalogue est commun à l'entreprise, mais chaque site ne voit que
+     * ce qu'il tient : un article stockable y est **référencé** (sa fiche de
+     * stock le dit), un service se vend partout. Sans site — « tous les
+     * sites » —, rien n'est filtré.
+     */
+    public function scopeVisiblesAuSite($query, $pointDeVenteId)
+    {
+        if (!$pointDeVenteId || $pointDeVenteId === 'tout') {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($pointDeVenteId) {
+            $q->whereNull('type')
+              ->orWhereNotIn('type', self::TYPES_STOCKABLES)
+              ->orWhereHas('stocks', fn ($s) => $s->where('stocks.point_de_vente_id', $pointDeVenteId)->where('stocks.reference', true))
+              // Un article qui n'a encore de fiche nulle part (repris d'un
+              // import, d'une ancienne version) n'est à aucun site en
+              // particulier : il reste proposé partout.
+              ->orWhereDoesntHave('stocks');
+        });
+    }
+
     public function scopeSelectionnables($query)
     {
         return $query->where('statut', 'actif');

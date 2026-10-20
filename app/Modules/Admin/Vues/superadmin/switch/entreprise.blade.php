@@ -91,7 +91,7 @@
             <i class="fas fa-users" style="color:#4f46e5;"></i> Utilisateurs ({{ $utilisateurs->count() }})
         </h3>
         <table class="table" style="width:100%; font-size:13px;">
-            <thead><tr><th>Nom</th><th>Courriel</th><th>Rôle</th><th>Point de vente</th><th style="text-align:right;"></th></tr></thead>
+            <thead><tr><th>Nom</th><th>Courriel</th><th>Rôle</th><th>Point de vente</th><th>Connecté</th><th>Dernière connexion</th><th style="text-align:right;"></th></tr></thead>
             <tbody>
             @foreach($utilisateurs as $u)
                 <tr>
@@ -99,6 +99,23 @@
                     <td>{{ $u->email }}</td>
                     <td>{{ $roles[$u->role] ?? ucfirst((string) $u->role) }}</td>
                     <td>{{ $u->pointDeVente?->nom ?? '—' }}</td>
+                    <td>
+                        @if($u->en_ligne)
+                            <span class="presence presence-oui" title="Actif il y a moins de {{ \App\Modules\Admin\Controleurs\SuperadminSwitchControleur::MINUTES_EN_LIGNE }} min" style="display:inline-flex; align-items:center; gap:6px; background:#dcfce7; color:#15803d; border-radius:20px; padding:3px 10px; font-size:12px; font-weight:700;"><span style="width:9px; height:9px; border-radius:50%; background:#16a34a;"></span> En ligne</span>
+                        @else
+                            <span class="presence presence-non" style="display:inline-flex; align-items:center; gap:6px; background:#fee2e2; color:#b91c1c; border-radius:20px; padding:3px 10px; font-size:12px; font-weight:700;"><span style="width:9px; height:9px; border-radius:50%; background:#dc2626;"></span> Hors ligne</span>
+                        @endif
+                    </td>
+                    <td style="font-size:12px;">
+                        @if($u->vu_le)
+                            <strong>{{ \App\Modules\Admin\Controleurs\SuperadminSwitchControleur::duree($u->duree_derniere_session) }}</strong>
+                            <div style="color:var(--text-3);">vu {{ $u->vu_le->diffForHumans() }}</div>
+                        @elseif($u->connecte_le)
+                            <div style="color:var(--text-3);">connexion le {{ \Illuminate\Support\Carbon::parse($u->connecte_le)->format('d/m/Y H:i') }}</div>
+                        @else
+                            <span style="color:var(--text-3);">jamais</span>
+                        @endif
+                    </td>
                     <td style="text-align:right;">
                         @unless($u->estSuperAdmin())
                         <form method="POST" action="{{ route('superadmin.switch.incarner', $u) }}" style="margin:0;">

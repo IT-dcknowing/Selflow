@@ -56,6 +56,8 @@ class VenteControleur
         // catalogue.
         $produits = Produit::where('entreprise_id', $entreprise->id)
             ->selectionnables()
+            // Chaque point de vente ne propose que ses articles (20/10/2026).
+            ->visiblesAuSite($pointDeVenteId)
             ->with('taxes')
             ->orderBy('nom')
             ->get();
@@ -857,7 +859,7 @@ class VenteControleur
         $dejaPortes = $vente->details->pluck('produit_id')->filter()->all();
 
         $produits = Produit::where('entreprise_id', $entreprise->id)
-            ->where(fn($q) => $q->selectionnables()->orWhereIn('id', $dejaPortes))
+            ->where(fn($q) => $q->where(fn ($v) => $v->selectionnables()->visiblesAuSite($vente->point_de_vente_id))->orWhereIn('id', $dejaPortes))
             ->orderBy('nom')
             ->get();
         $categories = $produits->pluck('categorie')->unique()->sort()->values();
@@ -2572,6 +2574,7 @@ class VenteControleur
         $produits = \App\Modules\Admin\Modeles\Produit::with('category')
             ->where('entreprise_id', $entrepriseId)
             ->where('statut', 'actif')
+            ->visiblesAuSite(session('point_de_vente_actif_id'))
             ->get();
 
         $grouped = [];

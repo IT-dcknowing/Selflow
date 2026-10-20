@@ -7,7 +7,18 @@
 <div class="page-header">
     <div>
         <h1><i class="fas fa-barcode"></i> Catalogue produits</h1>
-        <p>{{ $produits->total() }} produit(s) actif(s)</p>
+        <p>{{ $produits->total() }} produit(s) actif(s)
+            {{-- Le catalogue d'un site (20/10/2026). --}}
+            @if($siteDuCatalogue ?? null)
+                · articles de <strong>{{ session('point_de_vente_actif_nom') }}</strong>
+                @unless(auth()->user()->estAffecteAUnSite())
+                    — <a href="{{ request()->fullUrlWithQuery(['tout' => 1]) }}">voir tout le catalogue de l'entreprise</a>
+                @endunless
+            @elseif(request()->boolean('tout') && session('point_de_vente_actif_id'))
+                · tout le catalogue de l'entreprise —
+                <a href="{{ request()->fullUrlWithQuery(['tout' => null]) }}">revenir aux articles de {{ session('point_de_vente_actif_nom') }}</a>
+            @endif
+        </p>
     </div>
     <div style="display:flex; gap:10px; align-items:center;">
         {{-- Toggle Vue --}}

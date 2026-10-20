@@ -524,6 +524,7 @@ class Habilitations
         'admin.produits.creer'             => 'catalogue_produits',
         'admin.produits.modifier'          => 'catalogue_produits',
         'admin.produits.fiche'             => 'catalogue_produits',
+        'admin.produits.referencer'    => 'catalogue_produits',
         'admin.produits.archiver'          => 'catalogue_produits',
         'admin.produits.description'       => 'catalogue_produits',
         'admin.produits.photo'             => 'catalogue_produits',

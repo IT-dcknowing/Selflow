@@ -397,6 +397,8 @@ Route::prefix('admin')
             Route::get('/', [ProduitControleur::class, 'index'])->name('index');
             Route::post('/', [ProduitControleur::class, 'creer'])->name('creer');
             Route::get('/{produit}/fiche', [ProduitControleur::class, 'fiche'])->name('fiche');
+            // Référencer l'article sur un point de vente, ou l'en retirer (20/10/2026).
+            Route::post('/{produit}/referencer', [ProduitControleur::class, 'referencer'])->name('referencer');
             Route::put('/{produit}', [ProduitControleur::class, 'modifier'])->name('modifier');
             Route::patch('/{produit}/archiver', [ProduitControleur::class, 'archiver'])->name('archiver');
             Route::patch('/{produit}/description', [ProduitControleur::class, 'description'])->name('description');

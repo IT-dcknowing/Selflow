@@ -63,6 +63,8 @@ class StockControleur
         $query = Produit::where('produits.entreprise_id', $entreprise->id)
             ->stockables()
             ->visiblesEnStock()
+            // Sur un site, ses articles seulement (20/10/2026).
+            ->visiblesAuSite($pointDeVenteId)
             // La catégorie se lit sur chaque ligne et au filtre : sans elle,
             // une requête par article.
             ->with(['stocks', 'category']);
@@ -217,6 +219,7 @@ class StockControleur
             $produits = Produit::where('entreprise_id', $entreprise->id)
                 ->whereIn('type', Produit::TYPES_STOCKABLES)
                 ->visiblesEnStock()
+                ->visiblesAuSite($pointDeVenteId)
                 ->with(['stocks' => fn ($q) => $q->where('point_de_vente_id', $pointDeVenteId)])
                 ->orderBy('nom')
                 ->get();
@@ -449,6 +452,7 @@ class StockControleur
         $query = Produit::where('entreprise_id', $entreprise->id)
             ->stockables()
             ->whereNotNull('date_peremption')
+            ->visiblesAuSite($pointDeVenteId)
             ->with(['stocks']);
 
         $produits = $query->get();

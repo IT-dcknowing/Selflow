@@ -122,4 +122,25 @@ class SwitchEntrepriseTest extends TestCase
             ->expectsOutputToContain('chaque entrée est restée sur son point de vente')
             ->assertSuccessful();
     }
+
+    public function test_la_fiche_dit_qui_est_connecte_et_la_duree_de_sa_derniere_connexion(): void
+    {
+        $visite = fn ($u, $quand, $session) => \App\Modules\Admin\Modeles\Visite::create([
+            'ip' => '10.0.0.1', 'methode' => 'GET', 'chemin' => 'admin', 'statut' => 200, 'duree_ms' => 10,
+            'utilisateur_id' => $u->id, 'entreprise_id' => $this->entreprise->id, 'session_id' => $session, 'cree_le' => $quand,
+        ]);
+        // L'administrateur : actif il y a 2 minutes, session ouverte il y a 1 h 05.
+        $visite($this->admin, now()->subMinutes(65), 'S1');
+        $visite($this->admin, now()->subMinutes(2), 'S1');
+        // Le caissier : vu hier, 20 minutes de session.
+        $visite($this->caissier, now()->subDay()->subMinutes(20), 'S2');
+        $visite($this->caissier, now()->subDay(), 'S2');
+
+        $html = $this->actingAs($this->superadmin)->get(route('superadmin.switch.entreprise', $this->entreprise))->assertOk()->getContent();
+
+        $this->assertSame(1, substr_count($html, 'presence presence-oui'));
+        $this->assertSame(1, substr_count($html, 'presence presence-non'));
+        $this->assertStringContainsString('1 h 03 min', $html);
+        $this->assertStringContainsString('20 min', $html);
+    }
 }

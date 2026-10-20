@@ -9222,6 +9222,58 @@ Un écart se corrige par un transfert, décidé par le gérant.
 
 ---
 
+### Lot 116 — Qui est connecté ; chaque point de vente voit ses articles — **TERMINÉ le 20/10/2026**
+
+**Présence (fiche d'entreprise du Switch).** Deux colonnes s'ajoutent :
+
+- **Connecté** : pastille verte « En ligne » si une requête est passée
+  dans les 5 dernières minutes, rouge « Hors ligne » sinon ;
+- **Dernière connexion** : la durée de la dernière session, de la première
+  à la dernière requête, et « vu il y a… ».
+
+La source est le journal du trafic (lot 104). À défaut, c'est la dernière
+ouverture de session du journal d'audit. Les requêtes faites en assistance
+ne s'y écrivent plus : elles feraient paraître le client « en ligne » à la
+place du superadmin.
+
+**Articles par site — constat.** Le catalogue est celui de l'entreprise,
+mais la création d'un article ouvrait une fiche de stock à zéro sur
+**tous** les sites. Aucun écran ne filtrait par site :
+
+- la caisse, l'écran Stock et le catalogue de chaque magasin montraient les
+  articles des autres ;
+- les alertes de rupture d'un site comptaient des articles qu'il n'avait
+  jamais tenus.
+
+**Correctif.**
+
+- **Le modèle.** La colonne `stocks.reference` (migration
+  `2026_10_20_000001`) dit si l'article est référencé sur le site. Le scope
+  `Produit::visiblesAuSite($site)` retient les articles référencés sur ce
+  site, les services, et les articles qui n'ont de fiche nulle part (imports
+  anciens).
+- **Où il s'applique.** Caisse et modification de vente, grille par
+  catégorie, Stock, inventaire, péremptions, alertes du tableau de bord,
+  catalogue.
+- **Le catalogue entier.** L'administrateur peut l'afficher (« voir tout le
+  catalogue de l'entreprise ») ; un membre affecté à un site, non.
+- **Comment un article arrive sur un site.**
+  - Un article créé n'est référencé que sur le site actif.
+  - Un mouvement sur un site (entrée, transfert, inventaire) l'y référence.
+  - L'écran d'entrée de stock reste ouvert à tout le catalogue : c'est par
+    là qu'un article arrive sur un nouveau site.
+- **La fiche article.** Le bloc « Stock par site » montre tous les sites,
+  avec « Proposer sur ce site » ou « Retirer de ce site ». On ne retire pas
+  un article qui a encore du stock sur le site.
+- **Reprise de l'existant.** Une fiche reste référencée si elle porte une
+  quantité ou si un mouvement y est passé. Un article qui n'a encore servi
+  nulle part reste référencé partout.
+
+- `ArticlesParSiteTest` (7), `SwitchEntrepriseTest` (+1). Suite :
+  1 881 épreuves, 1 876 passantes, 5 ignorées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

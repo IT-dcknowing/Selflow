@@ -479,6 +479,13 @@ class StockService
             ['quantite_disponible' => 0, 'stock_minimum' => 5, 'stock_maximum' => 100]
         );
 
+        // Un mouvement sur un site y référence l'article : ce qu'on y reçoit,
+        // ce qu'on y transfère, ce qu'on y compte, le site le voit (20/10/2026).
+        Stock::where('produit_id', $produit->id)
+            ->where('point_de_vente_id', $pointDeVenteId)
+            ->where('reference', false)
+            ->update(['reference' => true]);
+
         return Stock::where('produit_id', $produit->id)
             ->where('point_de_vente_id', $pointDeVenteId)
             ->lockForUpdate()
