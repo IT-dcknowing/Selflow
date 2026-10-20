@@ -416,13 +416,19 @@ class ProduitControleur
         // La spécification demande "génération automatique et unique basée sur la catégorie" à la création.
         // Restons fidèles à la création pour garder la cohérence historique.
 
+        // Le prix d'un site (20/10/2026) : sur une entreprise de plusieurs
+        // sites, le prix saisi vaut pour le site actif seulement — sauf si
+        // l'on coche « appliquer à tous les points de vente ».
+        $siteDuPrix = Produit::siteDuPrix($entreprise->id);
+        $prixPourLeSite = $siteDuPrix && !$request->boolean('prix_tous_sites');
+
         $produit->update([
             'nom'               => $request->nom,
             'type'              => $request->type,
             'categorie_id'      => $categorieId ?: null,
             'sous_categorie_id' => $sousCategorieId ?: null,
             'prix_achat'        => $isService ? 0 : $request->prix_achat,
-            'prix_vente'        => $request->prix_vente,
+            'prix_vente'        => $prixPourLeSite ? $produit->getRawOriginal('prix_vente') : $request->prix_vente,
             'taux_tva'          => $request->taux_tva,
             ...self::comptesDeLArticle($request, $entreprise, $produit, $categorieId ?: null),
             'unite'             => $request->unite,
@@ -480,7 +486,22 @@ class ProduitControleur
             ]);
         }
 
-        return back()->with(['succes' => 'Produit mis à jour avec succès.'] + self::avertissementInventaire($produit, $entreprise));
+        if ($prixPourLeSite) {
+            $fiche = \App\Modules\Admin\Modeles\Stock::firstOrNew(['produit_id' => $produit->id, 'point_de_vente_id' => $siteDuPrix]);
+            if (!$fiche->exists) {
+                $fiche->fill(['quantite_disponible' => 0, 'stock_minimum' => 5, 'stock_maximum' => 100]);
+                $fiche->reference = true;
+            }
+            $fiche->prix_vente = $request->prix_vente;
+            $fiche->save();
+        } elseif ($request->boolean('prix_tous_sites')) {
+            // Un seul prix pour tous : les prix propres aux sites s'effacent.
+            \App\Modules\Admin\Modeles\Stock::where('produit_id', $produit->id)->update(['prix_vente' => null]);
+        }
+
+        return back()->with(['succes' => 'Produit mis à jour avec succès.'
+            . ($prixPourLeSite ? ' Prix appliqué à ' . (session('point_de_vente_actif_nom') ?? 'ce point de vente') . ' seulement.' : '')]
+            + self::avertissementInventaire($produit, $entreprise));
     }
 
     /**

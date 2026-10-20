@@ -786,7 +786,8 @@ class AchatControleur
         $nouveau = \App\Modules\Admin\Services\NumerotationService::genererNumeroAchat(
             $achat->pointDeVente->entreprise_id,
             $etape,
-            $etape === 'Facture' && $achat->type_facture === 'bapa' ? 'bapa' : null
+            $etape === 'Facture' && $achat->type_facture === 'bapa' ? 'bapa' : null,
+            (int) $achat->point_de_vente_id
         );
 
         $achat->update(['etape' => $etape, 'numero_facture' => $nouveau]);

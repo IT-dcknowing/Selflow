@@ -316,6 +316,55 @@ class Produit extends Model
      * stock le dit), un service se vend partout. Sans site — « tous les
      * sites » —, rien n'est filtré.
      */
+    /** Les prix par site déjà lus pour cette instance. */
+    private array $prixParSite = [];
+
+    /**
+     * Le prix de vente **du point de vente actif** (20/10/2026) : celui de sa
+     * fiche s'il en porte un, sinon celui de l'article. Une entreprise d'un
+     * seul site n'est pas concernée, et lit l'article comme avant.
+     */
+    public function getPrixVenteAttribute($valeur)
+    {
+        $site = self::siteDuPrix($this->entreprise_id);
+
+        return $site ? $this->prixAuSite($site, $valeur) : $valeur;
+    }
+
+    /** Le prix sur ce site : celui de sa fiche, ou celui de l'article. */
+    public function prixAuSite(int $pointDeVenteId, $prixArticle = null)
+    {
+        $prixArticle ??= $this->getRawOriginal('prix_vente', $this->attributes['prix_vente'] ?? null);
+
+        if (!array_key_exists($pointDeVenteId, $this->prixParSite)) {
+            $fiche = $this->relationLoaded('stocks')
+                ? $this->stocks->firstWhere('point_de_vente_id', $pointDeVenteId)
+                : ($this->exists ? Stock::where('produit_id', $this->id)->where('point_de_vente_id', $pointDeVenteId)->first(['prix_vente']) : null);
+            $this->prixParSite[$pointDeVenteId] = $fiche?->prix_vente;
+        }
+
+        return $this->prixParSite[$pointDeVenteId] ?? $prixArticle;
+    }
+
+    /** Le site actif, quand l'entreprise en a plusieurs ; sinon `null`. */
+    public static function siteDuPrix(?int $entrepriseId): ?int
+    {
+        if (!$entrepriseId || !app()->bound('session')) {
+            return null;
+        }
+        $site = (int) session('point_de_vente_actif_id');
+        if (!$site) {
+            return null;
+        }
+        // Sans relire l'entreprise : le nombre de sites est mémorisé pour la
+        // requête (`nombreDePointsDeVente`), et une liste de cinq cents
+        // articles ne doit pas coûter cinq cents requêtes.
+        $entreprise = (new Entreprise())->forceFill(['id' => $entrepriseId]);
+        $entreprise->exists = true;
+
+        return $entreprise->nombreDePointsDeVente() > 1 ? $site : null;
+    }
+
     public function scopeVisiblesAuSite($query, $pointDeVenteId)
     {
         if (!$pointDeVenteId || $pointDeVenteId === 'tout') {

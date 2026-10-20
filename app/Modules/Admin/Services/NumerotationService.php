@@ -30,22 +30,23 @@ class NumerotationService
      *     (DP-/BCF-/BA- + dd-mm-yyyy), non concernés par ce changement — ce
      *     sont des documents pré-comptables, pas encore des pièces journalisées.
      */
-    public static function genererNumeroAchat(int $entrepriseId, string $etape, ?string $typeFacture = null): string
+    public static function genererNumeroAchat(int $entrepriseId, string $etape, ?string $typeFacture = null, ?int $pointDeVenteId = null): string
     {
+        $site = self::siteNumerote($entrepriseId, $pointDeVenteId);
         if ($etape === 'Demande de prix') {
-            return self::genererAncienneConvention($entrepriseId, 'DP-', Achat::class);
+            return self::genererAncienneConvention($entrepriseId, 'DP-', Achat::class, $site);
         }
         if ($etape === 'Bon de commande') {
-            return self::genererAncienneConvention($entrepriseId, self::PREFIXE_BC_ACHAT, Achat::class);
+            return self::genererAncienneConvention($entrepriseId, self::PREFIXE_BC_ACHAT, Achat::class, $site);
         }
         if ($typeFacture === 'bapa') {
-            return self::genererAncienneConvention($entrepriseId, 'BA-', Achat::class);
+            return self::genererAncienneConvention($entrepriseId, 'BA-', Achat::class, $site);
         }
         if ($typeFacture === 'avoir') {
-            return self::genererConventionDatee($entrepriseId, 'AVO-ACH', Achat::class);
+            return self::genererConventionDatee($entrepriseId, 'AVO-ACH', Achat::class, $site);
         }
 
-        return self::genererConventionDatee($entrepriseId, 'ACH', Achat::class);
+        return self::genererConventionDatee($entrepriseId, 'ACH', Achat::class, $site);
     }
 
     /**
@@ -56,19 +57,42 @@ class NumerotationService
      *   - Avoir client                : AVO-VTE-jjmmaa-xxx
      *   - Devis, Bon de commande : conservent l'ancien format (DV-/BC- + dd-mm-yyyy)
      */
-    public static function genererNumeroVente(int $entrepriseId, string $etape, ?string $typeFacture = null): string
+    public static function genererNumeroVente(int $entrepriseId, string $etape, ?string $typeFacture = null, ?int $pointDeVenteId = null): string
     {
+        $site = self::siteNumerote($entrepriseId, $pointDeVenteId);
         if ($etape === 'Devis') {
-            return self::genererAncienneConvention($entrepriseId, 'DV-', Vente::class);
+            return self::genererAncienneConvention($entrepriseId, 'DV-', Vente::class, $site);
         }
         if ($etape === 'Bon de commande') {
-            return self::genererAncienneConvention($entrepriseId, 'BC-', Vente::class);
+            return self::genererAncienneConvention($entrepriseId, 'BC-', Vente::class, $site);
         }
         if ($typeFacture === 'avoir') {
-            return self::genererConventionDatee($entrepriseId, 'AVO-VTE', Vente::class);
+            return self::genererConventionDatee($entrepriseId, 'AVO-VTE', Vente::class, $site);
         }
 
-        return self::genererConventionDatee($entrepriseId, 'VTE', Vente::class);
+        return self::genererConventionDatee($entrepriseId, 'VTE', Vente::class, $site);
+    }
+
+    /**
+     * Le site dont le code entre dans le numéro — seulement quand l'entreprise
+     * en a plusieurs : une entreprise d'un seul site garde ses numéros
+     * d'aujourd'hui. Sans site désigné, le site actif de la session.
+     */
+    private static function siteNumerote(int $entrepriseId, ?int $pointDeVenteId): ?\App\Modules\Admin\Modeles\PointDeVente
+    {
+        $sites = \App\Modules\Admin\Modeles\PointDeVente::where('entreprise_id', $entrepriseId);
+        if ((clone $sites)->count() < 2) {
+            return null;
+        }
+
+        $pointDeVenteId = $pointDeVenteId ?: (int) session('point_de_vente_actif_id');
+        $site = $pointDeVenteId ? (clone $sites)->find($pointDeVenteId) : null;
+        if ($site && blank($site->code_piece)) {
+            $site->code_piece = \App\Modules\Admin\Modeles\PointDeVente::codeLibre($entrepriseId, (string) $site->nom, $site->id);
+            $site->saveQuietly();
+        }
+
+        return $site;
     }
 
     /**
@@ -76,9 +100,9 @@ class NumerotationService
      * Non concerné par le changement de convention (document de logistique,
      * pas une pièce comptable en tant que telle).
      */
-    public static function genererNumeroBL(int $entrepriseId): string
+    public static function genererNumeroBL(int $entrepriseId, ?int $pointDeVenteId = null): string
     {
-        return self::genererAncienneConvention($entrepriseId, 'BL-', BonLivraison::class);
+        return self::genererAncienneConvention($entrepriseId, 'BL-', BonLivraison::class, self::siteNumerote($entrepriseId, $pointDeVenteId));
     }
 
     /**
@@ -104,10 +128,12 @@ class NumerotationService
      * La séquence redémarre chaque jour, par entreprise et par préfixe.
      * ex : VTE-220726-001, AVO-ACH-220726-004
      */
-    private static function genererConventionDatee(int $entrepriseId, string $prefixe, string $modelClass): string
+    private static function genererConventionDatee(int $entrepriseId, string $prefixe, string $modelClass, ?\App\Modules\Admin\Modeles\PointDeVente $site = null): string
     {
         $jjmmaa = now()->format('dmy');
-        $debut = $prefixe . '-' . $jjmmaa . '-';
+        // Plusieurs sites : le code du site entre dans le numéro, et chacun
+        // compte à partir de 1 (20/10/2026). VTE-BON-201026-001.
+        $debut = $prefixe . '-' . ($site ? $site->code_piece . '-' : '') . $jjmmaa . '-';
 
         // Sans le filtre de période de la session : il ne laissait compter que
         // les pièces datées dans l'exercice affiché. Un achat saisi aujourd'hui
@@ -129,8 +155,11 @@ class NumerotationService
      * pré-comptables) : {PREFIXE}{dd-mm-yyyy}-{séquence sur 4 chiffres}.
      * ex : DV-22-07-2026-0001
      */
-    private static function genererAncienneConvention(int $entrepriseId, string $prefixe, string $modelClass): string
+    private static function genererAncienneConvention(int $entrepriseId, string $prefixe, string $modelClass, ?\App\Modules\Admin\Modeles\PointDeVente $site = null): string
     {
+        if ($site) {
+            $prefixe .= $site->code_piece . '-';
+        }
         $annee = now()->year;
 
         $compte = $modelClass::withoutGlobalScope(\App\Modules\Admin\Scopes\PeriodeScope::class)
@@ -138,6 +167,7 @@ class NumerotationService
             ->whereHas('pointDeVente', function ($query) use ($entrepriseId) {
                 $query->where('entreprise_id', $entrepriseId);
             })
+            ->when($site, fn ($q) => $q->where('point_de_vente_id', $site->id))
             ->where(function ($q) use ($prefixe, $modelClass) {
                 // BonLivraison n'a pas de numero_facture : le préfixe suffit à lui seul (comptage global de l'année)
                 if ($modelClass === BonLivraison::class) {

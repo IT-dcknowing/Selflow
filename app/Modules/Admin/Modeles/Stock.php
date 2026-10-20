@@ -18,6 +18,8 @@ class Stock extends Model
         'stock_maximum',
         // L'article est-il référencé sur ce site (20/10/2026) ?
         'reference',
+        // Le prix de vente propre au site ; vide, celui de l'article.
+        'prix_vente',
     ];
 
     /**

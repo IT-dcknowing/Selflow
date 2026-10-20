@@ -199,7 +199,7 @@ class BonLivraisonControleur extends Controller
         $blCle = null;
 
         DB::transaction(function () use ($request, $vente, $entreprise, $aLivrer, &$blId, &$blCle) {
-            $numeroBL = NumerotationService::genererNumeroBL($entreprise->id);
+            $numeroBL = NumerotationService::genererNumeroBL($entreprise->id, (int) $vente->point_de_vente_id);
 
             // Créer le BL
             $bl = BonLivraison::create([

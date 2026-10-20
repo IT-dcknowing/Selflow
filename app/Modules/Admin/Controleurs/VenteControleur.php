@@ -58,7 +58,8 @@ class VenteControleur
             ->selectionnables()
             // Chaque point de vente ne propose que ses articles (20/10/2026).
             ->visiblesAuSite($pointDeVenteId)
-            ->with('taxes')
+            // Le prix du site se lit sur sa fiche : chargée d'un coup.
+            ->with(['taxes', 'stocks'])
             ->orderBy('nom')
             ->get();
 
@@ -255,7 +256,7 @@ class VenteControleur
             }
 
             // Génération numéro de facture
-            $numero = \App\Modules\Admin\Services\NumerotationService::genererNumeroVente($entreprise->id, $etape);
+            $numero = \App\Modules\Admin\Services\NumerotationService::genererNumeroVente($entreprise->id, $etape, null, (int) $pointDeVenteId);
 
             // Calcul du montant payé et statut de la vente
             $montantPaye = 0;
@@ -1651,7 +1652,8 @@ class VenteControleur
             $numAvoir = \App\Modules\Admin\Services\NumerotationService::genererNumeroVente(
                 $vente->pointDeVente->entreprise_id,
                 'Facture',
-                'avoir'
+                'avoir',
+                (int) $vente->point_de_vente_id
             );
 
             // 1. Création de la facture d'avoir
@@ -1916,7 +1918,7 @@ class VenteControleur
         $commande = DB::transaction(function () use ($vente) {
             // 1. Cloner en Bon de commande
             $entrepriseId = $vente->pointDeVente->entreprise_id;
-            $nouveauNumero = \App\Modules\Admin\Services\NumerotationService::genererNumeroVente($entrepriseId, 'Bon de commande');
+            $nouveauNumero = \App\Modules\Admin\Services\NumerotationService::genererNumeroVente($entrepriseId, 'Bon de commande', null, (int) $vente->point_de_vente_id);
 
             $clone = $vente->replicate(['archived', 'normalise', 'numero_fne', 'signature_dgi', 'qr_code_data']);
             $clone->numero_facture = $nouveauNumero;
@@ -2058,7 +2060,7 @@ class VenteControleur
                 'fichier_fne_pdf_url',
                 'fne_invoice_id',
             ]);
-            $clone->numero_facture = \App\Modules\Admin\Services\NumerotationService::genererNumeroVente($entrepriseId, 'Facture');
+            $clone->numero_facture = \App\Modules\Admin\Services\NumerotationService::genererNumeroVente($entrepriseId, 'Facture', null, (int) $clone->point_de_vente_id);
             $clone->type_piece = Vente::TYPE_FACTURE;
             $clone->type_facture = 'proformat';
             $clone->piece_liee_id = $vente->id;
@@ -2419,7 +2421,8 @@ class VenteControleur
             $numAvoir = \App\Modules\Admin\Services\NumerotationService::genererNumeroVente(
                 $parent->pointDeVente->entreprise_id,
                 'Facture',
-                'avoir'
+                'avoir',
+                (int) $parent->point_de_vente_id
             );
 
             // 1. Création de la facture d'avoir

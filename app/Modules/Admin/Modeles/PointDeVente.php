@@ -19,6 +19,50 @@ class PointDeVente extends Model
         $oublier = fn () => Entreprise::oublierLesPointsDeVente();
         static::created($oublier);
         static::deleted($oublier);
+
+        // Le code des numéros de pièce (20/10/2026).
+        static::creating(function (PointDeVente $site) {
+            if (blank($site->code_piece) && $site->entreprise_id) {
+                $site->code_piece = self::codeLibre((int) $site->entreprise_id, (string) $site->nom);
+            }
+        });
+    }
+
+    /**
+     * Un code court tiré du nom — « PDV-Bondoukou » donne BON —, unique dans
+     * l'entreprise : « PDV-Bongouanou », après Bondoukou, devient BNG.
+     */
+    public static function codeLibre(int $entrepriseId, string $nom, ?int $saufId = null): string
+    {
+        $propre = strtoupper(\Illuminate\Support\Str::ascii($nom));
+        $propre = preg_replace('/\b(PDV|POINT|DE|DU|VENTE|SITE|MAGASIN|BOUTIQUE)\b/', ' ', $propre);
+        $lettres = preg_replace('/[^A-Z0-9]/', '', (string) $propre);
+        $base = substr($lettres !== '' ? $lettres : 'SITE', 0, 3);
+
+        $pris = \Illuminate\Support\Facades\DB::table('points_de_vente')
+            ->where('entreprise_id', $entrepriseId)
+            ->when($saufId, fn ($q) => $q->where('id', '!=', $saufId))
+            ->whereNotNull('code_piece')
+            ->pluck('code_piece')->map(fn ($c) => strtoupper($c))->all();
+
+        // D'abord les trois premières lettres (BON pour Bondoukou), puis la
+        // première suivie des consonnes (BNG pour Bongouanou), puis un chiffre.
+        $consonnes = preg_replace('/[AEIOUY0-9]/', '', substr($lettres, 1));
+        $candidats = array_values(array_unique(array_filter([
+            $base,
+            strlen($consonnes) >= 2 ? substr($lettres, 0, 1) . substr($consonnes, 0, 2) : null,
+            strlen($lettres) >= 3 ? substr($lettres, 0, 2) . substr($lettres, -1) : null,
+        ])));
+        foreach ($candidats as $code) {
+            if (!in_array($code, $pris, true)) {
+                return $code;
+            }
+        }
+
+        for ($i = 2; in_array($base . $i, $pris, true); $i++) {
+        }
+
+        return $base . $i;
     }
 
     protected $fillable = [
