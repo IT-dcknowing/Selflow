@@ -217,6 +217,17 @@ Route::prefix('admin')
         });
 
         // ── Comptabilité ──
+        // Créances & règlements (20/10/2026) : de la trésorerie, et non des
+        // livres — ni comptabilité ouverte ni module « comptabilité » exigés.
+        // Le même écran dans l'espace caissier : qui a le droit l'y trouve.
+        Route::prefix('comptabilite')->name('comptabilite.')->group(function () {
+            Route::get('/creances', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'creances'])->name('creances');
+            Route::get('/tiers/{type}/{id}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'releveTiers'])->name('releve_tiers');
+            Route::post('/reglement', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'enregistrerReglement'])->name('enregistrer_reglement');
+            Route::post('/soldes-de-depart', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'enregistrerSoldeInitial'])->name('soldes_initiaux.enregistrer');
+            Route::delete('/soldes-de-depart/{solde}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'supprimerSoldeInitial'])->name('soldes_initiaux.supprimer');
+        });
+
         Route::prefix('comptabilite')->name('comptabilite.')->middleware('modules:comptabilite')->group(function () {
 
             // Le resultat site par site : l'axe analytique que l'application
@@ -241,16 +252,6 @@ Route::prefix('admin')
              * Le refus est un 404 (Not Found -- introuvable) : l'entreprise
              * n'a rien ferme, ces ecrans n'existent pas pour elle.
              */
-            // Créances & règlements : de la trésorerie, et non des livres
-            // (20/10/2026). Suivre ce que les clients doivent et ce qu'on doit
-            // aux fournisseurs ne demande pas d'avoir ouvert la comptabilité.
-            Route::get('/creances', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'creances'])->name('creances');
-            Route::get('/tiers/{type}/{id}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'releveTiers'])->name('releve_tiers');
-            Route::post('/reglement', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'enregistrerReglement'])->name('enregistrer_reglement');
-            // Les soldes de départ des tiers (19/10/2026).
-            Route::post('/soldes-de-depart', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'enregistrerSoldeInitial'])->name('soldes_initiaux.enregistrer');
-            Route::delete('/soldes-de-depart/{solde}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'supprimerSoldeInitial'])->name('soldes_initiaux.supprimer');
-
             Route::middleware('comptabilite')->group(function () {
                 Route::get('/globale', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'globale'])->name('globale');
                 // La configuration globale des comptes (section 6 du plan) :
@@ -804,6 +805,17 @@ Route::prefix('caissier')
             Route::get('/livraison/{bl}', [BonLivraisonControleur::class, 'imprimer'])->name('livraison.voir');
             Route::post('/livraison/{bl}/livrer', [BonLivraisonControleur::class, 'marquerLivre'])->name('livraison.livrer');
             Route::post('/livraison/{bl}/facturer', [BonLivraisonControleur::class, 'convertirEnFacture'])->name('livraison.facturer');
+        });
+
+        // Créances & règlements (20/10/2026) : de la trésorerie, et non des
+        // livres — ni comptabilité ouverte ni module « comptabilité » exigés.
+        // Le même écran dans l'espace caissier : qui a le droit l'y trouve.
+        Route::prefix('comptabilite')->name('comptabilite.')->group(function () {
+            Route::get('/creances', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'creances'])->name('creances');
+            Route::get('/tiers/{type}/{id}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'releveTiers'])->name('releve_tiers');
+            Route::post('/reglement', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'enregistrerReglement'])->name('enregistrer_reglement');
+            Route::post('/soldes-de-depart', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'enregistrerSoldeInitial'])->name('soldes_initiaux.enregistrer');
+            Route::delete('/soldes-de-depart/{solde}', [\App\Modules\Admin\Controleurs\ComptabiliteControleur::class, 'supprimerSoldeInitial'])->name('soldes_initiaux.supprimer');
         });
 
         Route::prefix('stock')->name('stock.')->group(function () {

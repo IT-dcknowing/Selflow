@@ -6,6 +6,7 @@
 {{-- Comptabilité éteinte : aucun compte à l'écran. Le serveur pose
      411000 / 401000 (chantier 3.1, lot 46). --}}
 @php $comptaOuverte = auth()->user()->estSuperAdmin() || (bool) auth()->user()->entreprise?->comptabiliteOuverte(); @endphp
+@include('admin::partials.filtre-site', ['filtreSite' => $filtreSite ?? null])
 <div class="page-header">
     <div>
         <h1><i class="fas fa-handshake"></i> Liste des fournisseurs</h1>

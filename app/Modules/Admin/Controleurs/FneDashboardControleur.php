@@ -984,6 +984,12 @@ class FneDashboardControleur
                         continue;
                     }
 
+                    // Seul le bordereau se normalise (20/10/2026).
+                    if (!$achat->estBapa()) {
+                        $errors[] = "{$achat->numero_facture} : facture d'achat enregistrée, pas un bordereau — elle ne se normalise pas.";
+                        continue;
+                    }
+
                     $fneResult = \App\Modules\Admin\Services\FneService::normaliserAchatBapa($achat);
 
                     if ($fneResult['success']) {

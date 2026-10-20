@@ -21,6 +21,7 @@ class SoldeInitial extends Model
 
     protected $fillable = [
         'entreprise_id', 'type', 'tiers_id', 'montant', 'date_solde', 'reference', 'libelle', 'cree_par',
+        'point_de_vente_id',
     ];
 
     protected function casts(): array
@@ -49,9 +50,10 @@ class SoldeInitial extends Model
     }
 
     /** La référence qui rattache les règlements : SD-C-000012, SD-F-000007. */
-    public static function referencePour(string $type, int $tiersId): string
+    public static function referencePour(string $type, int $tiersId, ?int $pointDeVenteId = null): string
     {
-        return sprintf('SD-%s-%06d', $type === self::CLIENT ? 'C' : 'F', $tiersId);
+        return sprintf('SD-%s-%06d', $type === self::CLIENT ? 'C' : 'F', $tiersId)
+            . ($pointDeVenteId ? '-P' . $pointDeVenteId : '');
     }
 
     /** Ce qui a déjà été réglé sur ce solde, d'après la trésorerie de l'entreprise. */
@@ -61,6 +63,7 @@ class SoldeInitial extends Model
 
         return (float) TresorerieJournal::where('reference_document', $this->reference)
             ->whereIn('point_de_vente_id', PointDeVente::where('entreprise_id', $this->entreprise_id)->select('id'))
+            ->when($this->point_de_vente_id, fn ($q) => $q->where('point_de_vente_id', $this->point_de_vente_id))
             ->sum($colonne);
     }
 

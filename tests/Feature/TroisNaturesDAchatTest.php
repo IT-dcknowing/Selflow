@@ -167,14 +167,11 @@ class TroisNaturesDAchatTest extends TestCase
         $this->assertStringContainsString('ACH-001', $this->section('n-importe-quoi'));
     }
 
-    public function test_un_achat_a_un_vendeur_sans_ncc_est_un_bordereau(): void
+    public function test_un_achat_a_un_vendeur_sans_ncc_reste_une_facture_enregistree(): void
     {
-        // **Deux chemins mènent au bordereau, et un seul se lit dans
-        // `type_facture`.** `validerFacture()` envoie à la normalisation BAPA
-        // toute facture d'un fournisseur sans NCC. Filtrer sur le seul type
-        // aurait rangé ces pièces — le cas le plus courant — sous
-        // « Factures enregistrées », où les colonnes DGI annoncent
-        // « Aucune donnée » alors qu'elles sont normalisées.
+        // Décision du propriétaire, 20/10/2026 : seul le choix « BAPA » fait
+        // un bordereau. Un fournisseur sans NCC n'en fait plus un — toutes
+        // les factures de « Fournisseur divers » passaient en BAPA.
         $producteur = Fournisseur::create([
             'entreprise_id' => $this->entreprise->id, 'nom' => 'KONAN Kofi',
         ]);
@@ -190,9 +187,9 @@ class TroisNaturesDAchatTest extends TestCase
             'mode_paiement'     => 'Caisse', 'statut' => 'Payé',
         ]);
 
-        $this->assertTrue($achat->fresh()->estBapa());
-        $this->assertStringContainsString('ACH-SANS-NCC', $this->section('bapa'));
-        $this->assertStringNotContainsString('ACH-SANS-NCC', $this->section('enregistrees'));
+        $this->assertFalse($achat->fresh()->estBapa());
+        $this->assertStringNotContainsString('ACH-SANS-NCC', $this->section('bapa'));
+        $this->assertStringContainsString('ACH-SANS-NCC', $this->section('enregistrees'));
     }
 
     // ══════════════ Ce que chaque section dit de la DGI ══════════════

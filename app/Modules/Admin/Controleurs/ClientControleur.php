@@ -24,6 +24,8 @@ class ClientControleur
                   ->orWhereNull('source');
             })
             ->withCount('ventes')
+            // Les tiers du point de vente consulté (20/10/2026).
+            ->duSite($site = \App\Modules\Admin\Services\SiteConsulte::resoudre($request))
             ->orderBy('nom');
         
         if ($search) {
@@ -46,7 +48,9 @@ class ClientControleur
 
         $comptes = \App\Modules\Admin\Modeles\PlanComptable::obtenirComptesPrioritaires($entreprise->id);
 
-        return view('admin::clients.index', compact('clients', 'clientsComptaflow', 'comptes', 'entreprise', 'search'));
+        $filtreSite = \App\Modules\Admin\Services\SiteConsulte::pourLaVue($site);
+
+        return view('admin::clients.index', compact('clients', 'clientsComptaflow', 'comptes', 'entreprise', 'search', 'filtreSite'));
     }
 
     public function creer(Request $request): RedirectResponse

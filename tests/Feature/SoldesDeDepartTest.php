@@ -68,7 +68,8 @@ class SoldesDeDepartTest extends TestCase
     {
         $this->saisir('client', $this->client->id, 150000)->assertSessionHas('succes');
         $solde = SoldeInitial::firstOrFail();
-        $this->assertSame('SD-C-' . sprintf('%06d', $this->client->id), $solde->reference);
+        $this->assertSame('SD-C-' . sprintf('%06d', $this->client->id) . '-P' . $this->site->id, $solde->reference);
+        $this->assertSame($this->site->id, (int) $solde->point_de_vente_id);
 
         $this->regler('client', $this->client->id, $solde->reference, 60000)->assertSessionHas('succes');
 

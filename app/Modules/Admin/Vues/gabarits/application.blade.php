@@ -905,8 +905,16 @@
             </a>
             @endif
 
-            @if($ouvre('caissier.tresorerie.encaissements'))
+            @if($ouvre('caissier.tresorerie.encaissements') || $ouvre('caissier.comptabilite.creances'))
             <div class="nav-section"><span>Trésorerie</span></div>
+            @endif
+            {{-- Créances & règlements, dans l'espace caissier aussi (20/10/2026). --}}
+            @if($ouvre('caissier.comptabilite.creances'))
+            <a href="{{ route('caissier.comptabilite.creances') }}" class="nav-item {{ request()->routeIs('caissier.comptabilite.creances') ? 'active' : '' }}">
+                <i class="fas fa-scale-balanced"></i> Créances &amp; règlements
+            </a>
+            @endif
+            @if($ouvre('caissier.tresorerie.encaissements'))
             <a href="{{ route('caissier.tresorerie.encaissements') }}" class="nav-item {{ request()->routeIs('caissier.tresorerie.encaissements') ? 'active' : '' }}">
                 <i class="fas fa-arrow-down" style="color:#10b981;"></i> Mes encaissements
             </a>
@@ -1110,7 +1118,10 @@
             <div class="nav-famille" aria-hidden="true">Finance &amp; fiscalité</div>
 
             <!-- 6. Comptabilité (Inclus Trésorerie) -->
-            @if(in_array('comptabilite', $modulesActifs) && (auth()->user()->aHabilitation('tresorerie_encaissements') || auth()->user()->aHabilitation('tresorerie_decaissements') || auth()->user()->aHabilitation('tresorerie_journal') || auth()->user()->aHabilitation('tresorerie_codes_journaux') || auth()->user()->aHabilitation('comptabilite_globale') || auth()->user()->aHabilitation('comptabilite_creances') || auth()->user()->aHabilitation('comptabilite_plan_comptable')))
+            {{-- Le droit aux créances suffit à ouvrir la section (20/10/2026) :
+                 des entreprises sans le module « comptabilité » en liste ne
+                 voyaient pas la page, droit coché ou non. --}}
+            @if((in_array('comptabilite', $modulesActifs) || auth()->user()->aHabilitation('comptabilite_creances')) && (auth()->user()->aHabilitation('tresorerie_encaissements') || auth()->user()->aHabilitation('tresorerie_decaissements') || auth()->user()->aHabilitation('tresorerie_journal') || auth()->user()->aHabilitation('tresorerie_codes_journaux') || auth()->user()->aHabilitation('comptabilite_globale') || auth()->user()->aHabilitation('comptabilite_creances') || auth()->user()->aHabilitation('comptabilite_plan_comptable')))
             {{-- Sans la comptabilité, il ne reste sous ce titre que les
                  encaissements, les décaissements et le solde : des écrans de
                  caisse. Les appeler « Comptabilité » promettrait des livres

@@ -63,12 +63,15 @@
 @endsection
 
 @section('contenu')
+@php $__pre = request()->routeIs('caissier.*') ? 'caissier' : 'admin'; @endphp
 <div class="creances-header">
     <div>
         <h1><i class="fas fa-file-invoice-dollar"></i> Créances & Règlements</h1>
         <p>Suivez les factures impayées de vos clients (créances) et vos factures d'achats non réglées (dettes).</p>
     </div>
 </div>
+
+@include('admin::partials.filtre-site', ['filtreSite' => $filtreSite ?? null])
 
 <div class="tabs-nav">
     <button class="tab-nav-btn active" onclick="switchTab('clients', this)">
@@ -123,7 +126,7 @@
                                      introuvable). Il n'y a pas de releve a etablir
                                      pour quelqu'un qu'on ne connait pas. --}}
                                 @if($cc['id'])
-                                <a href="{{ route('admin.comptabilite.releve_tiers', ['type' => 'client', 'id' => $cc['id']]) }}" class="btn btn-outline btn-sm">
+                                <a href="{{ route($__pre . '.comptabilite.releve_tiers', ['type' => 'client', 'id' => $cc['id']]) }}" class="btn btn-outline btn-sm">
                                     <i class="fas fa-folder-open"></i> Relevé
                                 </a>
                                 @else
@@ -168,7 +171,7 @@
             </div>
         </div>
 
-        <form method="POST" action="{{ route('admin.comptabilite.soldes_initiaux.enregistrer') }}" style="display:grid; grid-template-columns:2fr 1fr 1fr 2fr auto; gap:10px; align-items:end; margin-bottom:14px;" class="form-solde-depart">
+        <form method="POST" action="{{ route($__pre . '.comptabilite.soldes_initiaux.enregistrer') }}" style="display:grid; grid-template-columns:2fr 1fr 1fr 2fr auto; gap:10px; align-items:end; margin-bottom:14px;" class="form-solde-depart">
             @csrf
             <input type="hidden" name="type" value="client">
             <div class="form-group" style="margin:0;">
@@ -210,7 +213,7 @@
                     <td style="text-align:right; color:var(--danger); font-weight:700;">{{ number_format($sd->reste_calcule, 0, ',', ' ') }} F</td>
                     <td style="text-align:right;">
                         @if($sd->regle_calcule <= 0)
-                        <form method="POST" action="{{ route('admin.comptabilite.soldes_initiaux.supprimer', $sd) }}" style="margin:0;" onsubmit="return confirm('Retirer ce solde de départ ?');">
+                        <form method="POST" action="{{ route($__pre . '.comptabilite.soldes_initiaux.supprimer', $sd) }}" style="margin:0;" onsubmit="return confirm('Retirer ce solde de départ ?');">
                             @csrf @method('DELETE')
                             <button type="submit" class="btn btn-outline btn-sm" title="Retirer"><i class="fas fa-trash"></i></button>
                         </form>
@@ -267,7 +270,7 @@
                                 {{-- Meme regle du cote fournisseur : un achat sans
                                      fiche n'a pas de releve. --}}
                                 @if($df['id'])
-                                <a href="{{ route('admin.comptabilite.releve_tiers', ['type' => 'fournisseur', 'id' => $df['id']]) }}" class="btn btn-outline btn-sm">
+                                <a href="{{ route($__pre . '.comptabilite.releve_tiers', ['type' => 'fournisseur', 'id' => $df['id']]) }}" class="btn btn-outline btn-sm">
                                     <i class="fas fa-folder-open"></i> Relevé
                                 </a>
                                 @else
@@ -312,7 +315,7 @@
             </div>
         </div>
 
-        <form method="POST" action="{{ route('admin.comptabilite.soldes_initiaux.enregistrer') }}" style="display:grid; grid-template-columns:2fr 1fr 1fr 2fr auto; gap:10px; align-items:end; margin-bottom:14px;" class="form-solde-depart">
+        <form method="POST" action="{{ route($__pre . '.comptabilite.soldes_initiaux.enregistrer') }}" style="display:grid; grid-template-columns:2fr 1fr 1fr 2fr auto; gap:10px; align-items:end; margin-bottom:14px;" class="form-solde-depart">
             @csrf
             <input type="hidden" name="type" value="fournisseur">
             <div class="form-group" style="margin:0;">
@@ -354,7 +357,7 @@
                     <td style="text-align:right; color:var(--danger); font-weight:700;">{{ number_format($sd->reste_calcule, 0, ',', ' ') }} F</td>
                     <td style="text-align:right;">
                         @if($sd->regle_calcule <= 0)
-                        <form method="POST" action="{{ route('admin.comptabilite.soldes_initiaux.supprimer', $sd) }}" style="margin:0;" onsubmit="return confirm('Retirer ce solde de départ ?');">
+                        <form method="POST" action="{{ route($__pre . '.comptabilite.soldes_initiaux.supprimer', $sd) }}" style="margin:0;" onsubmit="return confirm('Retirer ce solde de départ ?');">
                             @csrf @method('DELETE')
                             <button type="submit" class="btn btn-outline btn-sm" title="Retirer"><i class="fas fa-trash"></i></button>
                         </form>
@@ -378,7 +381,7 @@
             <h3 id="modalReglementTitle"><i class="fas fa-hand-holding-dollar"></i> Enregistrer un Règlement</h3>
             <button type="button" class="modal-close" onclick="fermerModalReglement()">&times;</button>
         </div>
-        <form method="POST" action="{{ route('admin.comptabilite.enregistrer_reglement') }}">
+        <form method="POST" action="{{ route($__pre . '.comptabilite.enregistrer_reglement') }}">
             @csrf
             <input type="hidden" name="type" id="reglementType">
             <input type="hidden" name="tier_id" id="reglementTierId">
