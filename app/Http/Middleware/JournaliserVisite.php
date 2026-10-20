@@ -32,7 +32,9 @@ class JournaliserVisite
             }
 
             $user = Auth::user();
-            if ($user?->estSuperAdmin()) {
+            // Ni le superadministrateur en assistance (20/10/2026) : il ferait
+            // paraître le client « en ligne » à sa place.
+            if ($user?->estSuperAdmin() || is_array(session('incarnation'))) {
                 return $reponse;
             }
 

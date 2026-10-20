@@ -265,23 +265,48 @@
     @endif
 </div>
 
-{{-- ─── Stock par point de vente ─── --}}
-@if($produit->stocks->count() > 1)
+{{-- ─── Stock par point de vente ───
+     Chaque site voit ses articles (20/10/2026) : on y référence l'article, ou
+     on l'en retire. Tous les sites de l'entreprise figurent, même ceux où
+     l'article n'a jamais eu de fiche. --}}
+@php
+    $__sites = \App\Modules\Admin\Modeles\PointDeVente::where('entreprise_id', $produit->entreprise_id)->orderBy('nom')->get();
+    $__fiches = $produit->stocks->keyBy('point_de_vente_id');
+    $__affecte = auth()->user()->estAffecteAUnSite();
+@endphp
+@if($produit->estStockable() && $__sites->count() > 1)
 <div class="card" style="padding:24px; margin-bottom:20px;">
     <h3 style="font-size:14px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.5px; margin-bottom:14px; border-bottom:1px solid var(--border); padding-bottom:10px;">
         <i class="fas fa-map-marker-alt"></i> Stock par site
     </h3>
-    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:12px;">
-        @foreach($produit->stocks as $s)
+    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap:12px;">
+        @foreach($__sites as $pdv)
             @php
-                $pdv = $s->pointDeVente;
-                $sc  = $s->quantite_disponible == 0 ? '#fef2f2' : ($s->quantite_disponible <= $s->stock_minimum ? '#fff7ed' : '#ecfdf5');
-                $cc  = $s->quantite_disponible == 0 ? '#991b1b' : ($s->quantite_disponible <= $s->stock_minimum ? '#92400e' : '#065f46');
+                $s = $__fiches->get($pdv->id);
+                $ref = $s && $s->reference;
+                $qte = (float) ($s->quantite_disponible ?? 0);
+                $sc  = !$ref ? '#f1f5f9' : ($qte == 0 ? '#fef2f2' : ($qte <= ($s->stock_minimum ?? 0) ? '#fff7ed' : '#ecfdf5'));
+                $cc  = !$ref ? '#64748b' : ($qte == 0 ? '#991b1b' : ($qte <= ($s->stock_minimum ?? 0) ? '#92400e' : '#065f46'));
+                $modifiable = !$__affecte || (int) auth()->user()->point_de_vente_id === (int) $pdv->id;
             @endphp
-            <div style="background:{{ $sc }}; border-radius:10px; padding:14px 16px;">
-                <div style="font-size:11px; font-weight:700; color:{{ $cc }}; margin-bottom:6px;">{{ $pdv->nom ?? '—' }}</div>
-                <div style="font-size:22px; font-weight:800; color:{{ $cc }};">{{ $s->quantite_disponible }} <span style="font-size:12px; font-weight:400;">{{ $produit->unite }}</span></div>
-                <div style="font-size:11px; color:var(--text-3); margin-top:4px;">Min: {{ $s->stock_minimum }} / Max: {{ $s->stock_maximum }}</div>
+            <div style="background:{{ $sc }}; border-radius:10px; padding:14px 16px;" class="site-article {{ $ref ? 'site-reference' : 'site-non-reference' }}">
+                <div style="font-size:11px; font-weight:700; color:{{ $cc }}; margin-bottom:6px;">{{ $pdv->nom }}</div>
+                @if($ref)
+                    <div style="font-size:22px; font-weight:800; color:{{ $cc }};">{{ $s->quantite_disponible }} <span style="font-size:12px; font-weight:400;">{{ $produit->unite }}</span></div>
+                    <div style="font-size:11px; color:var(--text-3); margin-top:4px;">Min: {{ $s->stock_minimum }} / Max: {{ $s->stock_maximum }}</div>
+                @else
+                    <div style="font-size:13px; font-weight:700; color:{{ $cc }};">Non proposé sur ce site</div>
+                @endif
+                @if($modifiable && auth()->user()->aHabilitation('catalogue_produits'))
+                <form method="POST" action="{{ route('admin.produits.referencer', $produit) }}" style="margin:8px 0 0;">
+                    @csrf
+                    <input type="hidden" name="point_de_vente_id" value="{{ $pdv->id }}">
+                    <input type="hidden" name="reference" value="{{ $ref ? 0 : 1 }}">
+                    <button type="submit" class="btn btn-sm btn-outline" style="font-size:11px;">
+                        @if($ref)<i class="fas fa-eye-slash"></i> Retirer de ce site @else<i class="fas fa-plus"></i> Proposer sur ce site @endif
+                    </button>
+                </form>
+                @endif
             </div>
         @endforeach
     </div>

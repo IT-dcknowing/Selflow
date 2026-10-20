@@ -103,7 +103,8 @@ class AdminControleur
                 if ($pointDeVenteId) {
                     $q->where('point_de_vente_id', $pointDeVenteId);
                 }
-                $q->whereRaw('quantite_disponible <= stock_minimum');
+                $q->whereRaw('quantite_disponible <= stock_minimum')
+                  ->where('stocks.reference', true);
             });
 
         $nbProduitsEnAlerte = (clone $requeteAlertes)->count();
@@ -268,7 +269,8 @@ class AdminControleur
                 if ($pointDeVenteId) {
                     $q->where('point_de_vente_id', $pointDeVenteId);
                 }
-                $q->whereRaw('quantite_disponible <= stock_minimum');
+                $q->whereRaw('quantite_disponible <= stock_minimum')
+                  ->where('stocks.reference', true);
             });
 
         $nbProduitsEnAlerte = (clone $requeteAlertes)->count();

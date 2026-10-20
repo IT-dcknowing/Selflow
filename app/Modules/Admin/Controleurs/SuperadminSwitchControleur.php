@@ -29,6 +29,24 @@ class SuperadminSwitchControleur
 
     public const SESSION = 'incarnation';
 
+    /** Une requête dans ce délai, et l'utilisateur est « connecté ». */
+    public const MINUTES_EN_LIGNE = 5;
+
+    /** 3725 secondes → « 1 h 02 min ». */
+    public static function duree(?int $secondes): string
+    {
+        if ($secondes === null) {
+            return '—';
+        }
+        if ($secondes < 60) {
+            return $secondes . ' s';
+        }
+        $h = intdiv($secondes, 3600);
+        $m = intdiv($secondes % 3600, 60);
+
+        return $h ? sprintf('%d h %02d min', $h, $m) : $m . ' min';
+    }
+
     public function index(Request $request): View
     {
         $requete = Entreprise::horsCorbeille()
@@ -85,6 +103,25 @@ class SuperadminSwitchControleur
 
         $utilisateurs = $entreprise->utilisateurs()->with('pointDeVente:id,nom')
             ->orderByRaw("CASE WHEN role = 'admin' THEN 0 ELSE 1 END")->orderBy('nom')->get();
+
+        // La présence (20/10/2026) : connecté si une requête est passée dans
+        // les cinq dernières minutes ; et la durée de la dernière connexion,
+        // de la première à la dernière requête de sa dernière session. Lu dans
+        // le journal du trafic (lot 104) ; la dernière ouverture de session,
+        // dans le journal d'audit, quand le trafic n'a rien.
+        foreach ($utilisateurs as $u) {
+            $derniere = \App\Modules\Admin\Modeles\Visite::where('utilisateur_id', $u->id)->orderByDesc('cree_le')->first(['session_id', 'cree_le']);
+            $u->vu_le = $derniere?->cree_le;
+            $u->en_ligne = $derniere && $derniere->cree_le->gt(now()->subMinutes(self::MINUTES_EN_LIGNE));
+            $u->duree_derniere_session = null;
+            if ($derniere?->session_id) {
+                $debut = \App\Modules\Admin\Modeles\Visite::where('utilisateur_id', $u->id)
+                    ->where('session_id', $derniere->session_id)->min('cree_le');
+                $u->duree_derniere_session = $debut ? (int) \Illuminate\Support\Carbon::parse($debut)->diffInSeconds($derniere->cree_le, true) : null;
+            }
+            $u->connecte_le = \App\Modules\Admin\Modeles\JournalAudit::where('utilisateur_id', $u->id)
+                ->where('action', 'connexion')->latest('id')->value('created_at');
+        }
 
         return view('admin::superadmin.switch.entreprise', [
             'entreprise'   => $entreprise,
