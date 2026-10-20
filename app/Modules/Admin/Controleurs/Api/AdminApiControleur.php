@@ -45,7 +45,8 @@ class AdminApiControleur
         // Alertes stock
         $produitsEnAlerte = Produit::where('entreprise_id', $entreprise->id)
             ->whereHas('stocks', function($q) {
-                $q->whereRaw('quantite_disponible <= stock_minimum');
+                $q->whereRaw('quantite_disponible <= stock_minimum')
+                  ->where('stocks.reference', true);
             })
             ->with(['stocks'])
             ->get()

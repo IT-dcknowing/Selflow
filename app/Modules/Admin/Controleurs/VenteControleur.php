@@ -720,6 +720,33 @@ class VenteControleur
     }
 
     /**
+     * « Voir la dernière facture » (20/10/2026) : le vendeur qui n'a pas la
+     * liste des ventes retrouve la dernière pièce qu'il a établie, dans la
+     * fenêtre qui suit l'enregistrement, prête à imprimer.
+     */
+    public function derniereFacture(): RedirectResponse
+    {
+        $prefixe = request()->routeIs('caissier.*') ? 'caissier' : 'admin';
+        $derniere = Vente::where('utilisateur_id', Auth::id())
+            ->where(fn ($q) => $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir'))
+            ->whereHas('pointDeVente', fn ($q) => $q->where('entreprise_id', Auth::user()->entreprise_id))
+            ->latest('id')
+            ->first();
+
+        $retour = redirect()->route($prefixe . '.ventes.nouvelle');
+        if (!$derniere) {
+            return $retour->with('info', 'Vous n\'avez encore établi aucune facture.');
+        }
+
+        return $retour->with('piece_a_imprimer', [
+            'numero'  => $derniere->numero_facture,
+            'libelle' => $derniere->etape === 'Facture' ? 'Facture' : $derniere->etape,
+            'facture' => route($prefixe . '.ventes.imprimer', [$derniere, 'integre' => 1]),
+            'ticket'  => route($prefixe . '.ventes.ticket', [$derniere, 'integre' => 1]),
+        ]);
+    }
+
+    /**
      * Qui peut lire et imprimer cette pièce.
      *
      * Toujours : la pièce doit être de l'entreprise. Ensuite, qui tient

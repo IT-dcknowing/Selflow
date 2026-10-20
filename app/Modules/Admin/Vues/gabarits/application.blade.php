@@ -884,7 +884,8 @@
                  mène à « Accès refusé » n'a rien à faire dans la barre. --}}
             @php $ouvre = fn (string $route) => \App\Modules\Authentification\Regles\Habilitations::ouvre(auth()->user(), $route); @endphp
             @if($ouvre('caissier.ventes.nouvelle') || $ouvre('caissier.ventes.factures'))
-            <div class="nav-section"><span>Caisse</span></div>
+            {{-- « Ventes », et non « Caisse » (20/10/2026). --}}
+            <div class="nav-section"><span>Ventes</span></div>
             @endif
             @if($ouvre('caissier.ventes.nouvelle'))
             <a href="{{ route('caissier.ventes.nouvelle') }}" class="nav-item {{ request()->routeIs('caissier.ventes.nouvelle') ? 'active' : '' }}">

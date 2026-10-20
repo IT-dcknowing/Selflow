@@ -33,6 +33,8 @@ Route::prefix('admin')
         // ── Ventes ──
         Route::prefix('ventes')->name('ventes.')->middleware(['modules:ventes', 'inscription.complete'])->group(function () {
             Route::get('/nouvelle', [VenteControleur::class, 'nouvelle'])->name('nouvelle');
+            // La dernière facture du vendeur, pour qui n'a pas la liste (20/10/2026).
+            Route::get('/derniere-facture', [VenteControleur::class, 'derniereFacture'])->name('derniere');
             Route::post('/enregistrer', [VenteControleur::class, 'enregistrer'])->name('enregistrer');
             Route::get('/factures', [VenteControleur::class, 'factures'])->name('factures');
             Route::get('/factures/rechercher', [VenteControleur::class, 'rechercherFacturesPourAvoir'])->name('factures.rechercher');
@@ -761,6 +763,8 @@ Route::prefix('caissier')
 
         Route::prefix('ventes')->name('ventes.')->group(function () {
             Route::get('/nouvelle', [VenteControleur::class, 'nouvelle'])->name('nouvelle');
+            // La dernière facture du vendeur, pour qui n'a pas la liste (20/10/2026).
+            Route::get('/derniere-facture', [VenteControleur::class, 'derniereFacture'])->name('derniere');
             Route::post('/enregistrer', [VenteControleur::class, 'enregistrer'])->name('enregistrer');
             Route::get('/factures', [VenteControleur::class, 'factures'])->name('factures');
 

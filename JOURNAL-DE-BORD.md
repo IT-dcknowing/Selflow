@@ -9274,6 +9274,42 @@ mais la création d'un article ouvrait une fiche de stock à zéro sur
 
 ---
 
+### Lot 117 — « Voir la dernière facture » ; page d'accès refusé ; stock par site revérifié — **TERMINÉ le 20/10/2026**
+
+**Constat.** Sur `caissier/ventes/nouvelle`, « Voir les ventes » menait le
+caissier sans « Factures vente » à la page brute « 403 Accès refusé ».
+
+**Correctif.**
+
+- **Le bouton.** Qui n'a pas la liste voit « Voir la dernière facture »
+  (`ventes.derniere`, droit `nouvelle_vente`). Le lien ouvre sa dernière
+  pièce dans la fenêtre d'impression du lot 108. S'il n'en a aucune, un
+  message le dit.
+- **La page d'accès refusé.** `errors/403` remplace la page brute : un
+  message clair, « Revenir en arrière » et « Retour à l'accueil ». L'accueil
+  suit le rôle ; sans tableau de bord, c'est le profil.
+- **La barre du caissier.** La section s'appelle « Ventes », et non plus
+  « Caisse ».
+
+**Stock par site, revérifié.** Les écrans et les API ont été repassés un à
+un :
+
+- Caisse, Stock (admin et caissier), mouvements, inventaire, péremptions et
+  catalogue ne montrent que le site, même quand on force
+  `point_de_vente_id=tout` ou l'identifiant d'un autre site dans l'adresse.
+- Deux trous sont fermés :
+  - l'écran Stock montrait aux membres affectés le filtre « Tous les sites »
+    et les autres magasins. Pour un caissier, ce filtre menait en plus à une
+    route d'administration refusée. Il est masqué ;
+  - l'API de vente listait tout le catalogue, et l'API du tableau de bord
+    comptait les alertes de tous les sites. Les deux suivent maintenant le
+    référencement par site.
+
+- `ArticlesParSiteTest` (+3). Suite : 1 884 épreuves, 1 879 passantes,
+  5 ignorées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

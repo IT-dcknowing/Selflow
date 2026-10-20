@@ -81,7 +81,9 @@
     </a>
 </div>
 
-{{-- Sélecteur Multi-sites (Point de Vente) --}}
+{{-- Sélecteur Multi-sites (Point de Vente). Un membre affecté à un site ne
+     voit que le sien (20/10/2026) : pas de filtre à lui proposer. --}}
+@unless(auth()->user()->estAffecteAUnSite())
 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:20px; padding: 12px; background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;">
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--text-2);">
         <i class="fas fa-map-location-dot" style="color:var(--primary);"></i>
@@ -98,6 +100,7 @@
         @endforeach
     </form>
 </div>
+@endunless
 
 {{-- Filtres catégorie --}}
 <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px;">
