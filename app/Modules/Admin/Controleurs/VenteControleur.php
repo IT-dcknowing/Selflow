@@ -50,7 +50,7 @@ class VenteControleur
             : (session('point_de_vente_actif_id')
                 ?? Auth::user()->pointDeVenteDOuverture()
                 ?? PointDeVente::where('entreprise_id', $entreprise->id)->orderBy('nom')->value('id'));
-        $clients = Client::obtenirClientsPrioritaires($entreprise->id);
+        $clients = Client::obtenirClientsPrioritaires($entreprise->id, (int) $pointDeVenteId ?: null);
         // Archiver un article, c'est dire qu'on ne le vend plus. La caisse le
         // proposait quand même : le filtre ne vivait que sur l'écran du
         // catalogue.
@@ -876,7 +876,7 @@ class VenteControleur
         }
 
         $entreprise = Auth::user()->entreprise;
-        $clients = Client::obtenirClientsPrioritaires($entreprise->id);
+        $clients = Client::obtenirClientsPrioritaires($entreprise->id, (int) $vente->point_de_vente_id ?: null);
         // Load details with products
         $vente->load(['details.produit', 'client']);
 

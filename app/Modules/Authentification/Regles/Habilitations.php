@@ -508,7 +508,6 @@ class Habilitations
         'admin.pdv.index'             => 'gestion_pdv',
         'admin.pdv.creer'             => 'gestion_pdv',
         'admin.pdv.modifier'          => 'gestion_pdv',
-        'admin.pdv.activer'           => 'gestion_pdv',
         'admin.pdv.activer_apercu'    => 'gestion_pdv',
         'admin.pdv.desactiver_apercu' => 'gestion_pdv',
         'admin.pdv.relever_le_portail'  => 'gestion_pdv',
@@ -657,6 +656,7 @@ class Habilitations
     public const OUVERTES = [
         'admin.mon_profil'            => 'Son propre profil : il n\'y a rien de plus à protéger.',
         'admin.mon_profil.enregistrer' => 'Idem — modifier ses propres coordonnées.',
+        'admin.pdv.activer'           => 'Choisir le point de vente sur lequel on travaille (20/10/2026) : le contrôleur vérifie que le site est de l\'entreprise, et un membre affecté ne quitte pas le sien.',
         'admin.periods.switch'        => 'Choisir la période affichée ne donne accès à aucun écran de plus : chaque écran garde son propre contrôle.',
         'admin.onboarding.entreprise_nom' => 'Étape de la première configuration, avant qu\'aucune habilitation ne soit posée.',
         'admin.abonnement.choisir'    => 'Les offres d\'abonnement de sa propre entreprise, juste après l\'inscription (15/10/2026) : la route est réservée au rôle admin.',

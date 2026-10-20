@@ -1488,6 +1488,38 @@
 <!-- ────────────────── CONTENU PRINCIPAL ────────────────── -->
 <div class="main-wrap">
     <main class="main-content">
+        {{-- Choisir son point de vente (20/10/2026) : plusieurs sites et aucun
+             actif, les saisies ne sauraient où aller. On ne bloque rien — on
+             demande. Un seul site est activé d'office (`ImposerLeSiteDeTravail`). --}}
+        @if(!session('point_de_vente_actif_id') && auth()->user()->entreprise_id && !auth()->user()->estSuperAdmin()
+            && !auth()->user()->estAffecteAUnSite() && !request()->routeIs('superadmin.*', 'admin.pdv.*', 'admin.souscription.*'))
+            @php $__sitesAChoisir = \App\Modules\Admin\Modeles\PointDeVente::where('entreprise_id', auth()->user()->entreprise_id)->orderBy('nom')->get(); @endphp
+            @if($__sitesAChoisir->count() > 1)
+            <div id="choix-du-site" role="dialog" aria-modal="true" aria-labelledby="choix-du-site-titre"
+                 style="position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:10040; display:flex; align-items:center; justify-content:center; padding:16px;">
+                <div style="background:var(--bg2, #fff); border-radius:14px; width:min(520px, 100%); max-height:90vh; overflow:auto; padding:22px 24px; box-shadow:0 20px 50px rgba(0,0,0,.3);">
+                    <h3 id="choix-du-site-titre" style="font-size:17px; font-weight:800; margin-bottom:6px;"><i class="fas fa-store" style="color:var(--primary);"></i> Sélectionnez un point de vente</h3>
+                    <p style="font-size:13px; color:var(--text-2); margin-bottom:14px;">Vos ventes, achats, entrées de stock et articles seront enregistrés sur le point de vente choisi. Vous pourrez en changer à tout moment depuis la barre latérale.</p>
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        @foreach($__sitesAChoisir as $__s)
+                        <form method="POST" action="{{ route('admin.pdv.activer', $__s) }}" style="margin:0;">
+                            @csrf
+                            <button type="submit" class="btn btn-outline" style="width:100%; justify-content:space-between; display:flex; align-items:center; text-align:left;">
+                                <span><strong>{{ $__s->nom }}</strong> <span style="color:var(--text-3); font-size:12px;">{{ trim(($__s->commune ?? '') . ', ' . ($__s->ville ?? ''), ', ') }}</span></span>
+                                <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </form>
+                        @endforeach
+                    </div>
+                    <div style="text-align:right; margin-top:12px;">
+                        <button type="button" class="btn btn-sm" style="background:none; border:none; color:var(--text-3);" onclick="document.getElementById('choix-du-site').remove(); try { sessionStorage.setItem('selflow_choix_site_reporte', '1'); } catch (e) {}">Plus tard</button>
+                    </div>
+                </div>
+            </div>
+            <script>try { if (sessionStorage.getItem('selflow_choix_site_reporte') === '1' && !/\/(nouvelle|nouvel|creer|entree|consignations)/.test(location.pathname)) { document.getElementById('choix-du-site')?.remove(); } } catch (e) {}</script>
+            @endif
+        @endif
+
         {{-- Assistance (19/10/2026) : le superadministrateur travaille dans
              l'espace d'un client. Le bandeau ne se cache pas. --}}
         @if(is_array(session('incarnation')))

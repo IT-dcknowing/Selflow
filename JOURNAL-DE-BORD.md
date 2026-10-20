@@ -9471,6 +9471,39 @@ est toujours proposé.
 
 ---
 
+### Lot 121 — Choisir son point de vente ; les clients de la caisse par site — **TERMINÉ le 20/10/2026**
+
+Décisions du propriétaire, du 20/10/2026.
+
+**Point de vente non activé : ne pas refuser, demander.**
+
+- **Un seul site.** `ImposerLeSiteDeTravail` l'active d'office, sans rien
+  demander.
+- **Plusieurs sites, aucun actif.** Une fenêtre « Sélectionnez un point de
+  vente » s'ouvre au centre, avec un bouton par site.
+  - « Plus tard » la ferme pour la session, sauf sur les écrans de saisie
+    (vente, achat, création, entrée de stock, consignations), où elle
+    revient.
+  - Elle ne s'affiche ni sur la page des points de vente, ni sur la
+    souscription, ni au superadmin.
+- **Droit d'activer.** `admin.pdv.activer` passe dans les routes ouvertes :
+  choisir son site de travail ne demande pas de gérer les points de vente.
+  Le contrôleur vérifie l'entreprise, et un membre affecté ne quitte pas son
+  site.
+
+**Les clients de la caisse.** Deux magasins peuvent avoir chacun leur
+« Kouassi ». `Client::obtenirClientsPrioritaires()` applique `duSite` au site
+actif ; la modification d'une vente prend le site de la pièce, et l'API de
+vente suit la même règle.
+
+**Normalisation automatique des entreprises en service :** inchangée,
+décision du propriétaire.
+
+- `ChoixDuSiteEtClientsTest` (4). Suite : 1 908 épreuves, 1 903 passantes,
+  5 ignorées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
