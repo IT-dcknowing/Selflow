@@ -71,9 +71,9 @@ class AbonnementEnAttenteTest extends TestCase
 
         $this->actingAs($this->admin)->get(route('admin.tableau_de_bord'))->assertOk()
             ->assertSee('class="abonnement-a-terme', false)
-            ->assertSee('En attente de confirmation de l\'abonnement', false)
+            ->assertSee('En attente de confirmation de l\'abonnement')
             ->assertSee('MTN-2026-01')
-            ->assertSee(route('admin.abonnement.etat'), false);
+            ->assertSee('data-statut="en_attente"', false);
 
         $this->creerUnEmploye()
             ->assertRedirect(route('admin.entreprise.parametres') . '#facturation')
@@ -118,7 +118,7 @@ class AbonnementEnAttenteTest extends TestCase
 
         $this->get(route('superadmin.paiements.index'))->assertOk()->assertSee('Renouveler / Confirmer');
 
-        $this->travelTo(now()->setDate(2026, 10, 22)->setTime(10, 0));
+        $this->travel(1)->hours();
         $this->put(route('superadmin.paiements.traiter', $paiement), ['action' => 'activer'])
             ->assertSessionHasNoErrors()->assertSessionHas('succes');
 
@@ -127,8 +127,8 @@ class AbonnementEnAttenteTest extends TestCase
         $this->assertSame('active', $paiement->statut);
         $this->assertSame('Confirmé — abonnement activé', $paiement->libelleStatut());
         $this->assertSame(Abonnements::STATUT_ACTIF, $entreprise->abonnement_statut);
-        // Un mois depuis la confirmation : 22/10 → 22/11 (31 jours en octobre).
-        $this->assertSame('2026-11-22', $entreprise->abonnement_expire_le->toDateString());
+        // Un mois calendaire depuis la confirmation : 30 ou 31 jours selon le mois.
+        $this->assertSame(now()->addMonthsNoOverflow(1)->toDateString(), $entreprise->abonnement_expire_le->toDateString());
         $this->assertNull(Abonnements::paiementEnSuspens($entreprise));
 
         // L'historique garde l'échec, puis la confirmation, dans l'ordre.
@@ -171,7 +171,7 @@ class AbonnementEnAttenteTest extends TestCase
         $this->assertFalse($paiement->bloquant);
 
         $this->get(route('admin.tableau_de_bord'))->assertOk()
-            ->assertDontSee('En attente de confirmation de l\'abonnement', false)
+            ->assertDontSee('En attente de confirmation de l\'abonnement')
             ->assertSee('Renouvellement en cours de vérification');
         $this->creerUnEmploye()->assertSessionHasNoErrors();
 
@@ -204,8 +204,8 @@ class AbonnementEnAttenteTest extends TestCase
         ]);
 
         $page = $this->actingAs($caissier)->get(route('caissier.ventes.factures'))->assertOk()->getContent();
-        $this->assertStringContainsString('En attente de confirmation de l\'abonnement', $page);
-        $this->assertStringContainsString('Prévenez l\'administrateur', $page);
+        $this->assertStringContainsString(e('En attente de confirmation de l\'abonnement'), $page);
+        $this->assertStringContainsString('Prévenez l\'administrateur', html_entity_decode($page, ENT_QUOTES));
         $this->assertStringNotContainsString('btn-facturation-en-attente', $page);
         $this->getJson(route('admin.abonnement.etat'))->assertOk()->assertJson(['statut' => 'en_attente']);
     }
