@@ -238,5 +238,7 @@ secret `external/*` par entreprise (moyen terme).
 | Doublons de points de vente : clé d'identité, noms proches, fusion | lot 122 |
 | Code du point de vente en chiffres (01, 02…) | lot 123 |
 | Abonnement payé : bloqué « En attente de confirmation » jusqu'à la confirmation, même en échec ; « Abonnement confirmé » ; confirmer un paiement en échec (un mois) | lot 124 |
+| Erreur 1054 `confirmation_vue_le` : code déployé avant la migration | lot 125 — **`php artisan migrate` sur le serveur** |
+| Pannes : nom, poste et entreprise de qui a rencontré le défaut | lot 126 |
 | Contre-attaque | **refusée** (illégal) ; défense outillée |
 | Relais WhatsApp | à brancher (URL d'un relais) |

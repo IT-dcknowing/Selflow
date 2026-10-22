@@ -31,7 +31,7 @@ class SuperadminPanneControleur
         $pannes = PanneConsignee::query()
             ->when($onglet === 'ouvertes', fn ($q) => $q->whereNull('corrigee_le')->orderByDesc('derniere_le'))
             ->when($onglet === 'corrigees', fn ($q) => $q->whereNotNull('corrigee_le')->orderByDesc('corrigee_le'))
-            ->with(['entreprise:id,nom', 'utilisateur:id,nom,prenom,email'])
+            ->with(['entreprise:id,nom', 'utilisateur:id,nom,prenom,email,role,fonction'])
             ->paginate(20)
             ->withQueryString();
 
