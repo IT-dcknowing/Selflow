@@ -209,4 +209,28 @@ class AbonnementEnAttenteTest extends TestCase
         $this->assertStringNotContainsString('btn-facturation-en-attente', $page);
         $this->getJson(route('admin.abonnement.etat'))->assertOk()->assertJson(['statut' => 'en_attente']);
     }
+
+    /**
+     * Erreur 1054 en production (22/10/2026) : le code du lot 124 a été
+     * déployé avant sa migration, et chaque page tombait. Sans les colonnes,
+     * l'espace s'affiche, rien ne bloque, et un paiement se déclare encore.
+     */
+    public function test_sans_la_migration_les_pages_ne_tombent_pas(): void
+    {
+        \Illuminate\Support\Facades\Schema::table('paiements_abonnements', function ($table) {
+            $table->dropColumn(['bloquant', 'confirmation_vue_le']);
+        });
+        PaiementAbonnement::oublierLeSchema();
+
+        try {
+            $this->souscrireBusiness('SANS-COLONNE');
+            $this->actingAs($this->admin)->get(route('admin.tableau_de_bord'))->assertOk()
+                ->assertDontSee('En attente de confirmation de l\'abonnement');
+            $this->getJson(route('admin.abonnement.etat'))->assertOk();
+            $this->post(route('admin.abonnement.confirmation_vue'))->assertRedirect();
+            $this->assertSame('SANS-COLONNE', PaiementAbonnement::sole()->reference_paiement);
+        } finally {
+            PaiementAbonnement::oublierLeSchema();
+        }
+    }
 }

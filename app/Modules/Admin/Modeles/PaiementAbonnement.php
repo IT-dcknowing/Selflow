@@ -6,6 +6,7 @@ use App\Modules\Admin\Modeles\Concerns\IdentifiantOpaque;
 use App\Modules\Authentification\Modeles\Utilisateur;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Un paiement d'abonnement déclaré par l'entreprise, en attendant l'API de
@@ -54,6 +55,25 @@ class PaiementAbonnement extends Model
             'confirmation_vue_le' => 'datetime',
             'bloquant'    => 'boolean',
         ];
+    }
+
+    private static ?bool $colonnesEnPlace = null;
+
+    /**
+     * Les colonnes du lot 124 (`bloquant`, `confirmation_vue_le`) sont-elles
+     * en base ? Un déploiement qui n'a pas encore joué la migration ne doit
+     * pas faire tomber chaque page (erreur 1054 en production, 22/10/2026) :
+     * sans elles, rien ne bloque ni ne s'annonce, comme avant le lot.
+     */
+    public static function colonnesEnPlace(): bool
+    {
+        return self::$colonnesEnPlace ??= Schema::hasColumns((new self)->getTable(), ['bloquant', 'confirmation_vue_le']);
+    }
+
+    /** Pour les épreuves, qui retirent et remettent les colonnes. */
+    public static function oublierLeSchema(): void
+    {
+        self::$colonnesEnPlace = null;
     }
 
     public function entreprise(): BelongsTo

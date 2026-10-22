@@ -189,7 +189,7 @@ final class Abonnements
      */
     public static function paiementEnSuspens(?Entreprise $entreprise): ?PaiementAbonnement
     {
-        if ($entreprise === null) {
+        if ($entreprise === null || ! PaiementAbonnement::colonnesEnPlace()) {
             return null;
         }
 
@@ -215,7 +215,7 @@ final class Abonnements
     /** Le paiement confirmé que l'entreprise n'a pas encore vu annoncé. */
     public static function confirmationAAnnoncer(?Entreprise $entreprise): ?PaiementAbonnement
     {
-        if ($entreprise === null) {
+        if ($entreprise === null || ! PaiementAbonnement::colonnesEnPlace()) {
             return null;
         }
 
