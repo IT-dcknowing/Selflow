@@ -9623,7 +9623,10 @@ confirmé devient bloquante : c'est le cas relevé. Les paiements déjà
 confirmés sont tenus pour annoncés.
 
 - `AbonnementEnAttenteTest` (7). L'épreuve d'avis du lot 102, dans
-  `PaiementAbonnementParReferenceTest`, est réécrite sur la nouvelle règle.
+  `PaiementAbonnementParReferenceTest`, est réécrite sur la nouvelle règle ;
+  `AbonnementsTest` confirme le paiement avant d'éprouver la limite Solo.
+  Les deux routes nouvelles sont classées dans `Habilitations`. Suite :
+  1 920 épreuves, 1 915 passantes, 5 ignorées.
 
 ---
 

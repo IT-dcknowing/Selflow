@@ -662,6 +662,8 @@ class Habilitations
         'admin.abonnement.choisir'    => 'Les offres d\'abonnement de sa propre entreprise, juste après l\'inscription (15/10/2026) : la route est réservée au rôle admin.',
         'admin.abonnement.renouveler' => 'Renouveler l\'offre de sa propre entreprise (route réservée au rôle admin).',
         'admin.abonnement.enregistrer' => 'Retenir l\'offre de sa propre entreprise ; ses limites viennent de l\'offre, jamais du formulaire.',
+        'admin.abonnement.etat'       => 'Où en est l\'abonnement de sa propre entreprise (22/10/2026) : la fenêtre « En attente de confirmation » le lit pour se recharger ; ne rend qu\'un statut.',
+        'admin.abonnement.confirmation_vue' => 'Marquer « Abonnement confirmé » comme lu, pour sa propre entreprise (22/10/2026).',
         'admin.visite.terminer'       => 'Fermer la visite guidée.',
         'admin.visite.reprendre'      => 'Rouvrir la visite guidée.',
         'admin.visite.rejouer'        => 'Rejouer la visite guidée.',
