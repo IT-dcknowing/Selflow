@@ -598,6 +598,17 @@ Route::prefix('admin/abonnement')
         Route::post('/renouveler', [\App\Modules\Admin\Controleurs\AbonnementControleur::class, 'renouveler'])->name('renouveler');
     });
 
+// L'abonnement en attente (22/10/2026) : la fenêtre de blocage demande où en
+// est le paiement, et « Abonnement confirmé » se lit une fois. Le caissier,
+// bloqué comme l'administrateur, voit les mêmes avis.
+Route::prefix('admin/abonnement')
+    ->middleware(['auth', 'role:admin,caissier'])
+    ->name('admin.abonnement.')
+    ->group(function () {
+        Route::get('/etat', [\App\Modules\Admin\Controleurs\AbonnementControleur::class, 'etat'])->name('etat');
+        Route::post('/confirmation-vue', [\App\Modules\Admin\Controleurs\AbonnementControleur::class, 'confirmationVue'])->name('confirmation_vue');
+    });
+
 // ───────────────────────────────────────────────────────────────────────
 // Routes pour l'interface SuperAdmin
 // ───────────────────────────────────────────────────────────────────────

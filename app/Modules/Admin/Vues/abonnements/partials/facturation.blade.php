@@ -52,7 +52,7 @@
             <span style="color:var(--text-3);">
                 @foreach($dernierPaiement->etapes() as $etape) · {{ $etape['libelle'] }} {{ $etape['le']?->format('d/m/Y H:i') }} @endforeach
             </span>
-            @if($dernierPaiement->motif_echec)<div style="color:#b91c1c; margin-top:4px;">Motif : {{ $dernierPaiement->motif_echec }}</div>@endif
+            @if($dernierPaiement->statut === 'echec' && $dernierPaiement->motif_echec)<div style="color:#b91c1c; margin-top:4px;">Motif : {{ $dernierPaiement->motif_echec }}</div>@endif
         </div>
     @endif
 
