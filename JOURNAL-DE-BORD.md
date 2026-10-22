@@ -9630,6 +9630,37 @@ confirmés sont tenus pour annoncés.
 
 ---
 
+### Lot 125 — Le lot 124 déployé sans sa migration : chaque page tombait — **TERMINÉ le 22/10/2026**
+
+**Constat, en production, chez « poissonnerie EDEN ».**
+
+```
+SQLSTATE[42S22] 1054 Unknown column 'confirmation_vue_le' in 'WHERE'
+(View: gabarits/application.blade.php)
+```
+
+**Cause.** Le code du lot 124 est en ligne, mais la migration
+`2026_10_22_000001` n'a pas été jouée. Le gabarit lit
+`paiements_abonnements.confirmation_vue_le` à chaque page, d'où une erreur 500
+partout.
+
+**Correctif.** `PaiementAbonnement::colonnesEnPlace()` vérifie la présence des
+deux colonnes du lot (`bloquant`, `confirmation_vue_le`), une fois par
+requête. Si elles manquent, l'application fait comme avant le lot 124 :
+
+- rien ne bloque, et « Abonnement confirmé » ne s'annonce pas ;
+- un paiement se déclare encore, sans `bloquant` ;
+- « J'ai lu » ne fait rien.
+
+Le blocage voulu au lot 124 ne s'applique qu'une fois la migration jouée.
+
+**Sur le serveur :** `php artisan migrate`.
+
+- `AbonnementEnAttenteTest` (+1) : colonnes retirées, le tableau de bord, la
+  souscription et les deux routes répondent.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

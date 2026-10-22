@@ -139,9 +139,11 @@ class AbonnementControleur
         $entreprise = Auth::user()->entreprise;
         abort_unless($entreprise, 403);
 
-        PaiementAbonnement::where('entreprise_id', $entreprise->id)
-            ->where('statut', 'active')->whereNull('confirmation_vue_le')
-            ->update(['confirmation_vue_le' => now()]);
+        if (PaiementAbonnement::colonnesEnPlace()) {
+            PaiementAbonnement::where('entreprise_id', $entreprise->id)
+                ->where('statut', 'active')->whereNull('confirmation_vue_le')
+                ->update(['confirmation_vue_le' => now()]);
+        }
 
         return back();
     }
@@ -155,6 +157,14 @@ class AbonnementControleur
     /** @param array{operateur_paiement: string, reference_paiement: string} $reglement */
     private function declarerLePaiement(\App\Modules\Admin\Modeles\Entreprise $entreprise, string $offre, string $nature, array $reglement, ?int $montant = null): PaiementAbonnement
     {
+        // Lu avant d'appliquer l'offre : sans période payée en cours, l'espace
+        // reste bloqué jusqu'à la confirmation (22/10/2026). Une entreprise
+        // déjà en attente le reste : la nouvelle référence qui suit un échec
+        // n'ouvre rien d'elle-même. Colonne absente (migration pas encore
+        // jouée) : on ne l'écrit pas.
+        $bloquant = Abonnements::paiementEnSuspens($entreprise) !== null
+            || ! Abonnements::periodePayeeEnCours($entreprise);
+
         $paiement = PaiementAbonnement::create([
             'entreprise_id'      => $entreprise->id,
             'utilisateur_id'     => Auth::id(),
@@ -165,13 +175,7 @@ class AbonnementControleur
             'operateur_paiement' => $reglement['operateur_paiement'],
             'reference_paiement' => trim($reglement['reference_paiement']),
             'statut'             => 'recu',
-            // Lu avant d'appliquer l'offre : sans période payée en cours,
-            // l'espace reste bloqué jusqu'à la confirmation (22/10/2026). Une
-            // entreprise déjà en attente le reste : la nouvelle référence qui
-            // suit un échec n'ouvre rien d'elle-même.
-            'bloquant'           => Abonnements::paiementEnSuspens($entreprise) !== null
-                || ! Abonnements::periodePayeeEnCours($entreprise),
-        ]);
+        ] + (PaiementAbonnement::colonnesEnPlace() ? ['bloquant' => $bloquant] : []));
 
         // Alerte aux destinataires configurés : un paiement à confirmer
         // (16/10/2026). Le superadmin l'active depuis Paiements d'abonnement.

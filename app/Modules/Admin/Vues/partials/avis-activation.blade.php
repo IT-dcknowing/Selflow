@@ -9,7 +9,7 @@
 --}}
 @php
     $__entreprise = auth()->user()?->entreprise;
-    $__paiementEnAttente = $__entreprise
+    $__paiementEnAttente = $__entreprise && \App\Modules\Admin\Modeles\PaiementAbonnement::colonnesEnPlace()
         ? \App\Modules\Admin\Modeles\PaiementAbonnement::where('entreprise_id', $__entreprise->id)
             ->where('bloquant', false)
             ->whereIn('statut', \App\Modules\Admin\Modeles\PaiementAbonnement::A_TRAITER)
