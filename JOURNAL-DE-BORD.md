@@ -6,9 +6,10 @@ et ce fichier. Tout ce qui a été décidé, tout ce qui a été écarté et pou
 tout ce qui reste à faire doit donc figurer ici — et y être tenu à jour à chaque
 lot terminé.
 
-Dernière mise à jour : 22 octobre 2026 — lot 124 : un abonnement payé par
+Dernière mise à jour : 22 octobre 2026 — lots 124 à 126 : un abonnement payé par
 référence reste bloqué « En attente de confirmation » jusqu'à la confirmation
-du superadministrateur, même en échec. Lots 116 à 123 (20/10) : les points de
+du superadministrateur, même en échec ; pas de panne si sa migration n'est
+pas jouée ; l'auteur d'une panne, son poste et son entreprise. Lots 116 à 123 (20/10) : les points de
 vente — articles, prix, numéros, créances, tiers, choix du site, doublons.
 Plan : `PLAN-RETOURS-PRODUCTION-14-10-2026.md`.
 
@@ -9658,6 +9659,24 @@ Le blocage voulu au lot 124 ne s'applique qu'une fois la migration jouée.
 
 - `AbonnementEnAttenteTest` (+1) : colonnes retirées, le tableau de bord, la
   souscription et les deux routes répondent.
+
+---
+
+### Lot 126 — Pannes : qui l'a rencontrée, son poste, son entreprise — **TERMINÉ le 22/10/2026**
+
+Demande du propriétaire : sur la page des pannes, voir qui a rencontré le
+défaut sans déplier le détail.
+
+- **Colonne « Rencontrée par ».** Elle affiche le nom, le poste et
+  l'entreprise. Une panne vue hors connexion affiche « Visiteur non
+  connecté ».
+- **Le poste.** `Utilisateur::poste()` rend la fonction saisie au personnel,
+  suivie du rôle (« Vendeur (Caissier) »), ou le rôle seul s'il n'y a pas de
+  fonction. Les libellés des rôles vivent dans
+  `Utilisateur::LIBELLES_ROLES`.
+
+- `RegistreDesPannesTest` (+1). Suite, lots 125 et 126 compris :
+  1 922 épreuves, 1 917 passantes, 5 ignorées.
 
 ---
 

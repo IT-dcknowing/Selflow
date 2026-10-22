@@ -155,6 +155,26 @@ class Utilisateur extends Authenticatable
      */
     public const ROLES_DELEGUES = ['admin_secondaire', 'responsable_pdv'];
 
+    /** Les rôles, tels qu'ils s'écrivent à l'écran. */
+    public const LIBELLES_ROLES = [
+        'superadmin'       => 'Superadministrateur',
+        'admin'            => 'Administrateur',
+        'admin_secondaire' => 'Admin secondaire',
+        'responsable_pdv'  => 'Responsable PDV',
+        'caissier'         => 'Caissier',
+    ];
+
+    /**
+     * Le poste de la personne : la fonction saisie au personnel quand elle
+     * existe (« Gérante », « Comptable »…), sinon son rôle dans Selflow.
+     */
+    public function poste(): string
+    {
+        $role = self::LIBELLES_ROLES[$this->role] ?? ucfirst((string) $this->role);
+
+        return filled($this->fonction) ? $this->fonction . ' (' . $role . ')' : $role;
+    }
+
     /**
      * Cet utilisateur travaille-t-il dans l'espace d'administration ?
      *

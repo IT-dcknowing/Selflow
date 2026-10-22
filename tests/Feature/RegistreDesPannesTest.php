@@ -101,4 +101,33 @@ class RegistreDesPannesTest extends TestCase
         $this->get(route('superadmin.pannes.index', ['onglet' => 'corrigees']))->assertOk()
             ->assertSee($panne->code);
     }
+
+    /** 22/10/2026 : qui a rencontré la panne — nom, poste et entreprise — se lit dans la ligne. */
+    public function test_la_ligne_dit_qui_a_rencontre_la_panne_son_poste_et_son_entreprise(): void
+    {
+        $entreprise = \App\Modules\Admin\Modeles\Entreprise::create(['nom' => 'poissonnerie EDEN']);
+        $caissier = Utilisateur::create([
+            'nom' => 'YAO', 'prenom' => 'YVES', 'email' => 'yves@exemple.ci', 'password' => bcrypt('x'),
+            'role' => 'caissier', 'fonction' => 'Vendeur', 'entreprise_id' => $entreprise->id,
+        ]);
+        $admin = Utilisateur::create([
+            'nom' => 'Kouamé', 'prenom' => 'Ama', 'email' => 'ama@exemple.ci', 'password' => bcrypt('x'),
+            'role' => 'admin', 'entreprise_id' => $entreprise->id,
+        ]);
+        foreach ([[$caissier, 10], [$admin, 20], [null, 30]] as [$u, $ligne]) {
+            PanneConsignee::create([
+                'empreinte' => 'p' . $ligne, 'code' => 'ERR-' . $ligne, 'type' => 'Exception', 'message' => 'm',
+                'fichier' => 'app/x.php', 'ligne' => $ligne, 'utilisateur_id' => $u?->id, 'entreprise_id' => $u?->entreprise_id,
+                'occurrences' => 1, 'premiere_le' => now(), 'derniere_le' => now(),
+            ]);
+        }
+
+        $page = $this->actingAs($this->superadmin)->get(route('superadmin.pannes.index'))->assertOk()->getContent();
+        $this->assertStringContainsString('Rencontrée par', $page);
+        $this->assertStringContainsString('YVES YAO', $page);
+        $this->assertStringContainsString('Vendeur (Caissier)', $page);
+        $this->assertStringContainsString('Administrateur', $page);
+        $this->assertStringContainsString('poissonnerie EDEN', $page);
+        $this->assertStringContainsString('Visiteur non connecté', $page);
+    }
 }
