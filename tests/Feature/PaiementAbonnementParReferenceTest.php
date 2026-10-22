@@ -133,14 +133,14 @@ class PaiementAbonnementParReferenceTest extends TestCase
         $this->assertTrue($paiement->bloquant);
 
         $this->get(route('admin.tableau_de_bord'))->assertOk()
-            ->assertSee('En attente de confirmation de l\'abonnement', false)
+            ->assertSee('En attente de confirmation de l\'abonnement')
             ->assertSee('TX-AVIS-1')
             ->assertDontSee('Vous pouvez déjà travailler', false);
 
         // Confirmé : la fenêtre cède la place à « Abonnement confirmé ».
         $this->actingAs($this->superadmin)->put(route('superadmin.paiements.traiter', $paiement), ['action' => 'activer']);
         $this->actingAs($this->admin)->get(route('admin.tableau_de_bord'))->assertOk()
-            ->assertDontSee('En attente de confirmation de l\'abonnement', false)
+            ->assertDontSee('En attente de confirmation de l\'abonnement')
             ->assertSee('Abonnement confirmé');
     }
 }

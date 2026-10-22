@@ -166,8 +166,11 @@ class AbonnementControleur
             'reference_paiement' => trim($reglement['reference_paiement']),
             'statut'             => 'recu',
             // Lu avant d'appliquer l'offre : sans période payée en cours,
-            // l'espace reste bloqué jusqu'à la confirmation (22/10/2026).
-            'bloquant'           => ! Abonnements::periodePayeeEnCours($entreprise),
+            // l'espace reste bloqué jusqu'à la confirmation (22/10/2026). Une
+            // entreprise déjà en attente le reste : la nouvelle référence qui
+            // suit un échec n'ouvre rien d'elle-même.
+            'bloquant'           => Abonnements::paiementEnSuspens($entreprise) !== null
+                || ! Abonnements::periodePayeeEnCours($entreprise),
         ]);
 
         // Alerte aux destinataires configurés : un paiement à confirmer

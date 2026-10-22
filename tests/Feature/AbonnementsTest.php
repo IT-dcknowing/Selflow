@@ -96,6 +96,9 @@ class AbonnementsTest extends TestCase
     {
         $this->inscrire();
         $this->post(route('admin.abonnement.enregistrer'), ['offre' => Abonnements::SOLO, 'operateur_paiement' => 'WAVE', 'reference_paiement' => 'TX-0001']);
+        // Le paiement confirmé ouvre l'espace (22/10/2026) : c'est la limite
+        // de l'offre, et non l'attente, qui doit refuser l'employé.
+        \App\Modules\Admin\Modeles\PaiementAbonnement::query()->update(['statut' => 'active', 'active_le' => now()]);
         PointDeVente::create(['entreprise_id' => $this->entreprise()->id, 'nom' => 'Boutique', 'ville' => 'Abidjan', 'commune' => 'Cocody']);
         $this->entreprise()->forceFill(['modules_actifs' => ['principal', 'ventes', 'points_de_vente', 'personnel']])->save();
 
