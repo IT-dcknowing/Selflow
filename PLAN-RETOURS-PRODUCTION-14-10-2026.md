@@ -237,5 +237,6 @@ secret `external/*` par entreprise (moyen terme).
 | Choisir son point de vente ; clients de la caisse par site | lot 121 |
 | Doublons de points de vente : clé d'identité, noms proches, fusion | lot 122 |
 | Code du point de vente en chiffres (01, 02…) | lot 123 |
+| Abonnement payé : bloqué « En attente de confirmation » jusqu'à la confirmation, même en échec ; « Abonnement confirmé » ; confirmer un paiement en échec (un mois) | lot 124 |
 | Contre-attaque | **refusée** (illégal) ; défense outillée |
 | Relais WhatsApp | à brancher (URL d'un relais) |

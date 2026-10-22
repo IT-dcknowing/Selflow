@@ -44,7 +44,10 @@ class SuperadminPaiementControleur
             'motif_echec' => ['required_if:action,echec', 'nullable', 'string', 'max:255'],
         ], ['motif_echec.required_if' => 'Indiquez le motif de l\'échec : l\'entreprise le verra.']);
 
-        if (! $paiement->estOuvert()) {
+        // Un paiement en échec se confirme encore (22/10/2026) : le règlement
+        // retrouvé après coup active l'abonnement depuis la même ligne.
+        $permis = $donnees['action'] === 'activer' ? $paiement->peutEtreConfirme() : $paiement->estOuvert();
+        if (! $permis) {
             return back()->with('erreur', 'Ce paiement est déjà traité (' . $paiement->libelleStatut() . ').');
         }
 
@@ -60,15 +63,18 @@ class SuperadminPaiementControleur
     }
 
     /**
-     * Le paiement confirmé active l'offre : l'échéance part de la plus tardive
-     * de « maintenant » et de l'échéance en cours, et avance d'autant de mois
-     * que payés. Une entreprise à terme est débloquée.
+     * Le paiement confirmé active l'offre et avance l'échéance d'autant de
+     * mois que payés — un mois : 30 ou 31 jours selon le mois. Elle part de
+     * maintenant, sauf quand une période déjà payée court encore : le
+     * renouvellement anticipé s'y ajoute. Les jours d'un pass cadeau ne
+     * s'ajoutent pas (22/10/2026). Une entreprise à terme ou en attente est
+     * débloquée.
      */
     private function activer(PaiementAbonnement $paiement, array $traite): void
     {
         DB::transaction(function () use ($paiement, $traite) {
             $entreprise = $paiement->entreprise;
-            $depart = $entreprise->abonnement_expire_le && $entreprise->abonnement_expire_le->isFuture()
+            $depart = ! $paiement->bloquant && $entreprise->abonnement_expire_le?->isFuture()
                 ? $entreprise->abonnement_expire_le->copy()
                 : now();
 

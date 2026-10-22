@@ -3,6 +3,7 @@
 namespace App\Modules\Admin\Regles;
 
 use App\Modules\Admin\Modeles\Entreprise;
+use App\Modules\Admin\Modeles\PaiementAbonnement;
 
 /**
  * Les offres d'abonnement de Selflow — décision du propriétaire du 15/10/2026.
@@ -172,6 +173,55 @@ final class Abonnements
         return $entreprise !== null
             && $entreprise->abonnement_expire_le !== null
             && now()->greaterThan($entreprise->abonnement_expire_le);
+    }
+
+    /**
+     * Le paiement qui tient l'entreprise en attente — décision du propriétaire
+     * du 22/10/2026, qui remplace l'accès immédiat du lot 102.
+     *
+     * Une offre choisie et payée par référence n'ouvre rien tant que
+     * DC-Knowing n'a pas confirmé le règlement : l'entreprise voit son espace,
+     * bloqué, avec « En attente de confirmation de l'abonnement ». Un paiement
+     * en échec la laisse bloquée, avec le motif. Seul le dernier paiement
+     * compte, et seulement s'il a été déclaré sans période payée en cours
+     * (`bloquant`) : celle qui renouvelle avant l'échéance continue de
+     * travailler.
+     */
+    public static function paiementEnSuspens(?Entreprise $entreprise): ?PaiementAbonnement
+    {
+        if ($entreprise === null) {
+            return null;
+        }
+
+        $dernier = PaiementAbonnement::where('entreprise_id', $entreprise->id)->latest('id')->first();
+
+        return $dernier && $dernier->bloquant && in_array($dernier->statut, PaiementAbonnement::SUSPENDENT, true)
+            ? $dernier
+            : null;
+    }
+
+    /**
+     * Une période payée court-elle ? Une offre payante (ou sur mesure) dont
+     * l'échéance n'est pas passée — ou qui n'en a pas, comme les entreprises
+     * d'avant les offres. Ni l'offre « à choisir » ni le pass cadeau n'en sont
+     * une. Se lit avant d'appliquer la nouvelle offre.
+     */
+    public static function periodePayeeEnCours(Entreprise $entreprise): bool
+    {
+        return in_array($entreprise->plan_abonnement, [self::SOLO, self::BUSINESS, self::PREMIUM, self::SUR_MESURE], true)
+            && ($entreprise->abonnement_expire_le === null || $entreprise->abonnement_expire_le->isFuture());
+    }
+
+    /** Le paiement confirmé que l'entreprise n'a pas encore vu annoncé. */
+    public static function confirmationAAnnoncer(?Entreprise $entreprise): ?PaiementAbonnement
+    {
+        if ($entreprise === null) {
+            return null;
+        }
+
+        return PaiementAbonnement::where('entreprise_id', $entreprise->id)
+            ->where('statut', 'active')->whereNull('confirmation_vue_le')
+            ->latest('active_le')->first();
     }
 
     /** Jours avant l'échéance ; `null` sans échéance. */
