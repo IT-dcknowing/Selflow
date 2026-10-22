@@ -6,13 +6,11 @@ et ce fichier. Tout ce qui a été décidé, tout ce qui a été écarté et pou
 tout ce qui reste à faire doit donc figurer ici — et y être tenu à jour à chaque
 lot terminé.
 
-Dernière mise à jour : 14 octobre 2026 — lots 64 à 69, retours de la mise en
-production : la faille du mot de passe oublié et les courriels, les écrans du
-retest, les écritures d'avoir, le cycle d'achat et la facture déclarée par le
-fournisseur, les stickers achetés par DC-Knowing, la vente pas à pas ; puis
-lots 71 à 73 : l'erreur 500 de la fiche article en ligne, le second retest,
-le plan comptable, « Gestion FNE », la page d'accueil. Plan :
-`PLAN-RETOURS-PRODUCTION-14-10-2026.md` ; B2B approfondi (lot 70) à valider.
+Dernière mise à jour : 22 octobre 2026 — lot 124 : un abonnement payé par
+référence reste bloqué « En attente de confirmation » jusqu'à la confirmation
+du superadministrateur, même en échec. Lots 116 à 123 (20/10) : les points de
+vente — articles, prix, numéros, créances, tiers, choix du site, doublons.
+Plan : `PLAN-RETOURS-PRODUCTION-14-10-2026.md`.
 
 ---
 
@@ -9577,6 +9575,58 @@ compose de chiffres, plus de lettres tirées du nom.
 
 - `PrixEtNumerosParSiteTest` aligné. Suite : 1 913 épreuves, 1 908
   passantes, 5 ignorées.
+
+---
+
+### Lot 124 — Abonnement payé : bloqué jusqu'à la confirmation — **TERMINÉ le 22/10/2026**
+
+**Constat du propriétaire.** Une entreprise inscrite par la voie normale
+choisit l'offre Business et saisit la référence de son paiement : elle entre
+aussitôt dans son espace et y travaille, même quand le superadministrateur
+met le paiement en « Échec ». C'était l'accès immédiat du lot 102.
+
+**Décision du 22/10/2026, qui remplace le lot 102.**
+
+- **En attente.** L'espace reste visible, mais rien ne s'y clique. Une
+  fenêtre dit « En attente de confirmation de l'abonnement », avec l'offre,
+  le montant et la référence. Elle demande toutes les dix secondes où en est
+  le paiement (`admin.abonnement.etat`) et recharge la page dès que le statut
+  change.
+- **Échec.** L'espace reste bloqué. La fenêtre « Paiement non confirmé »
+  donne le motif, et le bouton « Saisir une nouvelle référence » mène à la
+  Facturation, seule section utilisable.
+- **Confirmé.** « Abonnement confirmé » s'affiche une fois, avec l'offre et
+  l'échéance, jusqu'à « Commencer » (`paiements_abonnements.confirmation_vue_le`).
+  L'espace est alors ouvert.
+- **Côté serveur.** `abonnement.actif` refuse toute action tant que dure
+  l'attente ou l'échec, comme pour l'abonnement à terme (lot 83). Il renvoie
+  vers la Facturation, ou répond 423 en JSON (`abonnement_en_attente`,
+  `abonnement_paiement_echec`).
+- **Superadmin.** Sur un paiement en « Échec », le bouton « Renouveler /
+  Confirmer » le passe à « Confirmé — abonnement activé ». L'échéance part
+  du jour de la confirmation et avance d'un mois calendaire, 30 ou 31 jours
+  selon le mois (`addMonthsNoOverflow`). L'historique garde l'échec puis la
+  confirmation, dans l'ordre du temps.
+
+**Qui est bloqué.** On le décide quand le paiement est déclaré, et c'est
+noté sur le paiement (`paiements_abonnements.bloquant`). Le paiement bloque
+si aucune période payée ne court à ce moment-là : offre « à choisir », pass
+cadeau, ou échéance passée. L'entreprise qui renouvelle avant son échéance
+continue de travailler, avec le bandeau « Renouvellement en cours de
+vérification ». Confirmé, son mois s'ajoute à l'échéance en cours. Quitter le
+pass cadeau pour une offre payante bloque aussi, et les jours du pass ne
+s'ajoutent pas.
+
+**Reprise** (migration `2026_10_22_000001`). Une souscription non confirmée
+(reçue, en cours ou en échec) d'une entreprise qui n'a jamais eu de paiement
+confirmé devient bloquante : c'est le cas relevé. Les paiements déjà
+confirmés sont tenus pour annoncés.
+
+- `AbonnementEnAttenteTest` (7). L'épreuve d'avis du lot 102, dans
+  `PaiementAbonnementParReferenceTest`, est réécrite sur la nouvelle règle ;
+  `AbonnementsTest` confirme le paiement avant d'éprouver la limite Solo.
+  Les deux routes nouvelles sont classées dans `Habilitations`. Suite :
+  1 920 épreuves, 1 915 passantes, 5 ignorées.
 
 ---
 

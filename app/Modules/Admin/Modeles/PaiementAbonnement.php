@@ -27,6 +27,9 @@ class PaiementAbonnement extends Model
 
     public const A_TRAITER = ['recu', 'en_cours'];
 
+    /** Les statuts d'un paiement `bloquant` qui tiennent l'entreprise bloquée (22/10/2026). */
+    public const SUSPENDENT = ['recu', 'en_cours', 'echec'];
+
     public const COULEURS = [
         'recu'     => ['#eff6ff', '#1d4ed8'],
         'en_cours' => ['#fef9c3', '#a16207'],
@@ -37,7 +40,7 @@ class PaiementAbonnement extends Model
     protected $fillable = [
         'entreprise_id', 'utilisateur_id', 'offre', 'nature', 'mois', 'montant',
         'operateur_paiement', 'reference_paiement', 'statut', 'motif_echec',
-        'en_cours_le', 'active_le', 'echec_le', 'traite_par',
+        'en_cours_le', 'active_le', 'echec_le', 'confirmation_vue_le', 'bloquant', 'traite_par',
     ];
 
     protected function casts(): array
@@ -48,6 +51,8 @@ class PaiementAbonnement extends Model
             'en_cours_le' => 'datetime',
             'active_le'   => 'datetime',
             'echec_le'    => 'datetime',
+            'confirmation_vue_le' => 'datetime',
+            'bloquant'    => 'boolean',
         ];
     }
 
@@ -82,6 +87,16 @@ class PaiementAbonnement extends Model
         return in_array($this->statut, self::A_TRAITER, true);
     }
 
+    /**
+     * Le superadministrateur peut-il encore confirmer ? Un paiement ouvert,
+     * ou un paiement mis en échec : le règlement retrouvé après coup se
+     * confirme depuis la même ligne (22/10/2026).
+     */
+    public function peutEtreConfirme(): bool
+    {
+        return $this->estOuvert() || $this->statut === 'echec';
+    }
+
     /** @return array<int, array{libelle: string, le: ?\Illuminate\Support\Carbon}> */
     public function etapes(): array
     {
@@ -91,6 +106,9 @@ class PaiementAbonnement extends Model
                 $etapes[] = ['libelle' => self::STATUTS[$statut], 'le' => $this->{$colonne}];
             }
         }
+
+        // Dans l'ordre du temps : un échec peut précéder la confirmation.
+        usort($etapes, fn ($a, $b) => ($a['le']?->getTimestamp() ?? 0) <=> ($b['le']?->getTimestamp() ?? 0));
 
         return $etapes;
     }

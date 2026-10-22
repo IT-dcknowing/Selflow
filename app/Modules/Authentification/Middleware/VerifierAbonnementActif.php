@@ -15,6 +15,10 @@ use Symfony\Component\HttpFoundation\Response;
  * toute action (envoi de formulaire, enregistrement, suppression) est refusée
  * et renvoie vers la section Facturation, d'où elle renouvelle ou passe à une
  * offre supérieure. À l'écran, une fenêtre le dit et empêche de cliquer.
+ *
+ * Même blocage pour l'abonnement en attente (22/10/2026) : une offre payée
+ * par référence que DC-Knowing n'a pas encore confirmée, ou dont le paiement
+ * a échoué, ne permet pas de travailler.
  */
 class VerifierAbonnementActif
 {
@@ -22,6 +26,7 @@ class VerifierAbonnementActif
     private const TOUJOURS_PERMIS = [
         'admin.abonnement.enregistrer',
         'admin.abonnement.renouveler',
+        'admin.abonnement.confirmation_vue',
         'deconnexion',
     ];
 
@@ -33,7 +38,9 @@ class VerifierAbonnementActif
             return $next($request);
         }
 
-        if (! Abonnements::estATerme($utilisateur->entreprise)) {
+        $suspens = Abonnements::paiementEnSuspens($utilisateur->entreprise);
+
+        if (! $suspens && ! Abonnements::estATerme($utilisateur->entreprise)) {
             return $next($request);
         }
 
@@ -41,10 +48,17 @@ class VerifierAbonnementActif
             return $next($request);
         }
 
-        $message = 'Abonnement à terme : renouvelez-le ou passez à une offre supérieure pour continuer.';
+        [$statut, $message] = match (true) {
+            $suspens?->statut === 'echec' => ['abonnement_paiement_echec',
+                'Le paiement de votre abonnement n\'a pas été confirmé : saisissez une nouvelle référence pour continuer.'],
+            $suspens !== null => ['abonnement_en_attente',
+                'En attente de confirmation de l\'abonnement : vous pourrez travailler dès que DC-Knowing aura confirmé votre paiement.'],
+            default => ['abonnement_a_terme',
+                'Abonnement à terme : renouvelez-le ou passez à une offre supérieure pour continuer.'],
+        };
 
         if ($request->expectsJson()) {
-            return response()->json(['statut' => 'abonnement_a_terme', 'message' => $message], 423);
+            return response()->json(['statut' => $statut, 'message' => $message], 423);
         }
 
         return redirect()->to(route('admin.entreprise.parametres') . '#facturation')->with('erreur', $message);

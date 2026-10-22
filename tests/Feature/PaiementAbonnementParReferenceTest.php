@@ -119,22 +119,28 @@ class PaiementAbonnementParReferenceTest extends TestCase
         $this->assertSame(150000, (int) $paiement->montant);
     }
 
-    /** 16/10/2026 : un paiement en attente affiche l'avis « compte en cours d'activation ». */
-    public function test_l_avis_d_activation_s_affiche_tant_que_le_paiement_n_est_pas_confirme(): void
+    /**
+     * 22/10/2026 : l'accès immédiat du lot 102 est retiré. Un paiement déclaré
+     * sans période payée en cours bloque l'espace jusqu'à la confirmation.
+     */
+    public function test_un_paiement_en_attente_bloque_l_espace_jusqu_a_la_confirmation(): void
     {
         $this->actingAs($this->admin)->post(route('admin.abonnement.renouveler'), [
             'depuis' => 'facturation', 'operateur_paiement' => 'WAVE', 'reference_paiement' => 'TX-AVIS-1',
         ])->assertSessionHasNoErrors();
 
-        $paiement = \App\Modules\Admin\Modeles\PaiementAbonnement::sole();
+        $paiement = PaiementAbonnement::sole();
+        $this->assertTrue($paiement->bloquant);
 
-        $this->get(route('admin.entreprise.parametres'))->assertOk()
-            ->assertSee('en cours d\'activation', false)
-            ->assertSee('TX-AVIS-1');
+        $this->get(route('admin.tableau_de_bord'))->assertOk()
+            ->assertSee('En attente de confirmation de l\'abonnement')
+            ->assertSee('TX-AVIS-1')
+            ->assertDontSee('Vous pouvez déjà travailler', false);
 
-        // Confirmé : l'avis disparaît.
+        // Confirmé : la fenêtre cède la place à « Abonnement confirmé ».
         $this->actingAs($this->superadmin)->put(route('superadmin.paiements.traiter', $paiement), ['action' => 'activer']);
-        $this->actingAs($this->admin)->get(route('admin.entreprise.parametres'))->assertOk()
-            ->assertDontSee('en cours d\'activation', false);
+        $this->actingAs($this->admin)->get(route('admin.tableau_de_bord'))->assertOk()
+            ->assertDontSee('En attente de confirmation de l\'abonnement')
+            ->assertSee('Abonnement confirmé');
     }
 }

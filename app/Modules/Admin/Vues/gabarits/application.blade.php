@@ -587,9 +587,18 @@
     // clique. Seule la section Facturation des paramètres reste utilisable.
     $__aTerme = auth()->check() && !auth()->user()->estSuperAdmin()
         && \App\Modules\Admin\Regles\Abonnements::estATerme(auth()->user()->entreprise);
+    // Abonnement en attente (22/10/2026) : une offre payée que DC-Knowing n'a
+    // pas confirmée, ou dont le paiement a échoué. Même espace inerte.
+    $__suspens = auth()->check() && !auth()->user()->estSuperAdmin() && !request()->routeIs('superadmin.*')
+        ? \App\Modules\Admin\Regles\Abonnements::paiementEnSuspens(auth()->user()->entreprise)
+        : null;
+    $__confirme = auth()->check() && !auth()->user()->estSuperAdmin() && !$__suspens && !request()->routeIs('superadmin.*')
+        ? \App\Modules\Admin\Regles\Abonnements::confirmationAAnnoncer(auth()->user()->entreprise)
+        : null;
+    $__bloque = $__aTerme || $__suspens;
     $__surFacturation = request()->routeIs('admin.entreprise.parametres');
 @endphp
-<body class="{{ $__aTerme ? 'abonnement-a-terme' : '' }} {{ $__aTerme && $__surFacturation ? 'sur-facturation' : '' }}{{ request()->boolean('integre') ? ' integre' : '' }}">
+<body class="{{ $__bloque ? 'abonnement-a-terme' : '' }} {{ $__bloque && $__surFacturation ? 'sur-facturation' : '' }}{{ request()->boolean('integre') ? ' integre' : '' }}">
 {{-- Mode intégré (18/10/2026) : la pièce ouverte dans la fenêtre qui suit
      l'enregistrement d'une vente. Seul le document s'affiche — ni menu, ni
      barre, ni visite guidée, ni lien vers une liste que le vendeur n'a pas. --}}
@@ -601,7 +610,7 @@
     body.integre .main-wrap { margin-left: 0 !important; padding-top: 0 !important; }
 </style>
 @endif
-@if($__aTerme)
+@if($__bloque || $__confirme)
 <style>
     /* Rien ne se clique dans l'espace… */
     body.abonnement-a-terme .sidebar, body.abonnement-a-terme .main-content { pointer-events: none; user-select: none; }
@@ -1734,7 +1743,16 @@
         @endunless
         @yield('contenu')
 
-        @if($__aTerme && !$__surFacturation)
+        @if($__suspens && !$__surFacturation)
+            @include('admin::partials.abonnement-en-attente', ['paiement' => $__suspens])
+        @elseif($__suspens)
+            <div id="bandeau-a-terme" style="{{ $__suspens->statut === 'echec' ? '' : 'background:#1E40AF;' }}">
+                <i class="fas {{ $__suspens->statut === 'echec' ? 'fa-circle-exclamation' : 'fa-hourglass-half' }}"></i>
+                {{ $__suspens->statut === 'echec' ? 'Paiement non confirmé — saisissez une nouvelle référence dans la section Facturation.' : 'En attente de confirmation de l\'abonnement — seule la section Facturation est disponible.' }}
+            </div>
+        @elseif($__confirme)
+            @include('admin::partials.abonnement-confirme', ['paiement' => $__confirme])
+        @elseif($__aTerme && !$__surFacturation)
             {{-- La fenêtre ne se ferme pas : seul « Continuer » mène quelque part. --}}
             <div id="voile-abonnement-a-terme" role="alertdialog" aria-modal="true" aria-labelledby="titre-a-terme">
                 <div class="boite">

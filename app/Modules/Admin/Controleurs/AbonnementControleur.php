@@ -6,6 +6,7 @@ use App\Modules\Admin\Modeles\PaiementAbonnement;
 use App\Modules\Admin\Modeles\ParametrePlateforme;
 use App\Modules\Admin\Regles\PaiementParReference;
 use App\Modules\Admin\Regles\Abonnements;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -68,7 +69,7 @@ class AbonnementControleur
                 . $this->contactsEnPhrase(),
             default => 'Offre « ' . Abonnements::libelle($offre) . ' » retenue. Votre paiement de '
                 . number_format((float) $paiement->montant, 0, ',', ' ') . ' F (référence ' . $paiement->reference_paiement
-                . ') est transmis à DC-Knowing, qui le vérifie et active votre abonnement.',
+                . ') est transmis à DC-Knowing. Votre espace s\'ouvre dès qu\'il l\'a confirmé.',
         };
 
         return $this->retour($request)->with('succes', $message);
@@ -111,6 +112,40 @@ class AbonnementControleur
             . $paiement->reference_paiement . ') est transmis à DC-Knowing, qui le vérifie et prolonge votre abonnement.');
     }
 
+    /**
+     * Où en est l'abonnement ? La fenêtre « En attente de confirmation » le
+     * demande à intervalles réguliers et recharge la page dès que le statut
+     * change : la confirmation s'annonce sans que l'utilisateur ait à rien
+     * faire (22/10/2026).
+     */
+    public function etat(): JsonResponse
+    {
+        $entreprise = Auth::user()->entreprise;
+        $suspens = Abonnements::paiementEnSuspens($entreprise);
+
+        return response()->json([
+            'statut' => match (true) {
+                $suspens?->statut === 'echec' => 'echec',
+                $suspens !== null => 'en_attente',
+                Abonnements::estATerme($entreprise) => 'a_terme',
+                default => 'actif',
+            },
+        ]);
+    }
+
+    /** « Abonnement confirmé » a été lu : il ne s'affiche plus. */
+    public function confirmationVue(): RedirectResponse
+    {
+        $entreprise = Auth::user()->entreprise;
+        abort_unless($entreprise, 403);
+
+        PaiementAbonnement::where('entreprise_id', $entreprise->id)
+            ->where('statut', 'active')->whereNull('confirmation_vue_le')
+            ->update(['confirmation_vue_le' => now()]);
+
+        return back();
+    }
+
     /** Les offres qui se paient : Solo, Business, Premium. */
     private static function estPayante(string $offre): bool
     {
@@ -130,6 +165,12 @@ class AbonnementControleur
             'operateur_paiement' => $reglement['operateur_paiement'],
             'reference_paiement' => trim($reglement['reference_paiement']),
             'statut'             => 'recu',
+            // Lu avant d'appliquer l'offre : sans période payée en cours,
+            // l'espace reste bloqué jusqu'à la confirmation (22/10/2026). Une
+            // entreprise déjà en attente le reste : la nouvelle référence qui
+            // suit un échec n'ouvre rien d'elle-même.
+            'bloquant'           => Abonnements::paiementEnSuspens($entreprise) !== null
+                || ! Abonnements::periodePayeeEnCours($entreprise),
         ]);
 
         // Alerte aux destinataires configurés : un paiement à confirmer
