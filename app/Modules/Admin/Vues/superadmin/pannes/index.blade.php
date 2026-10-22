@@ -133,7 +133,7 @@
             <p style="padding:30px; text-align:center; color:var(--text-3);"><i class="fas fa-circle-check" style="color:var(--success);"></i> {{ $onglet === 'ouvertes' ? 'Aucune panne ouverte.' : 'Aucune panne corrigée.' }}</p>
         @else
         <table class="table" style="width:100%;">
-            <thead><tr><th>Code</th><th>Adresse</th><th>Fois</th><th>{{ $onglet === 'ouvertes' ? 'Dernière' : 'Corrigée le' }}</th><th></th></tr></thead>
+            <thead><tr><th>Code</th><th>Rencontrée par</th><th>Adresse</th><th>Fois</th><th>{{ $onglet === 'ouvertes' ? 'Dernière' : 'Corrigée le' }}</th><th></th></tr></thead>
             <tbody>
             @foreach($pannes as $panne)
                 <tr class="ligne-panne" data-panne="{{ $panne->id }}">
@@ -142,6 +142,17 @@
                                 style="font-family:ui-monospace,Menlo,monospace; font-weight:800; color:var(--danger);">
                             {{ $panne->code }}
                         </button>
+                    </td>
+                    {{-- Qui l'a rencontrée (22/10/2026) : nom, poste et entreprise,
+                         sans avoir à déplier le détail. --}}
+                    <td class="auteur-panne" style="font-size:12.5px; min-width:170px;">
+                        @if($panne->utilisateur)
+                            <strong>{{ trim($panne->utilisateur->prenom . ' ' . $panne->utilisateur->nom) }}</strong>
+                            <div style="font-size:11.5px; color:var(--text-2);">{{ $panne->utilisateur->poste() }}</div>
+                        @else
+                            <span style="color:var(--text-3);">Visiteur non connecté</span>
+                        @endif
+                        <div style="font-size:11.5px; color:var(--text-3);"><i class="fas fa-building"></i> {{ $panne->entreprise?->nom ?? '—' }}</div>
                     </td>
                     <td style="font-size:12.5px; word-break:break-all;">
                         <span style="color:var(--text-3); font-weight:700;">{{ $panne->methode }}</span> {{ $panne->url ?? '—' }}
@@ -167,7 +178,7 @@
                     </td>
                 </tr>
                 <tr id="detail-panne-{{ $panne->id }}" class="detail-panne" hidden>
-                    <td colspan="5" style="background:var(--bg); padding:16px 20px;">
+                    <td colspan="6" style="background:var(--bg); padding:16px 20px;">
                         <dl style="display:grid; grid-template-columns:140px 1fr; gap:6px 14px; font-size:12.5px;">
                             <dt style="color:var(--text-3); font-weight:700;">Erreur</dt><dd><strong>{{ $panne->message ?: '—' }}</strong></dd>
                             <dt style="color:var(--text-3); font-weight:700;">Type</dt><dd style="font-family:ui-monospace,Menlo,monospace;">{{ $panne->type }}</dd>
