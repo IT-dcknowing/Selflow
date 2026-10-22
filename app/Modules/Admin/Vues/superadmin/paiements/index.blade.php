@@ -11,7 +11,8 @@
         <i class="fas fa-circle-info" style="color:var(--primary);"></i>
         En attendant l'API de paiement, les entreprises déposent le montant sur le numéro du cabinet et saisissent la
         <strong>référence de la transaction</strong>. Vérifiez-la, puis <strong>confirmez et activez</strong> : l'échéance
-        est repoussée d'autant de mois que payés, et une entreprise à terme est débloquée.
+        est repoussée d'un mois, et l'entreprise, bloquée en attendant, est débloquée. Un paiement mis en
+        <strong>échec</strong> peut encore être confirmé, si le règlement est retrouvé.
         <strong>{{ $ouverts }}</strong> paiement{{ $ouverts > 1 ? 's' : '' }} à traiter.
     </div>
 
@@ -49,7 +50,7 @@
                             @endforeach
                         </div>
                         @if($p->motif_echec)<div style="font-size:11.5px; color:#b91c1c; margin-top:4px;">Motif : {{ $p->motif_echec }}</div>@endif
-                        @if($p->estOuvert())
+                        @if($p->peutEtreConfirme())
                         <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
                             @if($p->statut === 'recu')
                             <form method="POST" action="{{ route('superadmin.paiements.traiter', $p) }}" style="margin:0;">
@@ -62,8 +63,9 @@
                                   onsubmit="return confirm('Confirmer le paiement et activer l\'abonnement de {{ addslashes($p->entreprise?->nom ?? '') }} ?');">
                                 @csrf @method('PUT')
                                 <input type="hidden" name="action" value="activer">
-                                <button class="btn btn-sm" style="background:#16a34a; color:#fff; border:none;"><i class="fas fa-check"></i> Confirmer / Activer</button>
+                                <button class="btn btn-sm" style="background:#16a34a; color:#fff; border:none;"><i class="fas fa-check"></i> {{ $p->statut === 'echec' ? 'Renouveler / Confirmer' : 'Confirmer / Activer' }}</button>
                             </form>
+                            @if($p->estOuvert())
                             <form method="POST" action="{{ route('superadmin.paiements.traiter', $p) }}" style="margin:0;"
                                   onsubmit="var m = prompt('Motif de l\'échec (visible par l\'entreprise) ?'); if (!m) return false; this.motif_echec.value = m; return true;">
                                 @csrf @method('PUT')
@@ -71,6 +73,7 @@
                                 <input type="hidden" name="motif_echec" value="">
                                 <button class="btn btn-sm" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5;">Échec</button>
                             </form>
+                            @endif
                         </div>
                         @endif
                     </td>
