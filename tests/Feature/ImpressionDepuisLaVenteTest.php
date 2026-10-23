@@ -84,6 +84,29 @@ class ImpressionDepuisLaVenteTest extends TestCase
         $this->get(route('caissier.ventes.factures'))->assertForbidden();
     }
 
+    /**
+     * Retours du 23/10/2026 : pas de doublon « Ticket » / « Imprimer » dans
+     * l'en-tête de la fenêtre (la pièce porte les siens) ; une page chargée
+     * dans la fenêtre s'y affiche sans menu ; le panier du navigateur porte sa
+     * portée (entreprise, site, utilisateur).
+     */
+    public function test_la_fenetre_de_la_piece_sans_doublons_et_le_panier_borne(): void
+    {
+        $vendeur = $this->membre('vendeur2@test.ci', ['nouvelle_vente']);
+        $this->vendre($vendeur);
+
+        $page = $this->get(route('caissier.ventes.nouvelle'))->assertOk()->getContent();
+        $debut = strpos($page, 'id="piece-a-imprimer"');
+        $fenetre = substr($page, $debut, strpos($page, '<iframe', $debut) - $debut);
+        $this->assertStringContainsString('piece-a-imprimer-fermer', $fenetre);
+        $this->assertStringNotContainsString('Ticket', $fenetre);
+        $this->assertStringNotContainsString('piece-a-imprimer-imprimer', $fenetre);
+        $this->assertStringContainsString("window.frameElement.id === 'piece-a-imprimer-cadre'", $page);
+
+        $portee = $vendeur->entreprise_id . ':' . $this->site->id . ':' . $vendeur->id;
+        $this->assertStringContainsString("const PORTEE_PANIER = '" . $portee . "'", $page);
+    }
+
     public function test_le_vendeur_n_imprime_pas_les_factures_des_autres(): void
     {
         $collegue = $this->membre('collegue@test.ci', ['nouvelle_vente']);

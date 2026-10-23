@@ -352,10 +352,22 @@ class ProductionControleur extends Controller
 
         $validateur = Validator::make($request->all(), [
             'description' => ['nullable', 'string'],
-        ] + self::reglesIngredients());
+            // Corriger le nom du produit fabriqué (23/10/2026). Absent, il ne
+            // change pas.
+            'produit_fini_nom' => ['sometimes', 'required', 'string', 'max:255'],
+        ] + self::reglesIngredients(), [
+            'produit_fini_nom.required' => 'Le nom du produit fabriqué ne peut pas être vide.',
+        ]);
 
         $validateur->after(function ($v) use ($request, $entrepriseId, $fiche) {
             self::controlerIngredients($v, (array) $request->input('ingredients', []), $entrepriseId, (int) $fiche->produit_fini_id);
+
+            $nom = trim((string) $request->input('produit_fini_nom'));
+            if ($request->has('produit_fini_nom') && $nom !== '' && Produit::where('entreprise_id', $entrepriseId)
+                    ->where('id', '!=', $fiche->produit_fini_id)
+                    ->whereRaw('LOWER(nom) = ?', [mb_strtolower($nom)])->exists()) {
+                $v->errors()->add('produit_fini_nom', 'Un autre article porte déjà le nom « ' . $nom . ' ».');
+            }
         });
 
         $validateur->validate();
@@ -364,6 +376,11 @@ class ProductionControleur extends Controller
             $fiche->update([
                 'description' => $request->description,
             ]);
+
+            $nom = trim((string) $request->input('produit_fini_nom'));
+            if ($request->has('produit_fini_nom') && $nom !== '' && $fiche->produitFini && $fiche->produitFini->nom !== $nom) {
+                $fiche->produitFini->update(['nom' => $nom]);
+            }
 
             // Recréer les détails
             $fiche->details()->delete();
