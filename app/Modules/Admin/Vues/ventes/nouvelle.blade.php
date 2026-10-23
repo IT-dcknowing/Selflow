@@ -846,22 +846,41 @@
 const panier = {};
 const stocks = {};
 
+// Le panier vit dans le navigateur, et le navigateur ne sait pas dans quelle
+// entreprise ni sur quel site on travaille. Il porte donc sa portée : un
+// panier commencé ailleurs (autre entreprise, autre point de vente, autre
+// utilisateur) ne revient pas. Sans elle, il ramenait des articles d'une autre
+// entreprise, et la validation tombait sur « articles.0.produit_id est
+// invalide » (retour du 23/10/2026).
+const PORTEE_PANIER = @js(auth()->user()->entreprise_id . ':' . ($pointDeVenteId ?? '') . ':' . auth()->id());
+
 function savePanier() {
-    localStorage.setItem('selflow_vente_panier', JSON.stringify(panier));
+    try {
+        localStorage.setItem('selflow_vente_panier', JSON.stringify({ portee: PORTEE_PANIER, articles: panier }));
+    } catch (e) {}
 }
 
 function loadPanier() {
-    const stored = localStorage.getItem('selflow_vente_panier');
-    if (stored) {
-        try {
-            const parsed = JSON.parse(stored);
-            Object.keys(parsed).forEach(k => {
-                panier[k] = parsed[k];
-            });
-            renderPanier();
-        } catch(e) {
-            console.error("Erreur chargement panier local:", e);
+    let stored = null;
+    try { stored = localStorage.getItem('selflow_vente_panier'); } catch (e) {}
+    if (!stored) return;
+    try {
+        const parsed = JSON.parse(stored);
+        // Un panier sans portée date d'avant : on ne sait pas d'où il vient.
+        if (!parsed || parsed.portee !== PORTEE_PANIER || typeof parsed.articles !== 'object') {
+            localStorage.removeItem('selflow_vente_panier');
+            return;
         }
+        Object.keys(parsed.articles).forEach(k => {
+            // Un article qui n'est plus proposé ici (retiré du site, archivé)
+            // ne revient pas non plus ; la saisie libre, si.
+            if (parsed.articles[k].isVirtual || stocks[k] !== undefined) {
+                panier[k] = parsed.articles[k];
+            }
+        });
+        renderPanier();
+    } catch(e) {
+        console.error("Erreur chargement panier local:", e);
     }
 }
 

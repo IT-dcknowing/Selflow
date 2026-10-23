@@ -180,7 +180,14 @@
                                 </div>
                             </div>
                         @else
-                            <input type="text" class="form-control" value="{{ $fiche->produitFini->nom }} ({{ $fiche->produitFini->reference }})" disabled>
+                            {{-- Le nom se corrige ici (retour du 23/10/2026) : une faute de
+                                 saisie à la création restait figée. Le produit, lui, ne
+                                 change pas : sa référence et son stock restent. --}}
+                            <input type="text" name="produit_fini_nom" class="form-control" maxlength="255" required
+                                   value="{{ old('produit_fini_nom', $fiche->produitFini->nom) }}">
+                            <div style="font-size:11px; color:var(--text-3); margin-top:6px;">
+                                Référence {{ $fiche->produitFini->reference }} — corriger le nom le renomme aussi au catalogue.
+                            </div>
                             <input type="hidden" name="produit_fini_id" value="{{ $fiche->produit_fini_id }}">
                         @endif
                     </div>
