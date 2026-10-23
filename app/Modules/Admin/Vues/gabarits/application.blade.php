@@ -602,14 +602,24 @@
 {{-- Mode intégré (18/10/2026) : la pièce ouverte dans la fenêtre qui suit
      l'enregistrement d'une vente. Seul le document s'affiche — ni menu, ni
      barre, ni visite guidée, ni lien vers une liste que le vendeur n'a pas. --}}
-@if(request()->boolean('integre'))
+{{-- Le mode intégré vaut aussi pour toute page qui s'ouvre dans la fenêtre
+     de la pièce (23/10/2026) : « Confirmer la commande » ou « Valider &
+     Facturer », cliqués dans la fenêtre, y chargeaient la page entière, barre
+     latérale comprise. La page se reconnaît à son cadre et prend le mode
+     d'elle-même. --}}
+<script>
+    try {
+        if (window.frameElement && window.frameElement.id === 'piece-a-imprimer-cadre') {
+            document.body.classList.add('integre');
+        }
+    } catch (e) {}
+</script>
 <style>
     body.integre .sidebar, body.integre .topbar, body.integre .alerte-stickers,
     body.integre .banner-apercu, body.integre #visite-guidee,
     body.integre a.print-btn[href*="/ventes/factures"] { display: none !important; }
     body.integre .main-wrap { margin-left: 0 !important; padding-top: 0 !important; }
 </style>
-@endif
 @if($__bloque || $__confirme)
 <style>
     /* Rien ne se clique dans l'espace… */
@@ -1622,10 +1632,9 @@
                             <i class="fas fa-file-invoice" style="color:var(--primary);"></i>
                             {{ $__piece['libelle'] }} {{ $__piece['numero'] }}
                         </strong>
+                        {{-- Ticket et Imprimer faisaient doublon avec « Aperçu reçu »
+                             et « Imprimer / PDF » de la pièce elle-même (23/10/2026). --}}
                         <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                            <button type="button" class="btn btn-primary btn-sm" data-piece-vue="{{ $__piece['facture'] }}"><i class="fas fa-file-lines"></i> Facture</button>
-                            <button type="button" class="btn btn-outline btn-sm" data-piece-vue="{{ $__piece['ticket'] }}"><i class="fas fa-receipt"></i> Ticket</button>
-                            <button type="button" class="btn btn-success btn-sm" id="piece-a-imprimer-imprimer"><i class="fas fa-print"></i> Imprimer</button>
                             <button type="button" class="btn btn-outline btn-sm" id="piece-a-imprimer-fermer"><i class="fas fa-xmark"></i> Fermer</button>
                         </div>
                     </div>
@@ -1637,19 +1646,34 @@
             (function () {
                 var boite = document.getElementById('piece-a-imprimer');
                 var cadre = document.getElementById('piece-a-imprimer-cadre');
-                function fermer() { boite.remove(); }
-                boite.querySelectorAll('[data-piece-vue]').forEach(function (b) {
-                    b.addEventListener('click', function () {
-                        cadre.src = b.getAttribute('data-piece-vue');
-                        boite.querySelectorAll('[data-piece-vue]').forEach(function (x) {
-                            x.classList.toggle('btn-primary', x === b);
-                            x.classList.toggle('btn-outline', x !== b);
-                        });
-                    });
+                var titre = document.getElementById('piece-a-imprimer-titre');
+
+                // Déjà dans la fenêtre (une action de la pièce en a établi une
+                // autre) : pas de fenêtre dans la fenêtre, la nouvelle pièce
+                // prend simplement la place.
+                try {
+                    if (window.frameElement && window.frameElement.id === 'piece-a-imprimer-cadre') {
+                        boite.remove();
+                        window.location.replace(cadre.getAttribute('src'));
+                        return;
+                    }
+                } catch (e) {}
+
+                // Une action dans la fenêtre (commande confirmée, facture
+                // établie) y ouvre la pièce suivante : le titre suit, et la
+                // liste derrière se recharge à la fermeture.
+                var chargements = 0;
+                cadre.addEventListener('load', function () {
+                    chargements++;
+                    try {
+                        var t = (cadre.contentDocument.title || '').replace(/\s+—\s+Selflow$/, '');
+                        if (t) { titre.lastChild.textContent = ' ' + t; }
+                    } catch (e) {}
                 });
-                document.getElementById('piece-a-imprimer-imprimer').addEventListener('click', function () {
-                    try { cadre.contentWindow.focus(); cadre.contentWindow.print(); } catch (e) { window.open(cadre.src, '_blank'); }
-                });
+                function fermer() {
+                    boite.remove();
+                    if (chargements > 1) { window.location.reload(); }
+                }
                 document.getElementById('piece-a-imprimer-fermer').addEventListener('click', fermer);
                 boite.addEventListener('click', function (e) { if (e.target === boite) fermer(); });
                 document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && document.getElementById('piece-a-imprimer')) fermer(); });

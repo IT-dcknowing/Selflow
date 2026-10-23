@@ -6,7 +6,9 @@ et ce fichier. Tout ce qui a été décidé, tout ce qui a été écarté et pou
 tout ce qui reste à faire doit donc figurer ici — et y être tenu à jour à chaque
 lot terminé.
 
-Dernière mise à jour : 22 octobre 2026 — lots 124 à 126 : un abonnement payé par
+Dernière mise à jour : 23 octobre 2026 — lot 127 : retours du test des
+nouvelles fonctionnalités (panier de la vente, fiche technique, fenêtre de la
+pièce). Lots 124 à 126 : un abonnement payé par
 référence reste bloqué « En attente de confirmation » jusqu'à la confirmation
 du superadministrateur, même en échec ; pas de panne si sa migration n'est
 pas jouée ; l'auteur d'une panne, son poste et son entreprise. Lots 116 à 123 (20/10) : les points de
@@ -9677,6 +9679,52 @@ défaut sans déplier le détail.
 
 - `RegistreDesPannesTest` (+1). Suite, lots 125 et 126 compris :
   1 922 épreuves, 1 917 passantes, 5 ignorées.
+
+---
+
+### Lot 127 — Test des nouvelles fonctionnalités (23/10/2026) — **TERMINÉ le 23/10/2026**
+
+Source : `test des nouveau fonctionnalité de selflow.docx`, sept captures.
+
+**1. Vente pas à pas : « articles.0.produit_id est invalide » à la validation.**
+
+- **Cause.** Le panier de la vente vit dans le navigateur
+  (`localStorage`, clé `selflow_vente_panier`), commune à toutes les
+  entreprises. Le compte de test passait de « eve service » à « eve disagn »
+  : le panier ramenait les articles de l'autre entreprise, et la validation
+  les refusait, à bon droit.
+- **Correctif.** Le panier porte sa portée (entreprise, point de vente,
+  utilisateur). Un panier commencé ailleurs ne revient pas, pas plus qu'un
+  article qui n'est plus proposé sur le site. La saisie libre revient. La
+  clé ne change pas, si bien que la remise à zéro après une vente, faite
+  dans `factures/vente.blade.php` (périmètre gelé), vaut toujours.
+
+**2. Fiche technique : le nom du produit fabriqué ne se corrigeait pas.**
+
+- En modification, le nom devient un champ (`produit_fini_nom`). Le corriger
+  renomme l'article au catalogue, comme le fait déjà la fiche article ; sa
+  référence et son stock ne changent pas.
+- Un nom déjà porté par un autre article de l'entreprise est refusé.
+
+**3. Doublons « Ticket » et « Imprimer » dans la fenêtre de la pièce.**
+
+L'en-tête de la fenêtre ouverte après l'enregistrement (lot 108) répétait
+« Aperçu reçu » et « Imprimer / PDF », que la pièce porte déjà. Il ne garde
+que « Fermer ».
+
+**4. « Confirmer la commande » et « Valider & Facturer » ouvraient la page entière dans la fenêtre.**
+
+- Une page chargée dans le cadre de la fenêtre (`piece-a-imprimer-cadre`)
+  prend d'elle-même le mode intégré : ni menu, ni barre. On n'a pas touché
+  aux documents imprimés.
+- Le titre de la fenêtre suit la pièce affichée (Bon de commande, Facture).
+- À la fermeture, la liste derrière se recharge si une action a eu lieu.
+- Une pièce établie depuis la fenêtre y prend la place de l'autre, sans
+  ouvrir une fenêtre dans la fenêtre.
+
+- `ProductionRecetteTest` (+1), `ImpressionDepuisLaVenteTest` (+1). Suite :
+  1 924 épreuves, 1 919 passantes, 5 ignorées. Le comportement dans le
+  navigateur (cadre, titre, rechargement) n'a pas été éprouvé dans Chromium.
 
 ---
 

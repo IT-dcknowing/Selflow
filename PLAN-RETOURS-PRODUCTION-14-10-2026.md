@@ -242,3 +242,13 @@ secret `external/*` par entreprise (moyen terme).
 | Pannes : nom, poste et entreprise de qui a rencontré le défaut | lot 126 |
 | Contre-attaque | **refusée** (illégal) ; défense outillée |
 | Relais WhatsApp | à brancher (URL d'un relais) |
+
+## Test des nouvelles fonctionnalités (« test des nouveau fonctionnalité de selflow.docx ») — 23/10/2026
+
+| Image | Retour | Fait |
+|---|---|---|
+| 1 | Vente pas à pas : « articles.0.produit_id est invalide » à la validation | lot 127 : le panier gardé dans le navigateur porte sa portée (entreprise, site, utilisateur) ; celui d'une autre entreprise ne revient plus |
+| 2 | Fiche technique : le nom du produit fabriqué ne se modifie pas | lot 127 : nom modifiable en modification de la recette, refusé s'il est déjà pris |
+| 3 | Doublons « Ticket » et « Imprimer » dans la fenêtre de la facture | lot 127 : l'en-tête ne garde que « Fermer » |
+| 4-5 | « Confirmer la commande » ouvre la page entière dans la fenêtre | lot 127 : la page chargée dans la fenêtre s'affiche sans menu, le titre suit la pièce |
+| 6-7 | « Valider & Facturer » : la barre latérale apparaît avec la facture | lot 127 : idem |

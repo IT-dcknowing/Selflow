@@ -151,6 +151,29 @@ class ProductionRecetteTest extends TestCase
         $this->assertEqualsWithDelta(0.005, (float) $fiche->details->firstWhere('ingredient_id', $this->levure->id)->quantite, 1e-9);
     }
 
+    /** 23/10/2026 : le nom du produit fabriqué se corrige depuis la fiche, en cas de faute de saisie. */
+    public function test_le_nom_du_produit_fabrique_se_corrige_depuis_la_fiche(): void
+    {
+        $fiche = $this->ecrireRecette();
+        $ingredients = [['ingredient_id' => $this->farine->id, 'quantite' => 0.2, 'unite' => 'kg']];
+
+        $this->get(route('admin.production.fiches_techniques.modifier', $fiche))->assertOk()
+            ->assertSee('name="produit_fini_nom"', false)
+            ->assertSee('value="Baguette"', false);
+
+        $this->put(route('admin.production.fiches_techniques.modifier.enregistrer', $fiche), [
+            'produit_fini_nom' => 'Baguette tradition', 'description' => 'x', 'ingredients' => $ingredients,
+        ])->assertSessionHasNoErrors()->assertRedirect(route('admin.production.fiches_techniques.index'));
+        $this->assertSame('Baguette tradition', $this->baguette->fresh()->nom);
+        $this->assertSame('PF-001', $this->baguette->fresh()->reference);
+
+        // Un nom déjà pris par un autre article est refusé.
+        $this->put(route('admin.production.fiches_techniques.modifier.enregistrer', $fiche), [
+            'produit_fini_nom' => 'farine de blé', 'description' => 'x', 'ingredients' => $ingredients,
+        ])->assertSessionHasErrors('produit_fini_nom');
+        $this->assertSame('Baguette tradition', $this->baguette->fresh()->nom);
+    }
+
     public function test_l_ordre_se_cree_en_brouillon_avec_un_code_et_ne_touche_pas_au_stock(): void
     {
         $this->ecrireRecette();
