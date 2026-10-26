@@ -7,7 +7,7 @@ tout ce qui reste à faire doit donc figurer ici — et y être tenu à jour à 
 lot terminé.
 
 Dernière mise à jour : 26 octobre 2026 — lot 133 : exports de l'inventaire
-mis en forme, filigrane sur le PDF et l'Excel. Lots 128 à 132 : configuration des
+mis en forme, filigrane SELFLOW sur le PDF et l'Excel. Lots 128 à 132 : configuration des
 comptes en un tableau (proposé / personnalisé, variation de stock), solde du
 client sur la facture, annulation des devis, commandes et commandes d'achat,
 ruptures masquées à la vente, export de l'inventaire en PDF et Excel. Avant :
@@ -9924,9 +9924,10 @@ Demande du propriétaire : des exports PDF et Excel propres, bien présentés,
 avec un filigrane sur l'un comme sur l'autre.
 
 **Le filigrane** (`FiligraneService`). Une image PNG transparente, dessinée
-par GD avec la police DejaVu du dépôt, sans rien chercher sur le réseau : le
-nom de l'entreprise en diagonale, « Inventaire de stock » dessous, en bleu
-très pâle.
+par GD avec la police DejaVu du dépôt, sans rien chercher sur le réseau :
+**SELFLOW** en grand et en diagonale, en bleu très pâle. Le propriétaire a
+précisé le jour même que le filigrane est la marque de l'application, et non
+le nom de l'entreprise (`FiligraneService::MARQUE`).
 
 - **PDF.** L'image est posée sur chaque page, au-dessus du contenu mais
   transparente : sous les lignes grisées, elle ne se voyait plus.

@@ -82,7 +82,7 @@ class ExportInventaireTest extends TestCase
         $this->assertEquals(120000, $feuille->getCell('G5')->getCalculatedValue());
     }
 
-    /** 27/10/2026 : le filigrane au nom de l'entreprise, à l'écran et à l'impression. */
+    /** 26/10/2026 : le filigrane SELFLOW, à l'écran et à l'impression. */
     public function test_l_export_excel_porte_le_filigrane(): void
     {
         $reponse = $this->actingAs($this->admin)
@@ -107,7 +107,7 @@ class ExportInventaireTest extends TestCase
 
     public function test_le_filigrane_est_une_image_png(): void
     {
-        $png = \App\Modules\Admin\Services\FiligraneService::png('Deux sites', 'Inventaire de stock');
+        $png = \App\Modules\Admin\Services\FiligraneService::png();
         $this->assertNotNull($png);
         $this->assertSame("\x89PNG", substr($png, 0, 4));
     }

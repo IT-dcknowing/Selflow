@@ -131,7 +131,7 @@ class DocumentPdfService
      */
     /**
      * L'inventaire de stock d'un site, en A4 (26/10/2026) : logo de
-     * l'entreprise, filigrane à son nom sur chaque page (27/10/2026), et
+     * l'entreprise, filigrane SELFLOW sur chaque page (27/10/2026), et
      * pagination en pied de page.
      */
     public function inventaire(array $donnees): string
@@ -140,7 +140,7 @@ class DocumentPdfService
 
         return $this->rendre('admin::stock.inventaire_pdf', $donnees + [
             'logo'      => $this->logo($entreprise),
-            'filigrane' => FiligraneService::dataUri((string) $entreprise->nom, 'Inventaire de stock'),
+            'filigrane' => FiligraneService::dataUri(),
         ], 'A4', $entreprise->nom . ' — Inventaire ' . $donnees['site']->nom);
     }
 
