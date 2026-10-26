@@ -10,18 +10,25 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 
 /**
- * Recenser les pièces en double (urgence du 26/10/2026). Ne modifie rien.
+ * Recenser les pièces en double, et les numéros qui sautent (urgence du
+ * 26/10/2026, resserrée le jour même après la première exécution en ligne).
+ * Ne modifie rien.
  *
- * Deux sortes de doublons :
- *
- * 1. **le même numéro** porté par deux pièces de la même entreprise : la
- *    numérotation comptait les pièces sans verrou ;
- * 2. **la même vente enregistrée deux fois** : même site, même client, même
- *    montant, même nombre de lignes, à quelques secondes d'intervalle — un
- *    double clic ou un renvoi de page.
+ * 1. **Même numéro** sur deux pièces de la même entreprise : la
+ *    numérotation comptait les pièces sans verrou, et deux envois simultanés
+ *    (un double clic) recevaient le même numéro.
+ * 2. **Double envoi** : la même pièce enregistrée deux fois par le même
+ *    utilisateur, sur le même site, pour le même tiers, avec **exactement les
+ *    mêmes lignes** (article, quantité, prix) et à quelques secondes
+ *    d'intervalle (10 s par défaut). La première version comparait le seul
+ *    montant sur deux minutes : une poissonnerie vend dix fois l'heure le même
+ *    article au même prix, et tout cela sortait en « doublon ».
+ * 3. **Numéros manquants** : les trous de chaque séquence (par préfixe, site
+ *    et jour — ou par année pour les devis, commandes et BL). Ils venaient du
+ *    même défaut : deux pièces sous un numéro, et la suivante sautait d'un cran.
  *
  *   php artisan selflow:doublons-factures
- *   php artisan selflow:doublons-factures "poissonnerie EDEN" --secondes=180
+ *   php artisan selflow:doublons-factures "poissonnerie EDEN" --secondes=5
  *
  * Une pièce normalisée ne se supprime pas : la DGI l'a certifiée, seul un
  * avoir la corrige. Les autres s'annulent depuis la liste des factures.
@@ -29,9 +36,10 @@ use Illuminate\Support\Collection;
 class DoublonsFactures extends Command
 {
     protected $signature = 'selflow:doublons-factures {entreprise? : identifiant ou nom ; toutes si absent}
-                            {--secondes=120 : écart maximal entre deux enregistrements identiques}';
+                            {--secondes=10 : écart maximal entre deux enregistrements identiques}
+                            {--sans-trous : ne pas lister les numéros manquants}';
 
-    protected $description = 'Recense les factures en double (même numéro, ou même vente enregistrée deux fois). Ne modifie rien.';
+    protected $description = 'Recense les factures en double (même numéro, double envoi) et les numéros manquants. Ne modifie rien.';
 
     public function handle(): int
     {
@@ -43,14 +51,15 @@ class DoublonsFactures extends Command
             foreach ([Vente::class => 'Ventes', Achat::class => 'Achats'] as $classe => $libelle) {
                 $pieces = $classe::withoutGlobalScope(PeriodeScope::class)
                     ->whereHas('pointDeVente', fn ($q) => $q->where('entreprise_id', $entreprise->id))
-                    ->withCount('details')
+                    ->with('details')
                     ->orderBy('id')
                     ->get();
 
                 $memeNumero = $pieces->groupBy('numero_facture')->filter(fn (Collection $g) => $g->count() > 1);
                 $doubleEnvoi = $this->doublesEnvois($pieces, $fenetre, $classe === Vente::class ? 'client_id' : 'fournisseur_id');
+                $trous = $this->option('sans-trous') ? [] : $this->numerosManquants($pieces->pluck('numero_facture'));
 
-                if ($memeNumero->isEmpty() && $doubleEnvoi === []) {
+                if ($memeNumero->isEmpty() && $doubleEnvoi === [] && $trous === []) {
                     continue;
                 }
 
@@ -69,7 +78,7 @@ class DoublonsFactures extends Command
                 }
 
                 if ($doubleEnvoi !== []) {
-                    $this->line("  Même pièce enregistrée deux fois (moins de {$fenetre} s d'écart) :");
+                    $this->line("  Même pièce enregistrée deux fois — même vendeur, mêmes lignes, moins de {$fenetre} s d'écart :");
                     $this->table(['Première', 'Seconde', 'Montant TTC', 'Écart', 'Normalisée(s)'], array_map(fn ($p) => [
                         $p[0]->numero_facture . ' (#' . $p[0]->id . ')',
                         $p[1]->numero_facture . ' (#' . $p[1]->id . ')',
@@ -78,6 +87,16 @@ class DoublonsFactures extends Command
                         collect($p)->where('normalise', true)->pluck('numero_facture')->implode(', ') ?: 'aucune',
                     ], $doubleEnvoi));
                     $total += count($doubleEnvoi);
+                }
+
+                if ($trous !== []) {
+                    $this->line('  Numéros manquants dans la séquence :');
+                    $this->table(['Séquence', 'Manquants'], array_map(fn ($sequence, $manquants) => [
+                        $sequence . '…',
+                        count($manquants) > 12
+                            ? implode(', ', array_slice($manquants, 0, 12)) . ' … (' . count($manquants) . ' au total)'
+                            : implode(', ', $manquants),
+                    ], array_keys($trous), $trous));
                 }
             }
         }
@@ -92,8 +111,10 @@ class DoublonsFactures extends Command
 
     /**
      * Les paires de pièces identiques enregistrées à quelques secondes
-     * d'intervalle : même site, même tiers, même étape, même nature, même
-     * montant, même nombre de lignes.
+     * d'intervalle : même site, même tiers, même utilisateur, même étape, même
+     * nature, même montant et **mêmes lignes** (article, libellé, quantité,
+     * prix). Deux ventes d'un même article au même prix par deux clients
+     * différents, ou à plusieurs minutes d'écart, ne sont pas des doublons.
      *
      * @return array<int, array{0: \Illuminate\Database\Eloquent\Model, 1: \Illuminate\Database\Eloquent\Model}>
      */
@@ -101,8 +122,14 @@ class DoublonsFactures extends Command
     {
         $paires = [];
         $groupes = $pieces->groupBy(fn ($p) => implode('|', [
-            $p->point_de_vente_id, $p->$tiers ?? 0, $p->etape, $p->type_facture ?? '',
-            number_format((float) $p->montant_ttc, 2, '.', ''), $p->details_count,
+            $p->point_de_vente_id, $p->$tiers ?? 0, $p->utilisateur_id ?? 0, $p->etape, $p->type_facture ?? '',
+            number_format((float) $p->montant_ttc, 2, '.', ''),
+            $p->details
+                ->map(fn ($d) => implode(':', [
+                    $d->produit_id ?? 0, mb_strtolower(trim((string) $d->libelle_virtuel)),
+                    number_format((float) $d->quantite, 3, '.', ''), number_format((float) $d->prix_unitaire, 2, '.', ''),
+                ]))
+                ->sort()->implode(';'),
         ]));
 
         foreach ($groupes as $groupe) {
@@ -111,13 +138,51 @@ class DoublonsFactures extends Command
                 $avant = $groupe[$i - 1];
                 $apres = $groupe[$i];
                 if ($avant->created_at && $apres->created_at
-                    && $avant->created_at->diffInSeconds($apres->created_at) <= $fenetre) {
+                    && abs($apres->created_at->getTimestamp() - $avant->created_at->getTimestamp()) <= $fenetre) {
                     $paires[] = [$avant, $apres];
                 }
             }
         }
 
         return $paires;
+    }
+
+    /**
+     * Les trous de chaque séquence de numéros.
+     *
+     * - `VTE-01-261026-028` : séquence `VTE-01-261026-`, remise à 1 chaque jour ;
+     * - `BC-01-23-10-2026-0007` : séquence `BC-01-` de l'année 2026 — ces
+     *   numéros portent la date du jour, mais le compteur court sur l'année.
+     *
+     * @param  Collection<int, string>  $numeros
+     * @return array<string, array<int, string>>  séquence => numéros manquants
+     */
+    private function numerosManquants(Collection $numeros): array
+    {
+        $sequences = [];
+        foreach ($numeros->filter()->unique() as $numero) {
+            if (preg_match('/^(.*-)(\d{2}-\d{2}-(\d{4})-)(\d{4})$/', $numero, $m)) {
+                $sequences[$m[1] . '…' . $m[3]][(int) $m[4]] = $numero;
+            } elseif (preg_match('/^(.*-\d{6}-)(\d{3,})$/', $numero, $m)) {
+                $sequences[$m[1]][(int) $m[2]] = $numero;
+            }
+        }
+
+        $trous = [];
+        foreach ($sequences as $sequence => $presents) {
+            $manquants = [];
+            for ($n = 1; $n < max(array_keys($presents)); $n++) {
+                if (!isset($presents[$n])) {
+                    $manquants[] = str_pad((string) $n, str_contains($sequence, '…') ? 4 : 3, '0', STR_PAD_LEFT);
+                }
+            }
+            if ($manquants !== []) {
+                $trous[$sequence] = $manquants;
+            }
+        }
+        ksort($trous);
+
+        return $trous;
     }
 
     /** @return Collection<int, Entreprise> */
