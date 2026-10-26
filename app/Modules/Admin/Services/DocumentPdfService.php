@@ -129,6 +129,12 @@ class DocumentPdfService
      * Le numéro FNE d'abord quand il existe : c'est lui qui identifie la pièce
      * auprès de l'administration, et c'est sous ce nom qu'on la retrouvera.
      */
+    /** L'inventaire de stock d'un site, en A4 (26/10/2026). */
+    public function inventaire(array $donnees): string
+    {
+        return $this->rendre('admin::stock.inventaire_pdf', $donnees);
+    }
+
     public static function nomDuFichier(Vente|Achat $piece, string $suffixe = ''): string
     {
         $base = $piece->numero_fne ?: $piece->numero_facture;

@@ -146,6 +146,8 @@ Route::prefix('admin')
             // Inventaire physique : le comptage, et l'ecart qu'il produit.
             Route::get('/inventaire', [StockControleur::class, 'inventaire'])->name('inventaire');
             Route::post('/inventaire', [StockControleur::class, 'enregistrerInventaire'])->name('inventaire.enregistrer');
+            Route::get('/inventaire/export/{format}', [StockControleur::class, 'exporterInventaire'])
+                ->whereIn('format', ['pdf', 'excel'])->name('inventaire.exporter');
             Route::post('/rebut', [StockControleur::class, 'retirerRebut'])->name('rebut.retirer');
 
             // Entrée de stock sans achat saisi : achat sans facture, retour, don.

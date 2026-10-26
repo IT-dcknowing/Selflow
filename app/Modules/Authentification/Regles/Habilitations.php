@@ -405,6 +405,7 @@ class Habilitations
         'admin.stock.rebut.retirer'          => 'stock_articles',
         'admin.stock.inventaire'             => 'stock_articles',
         'admin.stock.inventaire.enregistrer' => 'stock_articles',
+        'admin.stock.inventaire.exporter'    => 'stock_articles',
         'admin.stock.entree'                 => 'stock_articles',
         'admin.stock.entree.enregistrer'     => 'stock_articles',
         'admin.stock.transferts.index'       => 'stock_articles',
