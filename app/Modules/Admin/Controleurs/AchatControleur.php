@@ -797,9 +797,44 @@ class AchatControleur
             ->update(['reference_commande' => $nouveau]);
     }
 
+    /**
+     * Annuler une demande de prix ou un bon de commande fournisseur
+     * (26/10/2026). Rien n'est encore reçu : ni stock ni écriture en jeu. La
+     * pièce reste dans la liste, « Annulée » avec son motif, et ne s'attend
+     * plus en réception. Une commande déjà reçue, même en partie, ou facturée,
+     * ne s'annule pas ici.
+     */
+    public function annulerCommande(Request $request, Achat $achat): RedirectResponse
+    {
+        $this->autoriserAcces($achat);
+
+        $donnees = $request->validate([
+            'motif' => ['required', 'string', 'max:200'],
+        ], ['motif.required' => 'Indiquez le motif de l\'annulation.']);
+
+        $refus = match (true) {
+            !in_array($achat->etape, ['Demande de prix', 'Bon de commande'], true) => 'Seules une demande de prix ou une commande s\'annulent ici.',
+            $achat->estAnnulee() => 'Ce document est déjà annulé.',
+            !$achat->rienNEstRecu() => 'Cette commande a déjà été reçue, au moins en partie : elle ne s\'annule plus.',
+            default => null,
+        };
+        if ($refus) {
+            return back()->with('erreur', $refus);
+        }
+
+        $achat->forceFill(['statut' => Achat::STATUT_ANNULEE]
+            + (\Illuminate\Support\Facades\Schema::hasColumn('achats', 'motif_annulation') ? ['motif_annulation' => $donnees['motif']] : []))
+            ->save();
+
+        return back()->with('succes', $achat->etape . ' ' . $achat->numero_facture . ' annulé(e).');
+    }
+
     public function confirmerCommande(Achat $achat): RedirectResponse
     {
         $this->autoriserAcces($achat);
+        if ($achat->estAnnulee()) {
+            return back()->with('erreur', 'Cette demande de prix est annulée.');
+        }
         if ($achat->etape !== 'Demande de prix') {
             return back()->with('info', 'Le document n\'est pas à l\'étape Demande de prix.');
         }
@@ -824,6 +859,9 @@ class AchatControleur
     public function facturer(Request $request, Achat $achat): RedirectResponse
     {
         $this->autoriserAcces($achat);
+        if ($achat->estAnnulee()) {
+            return back()->with('erreur', 'Cette commande est annulée : elle ne se facture pas.');
+        }
         if ($achat->etape === 'Facture') {
             return back()->with('info', 'Cette facture est déjà validée.');
         }

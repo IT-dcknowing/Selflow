@@ -568,6 +568,16 @@
                                         <i class="fas fa-trash"></i> Supprimer
                                     </button>
                                 </form>
+                            @elseif($estDevisOuBC && $vente->estAnnulee())
+                                {{-- Devis ou commande annulé(e) (26/10/2026) : plus rien à faire. --}}
+                                <div style="white-space:normal; max-width:220px;">
+                                    <span class="badge" style="background:#dc2626; color:#fff; font-weight:700; font-size:11px; padding:4px 8px; border-radius:6px;">
+                                        <i class="fas fa-ban"></i> Annulé(e)
+                                    </span>
+                                    @if($motifAnnulation = $vente->motifAnnulation())
+                                        <div style="font-size:11px; color:#b91c1c; margin-top:4px;">Motif : {{ $motifAnnulation }}</div>
+                                    @endif
+                                </div>
                             @elseif($estDevisOuBC)
                                 {{-- Mode Devis / Bon de commande : actions de workflow --}}
 
@@ -616,6 +626,23 @@
                                         <i class="fas fa-truck"></i> &rarr; BL
                                     </a>
                                     @endif
+                                @endif
+
+                                {{-- Annuler un devis ou une commande ni livré(e) ni
+                                     transformé(e) (26/10/2026). L'administrateur l'a
+                                     d'office, les autres sur habilitation. --}}
+                                @if(!$vente->estConverti() && !$vente->aDesLivraisons()
+                                    && ($peutAnnulerCommande ??= \App\Modules\Authentification\Regles\Habilitations::ouvre(Auth::user(), 'admin.ventes.annuler_commande')))
+                                <form method="POST" action="{{ $isCaissier ? route('caissier.ventes.annuler_commande', $vente) : route('admin.ventes.annuler_commande', $vente) }}"
+                                      class="form-annuler-commande" style="display:inline; margin:0;"
+                                      data-numero="{{ $vente->numero_facture }}"
+                                      onsubmit="return demanderMotifAnnulation(this);">
+                                    @csrf
+                                    <input type="hidden" name="motif" value="">
+                                    <button type="submit" class="btn btn-sm" style="background:#fef2f2; color:#dc2626; border:0.5px solid #fca5a5; font-weight:700; font-size:11px; padding:4px 8px;" title="Annuler ce document">
+                                        <i class="fas fa-ban"></i> Annuler
+                                    </button>
+                                </form>
                                 @endif
 
                             @else
@@ -1726,8 +1753,10 @@ function annulerJobArrierePlan() {
         <div style="padding:18px 22px; border-bottom:1px solid var(--border); display:flex; gap:12px; align-items:center;">
             <span style="width:38px; height:38px; border-radius:10px; background:#fee2e2; color:#dc2626; display:flex; align-items:center; justify-content:center;"><i class="fas fa-ban"></i></span>
             <div>
-                <div style="font-weight:800; font-size:15px;">Annuler la facture <span id="annulation-numero"></span></div>
-                <div style="font-size:12.5px; color:var(--text-3);">
+                <div style="font-weight:800; font-size:15px;"><span id="annulation-titre">Annuler la facture</span> <span id="annulation-numero"></span></div>
+                <div style="font-size:12.5px; color:var(--text-3);" id="annulation-effet"
+                     data-facture="Le stock sera réinjecté{{ $__comptaOuverte ? ' et les écritures contre-passées' : '' }}."
+                     data-commande="Rien n'a été livré ni facturé : le document reste visible, marqué « Annulé ».">
                     Le stock sera réinjecté{{ $__comptaOuverte ? ' et les écritures contre-passées' : '' }}.
                 </div>
             </div>
@@ -1739,7 +1768,7 @@ function annulerJobArrierePlan() {
         </div>
         <div style="padding:14px 22px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px;">
             <button type="button" class="btn btn-outline" onclick="fermerAnnulation()">Retour</button>
-            <button type="button" class="btn" style="background:#dc2626; color:#fff; border:none;" onclick="confirmerAnnulation()"><i class="fas fa-ban"></i> Annuler la facture</button>
+            <button type="button" class="btn" style="background:#dc2626; color:#fff; border:none;" onclick="confirmerAnnulation()"><i class="fas fa-ban"></i> <span id="annulation-bouton">Annuler la facture</span></button>
         </div>
     </div>
 </div>
@@ -1749,6 +1778,12 @@ function demanderMotifAnnulation(form) {
     if (form.dataset.confirme === '1') return true;
     formulaireAnnulation = form;
     document.getElementById('annulation-numero').textContent = form.dataset.numero || '';
+    // La même fenêtre sert au devis et à la commande (26/10/2026).
+    var commande = form.classList.contains('form-annuler-commande');
+    var effet = document.getElementById('annulation-effet');
+    document.getElementById('annulation-titre').textContent = commande ? 'Annuler le document' : 'Annuler la facture';
+    document.getElementById('annulation-bouton').textContent = commande ? 'Annuler le document' : 'Annuler la facture';
+    effet.textContent = commande ? effet.dataset.commande : effet.dataset.facture;
     document.getElementById('annulation-motif').value = '';
     document.getElementById('annulation-erreur').style.display = 'none';
     document.getElementById('modal-annulation').style.display = 'flex';

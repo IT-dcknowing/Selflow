@@ -112,6 +112,7 @@ class StockControleur
          * Le filtre porte donc sur l'article autant que sur la quantité.
          */
         $qReceptions = Achat::whereIn('etape', ['Bon de commande', 'Facture'])
+            ->where(fn ($a) => $a->whereNull('statut')->orWhere('statut', '!=', 'Annulée'))
             ->whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entreprise->id))
             ->whereHas('details', function($q) {
                 $q->whereColumn('quantite', '>', 'quantite_receptionnee')
@@ -119,6 +120,7 @@ class StockControleur
             });
 
         $qLivraisons = Vente::whereIn('etape', ['Bon de commande', 'Facture'])
+            ->where(fn ($a) => $a->whereNull('statut')->orWhere('statut', '!=', 'Annulée'))
             ->whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entreprise->id))
             ->whereHas('details', function($q) {
                 $q->whereColumn('quantite', '>', 'quantite_livree')
@@ -661,6 +663,7 @@ class StockControleur
         $achats = Achat::with(['fournisseur', 'pointDeVente', 'details.produit'])
             ->whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entreprise->id))
             ->whereIn('etape', ['Bon de commande', 'Facture'])
+            ->where(fn ($a) => $a->whereNull('statut')->orWhere('statut', '!=', 'Annulée'))
             // Même règle que le compteur : une commande de services n'a rien
             // à recevoir, et ne doit pas encombrer la file.
             ->whereHas('details', function ($q) {
@@ -779,6 +782,7 @@ class StockControleur
         $ventes = Vente::with(['client', 'pointDeVente', 'details.produit'])
             ->whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entreprise->id))
             ->whereIn('etape', ['Bon de commande', 'Facture'])
+            ->where(fn ($a) => $a->whereNull('statut')->orWhere('statut', '!=', 'Annulée'))
             // Même règle qu'à la réception : une prestation de service ne se
             // livre pas depuis un stock, et sa ligne resterait « à livrer »
             // pour toujours.

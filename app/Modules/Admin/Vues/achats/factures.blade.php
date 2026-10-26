@@ -583,7 +583,17 @@
                                  les demandes de prix et les commandes). --}}
                             {{-- Une pièce née d'une négociation B2B suit le parcours B2B :
                                  c'est le fournisseur qui confirme, livre et facture. --}}
-                            @if($achat->b2b_negotiation_id && $achat->etape !== 'Facture' && $achat->statut !== 'En attente B2B')
+                            @if($achat->estAnnulee())
+                                {{-- Demande de prix ou commande annulée (26/10/2026). --}}
+                                <div style="white-space:normal; max-width:220px;">
+                                    <span class="badge" style="background:#dc2626; color:#fff; font-weight:700; font-size:11px; padding:4px 8px; border-radius:6px;">
+                                        <i class="fas fa-ban"></i> Annulée
+                                    </span>
+                                    @if($achat->motif_annulation ?? null)
+                                        <div style="font-size:11px; color:#b91c1c; margin-top:4px;">Motif : {{ $achat->motif_annulation }}</div>
+                                    @endif
+                                </div>
+                            @elseif($achat->b2b_negotiation_id && $achat->etape !== 'Facture' && $achat->statut !== 'En attente B2B')
                                 <a href="{{ route('admin.b2b.client.voir', \App\Modules\Admin\Modeles\B2bNegotiation::find($achat->b2b_negotiation_id)) }}" class="btn btn-sm btn-outline" style="font-weight:700; font-size:11px; padding:4px 8px; text-decoration:none;">
                                     <i class="fas fa-comments-dollar"></i> Suivre en B2B
                                 </a>
@@ -599,6 +609,23 @@
                                 <a href="{{ route('admin.achats.imprimer', $achat) }}?facturer=1" class="btn btn-sm" style="font-weight:700; font-size:11px; padding:4px 8px; background:#10b981; color:#fff; border:none; text-decoration:none;" title="La livraison est reçue : établir la facture">
                                     <i class="fas fa-file-invoice-dollar"></i> Facturer
                                 </a>
+                            @endif
+
+                            {{-- Annuler une demande de prix ou une commande dont rien
+                                 n'est reçu (26/10/2026) : l'administrateur d'office,
+                                 les autres sur habilitation. --}}
+                            @if(!$achat->estAnnulee() && in_array($achat->etape, ['Demande de prix', 'Bon de commande'], true)
+                                && $achat->statut !== 'En attente B2B' && !$achat->b2b_negotiation_id && $achat->rienNEstRecu()
+                                && ($peutAnnulerAchat ??= \App\Modules\Authentification\Regles\Habilitations::ouvre(Auth::user(), 'admin.achats.annuler_commande')))
+                                <form method="POST" action="{{ route('admin.achats.annuler_commande', $achat) }}" style="display:inline; margin:0;"
+                                      class="form-annuler-achat"
+                                      onsubmit="var m = prompt('Motif de l\'annulation de {{ $achat->numero_facture }} ?'); if (!m || !m.trim()) return false; this.motif.value = m.trim(); return true;">
+                                    @csrf
+                                    <input type="hidden" name="motif" value="">
+                                    <button type="submit" class="btn btn-sm" style="background:#fef2f2; color:#dc2626; border:0.5px solid #fca5a5; font-weight:700; font-size:11px; padding:4px 8px;" title="Annuler ce document">
+                                        <i class="fas fa-ban"></i> Annuler
+                                    </button>
+                                </form>
                             @endif
 
                             @if($achat->etape === 'Facture' && $achat->estInformative())

@@ -888,6 +888,7 @@ class Produit extends Model
             ->whereColumn('quantite', '>', 'quantite_livree')
             ->whereHas('vente', function ($q) use ($pointDeVenteId) {
                 $q->where('etape', 'Bon de commande')
+                  ->where(fn ($a) => $a->whereNull('statut')->orWhere('statut', '!=', 'Annulée'))
                   ->when($pointDeVenteId, fn ($r) => $r->where('point_de_vente_id', $pointDeVenteId));
             })
             ->sum(DB::raw('quantite - quantite_livree'));
@@ -905,6 +906,7 @@ class Produit extends Model
             ->whereColumn('quantite', '>', 'quantite_receptionnee')
             ->whereHas('achat', function ($q) use ($pointDeVenteId) {
                 $q->where('etape', 'Bon de commande')
+                  ->where(fn ($a) => $a->whereNull('statut')->orWhere('statut', '!=', 'Annulée'))
                   ->when($pointDeVenteId, fn ($r) => $r->where('point_de_vente_id', $pointDeVenteId));
             })
             ->sum(DB::raw('quantite - quantite_receptionnee'));
@@ -934,6 +936,7 @@ class Produit extends Model
             ->whereColumn('quantite', '>', 'quantite_livree')
             ->whereHas('vente', function ($q) use ($pointDeVenteId) {
                 $q->where('etape', 'Bon de commande')
+                  ->where(fn ($a) => $a->whereNull('statut')->orWhere('statut', '!=', 'Annulée'))
                   ->when($pointDeVenteId, fn ($r) => $r->where('point_de_vente_id', $pointDeVenteId));
             })
             ->groupBy('produit_id')
@@ -945,6 +948,7 @@ class Produit extends Model
             ->whereColumn('quantite', '>', 'quantite_receptionnee')
             ->whereHas('achat', function ($q) use ($pointDeVenteId) {
                 $q->where('etape', 'Bon de commande')
+                  ->where(fn ($a) => $a->whereNull('statut')->orWhere('statut', '!=', 'Annulée'))
                   ->when($pointDeVenteId, fn ($r) => $r->where('point_de_vente_id', $pointDeVenteId));
             })
             ->groupBy('produit_id')

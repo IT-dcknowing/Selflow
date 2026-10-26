@@ -9794,6 +9794,56 @@ l'entreprise voit tout.
 
 ---
 
+### Lot 130 — Annuler les devis, bons de commande et commandes d'achat — **TERMINÉ le 26/10/2026**
+
+Demande du propriétaire : un bouton d'annulation sur les bons de commande et
+sur les achats, toujours disponible pour l'administrateur et sur habilitation
+pour les autres.
+
+**Ventes.** « Annuler » sur un devis ou un bon de commande
+(`admin.ventes.annuler_commande`, et son pendant caissier).
+
+- **Motif obligatoire**, saisi dans la fenêtre d'annulation des factures,
+  dont le texte s'adapte.
+- **Refusé** si la pièce est déjà transformée (devis passé en commande,
+  commande facturée) ou si la commande a été livrée, même en partie : ce qui
+  est parti se règle par la facture et l'avoir.
+- **Ce que l'annulation fait.** La pièce reste dans la liste, marquée
+  « Annulé(e) » avec son motif (`ventes.motif_annulation`). Plus rien ne s'y
+  fait : modifier, envoyer, convertir, accepter, prolonger, livrer, facturer
+  (`refusSiAnnulee`, et `estFige()` vaut vrai).
+
+**Achats.** « Annuler » sur une demande de prix ou un bon de commande
+fournisseur dont rien n'est reçu (`admin.achats.annuler_commande`).
+
+- **Motif obligatoire**, gardé dans `achats.motif_annulation`.
+- **Plus de suite possible** : ni confirmation ni facturation.
+- **Pièces B2B exclues** : une pièce née d'une négociation B2B suit son
+  propre parcours et ne porte pas le bouton.
+
+**Ce qui n'engage plus.** Une commande annulée sort des engagements
+(« commandé », « à réceptionner ») et des files de livraison et de
+réception. Une facture annulée (lot 87) sort aussi de ces files.
+
+**Droits.**
+
+- « Annuler un devis ou un bon de commande vente »
+  (`ventes_annuler_commande`).
+- « Annuler une demande de prix ou une commande d'achat »
+  (`achats_annuler_commande`).
+- L'administrateur les a d'office.
+
+**Reste à décider.** L'annulation d'une facture d'achat : le stock est entré
+et les écritures sont passées, il faudrait les défaire.
+
+Migration `2026_10_26_000002` (colonnes `motif_annulation`). Sans elle,
+l'annulation se fait quand même ; seul le motif n'est pas gardé.
+
+- `CycleVenteAchatRecetteTest` (+6). Suite : 1 938 épreuves, 1 933
+  passantes, 5 ignorées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
