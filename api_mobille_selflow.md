@@ -185,6 +185,12 @@ Permet d'obtenir la liste des produits disponibles, la liste des clients et les 
 - **Méthode** : `GET`
 - **Headers** : Authentification requise
 
+> **Articles proposés (mis à jour le 26/10/2026).** La liste ne contient que
+> les articles référencés sur le point de vente. Si l'entreprise a coché
+> « Masquer les articles en rupture à la vente » dans ses paramètres, les
+> articles stockables à zéro sur le site sont retirés, sauf pour
+> l'administrateur de l'entreprise. Les prestations restent toujours.
+
 #### Réponse de succès (200 OK)
 ```json
 {

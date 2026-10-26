@@ -9767,6 +9767,33 @@ Demande du propriétaire : pouvoir exporter l'inventaire de stock.
 
 ---
 
+### Lot 131 — Masquer les articles en rupture à la vente — **TERMINÉ le 26/10/2026**
+
+Demande du propriétaire : un réglage, et non un comportement imposé à tous,
+pour ne plus proposer à la vente ce qui est en rupture. L'administrateur de
+l'entreprise voit tout.
+
+- **Le réglage.** Carte « Ventes » des paramètres, case « Masquer les
+  articles en rupture à la vente » (`entreprises.masquer_ruptures_vente`,
+  migration `2026_10_26_000001`). Elle est éteinte par défaut.
+- **L'effet.** Coché, un article stockable sans stock sur le point de vente
+  disparaît de la caisse et du pas à pas (`ventes.nouvelle`), de la grille
+  par catégorie et de l'API de vente (`donnees-formulaire`). Les
+  prestations restent. Le filtre est porté par le scope
+  `Produit::sansRuptureAuSite()`.
+- **Qui voit tout.** Un utilisateur au rôle `admin`
+  (`Entreprise::masqueLesRupturesPour()`).
+- **Sans la migration**, rien n'est masqué et l'enregistrement des
+  paramètres n'écrit pas la colonne.
+- La modification d'une vente existante n'est pas filtrée : ses lignes
+  restent modifiables.
+
+- `MasquerRupturesALaVenteTest` (4). Le raccourci « Ventes » est ajouté aux
+  paramètres. `api_mobille_selflow.md` est mis à jour. Suite : 1 932
+  épreuves, 1 927 passantes, 5 ignorées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

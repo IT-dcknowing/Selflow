@@ -38,6 +38,7 @@ class Entreprise extends Model
         'modules_autorises',
         // La case que l'entreprise coche elle-même dans ses paramètres.
         'comptabilite_activee',
+        'masquer_ruptures_vente',
         // `attributions` ne figure PAS ici, et c'est délibéré : c'est ce que
         // le superadministrateur accorde. Assignable en masse, le formulaire
         // des paramètres aurait permis à une entreprise de s'accorder
@@ -99,6 +100,7 @@ class Entreprise extends Model
         'modules_actifs'     => 'array',
         'modules_autorises'  => 'array',
         'comptabilite_activee' => 'boolean',
+        'masquer_ruptures_vente' => 'boolean',
         'attributions'       => 'array',
         'souscription_terminee_le' => 'datetime',
         'abonnement_choisi_le'     => 'datetime',
@@ -786,6 +788,19 @@ class Entreprise extends Model
      * nécessaires pour établir une facture. La comptabilité intervient pour
      * ceux qui la veulent — et ceux-là ont Comptaflow, qui tient les livres.
      */
+    /**
+     * Cet utilisateur doit-il voir, à la vente, les articles en rupture ?
+     * Réglage de l'entreprise (26/10/2026) : coché, ils disparaissent de la
+     * caisse, du pas à pas et de l'API — sauf pour l'administrateur, qui voit
+     * tout. Sans la colonne (migration pas encore jouée), rien n'est masqué.
+     */
+    public function masqueLesRupturesPour(?\App\Modules\Authentification\Modeles\Utilisateur $utilisateur): bool
+    {
+        return (bool) $this->masquer_ruptures_vente
+            && $utilisateur !== null
+            && $utilisateur->role !== 'admin';
+    }
+
     public function comptabiliteOuverte(): bool
     {
         return (bool) $this->comptabilite_activee || $this->aAttribution('comptabilite');
