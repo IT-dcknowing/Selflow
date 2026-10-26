@@ -14,7 +14,10 @@ use Illuminate\Support\Facades\Cache;
  * porte désormais un jeton tiré au hasard à son affichage (`jeton_envoi`) ;
  * le premier envoi le réserve, le second le trouve pris et s'arrête.
  *
- * Un envoi sans jeton (API, ancien onglet resté ouvert) passe comme avant.
+ * L'API mobile envoie le même jeton (`jeton_envoi`, ou l'en-tête
+ * `Idempotency-Key`) : le second envoi reçoit 409 et n'écrit rien. Un envoi
+ * sans jeton (ancien onglet, ancienne version de l'application) passe comme
+ * avant ; ses numéros restent uniques (`NumerotationService`).
  */
 class EnvoiUniqueService
 {
@@ -38,7 +41,9 @@ class EnvoiUniqueService
 
     private static function cle(Request $request, string $nature): ?string
     {
-        $jeton = (string) $request->input('jeton_envoi', '');
+        // Le formulaire envoie `jeton_envoi` ; l'API mobile peut aussi passer
+        // l'en-tête standard `Idempotency-Key` (26/10/2026).
+        $jeton = (string) ($request->input('jeton_envoi') ?: $request->header('Idempotency-Key', ''));
         if ($jeton === '' || strlen($jeton) > 64) {
             return null;
         }
