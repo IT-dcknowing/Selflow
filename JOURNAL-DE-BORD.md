@@ -9728,6 +9728,24 @@ que « Fermer ».
 
 ---
 
+### Plan du 26/10/2026 — lots 128 à 132
+
+Cinq demandes du propriétaire, détaillées dans
+`PLAN-RETOURS-PRODUCTION-14-10-2026.md` (« Retours du 26/10/2026 ») :
+
+1. lot 128 : configuration des comptes en un tableau par niveau ;
+2. lot 129 : solde cumulé du client sur la facture, sur option ;
+3. lot 130 : annulation des devis, bons de commande et commandes d'achat ;
+4. lot 131 : masquer les articles en rupture à la vente, sur option, sauf
+   pour l'administrateur ;
+5. lot 132 : export de l'inventaire en PDF et en Excel.
+
+Méthode, rappelée par le propriétaire le 22/10/2026 : **une branche par
+section de travaux**, nommée en français d'après la section, fusionnée dans
+`main` une fois terminée, puis poussée sur les deux dépôts.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

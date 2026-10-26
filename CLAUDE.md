@@ -6,6 +6,18 @@
 > décisions déjà prises. Le tenir à jour à chaque lot terminé fait partie du lot.
 
 
+## Méthode de travail
+
+- **Une branche par section de travaux**, au nom français tiré de la section
+  (`abonnement-en-attente-de-confirmation`, `export-inventaire-pdf-excel`…).
+- Une fois la section terminée et la suite d'épreuves verte : fusion dans
+  `main`, puis poussée sur les deux dépôts (`IT-dcknowing/Selflow` et
+  `meledjeabrahamagnimel-lgtm/Selflow`).
+- Le journal de bord et le plan des retours se tiennent à jour dans la même
+  branche.
+- Une migration nouvelle ne doit jamais faire tomber l'application tant
+  qu'elle n'est pas jouée sur le serveur (erreur 1054 du 22/10/2026).
+
 ## Règle d'or : la conformité FNE est gelée
 
 **Ne plus modifier le code, les champs ni les données de la FNE (DGI) pendant
