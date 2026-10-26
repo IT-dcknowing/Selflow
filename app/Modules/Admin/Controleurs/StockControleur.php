@@ -294,8 +294,7 @@ class StockControleur
     /**
      * Le classeur de l'inventaire (26/10/2026, mis en forme le 27/10/2026) :
      * un bandeau de titre, quatre chiffres clés, le tableau (valeur, total et
-     * écart en formules, colonne « Compté » à remplir), et le filigrane au nom
-     * de l'entreprise — en fond de feuille à l'écran, en en-tête à l'impression.
+     * écart en formules, colonne « Compté » à remplir), et le filigrane SELFLOW — en fond de feuille à l'écran, en en-tête à l'impression.
      */
     private function inventaireEnExcel(array $donnees, string $nomFichier): \Symfony\Component\HttpFoundation\StreamedResponse
     {
@@ -448,7 +447,7 @@ class StockControleur
         $piedNom = str_replace('&', '&&', (string) $donnees['entreprise']->nom);
 
         // ── Le filigrane, des deux côtés : à l'écran et à l'impression ──
-        $png = \App\Modules\Admin\Services\FiligraneService::png((string) $donnees['entreprise']->nom, 'Inventaire de stock');
+        $png = \App\Modules\Admin\Services\FiligraneService::png();
         $entete = '';
         if ($png !== null) {
             // À l'écran : l'image de fond de la feuille.
@@ -456,7 +455,7 @@ class StockControleur
 
             // À l'impression : l'image d'en-tête, centrée derrière le tableau.
             $fichier = tempnam(sys_get_temp_dir(), 'filigrane') . '.png';
-            file_put_contents($fichier, \App\Modules\Admin\Services\FiligraneService::png((string) $donnees['entreprise']->nom, 'Inventaire de stock', 1600, 1100, 9));
+            file_put_contents($fichier, \App\Modules\Admin\Services\FiligraneService::png(\App\Modules\Admin\Services\FiligraneService::MARQUE, '', 1600, 1100, 9));
             $dessin = new \PhpOffice\PhpSpreadsheet\Worksheet\HeaderFooterDrawing();
             $dessin->setName('Filigrane')->setPath($fichier)->setHeight(430);
             $feuille->getHeaderFooter()->addImage($dessin, \PhpOffice\PhpSpreadsheet\Worksheet\HeaderFooter::IMAGE_HEADER_CENTER);

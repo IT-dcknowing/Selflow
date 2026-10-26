@@ -5,8 +5,8 @@ namespace App\Modules\Admin\Services;
 /**
  * Le filigrane des documents exportés (27/10/2026).
  *
- * Une image PNG transparente : le nom de l'entreprise en diagonale, et la
- * nature du document dessous, en gris très pâle. La même image sert au PDF
+ * Une image PNG transparente : SELFLOW en diagonale, en bleu très pâle —
+ * la marque de l'application, sur décision du propriétaire du 26/10/2026. La même image sert au PDF
  * (fond de chaque page) et au classeur Excel (fond de la feuille à l'écran,
  * image d'en-tête à l'impression) : les deux exports portent la même marque.
  *
@@ -15,14 +15,17 @@ namespace App\Modules\Admin\Services;
  */
 class FiligraneService
 {
+    /** Le texte du filigrane : la marque, et non le nom de l'entreprise. */
+    public const MARQUE = 'SELFLOW';
+
     private const POLICE = 'vendor/dompdf/dompdf/lib/fonts/DejaVuSans-Bold.ttf';
 
     /**
-     * @param  string  $titre       la ligne principale (le nom de l'entreprise)
-     * @param  string  $sousTitre   la nature du document (« INVENTAIRE DE STOCK »)
+     * @param  string  $titre       la ligne principale (SELFLOW par défaut)
+     * @param  string  $sousTitre   une seconde ligne, facultative
      * @return string|null  le contenu PNG, ou null si GD ou la police manquent
      */
-    public static function png(string $titre, string $sousTitre = '', int $largeur = 1600, int $hauteur = 1100, int $opacite = 14): ?string
+    public static function png(string $titre = self::MARQUE, string $sousTitre = '', int $largeur = 1600, int $hauteur = 1100, int $opacite = 14): ?string
     {
         $police = base_path(self::POLICE);
         if (!function_exists('imagettftext') || !is_file($police)) {
@@ -41,7 +44,7 @@ class FiligraneService
 
         $angle = 28;
         $titre = mb_strtoupper(trim($titre)) ?: 'SELFLOW';
-        $taille = self::tailleQuiTient($police, $titre, $angle, $largeur * 0.92, 92);
+        $taille = self::tailleQuiTient($police, $titre, $angle, $largeur * 0.88, 240);
         self::centrer($image, $police, $titre, $taille, $angle, $encre, $largeur / 2, $hauteur / 2 - $taille * 0.35);
 
         if ($sousTitre !== '') {
@@ -59,7 +62,7 @@ class FiligraneService
     }
 
     /** Le même filigrane, prêt à poser dans une page HTML (dompdf). */
-    public static function dataUri(string $titre, string $sousTitre = ''): ?string
+    public static function dataUri(string $titre = self::MARQUE, string $sousTitre = ''): ?string
     {
         $png = self::png($titre, $sousTitre);
 
