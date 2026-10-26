@@ -124,6 +124,63 @@ class FacturesSansDoublonsTest extends TestCase
         $this->assertSame(2, Vente::where('etape', 'Facture')->count());
     }
 
+    /**
+     * Retour du 26/10/2026 sur la première exécution en ligne : deux ventes de
+     * montants égaux mais d'articles différents, ou pour deux clients, ou à
+     * plusieurs minutes d'écart, ne sont pas des doublons.
+     */
+    public function test_meme_montant_ne_suffit_pas_a_faire_un_doublon(): void
+    {
+        $autre = Produit::create([
+            'entreprise_id' => $this->entreprise->id, 'reference' => 'SRV-002', 'nom' => 'Découpe',
+            'type' => 'service', 'unite' => 'unité', 'prix_achat' => 0, 'prix_vente' => 1000, 'taux_tva' => 18,
+        ]);
+        $this->vendre()->assertSessionHasNoErrors();
+        // Même montant, autre article.
+        $this->vendre(['articles' => [['produit_id' => $autre->id, 'quantite' => 1, 'unite' => 'unité']]])->assertSessionHasNoErrors();
+        // Même article, cinq minutes plus tard.
+        $this->travel(5)->minutes();
+        $this->vendre()->assertSessionHasNoErrors();
+
+        $this->artisan('selflow:doublons-factures', ['entreprise' => 'Poissonnerie EDEN'])
+            ->doesntExpectOutputToContain('Même pièce enregistrée deux fois')
+            ->expectsOutputToContain('Aucun doublon trouvé.')
+            ->assertSuccessful();
+    }
+
+    public function test_les_numeros_manquants_sont_listes(): void
+    {
+        $this->vendre()->assertSessionHasNoErrors();
+        $this->vendre()->assertSessionHasNoErrors();
+        $this->vendre()->assertSessionHasNoErrors();
+        $seconde = Vente::where('etape', 'Facture')->orderBy('id')->skip(1)->first();
+        $seconde->update(['numero_facture' => preg_replace('/-002$/', '-009', $seconde->numero_facture)]);
+
+        $this->artisan('selflow:doublons-factures', ['entreprise' => 'Poissonnerie EDEN', '--secondes' => 0])
+            ->expectsOutputToContain('Numéros manquants dans la séquence')
+            ->expectsOutputToContain('002, 004, 005, 006, 007, 008')
+            ->assertSuccessful();
+    }
+
+    /** Chaque point de vente a sa propre séquence, sans saut. */
+    public function test_chaque_point_de_vente_numerote_a_part_sans_sauter(): void
+    {
+        $second = PointDeVente::create(['entreprise_id' => $this->entreprise->id, 'nom' => 'Marché', 'ville' => 'Abidjan', 'commune' => 'Adjamé']);
+        $this->site->update(['code_piece' => '01']);
+        $second->update(['code_piece' => '02']);
+
+        $numeros = [];
+        foreach ([$this->site, $this->site, $second, $this->site, $second] as $site) {
+            $this->withSession(['point_de_vente_actif_id' => $site->id])->vendre()->assertSessionHasNoErrors();
+            $numeros[] = Vente::where('etape', 'Facture')->latest('id')->value('numero_facture');
+        }
+
+        $jour = now()->format('dmy');
+        $this->assertSame([
+            "VTE-01-{$jour}-001", "VTE-01-{$jour}-002", "VTE-02-{$jour}-001", "VTE-01-{$jour}-003", "VTE-02-{$jour}-002",
+        ], $numeros);
+    }
+
     public function test_sans_doublon_la_commande_le_dit(): void
     {
         $this->vendre()->assertSessionHasNoErrors();

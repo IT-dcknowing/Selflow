@@ -10021,6 +10021,49 @@ pas accessible d'ici : l'existant n'a pas encore été vérifié.
 
 ---
 
+### Lot 134 bis — Doublons : la détection resserrée, les numéros qui sautent — **TERMINÉ le 26/10/2026**
+
+**Première exécution en ligne** de `selflow:doublons-factures` : 495 lignes.
+Le propriétaire le relève à juste titre : deux ventes de montants
+différents, ou séparées d'un long délai, ne sont pas des doublons.
+
+**Lecture du résultat.**
+
+- **Les vrais doublons** sont les pièces au même numéro, à 0 s d'écart
+  (#908/#909, #3020-#3022, #5005-#5007…). Ce sont des doubles clics : deux
+  envois simultanés comptaient pareil. Le lot 134 a fermé les deux portes.
+- **Les numéros qui sautent** viennent du même défaut. Après deux pièces
+  sous « 028 », le compte avait une unité d'avance, et la pièce suivante
+  recevait « 030 ». Depuis le lot 134, la séquence part du plus grand
+  numéro attribué : plus de saut.
+- **Les avoirs** AVO-VTE-01-261026-001 à 004 (38 000 F) suivent quatre ventes
+  identiques de 38 000 F : ce sont, selon toute vraisemblance, les
+  annulations des doubles déjà faites par l'entreprise.
+
+**La commande, resserrée.**
+
+- **Double envoi** : même utilisateur, même site, même tiers, même étape,
+  même montant, **mêmes lignes** (article, libellé, quantité, prix), à
+  **10 s** au plus (`--secondes`). La première version comparait le seul
+  montant sur 120 s, et une poissonnerie vend dix fois l'heure le même
+  article au même prix.
+- **Numéros manquants** : nouvelle liste, par séquence. Une séquence va par
+  préfixe, site et jour (VTE, ACH, AVO), ou par préfixe et année (DV, BC,
+  BCF, DP, BL). Option `--sans-trous` pour s'en passer.
+- **Ce qui reste un trou normal** : une pièce effacée depuis les archives.
+  Si c'est la dernière de la séquence, son numéro est réattribué, puisque
+  la séquence part du plus grand numéro encore en base.
+
+**Numérotation par point de vente, vérifiée.** Chaque site d'une entreprise
+qui en a plusieurs a sa séquence (VTE-01-…, VTE-02-…), qui commence à 001
+et ne saute pas. Une entreprise d'un seul site garde VTE-jjmmaa-xxx.
+
+- `FacturesSansDoublonsTest` (+3 : même montant n'est pas un doublon, trous
+  listés, séquences par site sans saut). Suite : 1 956 épreuves, 1 951
+  passantes, 5 ignorées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
