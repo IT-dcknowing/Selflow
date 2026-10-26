@@ -30,6 +30,11 @@ use Illuminate\Support\Collection;
  *   php artisan selflow:doublons-factures
  *   php artisan selflow:doublons-factures "poissonnerie EDEN" --secondes=5
  *
+ * Les pièces **annulées** et les **avoirs** sont écartés des doublons : un
+ * doublon déjà annulé est réglé, et l'avoir d'une annulation ressemble à la
+ * facture qu'il annule. Un bilan final donne, par entreprise, ce qui reste à
+ * traiter et ce qui l'est déjà.
+ *
  * Une pièce normalisée ne se supprime pas : la DGI l'a certifiée, seul un
  * avoir la corrige. Les autres s'annulent depuis la liste des factures.
  */
@@ -46,6 +51,7 @@ class DoublonsFactures extends Command
         $entreprises = $this->entreprises();
         $fenetre = max(1, (int) $this->option('secondes'));
         $total = 0;
+        $bilan = [];
 
         foreach ($entreprises as $entreprise) {
             foreach ([Vente::class => 'Ventes', Achat::class => 'Achats'] as $classe => $libelle) {
@@ -55,9 +61,25 @@ class DoublonsFactures extends Command
                     ->orderBy('id')
                     ->get();
 
-                $memeNumero = $pieces->groupBy('numero_facture')->filter(fn (Collection $g) => $g->count() > 1);
-                $doubleEnvoi = $this->doublesEnvois($pieces, $fenetre, $classe === Vente::class ? 'client_id' : 'fournisseur_id');
+                // Une pièce annulée ne compte plus (26/10/2026) : son doublon
+                // est déjà réglé. Un avoir non plus : celui d'une annulation
+                // ressemble à la facture qu'il annule, et c'est voulu.
+                $actives = $pieces->reject(fn ($p) => $p->statut === 'Annulée' || $p->type_facture === 'avoir')->values();
+
+                $memeNumero = $actives->groupBy('numero_facture')->filter(fn (Collection $g) => $g->count() > 1);
+                $doubleEnvoi = $this->doublesEnvois($actives, $fenetre, $classe === Vente::class ? 'client_id' : 'fournisseur_id');
+                // Les numéros réglés : plusieurs pièces sous un numéro, dont
+                // toutes sauf une au plus sont annulées.
+                $regles = $pieces->groupBy('numero_facture')
+                    ->filter(fn (Collection $g) => $g->count() > 1 && $g->reject(fn ($p) => $p->statut === 'Annulée')->count() <= 1)
+                    ->count();
+                // Les trous se lisent sur toutes les pièces : une pièce
+                // annulée garde son numéro.
                 $trous = $this->option('sans-trous') ? [] : $this->numerosManquants($pieces->pluck('numero_facture'));
+
+                if ($memeNumero->isNotEmpty() || $doubleEnvoi !== [] || $regles > 0) {
+                    $bilan[] = [$entreprise->nom . ' (#' . $entreprise->id . ')', $libelle, $memeNumero->count(), count($doubleEnvoi), $regles];
+                }
 
                 if ($memeNumero->isEmpty() && $doubleEnvoi === [] && $trous === []) {
                     continue;
@@ -101,10 +123,17 @@ class DoublonsFactures extends Command
             }
         }
 
+        // Le bilan par entreprise : ce qui reste à traiter, et ce qui l'est déjà.
+        if ($bilan !== []) {
+            $this->newLine();
+            $this->info('Bilan par entreprise');
+            $this->table(['Entreprise', 'Pièces', 'Même numéro (à traiter)', 'Double envoi (à traiter)', 'Déjà réglés par annulation'], $bilan);
+        }
+
         $this->newLine();
         $total === 0
-            ? $this->info('Aucun doublon trouvé.')
-            : $this->warn("{$total} doublon(s) à examiner. Rien n'a été modifié.");
+            ? $this->info('Aucun doublon à traiter.')
+            : $this->warn("{$total} doublon(s) à traiter. Les pièces annulées et les avoirs sont écartés. Rien n'a été modifié.");
 
         return self::SUCCESS;
     }
