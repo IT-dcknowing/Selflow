@@ -291,44 +291,183 @@ class StockControleur
         return $this->inventaireEnExcel($donnees, $nomFichier . '.xlsx');
     }
 
-    /** Le classeur de l'inventaire : en-tête, une ligne par article, total en formule. */
+    /**
+     * Le classeur de l'inventaire (26/10/2026, mis en forme le 27/10/2026) :
+     * un bandeau de titre, quatre chiffres clés, le tableau (valeur, total et
+     * écart en formules, colonne « Compté » à remplir), et le filigrane au nom
+     * de l'entreprise — en fond de feuille à l'écran, en en-tête à l'impression.
+     */
     private function inventaireEnExcel(array $donnees, string $nomFichier): \Symfony\Component\HttpFoundation\StreamedResponse
     {
+        $bleu = '002B5C';
+        $gris = 'CBD5E1';
+        $Fill = \PhpOffice\PhpSpreadsheet\Style\Fill::class;
+        $Border = \PhpOffice\PhpSpreadsheet\Style\Border::class;
+        $Align = \PhpOffice\PhpSpreadsheet\Style\Alignment::class;
+
         $classeur = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $classeur->getProperties()->setCreator('Selflow')->setTitle('Inventaire de stock — ' . $donnees['site']->nom)
+            ->setCompany((string) $donnees['entreprise']->nom);
         $classeur->getDefaultStyle()->getFont()->setName('Arial')->setSize(10);
         $feuille = $classeur->getActiveSheet();
         $feuille->setTitle('Inventaire');
+        $feuille->setShowGridlines(false);
 
-        $feuille->setCellValue('A1', 'Inventaire de stock — ' . $donnees['entreprise']->nom);
-        $feuille->setCellValue('A2', 'Point de vente : ' . $donnees['site']->nom . ' — édité le ' . $donnees['date']->format('d/m/Y à H:i'));
-        $feuille->getStyle('A1')->getFont()->setBold(true)->setSize(13);
+        // ── Bandeau ──
+        $feuille->mergeCells('A1:I1');
+        $feuille->setCellValue('A1', 'INVENTAIRE DE STOCK');
+        $feuille->getStyle('A1')->applyFromArray([
+            'font' => ['bold' => true, 'size' => 16, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => $Fill::FILL_SOLID, 'startColor' => ['rgb' => $bleu]],
+            'alignment' => ['vertical' => $Align::VERTICAL_CENTER, 'indent' => 1],
+        ]);
+        $feuille->getRowDimension(1)->setRowHeight(32);
 
+        $feuille->mergeCells('A2:I2');
+        $feuille->setCellValue('A2', $donnees['entreprise']->nom . '   ·   Point de vente : ' . $donnees['site']->nom
+            . '   ·   Édité le ' . $donnees['date']->format('d/m/Y à H:i'));
+        $feuille->getStyle('A2')->applyFromArray([
+            'font' => ['size' => 10, 'color' => ['rgb' => '334155']],
+            'fill' => ['fillType' => $Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E2E8F0']],
+            'alignment' => ['vertical' => $Align::VERTICAL_CENTER, 'indent' => 1],
+        ]);
+        $feuille->getRowDimension(2)->setRowHeight(22);
+
+        // ── Le tableau ──
+        $ligneEntete = 7;
+        $premiere = $ligneEntete + 1;
         $entetes = ['Référence', 'Article', 'Catégorie', 'Unité', 'Stock théorique', 'CUMP (F)', 'Valeur (F)', 'Compté', 'Écart'];
-        $feuille->fromArray($entetes, null, 'A4');
-        $feuille->getStyle('A4:I4')->getFont()->setBold(true);
-        $feuille->getStyle('A4:I4')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('E2E8F0');
+        $feuille->fromArray($entetes, null, 'A' . $ligneEntete);
+        $feuille->getStyle("A{$ligneEntete}:I{$ligneEntete}")->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => $Fill::FILL_SOLID, 'startColor' => ['rgb' => $bleu]],
+            'alignment' => ['horizontal' => $Align::HORIZONTAL_CENTER, 'vertical' => $Align::VERTICAL_CENTER, 'wrapText' => true],
+            'borders' => ['allBorders' => ['borderStyle' => $Border::BORDER_THIN, 'color' => ['rgb' => $bleu]]],
+        ]);
+        $feuille->getRowDimension($ligneEntete)->setRowHeight(24);
 
-        $ligne = 5;
+        $ligne = $premiere;
         foreach ($donnees['lignes'] as $l) {
-            $feuille->fromArray([$l['reference'], $l['nom'], $l['categorie'], $l['unite'], $l['quantite'], $l['cump']], null, 'A' . $ligne);
+            // Comparaison stricte : sans elle, un stock à zéro passait pour vide.
+            $feuille->fromArray([$l['reference'], $l['nom'], $l['categorie'], $l['unite'], $l['quantite'], $l['cump']], null, 'A' . $ligne, true);
             $feuille->setCellValue('G' . $ligne, '=E' . $ligne . '*F' . $ligne);
             // L'écart se calcule dès que la quantité comptée est saisie.
             $feuille->setCellValue('I' . $ligne, '=IF(H' . $ligne . '="","",H' . $ligne . '-E' . $ligne . ')');
+            if (($ligne - $premiere) % 2 === 1) {
+                $feuille->getStyle("A{$ligne}:G{$ligne}")->getFill()->setFillType($Fill::FILL_SOLID)->getStartColor()->setRGB('F1F5F9');
+            }
             $ligne++;
         }
-        $derniere = $ligne - 1;
+        $derniere = max($premiere, $ligne - 1);
+        $total = $derniere + 1;
+        if ($ligne === $premiere) {
+            $feuille->mergeCells("A{$premiere}:I{$premiere}");
+            $feuille->setCellValue('A' . $premiere, 'Aucun article qui se compte sur ce site.');
+            $total = $premiere + 1;
+        }
 
-        $feuille->setCellValue('F' . $ligne, 'Total');
-        $feuille->setCellValue('G' . $ligne, $derniere >= 5 ? '=SUM(G5:G' . $derniere . ')' : 0);
-        $feuille->getStyle('F' . $ligne . ':G' . $ligne)->getFont()->setBold(true);
+        $plage = "A{$premiere}:I{$derniere}";
+        $feuille->getStyle($plage)->getBorders()->getAllBorders()->setBorderStyle($Border::BORDER_THIN)->getColor()->setRGB($gris);
+        $feuille->getStyle($plage)->getAlignment()->setVertical($Align::VERTICAL_CENTER);
+        $feuille->getStyle("A{$premiere}:A{$derniere}")->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('475569'));
+        $feuille->getStyle("D{$premiere}:D{$derniere}")->getAlignment()->setHorizontal($Align::HORIZONTAL_CENTER);
+        // La colonne à remplir se voit : fond crème.
+        $feuille->getStyle("H{$premiere}:H{$derniere}")->getFill()->setFillType($Fill::FILL_SOLID)->getStartColor()->setRGB('FFFBEB');
 
-        $feuille->getStyle('E5:E' . max(5, $ligne))->getNumberFormat()->setFormatCode('#,##0.###');
-        $feuille->getStyle('F5:G' . max(5, $ligne))->getNumberFormat()->setFormatCode('#,##0');
-        $feuille->getStyle('H5:I' . max(5, $ligne))->getNumberFormat()->setFormatCode('#,##0.###');
-        foreach (['A' => 14, 'B' => 34, 'C' => 20, 'D' => 10, 'E' => 15, 'F' => 12, 'G' => 14, 'H' => 12, 'I' => 12] as $col => $largeur) {
+        // Ligne des totaux.
+        $feuille->setCellValue('A' . $total, 'TOTAL');
+        $feuille->mergeCells("A{$total}:D{$total}");
+        $feuille->setCellValue('E' . $total, "=SUM(E{$premiere}:E{$derniere})");
+        $feuille->setCellValue('G' . $total, "=SUM(G{$premiere}:G{$derniere})");
+        $feuille->getStyle("A{$total}:I{$total}")->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => $bleu]],
+            'fill' => ['fillType' => $Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E2E8F0']],
+            'borders' => ['top' => ['borderStyle' => $Border::BORDER_MEDIUM, 'color' => ['rgb' => $bleu]],
+                          'bottom' => ['borderStyle' => $Border::BORDER_THIN, 'color' => ['rgb' => $gris]]],
+        ]);
+        $feuille->getRowDimension($total)->setRowHeight(22);
+
+        // Formats des nombres.
+        $feuille->getStyle("E{$premiere}:E{$total}")->getNumberFormat()->setFormatCode('#,##0.###');
+        $feuille->getStyle("F{$premiere}:G{$total}")->getNumberFormat()->setFormatCode('#,##0" F"');
+        $feuille->getStyle("H{$premiere}:I{$derniere}")->getNumberFormat()->setFormatCode('#,##0.###;[Red]-#,##0.###');
+
+        // Un écart se lit en couleur : rouge s'il manque, vert s'il y a plus.
+        $manque = new \PhpOffice\PhpSpreadsheet\Style\Conditional();
+        $manque->setConditionType(\PhpOffice\PhpSpreadsheet\Style\Conditional::CONDITION_EXPRESSION)
+            ->addCondition("AND(I{$premiere}<>\"\",I{$premiere}<0)");
+        $manque->getStyle()->getFont()->setBold(true)->getColor()->setRGB('B91C1C');
+        $surplus = new \PhpOffice\PhpSpreadsheet\Style\Conditional();
+        $surplus->setConditionType(\PhpOffice\PhpSpreadsheet\Style\Conditional::CONDITION_EXPRESSION)
+            ->addCondition("AND(I{$premiere}<>\"\",I{$premiere}>0)");
+        $surplus->getStyle()->getFont()->setBold(true)->getColor()->setRGB('15803D');
+        $feuille->getStyle("I{$premiere}:I{$derniere}")->setConditionalStyles([$manque, $surplus]);
+
+        // ── Chiffres clés, sur la ligne 4, en formules ──
+        $tuiles = [
+            'A' => ['Articles', "=COUNTA(B{$premiere}:B{$derniere})", '0'],
+            'C' => ['Quantité totale', "=E{$total}", '#,##0.###'],
+            'E' => ['En rupture', "=COUNTIF(E{$premiere}:E{$derniere},\"<=0\")", '0'],
+            'G' => ['Valeur du stock', "=G{$total}", '#,##0" F"'],
+        ];
+        foreach ($tuiles as $col => [$etiquette, $formule, $format]) {
+            $suivante = chr(ord($col) + 1);
+            $feuille->mergeCells("{$col}4:{$suivante}4");
+            $feuille->mergeCells("{$col}5:{$suivante}5");
+            $feuille->setCellValue($col . '4', mb_strtoupper($etiquette));
+            $feuille->setCellValue($col . '5', $formule);
+            $feuille->getStyle("{$col}4:{$suivante}5")->applyFromArray([
+                'fill' => ['fillType' => $Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F8FAFC']],
+                'borders' => ['outline' => ['borderStyle' => $Border::BORDER_THIN, 'color' => ['rgb' => $gris]],
+                              'left' => ['borderStyle' => $Border::BORDER_THICK, 'color' => ['rgb' => $bleu]]],
+                'alignment' => ['indent' => 1],
+            ]);
+            $feuille->getStyle($col . '4')->getFont()->setSize(8)->setBold(true)->getColor()->setRGB('64748B');
+            $feuille->getStyle($col . '5')->getFont()->setSize(14)->setBold(true)->getColor()->setRGB($bleu);
+            $feuille->getStyle($col . '5')->getNumberFormat()->setFormatCode($format);
+            $feuille->getStyle("{$col}4:{$suivante}5")->getAlignment()->setHorizontal($Align::HORIZONTAL_LEFT);
+        }
+        $feuille->getRowDimension(5)->setRowHeight(24);
+
+        // Largeurs, filtre, volets figés.
+        foreach (['A' => 15, 'B' => 36, 'C' => 20, 'D' => 10, 'E' => 15, 'F' => 13, 'G' => 16, 'H' => 13, 'I' => 12] as $col => $largeur) {
             $feuille->getColumnDimension($col)->setWidth($largeur);
         }
-        $feuille->freezePane('A5');
+        if ($ligne > $premiere) {
+            $feuille->setAutoFilter("A{$ligneEntete}:I{$derniere}");
+        }
+        $feuille->freezePane('A' . $premiere);
+
+        // ── Impression : paysage, sur une page de large, en-tête répété ──
+        $mise = $feuille->getPageSetup();
+        $mise->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_LANDSCAPE)
+            ->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4)
+            ->setFitToWidth(1)->setFitToHeight(0)
+            ->setRowsToRepeatAtTopByStartAndEnd($ligneEntete, $ligneEntete);
+        $feuille->getPageMargins()->setTop(0.9)->setBottom(0.7)->setLeft(0.4)->setRight(0.4);
+        $piedNom = str_replace('&', '&&', (string) $donnees['entreprise']->nom);
+
+        // ── Le filigrane, des deux côtés : à l'écran et à l'impression ──
+        $png = \App\Modules\Admin\Services\FiligraneService::png((string) $donnees['entreprise']->nom, 'Inventaire de stock');
+        $entete = '';
+        if ($png !== null) {
+            // À l'écran : l'image de fond de la feuille.
+            $feuille->setBackgroundImage($png);
+
+            // À l'impression : l'image d'en-tête, centrée derrière le tableau.
+            $fichier = tempnam(sys_get_temp_dir(), 'filigrane') . '.png';
+            file_put_contents($fichier, \App\Modules\Admin\Services\FiligraneService::png((string) $donnees['entreprise']->nom, 'Inventaire de stock', 1600, 1100, 9));
+            $dessin = new \PhpOffice\PhpSpreadsheet\Worksheet\HeaderFooterDrawing();
+            $dessin->setName('Filigrane')->setPath($fichier)->setHeight(430);
+            $feuille->getHeaderFooter()->addImage($dessin, \PhpOffice\PhpSpreadsheet\Worksheet\HeaderFooter::IMAGE_HEADER_CENTER);
+            $entete = '&C&G';
+            register_shutdown_function(fn () => @unlink($fichier));
+        }
+        $feuille->getHeaderFooter()
+            ->setOddHeader($entete . '&R&8&K64748B' . $piedNom)
+            ->setOddFooter('&L&8&K64748BInventaire — ' . str_replace('&', '&&', $donnees['site']->nom) . '&R&8&K64748BPage &P / &N');
+
+        $feuille->setSelectedCell('H' . $premiere);
 
         return response()->streamDownload(function () use ($classeur) {
             (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($classeur))->save('php://output');

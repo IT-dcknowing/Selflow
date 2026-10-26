@@ -6,7 +6,8 @@ et ce fichier. Tout ce qui a été décidé, tout ce qui a été écarté et pou
 tout ce qui reste à faire doit donc figurer ici — et y être tenu à jour à chaque
 lot terminé.
 
-Dernière mise à jour : 26 octobre 2026 — lots 128 à 132 : configuration des
+Dernière mise à jour : 26 octobre 2026 — lot 133 : exports de l'inventaire
+mis en forme, filigrane sur le PDF et l'Excel. Lots 128 à 132 : configuration des
 comptes en un tableau (proposé / personnalisé, variation de stock), solde du
 client sur la facture, annulation des devis, commandes et commandes d'achat,
 ruptures masquées à la vente, export de l'inventaire en PDF et Excel. Avant :
@@ -9914,6 +9915,53 @@ fallait passer de l'une à l'autre. Désormais :
 - `ConfigurationGlobaleDesComptesTest` (+3). Rendu vérifié dans Chromium
   (onglets catégorie, type, article). Suite : 1 945 épreuves, 1 940
   passantes, 5 ignorées.
+
+---
+
+### Lot 133 — Exports de l'inventaire mis en forme, filigrane sur les deux — **TERMINÉ le 26/10/2026**
+
+Demande du propriétaire : des exports PDF et Excel propres, bien présentés,
+avec un filigrane sur l'un comme sur l'autre.
+
+**Le filigrane** (`FiligraneService`). Une image PNG transparente, dessinée
+par GD avec la police DejaVu du dépôt, sans rien chercher sur le réseau : le
+nom de l'entreprise en diagonale, « Inventaire de stock » dessous, en bleu
+très pâle.
+
+- **PDF.** L'image est posée sur chaque page, au-dessus du contenu mais
+  transparente : sous les lignes grisées, elle ne se voyait plus.
+- **Excel.** Image de fond de la feuille à l'écran, et image d'en-tête
+  (`&G`) à l'impression. LibreOffice n'affiche ni l'une ni l'autre ; Excel
+  les affiche.
+
+**Le PDF** (`stock/inventaire_pdf`).
+
+- En-tête : logo et coordonnées de l'entreprise à gauche, « INVENTAIRE DE
+  STOCK », site et date à droite, sur un filet bleu.
+- Quatre tuiles : articles, quantité totale, ruptures, valeur du stock.
+- Tableau à en-tête bleu et lignes alternées ; stock nul en rouge ; colonne
+  « Compté » sur fond crème.
+- Ligne de total, cadres de signature (« Compté par », « Vérifié par »).
+- Pied de page numéroté « Page x / y » : nouveau paramètre de
+  `DocumentPdfService::rendre`.
+
+**Le classeur Excel.**
+
+- Bandeau de titre bleu et ligne d'informations.
+- Quatre chiffres clés en formules (`COUNTA`, `COUNTIF`, total).
+- Tableau à en-tête bleu, bordures fines, lignes alternées, colonne
+  « Compté » à remplir sur fond crème.
+- L'écart est une formule, colorée par mise en forme conditionnelle : rouge
+  s'il manque, vert s'il y a plus.
+- Ligne de total, filtre automatique, volets figés.
+- Impression en paysage sur une page de large, en-tête de tableau répété,
+  pied de page numéroté.
+- Défaut corrigé au passage : un stock à zéro s'écrivait vide (comparaison
+  non stricte de `fromArray`), et les ruptures n'étaient pas comptées.
+
+- `ExportInventaireTest` (6). Rendu vérifié en image : le PDF par
+  `pdftoppm`, le classeur converti par LibreOffice. Suite : 1 947 épreuves,
+  1 942 passantes, 5 ignorées.
 
 ---
 

@@ -129,10 +129,19 @@ class DocumentPdfService
      * Le numéro FNE d'abord quand il existe : c'est lui qui identifie la pièce
      * auprès de l'administration, et c'est sous ce nom qu'on la retrouvera.
      */
-    /** L'inventaire de stock d'un site, en A4 (26/10/2026). */
+    /**
+     * L'inventaire de stock d'un site, en A4 (26/10/2026) : logo de
+     * l'entreprise, filigrane à son nom sur chaque page (27/10/2026), et
+     * pagination en pied de page.
+     */
     public function inventaire(array $donnees): string
     {
-        return $this->rendre('admin::stock.inventaire_pdf', $donnees);
+        $entreprise = $donnees['entreprise'];
+
+        return $this->rendre('admin::stock.inventaire_pdf', $donnees + [
+            'logo'      => $this->logo($entreprise),
+            'filigrane' => FiligraneService::dataUri((string) $entreprise->nom, 'Inventaire de stock'),
+        ], 'A4', $entreprise->nom . ' — Inventaire ' . $donnees['site']->nom);
     }
 
     public static function nomDuFichier(Vente|Achat $piece, string $suffixe = ''): string
@@ -151,7 +160,7 @@ class DocumentPdfService
      * @param array<string,mixed> $donnees
      * @param string|array{0:float,1:float} $format A4, ou [largeur, hauteur] en millimètres
      */
-    private function rendre(string $vue, array $donnees, string|array $format = 'A4'): string
+    private function rendre(string $vue, array $donnees, string|array $format = 'A4', ?string $piedDePage = null): string
     {
         $options = new Options();
         // Les polices se cherchent dans le dépôt, jamais sur le réseau.
@@ -172,6 +181,17 @@ class DocumentPdfService
         }
 
         $dompdf->render();
+
+        // Pied de page numéroté, sur demande : « Page 2 / 5 » ne se connaît
+        // qu'une fois le document entier mis en page.
+        if ($piedDePage !== null) {
+            $canevas = $dompdf->getCanvas();
+            $police = $dompdf->getFontMetrics()->getFont('DejaVu Sans');
+            $hauteur = $canevas->get_height();
+            $largeur = $canevas->get_width();
+            $canevas->page_text(28, $hauteur - 24, $piedDePage, $police, 7, [0.45, 0.48, 0.55]);
+            $canevas->page_text($largeur - 90, $hauteur - 24, 'Page {PAGE_NUM} / {PAGE_COUNT}', $police, 7, [0.45, 0.48, 0.55]);
+        }
 
         return (string) $dompdf->output();
     }
