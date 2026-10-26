@@ -39,6 +39,7 @@ class Entreprise extends Model
         // La case que l'entreprise coche elle-même dans ses paramètres.
         'comptabilite_activee',
         'masquer_ruptures_vente',
+        'afficher_solde_client_facture',
         // `attributions` ne figure PAS ici, et c'est délibéré : c'est ce que
         // le superadministrateur accorde. Assignable en masse, le formulaire
         // des paramètres aurait permis à une entreprise de s'accorder
@@ -101,6 +102,7 @@ class Entreprise extends Model
         'modules_autorises'  => 'array',
         'comptabilite_activee' => 'boolean',
         'masquer_ruptures_vente' => 'boolean',
+        'afficher_solde_client_facture' => 'boolean',
         'attributions'       => 'array',
         'souscription_terminee_le' => 'datetime',
         'abonnement_choisi_le'     => 'datetime',

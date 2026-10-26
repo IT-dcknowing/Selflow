@@ -618,6 +618,9 @@ var DATA = {
         mode: {!! json_encode($vente->mode_paiement) !!},
         statut: {!! json_encode($vente->statut) !!},
         motif_annulation: @json($vente->motifAnnulation()),
+        // Le solde du client (26/10/2026) : null quand l'option est éteinte,
+        // le client de passage ou à jour. Hors du bloc de certification.
+        solde_client: @json($soldeClient ?? null),
         deja_paye: {{ $vente->type_facture === 'avoir' ? $vente->montant_ttc : ($dejaPaye ?? 0) }},
         // Ce que le client a tendu, et ce qu'on lui a rendu. Le second se
         // calcule cote serveur -- `Vente::monnaieRendue()` -- plutot qu'ici :
@@ -1055,6 +1058,28 @@ function fiscalLinesClient(c, sep) {
  * du jeton renvoyé par la plateforme, que le référentiel décrit comme le
  * « code de vérification à convertir en QR code ». Sans jeton, pas d'image.
  */
+/**
+ * La situation du compte du client (26/10/2026) : solde antérieur, reste de
+ * cette facture, solde cumulé. Imprimée hors du bloc de certification, et
+ * seulement quand l'entreprise l'a demandé.
+ */
+function blocSoldeClient(d) {
+    var s = d.solde_client;
+    if (!s) return '';
+    var ligne = function (libelle, montant, fort) {
+        return `<tr><td style="padding:4px 10px;${fort ? 'font-weight:800;' : ''}">${libelle}</td><td style="padding:4px 10px;text-align:right;white-space:nowrap;${fort ? 'font-weight:800;' : ''}">${fmtFcfa(montant)}</td></tr>`;
+    };
+    return `
+    <div class="solde-client" style="margin:14px 0 6px;display:flex;justify-content:flex-end;">
+        <table style="border-collapse:collapse;font-size:11.5px;border:1px solid #cbd5e1;min-width:280px;">
+            <tr><td colspan="2" style="padding:5px 10px;background:#f1f5f9;font-weight:700;text-transform:uppercase;font-size:10.5px;letter-spacing:.04em;">Situation du compte client</td></tr>
+            ${ligne('Solde antérieur', s.anterieur)}
+            ${ligne('Reste de cette facture', s.piece)}
+            ${ligne('Solde cumulé', s.cumule, true)}
+        </table>
+    </div>`;
+}
+
 function blocCertificationFne(d) {
     if (!d.normalise || !d.numero_fne) return '';
 
@@ -1290,6 +1315,7 @@ function model1(d) {
                 ` : ''}
             </div>
         </div>
+        ${blocSoldeClient(d)}
         ${blocCertificationFne(d)}
         ${blocMentions(d)}
         ${COMPANY.ref_bancaire ? `<div style="margin-bottom:14px;padding:10px 14px;background:var(--white);border-radius:7px;border:0.5px solid var(--border);font-size:11px;color:var(--mu);line-height:1.7;"><span style="font-weight:600;color:var(--tx)">Références bancaires : </span>${COMPANY.ref_bancaire}</div>` : ''}
@@ -1425,7 +1451,8 @@ function model2(d) {
             </div>
             ${COMPANY.ref_bancaire ? `<div style="font-size:10.5px;color:var(--mu);line-height:1.7;margin-bottom:10px;"><strong>Réf. bancaires : </strong>${COMPANY.ref_bancaire}</div>` : ''}
             <div style="font-size:11px;color:var(--mu)">Généré automatiquement par <strong>Selflow</strong></div>
-            ${blocCertificationFne(d)}
+            ${blocSoldeClient(d)}
+        ${blocCertificationFne(d)}
             ${blocMentions(d)}
             ${blocPiedDePage(d)}
             `}
@@ -1573,6 +1600,7 @@ function model3(d) {
                 <div style="text-align:center;font-size:10px;color:var(--mu)">Cachet société<br><div style="width:80px;height:36px;border:0.5px dashed var(--border);border-radius:4px;margin-top:3px"></div></div>
             </div>
         </div>
+        ${blocSoldeClient(d)}
         ${blocCertificationFne(d)}
         ${blocMentions(d)}
         ${blocPiedDePage(d)}
@@ -1826,6 +1854,7 @@ function modelStandard(d) {
             </div>
         </div>
         
+        ${blocSoldeClient(d)}
         ${blocCertificationFne(d)}
 
         <!-- Pied de page : mentions de l'entreprise emettrice -->

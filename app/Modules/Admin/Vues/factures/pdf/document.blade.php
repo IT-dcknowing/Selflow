@@ -243,6 +243,23 @@
     </tr>
 </table>
 
+{{-- ── La situation du compte client (26/10/2026), sur option ── --}}
+@if(!empty($soldeClient))
+<table style="margin-top:8pt;">
+    <tr>
+        <td style="width:55%;"></td>
+        <td>
+            <table class="solde-client" style="border:0.5pt solid #cbd5e1;">
+                <tr><td colspan="2" style="background:#f1f5f9; font-weight:bold; font-size:8pt; padding:3pt 6pt;">SITUATION DU COMPTE CLIENT</td></tr>
+                <tr><td style="padding:2pt 6pt;">Solde antérieur</td><td class="droite" style="padding:2pt 6pt;">{{ $f($soldeClient['anterieur']) }}</td></tr>
+                <tr><td style="padding:2pt 6pt;">Reste de cette facture</td><td class="droite" style="padding:2pt 6pt;">{{ $f($soldeClient['piece']) }}</td></tr>
+                <tr><td style="padding:2pt 6pt;"><strong>Solde cumulé</strong></td><td class="droite" style="padding:2pt 6pt;"><strong>{{ $f($soldeClient['cumule']) }}</strong></td></tr>
+            </table>
+        </td>
+    </tr>
+</table>
+@endif
+
 {{-- ── La certification, si et seulement si elle a eu lieu ── --}}
 @if($certification)
 <table class="certif">

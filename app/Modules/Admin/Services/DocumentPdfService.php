@@ -257,6 +257,8 @@ class DocumentPdfService
                 'rendu'     => $vente->monnaieRendue(),
             ],
             'certification' => $this->certification($vente),
+            // Le solde du client, si l'entreprise l'imprime (26/10/2026).
+            'soldeClient'   => SoldeClientService::pourFacture($vente),
             'mentions'      => $vente->autres_mentions ?: $entreprise->facture_autres_mentions,
             'pied'          => $vente->pied_de_page ?: $entreprise->pied_de_page_facture,
             'origine'       => $vente->type_facture === 'avoir' && $vente->parent

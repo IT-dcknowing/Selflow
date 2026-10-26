@@ -783,7 +783,10 @@ class VenteControleur
         // Les banques, pour le règlement saisi à « Valider & Facturer ».
         $banques = CodeJournal::banques()->where('entreprise_id', Auth::user()->entreprise_id)->orderBy('intitule')->get();
 
-        return view('admin::factures.vente', compact('vente', 'vendeur', 'dejaPaye', 'banques'));
+        // Le solde du client, si l'entreprise l'imprime (26/10/2026).
+        $soldeClient = \App\Modules\Admin\Services\SoldeClientService::pourFacture($vente);
+
+        return view('admin::factures.vente', compact('vente', 'vendeur', 'dejaPaye', 'banques', 'soldeClient'));
     }
 
     /**
