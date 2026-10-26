@@ -10080,6 +10080,39 @@ doublons ont déjà été annulés par les entreprises.
 
 ---
 
+### Lot 135 — Les transformations de pièces et l'API, sans doublons — **TERMINÉ le 26/10/2026**
+
+Suite du lot 134, à la demande du propriétaire : protéger aussi pour
+l'avenir ce qu'il ne couvrait pas.
+
+- **Les gestes sur une pièce existante** : « → Commande », « Valider &
+  Facturer », facturer un bon de livraison, annuler, avoir… Chacun
+  vérifiait que la pièce n'était pas déjà transformée, mais deux clics
+  simultanés passaient ensemble.
+  - Le middleware `piece.unique` (`UnTraitementParPiece`) est posé sur les
+    espaces admin et caissier.
+  - Toute requête qui modifie une vente, un achat ou un bon de livraison de
+    l'adresse prend un verrou sur la pièce (`Cache::lock`, 120 s) et la
+    relit une fois le verrou pris.
+  - Le second clic reçoit « déjà en cours de traitement », ou 409 en JSON,
+    sans rien écrire.
+  - L'avoir partiel (`avoir.creer_nouveau`), dont la facture vient du
+    formulaire et non de l'adresse, prend le même verrou.
+- **Dans le navigateur.** Tout formulaire POST désactive ses boutons au
+  premier envoi. Ils se réarment au retour arrière, ou après 15 s.
+  `data-envoi-libre` permet d'en exclure un.
+- **L'API mobile.** `ventes/enregistrer` et `achats/enregistrer` acceptent
+  le jeton `Idempotency-Key` (en-tête) ou `jeton_envoi`. Le même jeton
+  renvoyé reçoit 409 `deja_enregistre`. `api_mobille_selflow.md` est à
+  jour ; **l'application mobile doit envoyer ce jeton**.
+- **Cache.** Les verrous passent par le cache (`CACHE_STORE`, `database`
+  par défaut, table `cache`), déjà employé au lot 119.
+
+- `FacturesSansDoublonsTest` (+3). Suite : 1 960 épreuves, 1 955
+  passantes, 5 ignorées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme

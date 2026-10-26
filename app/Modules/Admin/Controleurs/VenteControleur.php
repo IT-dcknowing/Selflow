@@ -2467,6 +2467,23 @@ class VenteControleur
         abort_unless($parent->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
         abort_if($parent->type_facture === 'avoir', 400, "Impossible de générer un avoir sur une facture d'avoir.");
 
+        // La facture d'origine se verrouille comme pour toute transformation
+        // (26/10/2026) : deux clics simultanés recréditaient deux fois.
+        $verrou = \Illuminate\Support\Facades\Cache::lock('piece:Vente:' . $parent->id, 120);
+        if (!$verrou->get()) {
+            return back()->with('info', 'Cette facture est déjà en cours de traitement : le second clic a été ignoré, aucun avoir n\'a été créé en double.');
+        }
+
+        try {
+            return $this->etablirAvoirNouveau($request, $parent->fresh());
+        } finally {
+            $verrou->release();
+        }
+    }
+
+    /** L'avoir partiel ou total d'une facture, sous le verrou de celle-ci. */
+    private function etablirAvoirNouveau(Request $request, Vente $parent): RedirectResponse
+    {
         // Plusieurs avoirs peuvent se succéder sur une même facture, mais leur
         // cumul ne peut pas dépasser les quantités vendues : au-delà, on
         // recréditerait au client davantage que ce qu'il a payé.
