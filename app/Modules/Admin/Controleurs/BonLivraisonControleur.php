@@ -50,6 +50,9 @@ class BonLivraisonControleur extends Controller
         if ($vente->etape !== 'Bon de commande') {
             return 'Ce document n\'est pas un bon de commande.';
         }
+        if ($vente->estAnnulee()) {
+            return 'Cette commande est annulée : il n\'y a rien à livrer.';
+        }
         if ($vente->estConverti()) {
             return 'Cette commande a déjà été facturée : il n\'y a plus rien à livrer sur elle.';
         }

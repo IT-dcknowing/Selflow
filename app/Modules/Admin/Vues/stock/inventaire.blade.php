@@ -9,7 +9,16 @@
         <p>Comptez ce qui est réellement en magasin. L'écart avec le stock théorique
            devient un mouvement, dans le sens qu'il faut.</p>
     </div>
-    <div style="display:flex; gap:8px;">
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        {{-- L'export de l'inventaire du site affiché (26/10/2026). --}}
+        @if($pointDeVenteId)
+            <a href="{{ route('admin.stock.inventaire.exporter', ['format' => 'pdf', 'point_de_vente_id' => $pointDeVenteId]) }}" class="btn btn-outline" id="export-inventaire-pdf">
+                <i class="fas fa-file-pdf" style="color:#dc2626;"></i> PDF
+            </a>
+            <a href="{{ route('admin.stock.inventaire.exporter', ['format' => 'excel', 'point_de_vente_id' => $pointDeVenteId]) }}" class="btn btn-outline" id="export-inventaire-excel">
+                <i class="fas fa-file-excel" style="color:#16a34a;"></i> Excel
+            </a>
+        @endif
         {{-- Le stock d'ouverture d'un catalogue deja en place. Sans lui, un
              magasin qui migre saisit ses deux mille quantites a la main : c'est
              le moment ou l'on abandonne. --}}

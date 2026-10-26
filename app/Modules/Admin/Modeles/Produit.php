@@ -391,6 +391,25 @@ class Produit extends Model
         });
     }
 
+    /**
+     * Les articles qui ne sont pas en rupture sur ce site (26/10/2026) : les
+     * prestations et le non-stockable toujours, le stockable s'il en reste.
+     * Sans site désigné, il suffit qu'il en reste quelque part.
+     */
+    public function scopeSansRuptureAuSite($query, $pointDeVenteId)
+    {
+        return $query->where(function ($q) use ($pointDeVenteId) {
+            $q->whereNull('type')
+              ->orWhereNotIn('type', self::TYPES_STOCKABLES)
+              ->orWhereHas('stocks', function ($s) use ($pointDeVenteId) {
+                  $s->where('stocks.quantite_disponible', '>', 0);
+                  if ($pointDeVenteId && $pointDeVenteId !== 'tout') {
+                      $s->where('stocks.point_de_vente_id', $pointDeVenteId);
+                  }
+              });
+        });
+    }
+
     public function scopeSelectionnables($query)
     {
         return $query->where('statut', 'actif');
@@ -869,6 +888,7 @@ class Produit extends Model
             ->whereColumn('quantite', '>', 'quantite_livree')
             ->whereHas('vente', function ($q) use ($pointDeVenteId) {
                 $q->where('etape', 'Bon de commande')
+                  ->where(fn ($a) => $a->whereNull('statut')->orWhere('statut', '!=', 'Annulée'))
                   ->when($pointDeVenteId, fn ($r) => $r->where('point_de_vente_id', $pointDeVenteId));
             })
             ->sum(DB::raw('quantite - quantite_livree'));
@@ -886,6 +906,7 @@ class Produit extends Model
             ->whereColumn('quantite', '>', 'quantite_receptionnee')
             ->whereHas('achat', function ($q) use ($pointDeVenteId) {
                 $q->where('etape', 'Bon de commande')
+                  ->where(fn ($a) => $a->whereNull('statut')->orWhere('statut', '!=', 'Annulée'))
                   ->when($pointDeVenteId, fn ($r) => $r->where('point_de_vente_id', $pointDeVenteId));
             })
             ->sum(DB::raw('quantite - quantite_receptionnee'));
@@ -915,6 +936,7 @@ class Produit extends Model
             ->whereColumn('quantite', '>', 'quantite_livree')
             ->whereHas('vente', function ($q) use ($pointDeVenteId) {
                 $q->where('etape', 'Bon de commande')
+                  ->where(fn ($a) => $a->whereNull('statut')->orWhere('statut', '!=', 'Annulée'))
                   ->when($pointDeVenteId, fn ($r) => $r->where('point_de_vente_id', $pointDeVenteId));
             })
             ->groupBy('produit_id')
@@ -926,6 +948,7 @@ class Produit extends Model
             ->whereColumn('quantite', '>', 'quantite_receptionnee')
             ->whereHas('achat', function ($q) use ($pointDeVenteId) {
                 $q->where('etape', 'Bon de commande')
+                  ->where(fn ($a) => $a->whereNull('statut')->orWhere('statut', '!=', 'Annulée'))
                   ->when($pointDeVenteId, fn ($r) => $r->where('point_de_vente_id', $pointDeVenteId));
             })
             ->groupBy('produit_id')

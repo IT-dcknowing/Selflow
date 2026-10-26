@@ -112,6 +112,7 @@ class StockControleur
          * Le filtre porte donc sur l'article autant que sur la quantité.
          */
         $qReceptions = Achat::whereIn('etape', ['Bon de commande', 'Facture'])
+            ->where(fn ($a) => $a->whereNull('statut')->orWhere('statut', '!=', 'Annulée'))
             ->whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entreprise->id))
             ->whereHas('details', function($q) {
                 $q->whereColumn('quantite', '>', 'quantite_receptionnee')
@@ -119,6 +120,7 @@ class StockControleur
             });
 
         $qLivraisons = Vente::whereIn('etape', ['Bon de commande', 'Facture'])
+            ->where(fn ($a) => $a->whereNull('statut')->orWhere('statut', '!=', 'Annulée'))
             ->whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entreprise->id))
             ->whereHas('details', function($q) {
                 $q->whereColumn('quantite', '>', 'quantite_livree')
@@ -228,6 +230,109 @@ class StockControleur
         $pointsDeVente = $entreprise->pointsDeVente()->orderBy('nom')->get();
 
         return view('admin::stock.inventaire', compact('produits', 'pointDeVenteId', 'pointsDeVente'));
+    }
+
+    /**
+     * Exporter l'inventaire du site, en PDF ou en Excel (26/10/2026).
+     *
+     * La même liste que l'écran de comptage : les articles qui se comptent,
+     * avec leur stock théorique, leur CUMP (Coût Unitaire Moyen Pondéré) et
+     * leur valeur, et une colonne « Compté » vide pour le comptage sur papier.
+     */
+    public function exporterInventaire(Request $request, string $format, \App\Modules\Admin\Services\DocumentPdfService $pdf): \Symfony\Component\HttpFoundation\Response
+    {
+        abort_unless(in_array($format, ['pdf', 'excel'], true), 404);
+
+        $entreprise = Auth::user()->entreprise;
+        $pointDeVenteId = $this->siteDeTravail($request);
+        if (!$pointDeVenteId) {
+            return redirect()->route('admin.stock.inventaire')->with('erreur', 'Choisissez d\'abord le site à exporter.');
+        }
+
+        $site = PointDeVente::find($pointDeVenteId);
+        $lignes = Produit::where('entreprise_id', $entreprise->id)
+            ->whereIn('type', Produit::TYPES_STOCKABLES)
+            ->visiblesEnStock()
+            ->visiblesAuSite($pointDeVenteId)
+            ->with(['categorieRelation', 'stocks' => fn ($q) => $q->where('point_de_vente_id', $pointDeVenteId)])
+            ->orderBy('nom')
+            ->get()
+            ->map(function (Produit $p) use ($pointDeVenteId) {
+                $quantite = (float) $p->stockSur($pointDeVenteId);
+                $cump = (float) ($p->stocks->first()?->cump ?? 0);
+
+                return [
+                    'reference' => (string) $p->reference,
+                    'nom'       => (string) $p->nom,
+                    'categorie' => (string) ($p->categorieRelation?->nom ?? ''),
+                    'unite'     => (string) ($p->unite ?: 'Unité'),
+                    'quantite'  => $quantite,
+                    'cump'      => round($cump, 2),
+                    'valeur'    => round($quantite * $cump, 2),
+                ];
+            });
+
+        $nomFichier = 'inventaire-' . \Illuminate\Support\Str::slug($site->nom) . '-' . now()->format('Y-m-d');
+        $donnees = [
+            'entreprise' => $entreprise,
+            'site'       => $site,
+            'lignes'     => $lignes,
+            'total'      => round($lignes->sum('valeur'), 2),
+            'date'       => now(),
+        ];
+
+        if ($format === 'pdf') {
+            return response($pdf->inventaire($donnees), 200, [
+                'Content-Type'        => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="' . $nomFichier . '.pdf"',
+            ]);
+        }
+
+        return $this->inventaireEnExcel($donnees, $nomFichier . '.xlsx');
+    }
+
+    /** Le classeur de l'inventaire : en-tête, une ligne par article, total en formule. */
+    private function inventaireEnExcel(array $donnees, string $nomFichier): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $classeur = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $classeur->getDefaultStyle()->getFont()->setName('Arial')->setSize(10);
+        $feuille = $classeur->getActiveSheet();
+        $feuille->setTitle('Inventaire');
+
+        $feuille->setCellValue('A1', 'Inventaire de stock — ' . $donnees['entreprise']->nom);
+        $feuille->setCellValue('A2', 'Point de vente : ' . $donnees['site']->nom . ' — édité le ' . $donnees['date']->format('d/m/Y à H:i'));
+        $feuille->getStyle('A1')->getFont()->setBold(true)->setSize(13);
+
+        $entetes = ['Référence', 'Article', 'Catégorie', 'Unité', 'Stock théorique', 'CUMP (F)', 'Valeur (F)', 'Compté', 'Écart'];
+        $feuille->fromArray($entetes, null, 'A4');
+        $feuille->getStyle('A4:I4')->getFont()->setBold(true);
+        $feuille->getStyle('A4:I4')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('E2E8F0');
+
+        $ligne = 5;
+        foreach ($donnees['lignes'] as $l) {
+            $feuille->fromArray([$l['reference'], $l['nom'], $l['categorie'], $l['unite'], $l['quantite'], $l['cump']], null, 'A' . $ligne);
+            $feuille->setCellValue('G' . $ligne, '=E' . $ligne . '*F' . $ligne);
+            // L'écart se calcule dès que la quantité comptée est saisie.
+            $feuille->setCellValue('I' . $ligne, '=IF(H' . $ligne . '="","",H' . $ligne . '-E' . $ligne . ')');
+            $ligne++;
+        }
+        $derniere = $ligne - 1;
+
+        $feuille->setCellValue('F' . $ligne, 'Total');
+        $feuille->setCellValue('G' . $ligne, $derniere >= 5 ? '=SUM(G5:G' . $derniere . ')' : 0);
+        $feuille->getStyle('F' . $ligne . ':G' . $ligne)->getFont()->setBold(true);
+
+        $feuille->getStyle('E5:E' . max(5, $ligne))->getNumberFormat()->setFormatCode('#,##0.###');
+        $feuille->getStyle('F5:G' . max(5, $ligne))->getNumberFormat()->setFormatCode('#,##0');
+        $feuille->getStyle('H5:I' . max(5, $ligne))->getNumberFormat()->setFormatCode('#,##0.###');
+        foreach (['A' => 14, 'B' => 34, 'C' => 20, 'D' => 10, 'E' => 15, 'F' => 12, 'G' => 14, 'H' => 12, 'I' => 12] as $col => $largeur) {
+            $feuille->getColumnDimension($col)->setWidth($largeur);
+        }
+        $feuille->freezePane('A5');
+
+        return response()->streamDownload(function () use ($classeur) {
+            (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($classeur))->save('php://output');
+        }, $nomFichier, ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
     }
 
     /**
@@ -558,6 +663,7 @@ class StockControleur
         $achats = Achat::with(['fournisseur', 'pointDeVente', 'details.produit'])
             ->whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entreprise->id))
             ->whereIn('etape', ['Bon de commande', 'Facture'])
+            ->where(fn ($a) => $a->whereNull('statut')->orWhere('statut', '!=', 'Annulée'))
             // Même règle que le compteur : une commande de services n'a rien
             // à recevoir, et ne doit pas encombrer la file.
             ->whereHas('details', function ($q) {
@@ -676,6 +782,7 @@ class StockControleur
         $ventes = Vente::with(['client', 'pointDeVente', 'details.produit'])
             ->whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entreprise->id))
             ->whereIn('etape', ['Bon de commande', 'Facture'])
+            ->where(fn ($a) => $a->whereNull('statut')->orWhere('statut', '!=', 'Annulée'))
             // Même règle qu'à la réception : une prestation de service ne se
             // livre pas depuis un stock, et sa ligne resterait « à livrer »
             // pour toujours.

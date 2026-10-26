@@ -58,6 +58,8 @@ class VenteControleur
             ->selectionnables()
             // Chaque point de vente ne propose que ses articles (20/10/2026).
             ->visiblesAuSite($pointDeVenteId)
+            // Les ruptures masquées, si l'entreprise l'a réglé (26/10/2026).
+            ->when($entreprise->masqueLesRupturesPour(Auth::user()), fn ($q) => $q->sansRuptureAuSite($pointDeVenteId))
             // Le prix du site se lit sur sa fiche : chargée d'un coup.
             ->with(['taxes', 'stocks'])
             ->orderBy('nom')
@@ -781,7 +783,10 @@ class VenteControleur
         // Les banques, pour le règlement saisi à « Valider & Facturer ».
         $banques = CodeJournal::banques()->where('entreprise_id', Auth::user()->entreprise_id)->orderBy('intitule')->get();
 
-        return view('admin::factures.vente', compact('vente', 'vendeur', 'dejaPaye', 'banques'));
+        // Le solde du client, si l'entreprise l'imprime (26/10/2026).
+        $soldeClient = \App\Modules\Admin\Services\SoldeClientService::pourFacture($vente);
+
+        return view('admin::factures.vente', compact('vente', 'vendeur', 'dejaPaye', 'banques', 'soldeClient'));
     }
 
     /**
@@ -1316,6 +1321,9 @@ class VenteControleur
     {
         abort_unless($vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
         abort_unless($vente->estUneOffre(), 403);
+        if ($r = self::refusSiAnnulee($vente)) {
+            return $r;
+        }
 
         $request->validate([
             'accepte_par' => ['nullable', 'string', 'max:190'],
@@ -1359,6 +1367,9 @@ class VenteControleur
     {
         abort_unless($vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
         abort_unless($vente->estUneOffre(), 403);
+        if ($r = self::refusSiAnnulee($vente)) {
+            return $r;
+        }
 
         $request->validate([
             'date_validite' => ['required', 'date', 'after_or_equal:today'],
@@ -1392,6 +1403,9 @@ class VenteControleur
     public function confirmerCommande(Vente $vente): RedirectResponse
     {
         abort_unless($vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
+        if ($r = self::refusSiAnnulee($vente)) {
+            return $r;
+        }
         if ($vente->etape !== 'Devis') {
             return back()->with('info', 'Le document n\'est pas à l\'étape Devis.');
         }
@@ -1442,6 +1456,9 @@ class VenteControleur
     private function facturerLaCommande(Request $request, Vente $commande): RedirectResponse
     {
         abort_unless($commande->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
+        if ($r = self::refusSiAnnulee($commande)) {
+            return $r;
+        }
 
         if ($commande->etape === 'Facture') {
             return back()->with('info', 'Cette facture est déjà validée.');
@@ -1586,6 +1603,52 @@ class VenteControleur
 
         return redirect()->route(request()->routeIs('caissier.*') ? 'caissier.ventes.imprimer' : 'admin.ventes.imprimer', $avoirId)
             ->with('succes', "Facture d'avoir générée avec succès ! Les stocks et écritures comptables inverses ont été validés.");
+    }
+
+    /** Le refus opposé à tout geste sur une pièce annulée (26/10/2026). */
+    private static function refusSiAnnulee(Vente $vente): ?RedirectResponse
+    {
+        return $vente->estAnnulee()
+            ? back()->with('erreur', $vente->libelleEtape() . ' ' . $vente->numero_facture . ' est annulé(e) : plus rien ne s\'y fait.')
+            : null;
+    }
+
+    /**
+     * Annuler un devis ou un bon de commande (26/10/2026).
+     *
+     * Rien n'est en jeu : la marchandise ne sort qu'à la livraison, et un
+     * devis comme une commande n'ont ni écriture ni certification. La pièce
+     * reste dans la liste, marquée « Annulée » avec son motif ; elle n'engage
+     * plus le stock et ne se livre plus. Une commande déjà livrée, même en
+     * partie, ou déjà facturée, ne s'annule pas : ce qui est parti se règle
+     * par la facture et l'avoir.
+     */
+    public function annulerCommande(Request $request, Vente $vente): RedirectResponse
+    {
+        abort_unless($vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
+
+        $donnees = $request->validate([
+            'motif' => ['required', 'string', 'max:200'],
+        ], ['motif.required' => 'Indiquez le motif de l\'annulation.']);
+
+        $refus = match (true) {
+            !in_array($vente->etape, ['Devis', 'Bon de commande'], true) => 'Seuls un devis ou un bon de commande s\'annulent ici.',
+            $vente->estAnnulee() => 'Ce document est déjà annulé.',
+            $vente->estConverti() => 'Ce document a déjà été transformé : annulez la pièce qui en est née.',
+            $vente->aDesLivraisons() => 'Cette commande a déjà été livrée, au moins en partie : elle ne s\'annule plus.',
+            default => null,
+        };
+        if ($refus) {
+            return back()->with('erreur', $refus);
+        }
+
+        $vente->forceFill(['statut' => Vente::STATUT_ANNULEE]
+            + (\Illuminate\Support\Facades\Schema::hasColumn('ventes', 'motif_annulation') ? ['motif_annulation' => $donnees['motif']] : []))
+            ->save();
+
+        $this->journaliser('annulation_commande_vente', 'Vente', $vente->id);
+
+        return back()->with('succes', $vente->libelleEtape() . ' ' . $vente->numero_facture . ' annulé(e).');
     }
 
     /**
@@ -1903,6 +1966,9 @@ class VenteControleur
     {
         abort_unless($vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
         abort_unless(in_array($vente->etape, ['Devis', 'Bon de commande']), 403);
+        if ($r = self::refusSiAnnulee($vente)) {
+            return $r;
+        }
 
         $vente->update(['statut' => 'Envoyé']);
 
@@ -1981,6 +2047,9 @@ class VenteControleur
     public function convertirEnCommande(Vente $vente): RedirectResponse
     {
         abort_unless($vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
+        if ($r = self::refusSiAnnulee($vente)) {
+            return $r;
+        }
         if ($vente->etape !== 'Devis') {
             return back()->with('erreur', 'Ce document n\'est pas un devis.');
         }
@@ -2005,6 +2074,9 @@ class VenteControleur
     public function convertirEnFacture(Request $request, Vente $vente): RedirectResponse
     {
         abort_unless($vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
+        if ($r = self::refusSiAnnulee($vente)) {
+            return $r;
+        }
         if ($vente->etape !== 'Bon de commande') {
             return back()->with('erreur', 'Ce document n\'est pas un bon de commande.');
         }
@@ -2028,6 +2100,9 @@ class VenteControleur
     public function convertirPiece(Vente $vente): RedirectResponse
     {
         abort_unless($vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
+        if ($r = self::refusSiAnnulee($vente)) {
+            return $r;
+        }
 
         if ($vente->type_facture === 'avoir') {
             return back()->with('erreur', 'Un avoir ne peut pas être converti.');
@@ -2605,6 +2680,7 @@ class VenteControleur
             ->where('entreprise_id', $entrepriseId)
             ->where('statut', 'actif')
             ->visiblesAuSite(session('point_de_vente_actif_id'))
+            ->when($user->entreprise?->masqueLesRupturesPour($user), fn ($q) => $q->sansRuptureAuSite(session('point_de_vente_actif_id')))
             ->get();
 
         $grouped = [];

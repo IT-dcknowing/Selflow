@@ -6,14 +6,14 @@ et ce fichier. Tout ce qui a été décidé, tout ce qui a été écarté et pou
 tout ce qui reste à faire doit donc figurer ici — et y être tenu à jour à chaque
 lot terminé.
 
-Dernière mise à jour : 23 octobre 2026 — lot 127 : retours du test des
-nouvelles fonctionnalités (panier de la vente, fiche technique, fenêtre de la
-pièce). Lots 124 à 126 : un abonnement payé par
-référence reste bloqué « En attente de confirmation » jusqu'à la confirmation
-du superadministrateur, même en échec ; pas de panne si sa migration n'est
-pas jouée ; l'auteur d'une panne, son poste et son entreprise. Lots 116 à 123 (20/10) : les points de
-vente — articles, prix, numéros, créances, tiers, choix du site, doublons.
-Plan : `PLAN-RETOURS-PRODUCTION-14-10-2026.md`.
+Dernière mise à jour : 26 octobre 2026 — lots 128 à 132 : configuration des
+comptes en un tableau (proposé / personnalisé, variation de stock), solde du
+client sur la facture, annulation des devis, commandes et commandes d'achat,
+ruptures masquées à la vente, export de l'inventaire en PDF et Excel. Avant :
+lot 127 (test des nouvelles fonctionnalités), lots 124 à 126 (abonnement en
+attente, panne 1054, auteur des pannes), lots 116 à 123 (points de vente).
+Plan : `PLAN-RETOURS-PRODUCTION-14-10-2026.md`. **Au déploiement : `php artisan
+migrate --force`** (migrations `2026_10_26_000001` à `000004`).
 
 ---
 
@@ -9725,6 +9725,195 @@ que « Fermer ».
 - `ProductionRecetteTest` (+1), `ImpressionDepuisLaVenteTest` (+1). Suite :
   1 924 épreuves, 1 919 passantes, 5 ignorées. Le comportement dans le
   navigateur (cadre, titre, rechargement) n'a pas été éprouvé dans Chromium.
+
+---
+
+### Plan du 26/10/2026 — lots 128 à 132
+
+Cinq demandes du propriétaire, détaillées dans
+`PLAN-RETOURS-PRODUCTION-14-10-2026.md` (« Retours du 26/10/2026 ») :
+
+1. lot 128 : configuration des comptes en un tableau par niveau ;
+2. lot 129 : solde cumulé du client sur la facture, sur option ;
+3. lot 130 : annulation des devis, bons de commande et commandes d'achat ;
+4. lot 131 : masquer les articles en rupture à la vente, sur option, sauf
+   pour l'administrateur ;
+5. lot 132 : export de l'inventaire en PDF et en Excel.
+
+Méthode, rappelée par le propriétaire le 22/10/2026 : **une branche par
+section de travaux**, nommée en français d'après la section, fusionnée dans
+`main` une fois terminée, puis poussée sur les deux dépôts.
+
+---
+
+### Lot 132 — Export de l'inventaire en PDF et en Excel — **TERMINÉ le 26/10/2026**
+
+Demande du propriétaire : pouvoir exporter l'inventaire de stock.
+
+- **Deux boutons sur l'écran d'inventaire**, « PDF » et « Excel », pour le
+  site affiché (`admin.stock.inventaire.exporter`, droit `stock_articles`).
+- **Contenu.** Les articles qui se comptent sur ce site (pas les
+  prestations) : référence, article, catégorie, unité, stock théorique, CUMP
+  (Coût Unitaire Moyen Pondéré), valeur. S'y ajoute une colonne « Compté »
+  vide, pour le comptage sur papier.
+- **Le classeur Excel.** La valeur et le total sont des formules ; l'écart
+  se calcule dès qu'une quantité comptée est saisie.
+- **Le PDF.** Format A4, rendu par dompdf, avec la valeur totale et deux
+  lignes de signature (« Compté par », « Vérifié par »).
+- **Contrôle.** Un site d'une autre entreprise est refusé.
+
+- `ExportInventaireTest` (4). Suite : 1 928 épreuves, 1 923 passantes,
+  5 ignorées.
+
+---
+
+### Lot 131 — Masquer les articles en rupture à la vente — **TERMINÉ le 26/10/2026**
+
+Demande du propriétaire : un réglage, et non un comportement imposé à tous,
+pour ne plus proposer à la vente ce qui est en rupture. L'administrateur de
+l'entreprise voit tout.
+
+- **Le réglage.** Carte « Ventes » des paramètres, case « Masquer les
+  articles en rupture à la vente » (`entreprises.masquer_ruptures_vente`,
+  migration `2026_10_26_000001`). Elle est éteinte par défaut.
+- **L'effet.** Coché, un article stockable sans stock sur le point de vente
+  disparaît de la caisse et du pas à pas (`ventes.nouvelle`), de la grille
+  par catégorie et de l'API de vente (`donnees-formulaire`). Les
+  prestations restent. Le filtre est porté par le scope
+  `Produit::sansRuptureAuSite()`.
+- **Qui voit tout.** Un utilisateur au rôle `admin`
+  (`Entreprise::masqueLesRupturesPour()`).
+- **Sans la migration**, rien n'est masqué et l'enregistrement des
+  paramètres n'écrit pas la colonne.
+- La modification d'une vente existante n'est pas filtrée : ses lignes
+  restent modifiables.
+
+- `MasquerRupturesALaVenteTest` (4). Le raccourci « Ventes » est ajouté aux
+  paramètres. `api_mobille_selflow.md` est mis à jour. Suite : 1 932
+  épreuves, 1 927 passantes, 5 ignorées.
+
+---
+
+### Lot 130 — Annuler les devis, bons de commande et commandes d'achat — **TERMINÉ le 26/10/2026**
+
+Demande du propriétaire : un bouton d'annulation sur les bons de commande et
+sur les achats, toujours disponible pour l'administrateur et sur habilitation
+pour les autres.
+
+**Ventes.** « Annuler » sur un devis ou un bon de commande
+(`admin.ventes.annuler_commande`, et son pendant caissier).
+
+- **Motif obligatoire**, saisi dans la fenêtre d'annulation des factures,
+  dont le texte s'adapte.
+- **Refusé** si la pièce est déjà transformée (devis passé en commande,
+  commande facturée) ou si la commande a été livrée, même en partie : ce qui
+  est parti se règle par la facture et l'avoir.
+- **Ce que l'annulation fait.** La pièce reste dans la liste, marquée
+  « Annulé(e) » avec son motif (`ventes.motif_annulation`). Plus rien ne s'y
+  fait : modifier, envoyer, convertir, accepter, prolonger, livrer, facturer
+  (`refusSiAnnulee`, et `estFige()` vaut vrai).
+
+**Achats.** « Annuler » sur une demande de prix ou un bon de commande
+fournisseur dont rien n'est reçu (`admin.achats.annuler_commande`).
+
+- **Motif obligatoire**, gardé dans `achats.motif_annulation`.
+- **Plus de suite possible** : ni confirmation ni facturation.
+- **Pièces B2B exclues** : une pièce née d'une négociation B2B suit son
+  propre parcours et ne porte pas le bouton.
+
+**Ce qui n'engage plus.** Une commande annulée sort des engagements
+(« commandé », « à réceptionner ») et des files de livraison et de
+réception. Une facture annulée (lot 87) sort aussi de ces files.
+
+**Droits.**
+
+- « Annuler un devis ou un bon de commande vente »
+  (`ventes_annuler_commande`).
+- « Annuler une demande de prix ou une commande d'achat »
+  (`achats_annuler_commande`).
+- L'administrateur les a d'office.
+
+**Reste à décider.** L'annulation d'une facture d'achat : le stock est entré
+et les écritures sont passées, il faudrait les défaire.
+
+Migration `2026_10_26_000002` (colonnes `motif_annulation`). Sans elle,
+l'annulation se fait quand même ; seul le motif n'est pas gardé.
+
+- `CycleVenteAchatRecetteTest` (+6). Suite : 1 938 épreuves, 1 933
+  passantes, 5 ignorées.
+
+---
+
+### Lot 129 — Le solde du client sur la facture, sur option — **TERMINÉ le 26/10/2026**
+
+Demande du propriétaire : imprimer sur la facture d'un client connu qui a des
+restes à payer son solde cumulé. C'est une option, parce que tout le monde ne
+veut pas de ces montants sur ses factures.
+
+- **L'option.** Carte « Impression » des paramètres, case « Afficher le solde
+  du client sur les factures » (`entreprises.afficher_solde_client_facture`,
+  migration `2026_10_26_000003`). Elle est éteinte par défaut.
+- **Le calcul** (`SoldeClientService::pourFacture`) est celui de l'écran des
+  créances :
+  - **solde antérieur** : le reste dû sur les factures précédentes du client
+    (à crédit ou avec avance, taxes parafiscales et timbre compris, moins
+    les encaissements), plus le reste de son solde de départ ;
+  - **reste de cette facture** ;
+  - **solde cumulé** : la somme des deux.
+- **Quand rien n'est imprimé** : pour un client de passage, pour un client à
+  jour, pour un avoir, une facture annulée, un devis ou une commande.
+- **Où il s'imprime.** Un encadré « Situation du compte client » sous les
+  totaux, dans les quatre modèles de l'écran et dans le PDF.
+- **Périmètre gelé.** L'encadré est placé avant le bloc de certification,
+  qui n'a pas bougé. Rien de ce que la DGI reçoit ne change.
+- **Sans la migration**, rien n'est imprimé.
+
+- `SoldeClientSurFactureTest` (4). Le JavaScript de la facture est vérifié
+  par `node --check`. Le rendu dans un navigateur n'a pas été éprouvé dans
+  Chromium. Suite : 1 942 épreuves, 1 937 passantes, 5 ignorées.
+
+---
+
+### Lot 128 — La configuration des comptes en un tableau par niveau — **TERMINÉ le 26/10/2026**
+
+Demande du propriétaire. La page était découpée en trois sections (vente,
+achat, variations de stock), chacune avec ses onglets. Pour un article, il
+fallait passer de l'une à l'autre. Désormais :
+
+- **Les quatre onglets** restent (configuration générale, par catégorie, par
+  type, par article). Chacun est **un seul tableau** : vente, achat et
+  variation de stock côte à côte.
+- **Chaque compte en deux cases.**
+  - **Proposé** : ce que Selflow donne de lui-même, en lecture seule. C'est
+    le défaut 701000 / 601000 en général, le compte de la famille par
+    catégorie, le compte habituel du type par type, ce dont l'article hérite
+    par article.
+  - **Personnalisé** : le compte imposé, **prioritaire** sur le proposé.
+  - Les anciens libellés (« Compte de la famille », « Compte imposé »,
+    « Compte hérité ») sont remplacés.
+- **Le type a son compte proposé**, tiré du référentiel
+  (`ConfigurationCompte::PROPOSES_PAR_TYPE`, d'après `types_articles.json`).
+  Exemples : marchandise 701 / 601 / 6031, produit fini 702 / — / 736,
+  service 706. Il ne s'impose que s'il est repris en personnalisé.
+- **La variation de stock se personnalise** par catégorie, par type et par
+  article (`configurations_comptes.compte_variation`, migration
+  `2026_10_26_000004`). Elle n'est proposée que là où il y a du stock : les
+  catégories qui ont des articles stockés, les types et articles stockables.
+  La configuration générale n'en porte pas, car un 603 commun fausserait les
+  produits finis (736).
+- **Ordre de priorité de la variation** (`ImputationService::compteVariation`) :
+  l'article, puis le type, puis la catégorie, puis la famille. C'est le même
+  ordre que la vente et l'achat. Le compte de stock reste porté par la
+  catégorie et se corrige dans l'onglet « Par catégorie ».
+- **Un onglet n'efface pas les autres.** Enregistrer la vente d'une ligne
+  garde sa variation personnalisée. Une ligne entièrement vidée est
+  supprimée.
+- **Sans la migration**, les colonnes de variation n'apparaissent pas et
+  rien ne change à l'ancienne résolution.
+
+- `ConfigurationGlobaleDesComptesTest` (+3). Rendu vérifié dans Chromium
+  (onglets catégorie, type, article). Suite : 1 945 épreuves, 1 940
+  passantes, 5 ignorées.
 
 ---
 

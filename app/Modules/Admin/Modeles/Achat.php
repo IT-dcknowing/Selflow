@@ -133,6 +133,24 @@ class Achat extends Model
      * l'achat — sans quoi elle passerait deux fois. Un bordereau (BAPA) est
      * émis par nous : il n'est jamais déclaré par le fournisseur.
      */
+
+    /** Une demande de prix ou une commande annulée (26/10/2026). */
+    public const STATUT_ANNULEE = 'Annulée';
+
+    public function estAnnulee(): bool
+    {
+        return $this->statut === self::STATUT_ANNULEE;
+    }
+
+    /**
+     * Rien n'a encore été reçu sur cette commande : elle peut s'annuler sans
+     * qu'aucun stock ni aucune écriture soit en jeu.
+     */
+    public function rienNEstRecu(): bool
+    {
+        return ! $this->details()->where('quantite_receptionnee', '>', 0)->exists();
+    }
+
     public function estInformative(): bool
     {
         return (bool) $this->declaree_par_fournisseur && $this->type_facture !== 'bapa';

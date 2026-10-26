@@ -393,6 +393,11 @@ class Vente extends Model
      */
     public function estFige(): bool
     {
+        // Une offre annulée ne se reprend pas (26/10/2026).
+        if ($this->estAnnulee()) {
+            return true;
+        }
+
         // Une commande livrée — même en partie — est figée elle aussi : la
         // marchandise est partie sur la foi de ses lignes, et la modifier
         // ferait dire au bon de livraison et à la facture autre chose que ce
@@ -558,11 +563,18 @@ class Vente extends Model
         return $this->statut === self::STATUT_ANNULEE;
     }
 
-    /** Le motif saisi à l'annulation, lu sur l'avoir interne qui l'a portée. */
+    /**
+     * Le motif saisi à l'annulation : sur la pièce pour un devis ou une
+     * commande (26/10/2026), sinon sur l'avoir interne qui a annulé la facture.
+     */
     public function motifAnnulation(): ?string
     {
         if (!$this->estAnnulee()) {
             return null;
+        }
+
+        if (filled($this->motif_annulation ?? null)) {
+            return $this->motif_annulation;
         }
 
         $raison = self::withoutGlobalScopes()
