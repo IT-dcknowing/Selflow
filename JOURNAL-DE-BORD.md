@@ -9746,6 +9746,27 @@ section de travaux**, nommée en français d'après la section, fusionnée dans
 
 ---
 
+### Lot 132 — Export de l'inventaire en PDF et en Excel — **TERMINÉ le 26/10/2026**
+
+Demande du propriétaire : pouvoir exporter l'inventaire de stock.
+
+- **Deux boutons sur l'écran d'inventaire**, « PDF » et « Excel », pour le
+  site affiché (`admin.stock.inventaire.exporter`, droit `stock_articles`).
+- **Contenu.** Les articles qui se comptent sur ce site (pas les
+  prestations) : référence, article, catégorie, unité, stock théorique, CUMP
+  (Coût Unitaire Moyen Pondéré), valeur. S'y ajoute une colonne « Compté »
+  vide, pour le comptage sur papier.
+- **Le classeur Excel.** La valeur et le total sont des formules ; l'écart
+  se calcule dès qu'une quantité comptée est saisie.
+- **Le PDF.** Format A4, rendu par dompdf, avec la valeur totale et deux
+  lignes de signature (« Compté par », « Vérifié par »).
+- **Contrôle.** Un site d'une autre entreprise est refusé.
+
+- `ExportInventaireTest` (4). Suite : 1 928 épreuves, 1 923 passantes,
+  5 ignorées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
