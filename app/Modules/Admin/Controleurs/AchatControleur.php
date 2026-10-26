@@ -163,6 +163,13 @@ class AchatControleur
             ]);
         }
 
+        // Un formulaire ne s'enregistre qu'une fois (urgence du 26/10/2026).
+        if (!\App\Modules\Admin\Services\EnvoiUniqueService::reserver($request, 'achat')) {
+            return redirect()->route('admin.achats.factures', ['etape' => $request->input('etape', 'Facture')])
+                ->with('info', 'Cet achat a déjà été enregistré : le second envoi a été ignoré, aucun doublon n\'a été créé.');
+        }
+
+        try {
         $achat = DB::transaction(function () use ($request, $pointDeVenteId, $entreprise, $isBapa) {
             $montantHt  = 0;
             $montantTva = 0;
@@ -381,6 +388,10 @@ class AchatControleur
 
             return $achat;
         });
+        } catch (\Throwable $e) {
+            \App\Modules\Admin\Services\EnvoiUniqueService::liberer($request, 'achat');
+            throw $e;
+        }
 
         // Si c'est un achat de type BAPA, normalisation BAPA asynchrone
         // Sans situation fiscale, le bordereau s'enregistre et reste à

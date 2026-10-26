@@ -63,6 +63,9 @@
 
 <form method="POST" action="{{ route('admin.achats.enregistrer') }}" id="formAchat">
 @csrf
+{{-- Un formulaire ne s'enregistre qu'une fois (26/10/2026) : le serveur
+     ignore un second envoi qui porte le même jeton. --}}
+<input type="hidden" name="jeton_envoi" value="{{ \Illuminate\Support\Str::uuid() }}">
 <div class="achat-grid">
 
     <div>
@@ -1052,4 +1055,33 @@ document.addEventListener('input', function (e) {
 });
 </script>
 
+<script>
+// Le second clic sur « Valider » n'envoie plus rien (26/10/2026) : le
+// formulaire parti, ses boutons se désactivent jusqu'au retour du serveur.
+(function () {
+    const form = document.getElementById('formAchat');
+    if (!form) return;
+    form.addEventListener('submit', function (e) {
+        if (e.defaultPrevented) return;
+        if (form.dataset.envoye === '1') { e.preventDefault(); return; }
+        form.dataset.envoye = '1';
+        setTimeout(function () {
+            form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function (b) {
+                b.disabled = true;
+                b.dataset.texteInitial = b.innerHTML;
+                b.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enregistrement…';
+            });
+        }, 0);
+    });
+    // Retour arrière du navigateur : la page revient de son cache, on la réarme.
+    window.addEventListener('pageshow', function (e) {
+        if (!e.persisted) return;
+        form.dataset.envoye = '';
+        form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function (b) {
+            b.disabled = false;
+            if (b.dataset.texteInitial) b.innerHTML = b.dataset.texteInitial;
+        });
+    });
+})();
+</script>
 @endsection

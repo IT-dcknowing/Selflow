@@ -273,3 +273,4 @@ la DGI reçoit ne change.
 |---|---|
 | Les exports Excel et PDF de l'inventaire doivent être propres, avec un bon design ; un filigrane sur les deux | lot 133 (`export-inventaire-mise-en-forme-et-filigrane`) : en-tête, chiffres clés, tableau zébré, total, signatures, pagination ; filigrane au nom de l'entreprise sur le PDF et sur l'Excel (fond à l'écran, en-tête à l'impression) |
 | Le filigrane doit être SELFLOW | lot 133 bis (`filigrane-selflow`) : SELFLOW en diagonale sur le PDF et l'Excel, à la place du nom de l'entreprise |
+| **URGENT** — des doublons de factures | lot 134 (`factures-sans-doublons`) : double envoi bloqué (navigateur et serveur), numérotation verrouillée sur le plus grand numéro ; **lancer `php artisan selflow:doublons-factures` sur le serveur** |
