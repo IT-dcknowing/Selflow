@@ -10062,6 +10062,22 @@ et ne saute pas. Une entreprise d'un seul site garde VTE-jjmmaa-xxx.
   listés, séquences par site sans saut). Suite : 1 956 épreuves, 1 951
   passantes, 5 ignorées.
 
+**Ensuite, le même jour : les annulées ne se mélangent plus.** Certains
+doublons ont déjà été annulés par les entreprises.
+
+- Les pièces annulées et les avoirs sont écartés des doublons : un doublon
+  annulé est réglé, et l'avoir d'une annulation ressemble à la facture qu'il
+  annule.
+- Un **bilan par entreprise** termine la sortie : doublons à traiter (même
+  numéro, double envoi) et doublons déjà réglés par annulation.
+- Les trous se lisent toujours sur toutes les pièces : une pièce annulée
+  garde son numéro.
+- Entreprises concernées d'après la première exécution : poissonnerie
+  entente (#21), poissonnerie EDEN (#22), eve disagn (#25), HEIBN (#28).
+  Les doublons de numéro touchent les trois premières. HEIBN n'avait que des
+  ventes de même montant, sans doublon de numéro.
+- `FacturesSansDoublonsTest` (+1). Suite : 1 957 épreuves, 1 952 passantes.
+
 ---
 
 ## 5 bis. La numérotation des comptes — tranché

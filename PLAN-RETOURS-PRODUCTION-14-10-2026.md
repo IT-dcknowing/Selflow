@@ -275,3 +275,4 @@ la DGI reçoit ne change.
 | Le filigrane doit être SELFLOW | lot 133 bis (`filigrane-selflow`) : SELFLOW en diagonale sur le PDF et l'Excel, à la place du nom de l'entreprise |
 | **URGENT** — des doublons de factures | lot 134 (`factures-sans-doublons`) : double envoi bloqué (navigateur et serveur), numérotation verrouillée sur le plus grand numéro ; **lancer `php artisan selflow:doublons-factures` sur le serveur** |
 | Résultat de `selflow:doublons-factures` : trop de faux doublons ; les numéros sautent-ils ? | lot 134 bis (`doublons-factures-detection-precise`) : double envoi = même vendeur, mêmes lignes, ≤ 10 s ; liste des numéros manquants ; séquence par point de vente vérifiée, sans saut depuis le lot 134 |
+| Les doublons déjà annulés ne doivent pas se mélanger aux autres ; quelles entreprises sont concernées ? | lot 134 ter (`doublons-factures-hors-annulees`) : annulées et avoirs écartés, bilan par entreprise (à traiter / déjà réglés) |
