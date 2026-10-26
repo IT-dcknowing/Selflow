@@ -214,6 +214,11 @@ class EntrepriseControleur
             $data['masquer_ruptures_vente'] = $request->boolean('masquer_ruptures_vente');
         }
 
+        // Le solde du client sur ses factures (26/10/2026), même règle.
+        if ($request->has('afficher_solde_client_facture') && \Illuminate\Support\Facades\Schema::hasColumn('entreprises', 'afficher_solde_client_facture')) {
+            $data['afficher_solde_client_facture'] = $request->boolean('afficher_solde_client_facture');
+        }
+
         // La convention de numerotation des tiers. Absente du formulaire, elle
         // ne change pas : les fiches deja creees gardent leur numero, et rien
         // ne justifie de basculer la suivante sans qu'on l'ait demande.

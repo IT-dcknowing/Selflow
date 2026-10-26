@@ -9844,6 +9844,36 @@ l'annulation se fait quand même ; seul le motif n'est pas gardé.
 
 ---
 
+### Lot 129 — Le solde du client sur la facture, sur option — **TERMINÉ le 26/10/2026**
+
+Demande du propriétaire : imprimer sur la facture d'un client connu qui a des
+restes à payer son solde cumulé. C'est une option, parce que tout le monde ne
+veut pas de ces montants sur ses factures.
+
+- **L'option.** Carte « Impression » des paramètres, case « Afficher le solde
+  du client sur les factures » (`entreprises.afficher_solde_client_facture`,
+  migration `2026_10_26_000003`). Elle est éteinte par défaut.
+- **Le calcul** (`SoldeClientService::pourFacture`) est celui de l'écran des
+  créances :
+  - **solde antérieur** : le reste dû sur les factures précédentes du client
+    (à crédit ou avec avance, taxes parafiscales et timbre compris, moins
+    les encaissements), plus le reste de son solde de départ ;
+  - **reste de cette facture** ;
+  - **solde cumulé** : la somme des deux.
+- **Quand rien n'est imprimé** : pour un client de passage, pour un client à
+  jour, pour un avoir, une facture annulée, un devis ou une commande.
+- **Où il s'imprime.** Un encadré « Situation du compte client » sous les
+  totaux, dans les quatre modèles de l'écran et dans le PDF.
+- **Périmètre gelé.** L'encadré est placé avant le bloc de certification,
+  qui n'a pas bougé. Rien de ce que la DGI reçoit ne change.
+- **Sans la migration**, rien n'est imprimé.
+
+- `SoldeClientSurFactureTest` (4). Le JavaScript de la facture est vérifié
+  par `node --check`. Le rendu dans un navigateur n'a pas été éprouvé dans
+  Chromium. Suite : 1 942 épreuves, 1 937 passantes, 5 ignorées.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
