@@ -185,6 +185,17 @@ class VenteControleur
         // la marchandise entre la pré-vérification et ici, un lot non
         // servable) tombaient en page « Panne » : la vente semblait ne pas
         // passer, sans un mot. La transaction est annulée ; on le dit.
+        // Un formulaire ne s'enregistre qu'une fois : le second envoi d'un
+        // double clic s'arrête ici (urgence du 26/10/2026).
+        if (!\App\Modules\Admin\Services\EnvoiUniqueService::reserver($request, 'vente')) {
+            $routeListe = request()->routeIs('caissier.*') ? 'caissier.ventes.factures' : 'admin.ventes.factures';
+            $retourDouble = \App\Modules\Authentification\Regles\Habilitations::ouvre(Auth::user(), $routeListe)
+                ? redirect()->route($routeListe, ['etape' => $request->input('etape', 'Facture')])
+                : redirect()->route((request()->routeIs('caissier.*') ? 'caissier' : 'admin') . '.ventes.nouvelle');
+
+            return $retourDouble->with('info', 'Cette vente a déjà été enregistrée : le second envoi a été ignoré, aucun doublon n\'a été créé.');
+        }
+
         $normalisationEcartee = false;
         try {
         DB::transaction(function () use ($request, $pointDeVenteId, &$venteId, $entreprise, &$normalisationEcartee, $produitDe) {
@@ -489,7 +500,11 @@ class VenteControleur
             $venteId = $vente->id;
         }); // fin DB::transaction
         } catch (\InvalidArgumentException|\DomainException $e) {
+            \App\Modules\Admin\Services\EnvoiUniqueService::liberer($request, 'vente');
             return back()->withInput()->with('erreur', 'La vente n\'a pas été enregistrée : ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            \App\Modules\Admin\Services\EnvoiUniqueService::liberer($request, 'vente');
+            throw $e;
         }
 
         // ── Envoi B2B automatique pour "Bon de commande" ───────────────────────
