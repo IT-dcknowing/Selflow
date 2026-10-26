@@ -208,6 +208,12 @@ class EntrepriseControleur
         $data['normalisation_auto_factures'] = $auto;
         $data['normalisation_auto_recus']    = $auto;
 
+        // Masquer à la vente les articles en rupture (26/10/2026). La case est
+        // toujours postée (champ caché à 0). Colonne absente : on n'écrit rien.
+        if ($request->has('masquer_ruptures_vente') && \Illuminate\Support\Facades\Schema::hasColumn('entreprises', 'masquer_ruptures_vente')) {
+            $data['masquer_ruptures_vente'] = $request->boolean('masquer_ruptures_vente');
+        }
+
         // La convention de numerotation des tiers. Absente du formulaire, elle
         // ne change pas : les fiches deja creees gardent leur numero, et rien
         // ne justifie de basculer la suivante sans qu'on l'ait demande.

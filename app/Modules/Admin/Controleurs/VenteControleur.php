@@ -58,6 +58,8 @@ class VenteControleur
             ->selectionnables()
             // Chaque point de vente ne propose que ses articles (20/10/2026).
             ->visiblesAuSite($pointDeVenteId)
+            // Les ruptures masquées, si l'entreprise l'a réglé (26/10/2026).
+            ->when($entreprise->masqueLesRupturesPour(Auth::user()), fn ($q) => $q->sansRuptureAuSite($pointDeVenteId))
             // Le prix du site se lit sur sa fiche : chargée d'un coup.
             ->with(['taxes', 'stocks'])
             ->orderBy('nom')
@@ -2605,6 +2607,7 @@ class VenteControleur
             ->where('entreprise_id', $entrepriseId)
             ->where('statut', 'actif')
             ->visiblesAuSite(session('point_de_vente_actif_id'))
+            ->when($user->entreprise?->masqueLesRupturesPour($user), fn ($q) => $q->sansRuptureAuSite(session('point_de_vente_actif_id')))
             ->get();
 
         $grouped = [];

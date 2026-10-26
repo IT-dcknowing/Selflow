@@ -116,6 +116,7 @@
                 ] : []
             ),
             'Documents' => [
+                'reglages-vente' => ['Ventes', 'fa-cash-register'],
                 'impression' => ['Impression', 'fa-print'],
             ],
         ];
@@ -1075,6 +1076,30 @@
                         </label>
 
                     </div>
+                </div>
+
+                {{-- ── Ventes (26/10/2026) ── --}}
+                <div class="card" style="padding:24px;">
+                    <div
+                        style="font-size:12px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+                        <span id="reglages-vente" style="scroll-margin-top:90px;"></span><i class="fas fa-cash-register" style="color:var(--primary);"></i> Ventes
+                    </div>
+                    <input type="hidden" name="masquer_ruptures_vente" value="0">
+                    <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:14px;background:var(--bg3);border-radius:10px;border:1px solid var(--border);">
+                        <input type="checkbox" name="masquer_ruptures_vente" value="1" id="masquer_ruptures_vente"
+                            {{ old('masquer_ruptures_vente', $entreprise->masquer_ruptures_vente ?? false) ? 'checked' : '' }}
+                            style="margin-top:3px;width:16px;height:16px;cursor:pointer;">
+                        <div>
+                            <div style="font-weight:600;font-size:13px;color:var(--text);">
+                                Masquer les articles en rupture à la vente
+                            </div>
+                            <div style="font-size:12px;color:var(--text-3);margin-top:2px;">
+                                Cochée, un article stockable qui n'a plus de stock sur le point de vente
+                                n'apparaît plus à la caisse ni dans la vente pas à pas. Les prestations restent.
+                                L'<strong>administrateur</strong> de l'entreprise continue de tout voir.
+                            </div>
+                        </div>
+                    </label>
                 </div>
 
                 {{-- ── Impression des factures ── --}}
