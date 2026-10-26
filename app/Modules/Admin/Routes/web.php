@@ -56,6 +56,7 @@ Route::prefix('admin')
             Route::post('/{vente}/facturer', [VenteControleur::class, 'facturer'])->name('facturer');
             Route::post('/{vente}/avoir', [VenteControleur::class, 'creerAvoir'])->name('avoir');
             Route::post('/{vente}/annuler', [VenteControleur::class, 'annuler'])->name('annuler');
+            Route::post('/{vente}/annuler-commande', [VenteControleur::class, 'annulerCommande'])->name('annuler_commande');
             Route::post('/{vente}/normaliser', [VenteControleur::class, 'normaliser'])->name('normaliser');
             // Workflow Devis → Commande → Facture
             Route::post('/{vente}/envoyer', [VenteControleur::class, 'envoyer'])->name('envoyer');
@@ -91,6 +92,7 @@ Route::prefix('admin')
             Route::get('/facture/{achat}/pdf', [AchatControleur::class, 'pdf'])->name('pdf');
             Route::get('/facture/{achat}/bapa', [AchatControleur::class, 'imprimerBapa'])->name('bapa');
             Route::post('/{achat}/confirmer', [AchatControleur::class, 'confirmerCommande'])->name('confirmer');
+            Route::post('/{achat}/annuler-commande', [AchatControleur::class, 'annulerCommande'])->name('annuler_commande');
             Route::post('/{achat}/facturer', [AchatControleur::class, 'facturer'])->name('facturer');
             Route::post('/{achat}/normaliser', [AchatControleur::class, 'normaliser'])->name('normaliser');
             Route::post('/{achat}/fne', [\App\Modules\Admin\Controleurs\FneControleur::class, 'attacherFneAchat'])->name('fne.attacher');
@@ -803,6 +805,7 @@ Route::prefix('caissier')
             Route::post('/{vente}/facturer', [VenteControleur::class, 'facturer'])->name('facturer');
             Route::post('/{vente}/normaliser', [VenteControleur::class, 'normaliser'])->name('normaliser');
             Route::post('/{vente}/annuler', [VenteControleur::class, 'annuler'])->name('annuler');
+            Route::post('/{vente}/annuler-commande', [VenteControleur::class, 'annulerCommande'])->name('annuler_commande');
             // Workflow Devis → Commande → Facture
             Route::post('/{vente}/envoyer', [VenteControleur::class, 'envoyer'])->name('envoyer');
             Route::post('/{vente}/convertir-commande', [VenteControleur::class, 'convertirEnCommande'])->name('convertir.commande');

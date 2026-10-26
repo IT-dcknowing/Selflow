@@ -171,6 +171,92 @@ class CycleVenteAchatRecetteTest extends TestCase
         return Achat::latest('id')->firstOrFail();
     }
 
+    // ═════════════════════════ ANNULER UNE COMMANDE (26/10/2026) ═════════════════════════
+
+    public function test_un_bon_de_commande_non_livre_s_annule_avec_son_motif_et_n_engage_plus(): void
+    {
+        $bc = $this->commandeDepuis($this->devis());
+        $this->assertEqualsWithDelta(10, $this->ciment->fresh()->quantiteCommandee($this->site->id), 0.001);
+
+        $this->get(route('admin.ventes.factures', ['etape' => 'Bon de commande']))->assertOk()
+            ->assertSee(route('admin.ventes.annuler_commande', $bc), false);
+
+        $this->post(route('admin.ventes.annuler_commande', $bc), [])->assertSessionHasErrors('motif');
+        $this->post(route('admin.ventes.annuler_commande', $bc), ['motif' => 'Client parti chez un concurrent'])
+            ->assertSessionHas('succes');
+
+        $bc->refresh();
+        $this->assertTrue($bc->estAnnulee());
+        $this->assertSame('Client parti chez un concurrent', $bc->motifAnnulation());
+        $this->assertEqualsWithDelta(0, $this->ciment->fresh()->quantiteCommandee($this->site->id), 0.001);
+        $this->assertSame(100.0, $this->stock($this->ciment));
+
+        // Plus rien ne s'y fait : ni livraison, ni facture.
+        $this->livrer($bc, [$this->ciment->id => 2])->assertSessionHas('erreur');
+        $this->post(route('admin.ventes.facturer', $bc))->assertSessionHas('erreur');
+        $this->get(route('admin.ventes.factures', ['etape' => 'Bon de commande']))->assertOk()
+            ->assertSee('Annulé(e)')->assertSee('Client parti chez un concurrent');
+    }
+
+    public function test_une_commande_deja_livree_ne_s_annule_pas(): void
+    {
+        $bc = $this->commandeDepuis($this->devis());
+        $this->livrer($bc, [$this->ciment->id => 4])->assertSessionHasNoErrors();
+
+        $this->post(route('admin.ventes.annuler_commande', $bc->fresh()), ['motif' => 'trop tard'])->assertSessionHas('erreur');
+        $this->assertFalse($bc->fresh()->estAnnulee());
+    }
+
+    public function test_un_devis_s_annule(): void
+    {
+        $devis = $this->devis();
+        $this->post(route('admin.ventes.annuler_commande', $devis), ['motif' => 'Devis refusé'])->assertSessionHas('succes');
+        $this->assertTrue($devis->fresh()->estAnnulee());
+        $this->post(route('admin.ventes.convertir.commande', $devis))->assertSessionHas('erreur');
+    }
+
+    public function test_une_commande_d_achat_non_recue_s_annule_et_ne_s_attend_plus(): void
+    {
+        $bc = $this->achat('Bon de commande');
+        $this->assertEqualsWithDelta(20, $this->ciment->fresh()->quantiteAReceptionner($this->site->id), 0.001);
+
+        $this->get(route('admin.achats.factures', ['etape' => 'Bon de commande']))->assertOk()
+            ->assertSee(route('admin.achats.annuler_commande', $bc), false);
+
+        $this->post(route('admin.achats.annuler_commande', $bc), ['motif' => 'Fournisseur en rupture'])->assertSessionHas('succes');
+        $this->assertTrue($bc->fresh()->estAnnulee());
+        $this->assertEqualsWithDelta(0, $this->ciment->fresh()->quantiteAReceptionner($this->site->id), 0.001);
+        $this->post(route('admin.achats.facturer', $bc))->assertSessionHas('erreur');
+        $this->get(route('admin.achats.factures', ['etape' => 'Bon de commande']))->assertOk()->assertSee('Fournisseur en rupture');
+    }
+
+    public function test_une_demande_de_prix_s_annule(): void
+    {
+        $dp = $this->achat('Demande de prix');
+        $this->post(route('admin.achats.annuler_commande', $dp), ['motif' => 'Prix trop élevé'])->assertSessionHas('succes');
+        $this->post(route('admin.achats.confirmer', $dp))->assertSessionHas('erreur');
+        $this->assertSame('Demande de prix', $dp->fresh()->etape);
+    }
+
+    public function test_un_employe_sans_l_habilitation_ne_voit_pas_le_bouton_et_ne_peut_pas_annuler(): void
+    {
+        $bc = $this->commandeDepuis($this->devis());
+        $employe = Utilisateur::create([
+            'nom' => 'K', 'prenom' => 'L', 'email' => 'employe-recette@exemple.ci', 'password' => bcrypt('x'),
+            'role' => 'admin_secondaire', 'statut' => 'actif', 'entreprise_id' => $this->entreprise->id,
+            'point_de_vente_id' => $this->site->id, 'habilitations' => ['factures_vente', 'nouvelle_vente'],
+        ]);
+
+        $this->actingAs($employe)->get(route('admin.ventes.factures', ['etape' => 'Bon de commande']))->assertOk()
+            ->assertDontSee(route('admin.ventes.annuler_commande', $bc), false);
+        $this->actingAs($employe)->post(route('admin.ventes.annuler_commande', $bc), ['motif' => 'x']);
+        $this->assertFalse($bc->fresh()->estAnnulee());
+
+        $employe->update(['habilitations' => ['factures_vente', 'nouvelle_vente', 'ventes_annuler_commande']]);
+        $this->actingAs($employe->fresh())->post(route('admin.ventes.annuler_commande', $bc), ['motif' => 'accordé'])->assertSessionHas('succes');
+        $this->assertTrue($bc->fresh()->estAnnulee());
+    }
+
     // ═════════════════════════ VENTES — le chemin nominal ═════════════════════════
 
     public function test_cycle_vente_nominal_devis_commande_livraison_facture(): void

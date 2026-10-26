@@ -110,6 +110,8 @@ class Habilitations
                 'factures_vente'   => 'Factures vente & avoirs clients',
                 // Retour du 18/10/2026 : annuler une facture se décide à part.
                 'ventes_annuler'   => 'Annuler une facture vente (non normalisée)',
+                // Retour du 26/10/2026 : annuler un devis ou une commande.
+                'ventes_annuler_commande' => 'Annuler un devis ou un bon de commande vente',
                 'ventes_livraisons' => 'Bons de livraison',
             ],
         ],
@@ -117,6 +119,7 @@ class Habilitations
             'Achats' => [
                 'nouvel_achat'   => 'Nouvel achat',
                 'factures_achat' => 'Factures achat',
+                'achats_annuler_commande' => "Annuler une demande de prix ou une commande d'achat",
             ],
         ],
         'b2b' => [
@@ -336,6 +339,8 @@ class Habilitations
         // Annuler réinjecte le stock et contre-passe : un droit à part, que
         // « Factures vente » ne donne pas (retour du 18/10/2026).
         'admin.ventes.annuler'                       => 'ventes_annuler',
+        'admin.ventes.annuler_commande'              => 'ventes_annuler_commande',
+        'admin.achats.annuler_commande'              => 'achats_annuler_commande',
         'admin.ventes.avoir.creer_nouveau'           => 'factures_vente',
         'admin.ventes.normaliser'                    => 'factures_vente',
         'admin.ventes.modifier'                      => 'factures_vente',
