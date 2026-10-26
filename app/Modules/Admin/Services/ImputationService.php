@@ -187,7 +187,38 @@ class ImputationService
      */
     public static function compteVariation(?Produit $produit): ?string
     {
-        return self::chercher($produit, 'compte_variation');
+        if (!$produit) {
+            return null;
+        }
+
+        // Même ordre que la vente et l'achat (26/10/2026) : l'exception de
+        // l'article — un compte qui diffère de sa famille —, puis le compte
+        // personnalisé du type ou de la catégorie, puis la famille. Toujours
+        // sans repli générique.
+        $propre  = trim((string) ($produit->compte_variation ?? ''));
+        $famille = trim((string) ($produit->categorieRelation?->compte_variation ?? ''));
+
+        if ($propre !== '' && $propre !== $famille) {
+            return $propre;
+        }
+
+        return self::configurationGlobale($produit, 'compte_variation', $produit->entreprise_id)
+            ?? self::chercher($produit, 'compte_variation');
+    }
+
+    /** Ce que l'article hérite en variation, hors exception — affiché à la configuration. */
+    public static function variationHeritee(Produit $produit): ?string
+    {
+        return self::configurationGlobale($produit, 'compte_variation', $produit->entreprise_id)
+            ?? (trim((string) ($produit->categorieRelation?->compte_variation ?? '')) ?: null);
+    }
+
+    /** L'article porte-t-il sa propre variation ? */
+    public static function variationEstUneException(Produit $produit): bool
+    {
+        $propre = trim((string) ($produit->compte_variation ?? ''));
+
+        return $propre !== '' && $propre !== trim((string) ($produit->categorieRelation?->compte_variation ?? ''));
     }
 
     /**
@@ -228,10 +259,11 @@ class ImputationService
         }
 
         if ($produit->estStockable()) {
-            foreach (['compte_stock' => 'de stock', 'compte_variation' => 'de variation de stock'] as $champ => $libelle) {
-                if (!self::chercher($produit, $champ)) {
-                    $manquants[] = "compte {$libelle}";
-                }
+            if (!self::chercher($produit, 'compte_stock')) {
+                $manquants[] = 'compte de stock';
+            }
+            if (!self::compteVariation($produit)) {
+                $manquants[] = 'compte de variation de stock';
             }
         }
 

@@ -6,14 +6,14 @@ et ce fichier. Tout ce qui a été décidé, tout ce qui a été écarté et pou
 tout ce qui reste à faire doit donc figurer ici — et y être tenu à jour à chaque
 lot terminé.
 
-Dernière mise à jour : 23 octobre 2026 — lot 127 : retours du test des
-nouvelles fonctionnalités (panier de la vente, fiche technique, fenêtre de la
-pièce). Lots 124 à 126 : un abonnement payé par
-référence reste bloqué « En attente de confirmation » jusqu'à la confirmation
-du superadministrateur, même en échec ; pas de panne si sa migration n'est
-pas jouée ; l'auteur d'une panne, son poste et son entreprise. Lots 116 à 123 (20/10) : les points de
-vente — articles, prix, numéros, créances, tiers, choix du site, doublons.
-Plan : `PLAN-RETOURS-PRODUCTION-14-10-2026.md`.
+Dernière mise à jour : 26 octobre 2026 — lots 128 à 132 : configuration des
+comptes en un tableau (proposé / personnalisé, variation de stock), solde du
+client sur la facture, annulation des devis, commandes et commandes d'achat,
+ruptures masquées à la vente, export de l'inventaire en PDF et Excel. Avant :
+lot 127 (test des nouvelles fonctionnalités), lots 124 à 126 (abonnement en
+attente, panne 1054, auteur des pannes), lots 116 à 123 (points de vente).
+Plan : `PLAN-RETOURS-PRODUCTION-14-10-2026.md`. **Au déploiement : `php artisan
+migrate --force`** (migrations `2026_10_26_000001` à `000004`).
 
 ---
 
@@ -9871,6 +9871,49 @@ veut pas de ces montants sur ses factures.
 - `SoldeClientSurFactureTest` (4). Le JavaScript de la facture est vérifié
   par `node --check`. Le rendu dans un navigateur n'a pas été éprouvé dans
   Chromium. Suite : 1 942 épreuves, 1 937 passantes, 5 ignorées.
+
+---
+
+### Lot 128 — La configuration des comptes en un tableau par niveau — **TERMINÉ le 26/10/2026**
+
+Demande du propriétaire. La page était découpée en trois sections (vente,
+achat, variations de stock), chacune avec ses onglets. Pour un article, il
+fallait passer de l'une à l'autre. Désormais :
+
+- **Les quatre onglets** restent (configuration générale, par catégorie, par
+  type, par article). Chacun est **un seul tableau** : vente, achat et
+  variation de stock côte à côte.
+- **Chaque compte en deux cases.**
+  - **Proposé** : ce que Selflow donne de lui-même, en lecture seule. C'est
+    le défaut 701000 / 601000 en général, le compte de la famille par
+    catégorie, le compte habituel du type par type, ce dont l'article hérite
+    par article.
+  - **Personnalisé** : le compte imposé, **prioritaire** sur le proposé.
+  - Les anciens libellés (« Compte de la famille », « Compte imposé »,
+    « Compte hérité ») sont remplacés.
+- **Le type a son compte proposé**, tiré du référentiel
+  (`ConfigurationCompte::PROPOSES_PAR_TYPE`, d'après `types_articles.json`).
+  Exemples : marchandise 701 / 601 / 6031, produit fini 702 / — / 736,
+  service 706. Il ne s'impose que s'il est repris en personnalisé.
+- **La variation de stock se personnalise** par catégorie, par type et par
+  article (`configurations_comptes.compte_variation`, migration
+  `2026_10_26_000004`). Elle n'est proposée que là où il y a du stock : les
+  catégories qui ont des articles stockés, les types et articles stockables.
+  La configuration générale n'en porte pas, car un 603 commun fausserait les
+  produits finis (736).
+- **Ordre de priorité de la variation** (`ImputationService::compteVariation`) :
+  l'article, puis le type, puis la catégorie, puis la famille. C'est le même
+  ordre que la vente et l'achat. Le compte de stock reste porté par la
+  catégorie et se corrige dans l'onglet « Par catégorie ».
+- **Un onglet n'efface pas les autres.** Enregistrer la vente d'une ligne
+  garde sa variation personnalisée. Une ligne entièrement vidée est
+  supprimée.
+- **Sans la migration**, les colonnes de variation n'apparaissent pas et
+  rien ne change à l'ancienne résolution.
+
+- `ConfigurationGlobaleDesComptesTest` (+3). Rendu vérifié dans Chromium
+  (onglets catégorie, type, article). Suite : 1 945 épreuves, 1 940
+  passantes, 5 ignorées.
 
 ---
 
