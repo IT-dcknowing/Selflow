@@ -118,6 +118,7 @@ class FacturesSansDoublonsTest extends TestCase
         $this->artisan('selflow:doublons-factures', ['entreprise' => 'Poissonnerie EDEN'])
             ->expectsOutputToContain('Même numéro sur plusieurs pièces')
             ->expectsOutputToContain('Même pièce enregistrée deux fois')
+            ->expectsOutputToContain('Bilan par entreprise')
             ->expectsOutputToContain("Rien n'a été modifié")
             ->assertSuccessful();
 
@@ -144,7 +145,7 @@ class FacturesSansDoublonsTest extends TestCase
 
         $this->artisan('selflow:doublons-factures', ['entreprise' => 'Poissonnerie EDEN'])
             ->doesntExpectOutputToContain('Même pièce enregistrée deux fois')
-            ->expectsOutputToContain('Aucun doublon trouvé.')
+            ->expectsOutputToContain('Aucun doublon à traiter.')
             ->assertSuccessful();
     }
 
@@ -181,9 +182,28 @@ class FacturesSansDoublonsTest extends TestCase
         ], $numeros);
     }
 
+    /** Un doublon déjà annulé est réglé : il ne se mélange plus aux autres (26/10/2026). */
+    public function test_un_doublon_annule_ne_compte_plus(): void
+    {
+        $this->vendre()->assertSessionHasNoErrors();
+        $this->vendre()->assertSessionHasNoErrors();
+        $ventes = Vente::where('etape', 'Facture')->orderBy('id')->get();
+        $ventes[1]->update(['numero_facture' => $ventes[0]->numero_facture]);
+
+        // L'entreprise annule la seconde, avec son avoir interne.
+        $this->post(route('admin.ventes.annuler', $ventes[1]), ['motif' => 'Doublon'])->assertSessionHas('succes');
+
+        $this->artisan('selflow:doublons-factures', ['entreprise' => 'Poissonnerie EDEN', '--sans-trous' => true])
+            ->doesntExpectOutputToContain('Même numéro sur plusieurs pièces')
+            ->doesntExpectOutputToContain('Même pièce enregistrée deux fois')
+            ->expectsOutputToContain('Déjà réglés par annulation')
+            ->expectsOutputToContain('Aucun doublon à traiter.')
+            ->assertSuccessful();
+    }
+
     public function test_sans_doublon_la_commande_le_dit(): void
     {
         $this->vendre()->assertSessionHasNoErrors();
-        $this->artisan('selflow:doublons-factures')->expectsOutputToContain('Aucun doublon trouvé.')->assertSuccessful();
+        $this->artisan('selflow:doublons-factures')->expectsOutputToContain('Aucun doublon à traiter.')->assertSuccessful();
     }
 }
