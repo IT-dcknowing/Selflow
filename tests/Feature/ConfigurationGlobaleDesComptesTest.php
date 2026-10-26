@@ -183,4 +183,70 @@ class ConfigurationGlobaleDesComptesTest extends TestCase
             'article' => [$eau->id => ['compte_vente' => '601000']],
         ])->assertSessionHasErrors('article.' . $eau->id . '.compte_vente');
     }
+
+    /**
+     * 26/10/2026 : un seul tableau par niveau — vente, achat et variation de
+     * stock côte à côte, « Proposé » et « Personnalisé ». Le type reçoit son
+     * compte proposé ; la variation se personnalise par type, par catégorie
+     * et par article, et le personnalisé l'emporte.
+     */
+    public function test_la_page_montre_propose_et_personnalise_avec_la_variation(): void
+    {
+        $this->article(['nom' => 'Jus de bissap']);
+
+        $page = $this->get(route('admin.comptabilite.configuration'))->assertOk()->getContent();
+        $this->assertStringContainsString('Proposé', $page);
+        $this->assertStringContainsString('Personnalisé', $page);
+        $this->assertStringContainsString('Variation de stock', $page);
+        // Le proposé du type « Produit fini » : 702000 à la vente, 736000 en variation.
+        $this->assertStringContainsString('name="config[type:produit_fini][compte_variation]"', $page);
+        $this->assertStringContainsString('736000', $page);
+        // Un service ne se stocke pas : pas de variation à régler.
+        $this->assertStringNotContainsString('name="config[type:service][compte_variation]"', $page);
+        // La catégorie stockée porte sa variation, l'article stockable aussi.
+        $this->assertStringContainsString('name="config[categorie:' . $this->boissons->id . '][compte_variation]"', $page);
+        $this->assertStringContainsString('[compte_variation]" value=""', $page);
+    }
+
+    public function test_la_variation_personnalisee_l_emporte_sur_la_famille(): void
+    {
+        $eau = $this->article();
+        $this->assertSame('603100', ImputationService::compteVariation($eau));
+
+        $this->configurer(['categorie:' . $this->boissons->id => ['compte_variation' => '603110']])->assertSessionHasNoErrors();
+        $this->assertSame('603110', ImputationService::compteVariation($eau->fresh()));
+
+        // Le type passe devant la catégorie.
+        $this->configurer(['type:marchandise' => ['compte_variation' => '603120']])->assertSessionHasNoErrors();
+        $this->assertSame('603120', ImputationService::compteVariation($eau->fresh()));
+
+        // L'article personnalisé passe devant tout ; vidé, il reprend l'héritage.
+        $this->put(route('admin.comptabilite.configuration.enregistrer'), [
+            'article' => [$eau->id => ['compte_variation' => '603190']],
+        ])->assertSessionHasNoErrors();
+        $this->assertSame('603190', ImputationService::compteVariation($eau->fresh()));
+        $this->put(route('admin.comptabilite.configuration.enregistrer'), [
+            'article' => [$eau->id => ['compte_variation' => '']],
+        ]);
+        $this->assertSame('603120', ImputationService::compteVariation($eau->fresh()));
+
+        // Un compte de variation qui n'en est pas un est refusé.
+        $this->configurer(['type:marchandise' => ['compte_variation' => '701000']])
+            ->assertSessionHasErrors('config.type:marchandise.compte_variation');
+    }
+
+    public function test_enregistrer_la_vente_ne_perd_pas_la_variation_deja_personnalisee(): void
+    {
+        $this->configurer(['categorie:' . $this->boissons->id => ['compte_variation' => '603110']]);
+        // Le formulaire d'un autre onglet n'envoie que la vente.
+        $this->configurer(['categorie:' . $this->boissons->id => ['compte_vente' => '701200']]);
+
+        $ligne = ConfigurationCompte::where('portee', 'categorie')->sole();
+        $this->assertSame('701200', $ligne->compte_vente);
+        $this->assertSame('603110', $ligne->compte_variation);
+
+        // Tout vidé : la ligne part.
+        $this->configurer(['categorie:' . $this->boissons->id => ['compte_vente' => '', 'compte_achat' => '', 'compte_variation' => '']]);
+        $this->assertSame(0, ConfigurationCompte::count());
+    }
 }
