@@ -267,3 +267,9 @@ la DGI reçoit ne change.
 | **131** ✅ terminé | `masquer-ruptures-a-la-vente` | Un réglage pour masquer à la vente les articles en rupture ; l'administrateur voit tout | La caisse et le pas à pas montrent tous les articles du site, rupture comprise. | Case « Masquer les articles en rupture à la vente » dans les paramètres. Cochée, la caisse, le pas à pas et l'API de vente n'affichent plus les articles stockables à zéro ; les services restent. L'administrateur de l'entreprise continue de tout voir. |
 | **132** ✅ terminé | `export-inventaire-pdf-excel` | Exporter l'inventaire de stock en PDF et en Excel | L'écran d'inventaire compte et enregistre, sans export. | Deux boutons sur l'inventaire, **PDF** et **Excel** : référence, article, unité, stock théorique, CUMP (Coût Unitaire Moyen Pondéré), valeur, et une colonne « Compté » vide pour le comptage sur papier, pour le site affiché. |
 
+## Retour du 26/10/2026 (suite)
+
+| Retour | Fait |
+|---|---|
+| Les exports Excel et PDF de l'inventaire doivent être propres, avec un bon design ; un filigrane sur les deux | lot 133 (`export-inventaire-mise-en-forme-et-filigrane`) : en-tête, chiffres clés, tableau zébré, total, signatures, pagination ; filigrane au nom de l'entreprise sur le PDF et sur l'Excel (fond à l'écran, en-tête à l'impression) |
+
