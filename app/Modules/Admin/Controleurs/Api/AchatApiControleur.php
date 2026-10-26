@@ -80,6 +80,15 @@ class AchatApiControleur
         // Sécurité : le fournisseur doit appartenir à l'entreprise de l'utilisateur.
         $fournisseur = Fournisseur::where('entreprise_id', $entreprise->id)->findOrFail($request->fournisseur_id);
 
+        // Un même envoi ne s'enregistre qu'une fois (26/10/2026).
+        if (!\App\Modules\Admin\Services\EnvoiUniqueService::reserver($request, 'api-achat')) {
+            return response()->json([
+                'statut' => 'deja_enregistre',
+                'message' => 'Cet achat a déjà été enregistré : le second envoi a été ignoré, aucun doublon n\'a été créé.',
+            ], 409);
+        }
+
+        try {
         $achatData = [];
 
         DB::transaction(function () use ($request, $pointDeVenteId, $entreprise, $fournisseur, &$achatData) {
@@ -201,6 +210,10 @@ class AchatApiControleur
                 'numero_facture' => $achat->numero_facture
             ];
         });
+        } catch (\Throwable $e) {
+            \App\Modules\Admin\Services\EnvoiUniqueService::liberer($request, 'api-achat');
+            throw $e;
+        }
 
         return response()->json([
             'statut' => 'succes',

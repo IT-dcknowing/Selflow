@@ -2406,6 +2406,40 @@ window.__csrf = '{{ csrf_token() }}';
 })();
 </script>
 @endif
+<script>
+/*
+ * Le second clic n'envoie plus rien (26/10/2026). Sur tout formulaire qui
+ * écrit (POST), le premier envoi désactive ses boutons : « Valider &
+ * Facturer », « → Commande », « Annuler »… cliqués deux fois établissaient
+ * deux pièces. Le serveur refuse aussi le second envoi ; ceci évite de le
+ * lui demander. Les boutons se réarment au retour arrière, et après 15 s si
+ * la page n'a pas changé (téléchargement d'un fichier).
+ */
+(function () {
+    document.addEventListener('submit', function (e) {
+        var form = e.target;
+        if (e.defaultPrevented || !(form instanceof HTMLFormElement)) return;
+        if ((form.getAttribute('method') || 'get').toLowerCase() !== 'post') return;
+        if (form.target && form.target !== '_self') return;
+        if (form.hasAttribute('data-envoi-libre')) return;
+        if (form.dataset.verrouEnvoi === '1') { e.preventDefault(); return; }
+        form.dataset.verrouEnvoi = '1';
+        var boutons = Array.prototype.slice.call(form.querySelectorAll('button[type="submit"], button:not([type]), input[type="submit"]'));
+        setTimeout(function () { boutons.forEach(function (b) { b.disabled = true; }); }, 0);
+        setTimeout(function () {
+            form.dataset.verrouEnvoi = '';
+            boutons.forEach(function (b) { b.disabled = false; });
+        }, 15000);
+    });
+    window.addEventListener('pageshow', function (e) {
+        if (!e.persisted) return;
+        document.querySelectorAll('form[data-verrou-envoi="1"]').forEach(function (form) {
+            form.dataset.verrouEnvoi = '';
+            form.querySelectorAll('button, input[type="submit"]').forEach(function (b) { b.disabled = false; });
+        });
+    });
+})();
+</script>
 </body>
 </html>
 

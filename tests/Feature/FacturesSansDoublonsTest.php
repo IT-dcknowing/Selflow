@@ -201,6 +201,68 @@ class FacturesSansDoublonsTest extends TestCase
             ->assertSuccessful();
     }
 
+    /**
+     * 26/10/2026 : une pièce ne se transforme qu'une fois à la fois. Pendant
+     * qu'un clic la traite, le second est refusé sans rien écrire.
+     */
+    public function test_une_piece_en_cours_de_traitement_refuse_le_second_clic(): void
+    {
+        $this->post(route('admin.ventes.enregistrer'), [
+            'mode_paiement' => 'Crédit', 'etape' => 'Devis',
+            'articles' => [['produit_id' => $this->service->id, 'quantite' => 1, 'unite' => 'unité']],
+        ])->assertSessionHasNoErrors();
+        $devis = Vente::where('etape', 'Devis')->sole();
+
+        // Un premier clic tient la pièce.
+        $verrou = \Illuminate\Support\Facades\Cache::lock('piece:Vente:' . $devis->id, 120);
+        $this->assertTrue($verrou->get());
+
+        $this->post(route('admin.ventes.convertir.commande', $devis))
+            ->assertSessionHas('info', fn ($m) => str_contains($m, 'déjà en cours de traitement'));
+        $this->assertSame(0, Vente::where('etape', 'Bon de commande')->count());
+
+        // Le premier traitement fini, le geste suivant passe — une fois.
+        $verrou->release();
+        $this->post(route('admin.ventes.convertir.commande', $devis))->assertSessionHasNoErrors();
+        $this->post(route('admin.ventes.convertir.commande', $devis))->assertSessionHas('erreur');
+        $this->assertSame(1, Vente::where('etape', 'Bon de commande')->count());
+    }
+
+    public function test_l_avoir_d_une_facture_en_cours_de_traitement_est_refuse(): void
+    {
+        $this->vendre()->assertSessionHasNoErrors();
+        $facture = Vente::where('etape', 'Facture')->sole();
+
+        $verrou = \Illuminate\Support\Facades\Cache::lock('piece:Vente:' . $facture->id, 120);
+        $verrou->get();
+        $this->post(route('admin.ventes.avoir.creer_nouveau'), [
+            'parent_id' => $facture->uuid, 'raison' => 'Retour',
+            'items' => [$facture->details->first()->id => ['quantite' => 1]],
+        ])->assertSessionHas('info', fn ($m) => str_contains($m, 'aucun avoir n\'a été créé en double'));
+        $verrou->release();
+
+        $this->assertSame(0, Vente::where('type_facture', 'avoir')->count());
+    }
+
+    public function test_l_api_ignore_le_second_envoi_du_meme_jeton(): void
+    {
+        $corps = [
+            'mode_paiement' => 'Caisse', 'montant_paye' => 1180, 'etape' => 'Facture',
+            'articles' => [['produit_id' => $this->service->id, 'quantite' => 1, 'unite' => 'unité']],
+        ];
+
+        // L'API mobile s'authentifie par jeton porteur.
+        $this->admin->forceFill(['jeton_api' => 'jeton-de-test', 'statut' => 'actif'])->save();
+        $entetes = ['Authorization' => 'Bearer jeton-de-test', 'Idempotency-Key' => 'mobile-0001'];
+
+        $premiere = $this->postJson('/api/admin/ventes/enregistrer', $corps, $entetes);
+        $this->assertContains($premiere->status(), [200, 201], $premiere->getContent());
+        $this->postJson('/api/admin/ventes/enregistrer', $corps, $entetes)
+            ->assertStatus(409)->assertJson(['statut' => 'deja_enregistre']);
+
+        $this->assertSame(1, Vente::where('etape', 'Facture')->count());
+    }
+
     public function test_sans_doublon_la_commande_le_dit(): void
     {
         $this->vendre()->assertSessionHasNoErrors();

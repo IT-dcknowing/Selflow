@@ -129,6 +129,15 @@ class VenteApiControleur
             }
         }
 
+        // Un même envoi ne s'enregistre qu'une fois (26/10/2026).
+        if (!\App\Modules\Admin\Services\EnvoiUniqueService::reserver($request, 'api-vente')) {
+            return response()->json([
+                'statut' => 'deja_enregistre',
+                'message' => 'Cette vente a déjà été enregistrée : le second envoi a été ignoré, aucun doublon n\'a été créé.',
+            ], 409);
+        }
+
+        try {
         $venteData = [];
 
         DB::transaction(function () use ($request, $pointDeVenteId, $entreprise, $etape, $typeDocument, &$venteData) {
@@ -311,6 +320,10 @@ class VenteApiControleur
                 ]
             ];
         });
+        } catch (\Throwable $e) {
+            \App\Modules\Admin\Services\EnvoiUniqueService::liberer($request, 'api-vente');
+            throw $e;
+        }
 
         return response()->json([
             'statut' => 'succes',

@@ -227,6 +227,14 @@ Enregistre une transaction de vente, met à jour le stock en temps réel (décr�
 - **Méthode** : `POST`
 - **Headers** : Authentification requise
 
+> **Anti-doublon (26/10/2026).** Joignez à chaque envoi un jeton unique,
+> soit dans l'en-tête `Idempotency-Key`, soit dans le champ `jeton_envoi`
+> (un UUID tiré au moment où l'utilisateur valide). Le même jeton renvoyé une
+> seconde fois (double appui, nouvel essai après coupure réseau) reçoit
+> **409** `{"statut": "deja_enregistre"}` et n'enregistre rien. Un envoi sans
+> jeton est accepté ; son numéro reste unique, mais il ne protège pas du
+> double envoi.
+
 #### Corps de la requête (Request Body)
 ```json
 {
@@ -452,6 +460,14 @@ Crée une facture d'achat, incrémente le stock physique, génère le mouvement 
 - **Route** : `/api/admin/achats/enregistrer`
 - **Méthode** : `POST`
 - **Headers** : Authentification requise
+
+> **Anti-doublon (26/10/2026).** Joignez à chaque envoi un jeton unique,
+> soit dans l'en-tête `Idempotency-Key`, soit dans le champ `jeton_envoi`
+> (un UUID tiré au moment où l'utilisateur valide). Le même jeton renvoyé une
+> seconde fois (double appui, nouvel essai après coupure réseau) reçoit
+> **409** `{"statut": "deja_enregistre"}` et n'enregistre rien. Un envoi sans
+> jeton est accepté ; son numéro reste unique, mais il ne protège pas du
+> double envoi.
 
 #### Corps de la requête (Request Body)
 ```json
