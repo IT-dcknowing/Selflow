@@ -6,7 +6,9 @@ et ce fichier. Tout ce qui a été décidé, tout ce qui a été écarté et pou
 tout ce qui reste à faire doit donc figurer ici — et y être tenu à jour à chaque
 lot terminé.
 
-Dernière mise à jour : 26 octobre 2026 — lot 133 : exports de l'inventaire
+Dernière mise à jour : 26 octobre 2026 — lot 134 (URGENT) : plus de
+factures en double (double envoi, numérotation) ; `selflow:doublons-factures`
+pour recenser l'existant. Lot 133 : exports de l'inventaire
 mis en forme, filigrane SELFLOW sur le PDF et l'Excel. Lots 128 à 132 : configuration des
 comptes en un tableau (proposé / personnalisé, variation de stock), solde du
 client sur la facture, annulation des devis, commandes et commandes d'achat,
@@ -9963,6 +9965,102 @@ le nom de l'entreprise (`FiligraneService::MARQUE`).
 - `ExportInventaireTest` (6). Rendu vérifié en image : le PDF par
   `pdftoppm`, le classeur converti par LibreOffice. Suite : 1 947 épreuves,
   1 942 passantes, 5 ignorées.
+
+---
+
+### Lot 134 — URGENT : des factures en double — **TERMINÉ le 26/10/2026**
+
+Demande du propriétaire : vérifier, au plus vite, s'il y a des doublons de
+factures. Le code en permettait de deux sortes.
+
+**1. La même vente enregistrée deux fois.**
+
+- **Cause.** Un double clic sur « Valider », ou une page renvoyée par un
+  réseau lent : le bouton ne se désactivait pas, et le serveur
+  n'identifiait pas un formulaire déjà reçu.
+- **Correctif dans le navigateur.** Le formulaire parti, ses boutons se
+  désactivent (« Enregistrement… »). Ils se réarment si l'on revient par le
+  bouton « Précédent ».
+- **Correctif sur le serveur** (`EnvoiUniqueService`). Chaque formulaire de
+  vente et d'achat porte un jeton tiré à l'affichage (`jeton_envoi`). Le
+  premier envoi le réserve, pour 30 minutes ; le second est ignoré, avec le
+  message « déjà enregistrée, aucun doublon n'a été créé ». Si
+  l'enregistrement échoue, le jeton est rendu. Un envoi sans jeton (API)
+  passe comme avant.
+
+**2. Deux pièces sous le même numéro.**
+
+- **Cause.** Le numéro valait « nombre de pièces + 1 », compté sans verrou
+  ni contrainte d'unicité. Deux ventes au même instant comptaient pareil.
+  Une pièce supprimée (archive effacée) faisait baisser le compte, et la
+  suivante reprenait le numéro de la dernière encore en base.
+- **Correctif** (`NumerotationService::prochainNumero`).
+  - La ligne de l'entreprise est verrouillée jusqu'à la fin de la
+    transaction.
+  - La séquence part du plus grand numéro attribué, et non du compte.
+  - Un numéro déjà pris est sauté.
+  - Le format ne change pas. C'est valable pour toutes les pièces : ventes,
+    achats, devis, commandes, avoirs, bons de livraison.
+
+**Recenser l'existant** : `php artisan selflow:doublons-factures
+[entreprise] [--secondes=120]`. La commande ne modifie rien. Elle liste,
+pour les ventes et pour les achats :
+
+- les numéros portés par plusieurs pièces ;
+- les pièces identiques (même site, même tiers, même montant, même nombre de
+  lignes) enregistrées à moins de 120 secondes d'intervalle ;
+
+et elle dit lesquelles sont normalisées. Une pièce normalisée ne se supprime
+pas, elle se corrige par un avoir ; les autres s'annulent depuis la liste.
+
+**À faire sur le serveur** : lancer la commande. La base de production n'est
+pas accessible d'ici : l'existant n'a pas encore été vérifié.
+
+- `FacturesSansDoublonsTest` (6). Suite : 1 953 épreuves, 1 948 passantes,
+  5 ignorées.
+
+---
+
+### Lot 134 bis — Doublons : la détection resserrée, les numéros qui sautent — **TERMINÉ le 26/10/2026**
+
+**Première exécution en ligne** de `selflow:doublons-factures` : 495 lignes.
+Le propriétaire le relève à juste titre : deux ventes de montants
+différents, ou séparées d'un long délai, ne sont pas des doublons.
+
+**Lecture du résultat.**
+
+- **Les vrais doublons** sont les pièces au même numéro, à 0 s d'écart
+  (#908/#909, #3020-#3022, #5005-#5007…). Ce sont des doubles clics : deux
+  envois simultanés comptaient pareil. Le lot 134 a fermé les deux portes.
+- **Les numéros qui sautent** viennent du même défaut. Après deux pièces
+  sous « 028 », le compte avait une unité d'avance, et la pièce suivante
+  recevait « 030 ». Depuis le lot 134, la séquence part du plus grand
+  numéro attribué : plus de saut.
+- **Les avoirs** AVO-VTE-01-261026-001 à 004 (38 000 F) suivent quatre ventes
+  identiques de 38 000 F : ce sont, selon toute vraisemblance, les
+  annulations des doubles déjà faites par l'entreprise.
+
+**La commande, resserrée.**
+
+- **Double envoi** : même utilisateur, même site, même tiers, même étape,
+  même montant, **mêmes lignes** (article, libellé, quantité, prix), à
+  **10 s** au plus (`--secondes`). La première version comparait le seul
+  montant sur 120 s, et une poissonnerie vend dix fois l'heure le même
+  article au même prix.
+- **Numéros manquants** : nouvelle liste, par séquence. Une séquence va par
+  préfixe, site et jour (VTE, ACH, AVO), ou par préfixe et année (DV, BC,
+  BCF, DP, BL). Option `--sans-trous` pour s'en passer.
+- **Ce qui reste un trou normal** : une pièce effacée depuis les archives.
+  Si c'est la dernière de la séquence, son numéro est réattribué, puisque
+  la séquence part du plus grand numéro encore en base.
+
+**Numérotation par point de vente, vérifiée.** Chaque site d'une entreprise
+qui en a plusieurs a sa séquence (VTE-01-…, VTE-02-…), qui commence à 001
+et ne saute pas. Une entreprise d'un seul site garde VTE-jjmmaa-xxx.
+
+- `FacturesSansDoublonsTest` (+3 : même montant n'est pas un doublon, trous
+  listés, séquences par site sans saut). Suite : 1 956 épreuves, 1 951
+  passantes, 5 ignorées.
 
 ---
 

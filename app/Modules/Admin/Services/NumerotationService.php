@@ -139,15 +139,7 @@ class NumerotationService
         // les pièces datées dans l'exercice affiché. Un achat saisi aujourd'hui
         // mais daté de l'an dernier recevait ACH-jjmmaa-002, et la facture
         // suivante du jour… ACH-jjmmaa-002 aussi (recette du 08/10/2026).
-        $compte = $modelClass::withoutGlobalScope(\App\Modules\Admin\Scopes\PeriodeScope::class)
-            ->where('numero_facture', 'LIKE', $debut . '%')
-            ->whereHas('pointDeVente', function ($query) use ($entrepriseId) {
-                $query->where('entreprise_id', $entrepriseId);
-            })
-            ->count();
-
-        $sequence = str_pad((string) ($compte + 1), 3, '0', STR_PAD_LEFT);
-        return $debut . $sequence;
+        return self::prochainNumero($entrepriseId, $modelClass, $debut, $debut, 3);
     }
 
     /**
@@ -160,24 +152,60 @@ class NumerotationService
         if ($site) {
             $prefixe .= $site->code_piece . '-';
         }
-        $annee = now()->year;
+        // La séquence court sur l'année, quel que soit le jour : on cherche
+        // donc le plus grand numéro de l'année sous ce préfixe.
+        return self::prochainNumero($entrepriseId, $modelClass, $prefixe, $prefixe . now()->format('d-m-Y') . '-', 4, now()->year);
+    }
 
-        $compte = $modelClass::withoutGlobalScope(\App\Modules\Admin\Scopes\PeriodeScope::class)
-            ->whereYear('created_at', $annee)
-            ->whereHas('pointDeVente', function ($query) use ($entrepriseId) {
-                $query->where('entreprise_id', $entrepriseId);
-            })
-            ->when($site, fn ($q) => $q->where('point_de_vente_id', $site->id))
-            ->where(function ($q) use ($prefixe, $modelClass) {
-                // BonLivraison n'a pas de numero_facture : le préfixe suffit à lui seul (comptage global de l'année)
-                if ($modelClass === BonLivraison::class) {
-                    return;
+    /**
+     * Le numéro suivant, sans doublon possible (urgence du 26/10/2026).
+     *
+     * Le numéro valait « nombre de pièces + 1 », compté sans verrou ni
+     * contrainte d'unicité en base. Deux défauts en sortaient :
+     *
+     * - deux ventes enregistrées au même instant (deux caisses, un double
+     *   envoi) comptaient le même nombre et recevaient le **même numéro** ;
+     * - une pièce supprimée (archive effacée) faisait baisser le compte : la
+     *   suivante reprenait le numéro de la dernière **encore en base**.
+     *
+     * Désormais :
+     *
+     * 1. la ligne de l'entreprise est verrouillée jusqu'à la fin de la
+     *    transaction qui enregistre la pièce : deux numérotations de la même
+     *    entreprise passent l'une après l'autre ;
+     * 2. la séquence part du **plus grand** numéro attribué, et non du compte ;
+     * 3. le numéro retenu est vérifié absent avant d'être rendu.
+     *
+     * Le format ne change pas.
+     *
+     * @param  string  $prefixeRecherche  ce que partagent les numéros de la séquence
+     * @param  string  $debut             ce qui précède le compteur dans le nouveau numéro
+     */
+    private static function prochainNumero(int $entrepriseId, string $modelClass, string $prefixeRecherche, string $debut, int $chiffres, ?int $annee = null): string
+    {
+        \App\Modules\Admin\Modeles\Entreprise::whereKey($entrepriseId)->lockForUpdate()->value('id');
+
+        $colonne = $modelClass === BonLivraison::class ? 'numero_bl' : 'numero_facture';
+        $requete = fn () => $modelClass::withoutGlobalScope(\App\Modules\Admin\Scopes\PeriodeScope::class)
+            ->whereHas('pointDeVente', fn ($q) => $q->where('entreprise_id', $entrepriseId));
+
+        $plusGrand = 0;
+        $requete()
+            ->where($colonne, 'LIKE', $prefixeRecherche . '%')
+            ->when($annee, fn ($q) => $q->where($colonne, 'LIKE', '%-' . $annee . '-%'))
+            ->pluck($colonne)
+            ->each(function ($numero) use (&$plusGrand) {
+                if (preg_match('/-(\d+)$/', (string) $numero, $m)) {
+                    $plusGrand = max($plusGrand, (int) $m[1]);
                 }
-                $q->where('numero_facture', 'LIKE', $prefixe . '%');
-            })
-            ->count();
+            });
 
-        $sequence = str_pad((string) ($compte + 1), 4, '0', STR_PAD_LEFT);
-        return $prefixe . now()->format('d-m-Y') . '-' . $sequence;
+        $sequence = $plusGrand + 1;
+        do {
+            $numero = $debut . str_pad((string) $sequence, $chiffres, '0', STR_PAD_LEFT);
+            $sequence++;
+        } while ($requete()->where($colonne, $numero)->exists());
+
+        return $numero;
     }
 }
