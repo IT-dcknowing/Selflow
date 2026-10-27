@@ -10113,6 +10113,25 @@ l'avenir ce qu'il ne couvrait pas.
 
 ---
 
+### Panne du 26/10/2026 — « Route [admin.ventes.annuler_commande] not defined » — **CAUSE : DÉPLOIEMENT**
+
+Signalée sur `ventes/factures?etape=Bon de commande` (DC-KNOWING CGA), à
+partir du 26/10 à 22:00.
+
+- **Ce n'est pas un défaut du code.** La route est déclarée (lot 130) ;
+  `route:list` la montre, et les épreuves passent.
+- **Cause.** Le serveur tourne avec les routes en cache (`php artisan
+  optimize`, recommandé au lot 94). Le code du lot 130 a été déployé sans
+  régénérer ce cache : la vue appelle une route que le cache ignore.
+- **Correctif, sur le serveur** : `php artisan optimize:clear` puis `php
+  artisan optimize`, après chaque mise en ligne. C'est désormais écrit dans
+  le README, avec `migrate --force`.
+- **Le registre affichait « Corrigée »** parce que le fichier fautif avait
+  changé depuis (règle du lot 79). Ici, le fichier n'était pas en cause : la
+  panne revient tant que le cache n'est pas régénéré.
+
+---
+
 ## 5 bis. La numérotation des comptes — tranché
 
 Le classeur subdivisait certaines racines sur des positions que l'acte uniforme
