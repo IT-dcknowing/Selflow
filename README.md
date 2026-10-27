@@ -33,14 +33,21 @@ php artisan test
 
 ## Déployer
 
-Après chaque mise en ligne, **jouer les migrations** :
+Après **chaque** mise en ligne, dans cet ordre :
 
 ```bash
 php artisan migrate --force
+php artisan optimize:clear
+php artisan optimize
 ```
 
-Une migration oubliée ne fait plus tomber les pages (lot 125), mais la
-fonction qui en dépend reste inactive tant qu'elle n'est pas jouée.
+- `migrate` joue les migrations. Une migration oubliée ne fait plus tomber
+  les pages (lot 125), mais la fonction qui en dépend reste inactive.
+- `optimize:clear` puis `optimize` régénèrent les caches de routes, de
+  configuration et de vues. Le serveur tourne avec ces caches : sans cette
+  étape, une page qui appelle une route nouvelle tombe en
+  « Route [...] not defined » (panne du 26/10/2026 sur
+  `admin.ventes.annuler_commande`).
 
 ## Méthode
 
