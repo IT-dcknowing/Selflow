@@ -166,10 +166,16 @@ class LiaisonComptaflowService
         $cle = $reponse->json('sync_key');
 
         if (!$reponse->successful() || !$reponse->json('success') || !$cle) {
+            $message = $reponse->json('message')
+                ?? 'Comptaflow a refusé le provisionnement (code ' . $reponse->status() . ').';
+            $erreurs = $reponse->json('errors', []);
+            $details = is_array($erreurs)
+                ? collect($erreurs)->flatten()->filter()->implode(' ')
+                : '';
+
             return [
                 'success' => false,
-                'message' => $reponse->json('message')
-                    ?? 'Comptaflow a refusé le provisionnement (code ' . $reponse->status() . ').',
+                'message' => $details !== '' ? $message . ' ' . $details : $message,
             ];
         }
 
@@ -612,6 +618,7 @@ class LiaisonComptaflowService
         return [
             'secret'             => config('selflow.comptaflow_api_secret'),
             'selflow_company_id' => $entreprise->id,
+            'mode'               => 'creer',
             'entreprise' => [
                 'nom'               => $entreprise->nom,
                 'forme_juridique'   => $entreprise->forme_juridique,
