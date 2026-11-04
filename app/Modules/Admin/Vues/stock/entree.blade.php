@@ -9,6 +9,12 @@
         <h1><i class="fas fa-dolly"></i> Entrée de stock</h1>
         <p>Faites entrer de la marchandise arrivée sans achat saisi : achat sans facture,
            retour, don. Elle entre à son coût réel et le coût moyen se recalcule.</p>
+        @if($pointDeVenteId)
+            <div style="margin-top:8px; color:var(--text-2); font-size:13px;">
+                <i class="fas fa-store"></i> Les articles et l'historique affichés concernent uniquement
+                <strong>{{ $pointsDeVente->firstWhere('id', $pointDeVenteId)?->nom ?? 'le site sélectionné' }}</strong>.
+            </div>
+        @endif
     </div>
     <a href="{{ route('admin.stock.index') }}" class="btn btn-outline">
         <i class="fas fa-arrow-left"></i> Retour au stock
@@ -60,7 +66,7 @@
 @elseif($produits->isEmpty())
     <div class="alert alert-info" style="padding:14px 16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; color:#1e40af; display:flex; align-items:center; gap:10px;">
         <i class="fas fa-circle-info"></i>
-        <span>Aucun article stockable dans votre catalogue. Les prestations n'entrent pas en stock.</span>
+        <span>Aucun article stockable n'est référencé sur ce point de vente. Faites d'abord référencer les articles souhaités sur ce site depuis leur fiche produit.</span>
     </div>
 @else
 <form method="POST" action="{{ route('admin.stock.entree.enregistrer') }}" id="formEntree">
