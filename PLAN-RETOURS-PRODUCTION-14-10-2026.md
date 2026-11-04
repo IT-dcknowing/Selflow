@@ -297,3 +297,16 @@ migration qui réécrirait l'historique.
 
 Le lot reste à éprouver (php artisan test et
 php artisan verifier:variables) avant fusion et poussée sur les deux dépôts.
+
+
+## Lot 137 — entrées de stock multi-sites et repères visuels (04/11/2026)
+
+- « Tous les points de vente » est une vue de consultation, pas un site destinataire global.
+- Chaque option représente un couple article/site référencé. Le nom du site est affiché et coloré dans la liste et dans un badge de ligne.
+- Le violet distingue la vue « Tous » ; chaque point de vente dispose d'une couleur stable sur la page.
+- Le formulaire transmet `produit_id` et `point_de_vente_id` pour chaque ligne. Le serveur vérifie l'entreprise, le caractère stockable et le référencement exact du couple avant toute écriture.
+- Une même saisie peut contenir plusieurs sites, mais chaque quantité reste strictement affectée au site indiqué sur sa ligne.
+- Tests ajoutés : affichage des sites, entrée simultanée sans mélange et refus d'un couple article/site non référencé.
+
+**À exécuter avant fusion :** `php artisan test --filter=ArticlesParSiteTest` puis `php artisan verifier:variables`.
+
