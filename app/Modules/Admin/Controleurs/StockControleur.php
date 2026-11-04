@@ -579,127 +579,104 @@ class StockControleur
     public function entree(Request $request): View
     {
         $entreprise = Auth::user()->entreprise;
-        $pointDeVenteId = $this->siteDeTravail($request);
-
-        $produits = Produit::where('entreprise_id', $entreprise->id)
-            ->whereIn('type', Produit::TYPES_STOCKABLES)
-            ->visiblesEnStock()
-            // La liste est celle du site destinataire, pas le catalogue entier.
-            // Un article d'un autre site ne doit pas être proposé ici.
-            ->visiblesAuSite($pointDeVenteId)
-            ->with(['stocks' => fn ($q) => $pointDeVenteId
-                ? $q->where('point_de_vente_id', $pointDeVenteId)
-                : $q->whereRaw('1 = 0')])
-            ->orderBy('nom')
-            ->get();
-
         $pointsDeVente = $entreprise->pointsDeVente()->orderBy('nom')->get();
+        $selectionSite = $request->input('point_de_vente_id') ?? session('point_de_vente_actif_id') ?? Auth::user()->point_de_vente_id ?? '';
+        if ($selectionSite !== 'tout' && $selectionSite !== '' && $selectionSite !== null) {
+            $selectionSite = $pointsDeVente->contains(fn ($site) => (int) $site->id === (int) $selectionSite) ? (string) (int) $selectionSite : '';
+        }
+        $modeTous = $selectionSite === 'tout';
+        $pointDeVenteId = $modeTous || $selectionSite === '' ? null : (int) $selectionSite;
+        $palette = ['#047857', '#2563eb', '#c2410c', '#be185d', '#0f766e', '#6d28d9', '#a16207', '#475569'];
+        $couleursSites = [];
+        foreach ($pointsDeVente as $i => $site) $couleursSites[$site->id] = $palette[$i % count($palette)];
+
+        $produits = collect();
+        if ($modeTous || $pointDeVenteId) {
+            $produits = Produit::where('entreprise_id', $entreprise->id)
+                ->whereIn('type', Produit::TYPES_STOCKABLES)->visiblesEnStock()
+                ->whereHas('stocks', function ($q) use ($modeTous, $pointDeVenteId) {
+                    $q->where('stocks.reference', true);
+                    if (!$modeTous) $q->where('stocks.point_de_vente_id', $pointDeVenteId);
+                })
+                ->with(['stocks' => function ($q) use ($modeTous, $pointDeVenteId) {
+                    $q->where('stocks.reference', true)
+                        ->when(!$modeTous, fn ($sq) => $sq->where('stocks.point_de_vente_id', $pointDeVenteId))
+                        ->with('pointDeVente');
+                }])->orderBy('nom')->get();
+        }
 
         $dernieres = MouvementStock::with(['produit', 'pointDeVente', 'utilisateur'])
             ->where('sous_type', MouvementStock::ENTREE_DIVERSE)
             ->whereHas('pointDeVente', fn ($q) => $q->where('entreprise_id', $entreprise->id))
-            // Sans site choisi, aucune entrée d'un autre magasin n'est affichée.
-            ->when($pointDeVenteId,
-                fn ($q) => $q->where('point_de_vente_id', $pointDeVenteId),
-                fn ($q) => $q->whereRaw('1 = 0'))
-            ->latest('id')
-            ->limit(20)
-            ->get();
+            ->when($modeTous, fn ($q) => $q, fn ($q) => $pointDeVenteId
+                ? $q->where('point_de_vente_id', $pointDeVenteId) : $q->whereRaw('1 = 0'))
+            ->latest('id')->limit(20)->get();
 
-        return view('admin::stock.entree', compact('produits', 'pointDeVenteId', 'pointsDeVente', 'dernieres'));
+        return view('admin::stock.entree', compact('produits', 'pointDeVenteId', 'selectionSite', 'modeTous', 'pointsDeVente', 'dernieres', 'couleursSites'));
     }
 
     /**
-     * Enregistrer une entrée de stock : une ou plusieurs lignes, une raison.
-     *
-     * Le coût est exigé et strictement positif. Un coût oublié — zéro — ferait
-     * chuter le coût moyen de tout le stock en place, et la marge de chaque
-     * vente suivante serait fausse sans que rien ne le montre. Un don se porte
-     * à sa valeur estimée.
+     * Chaque ligne porte son propre site. « Tous » est uniquement une vue
+     * catalogue : aucune ligne ne reçoit un site implicite ou global.
      */
     public function enregistrerEntree(Request $request): \Illuminate\Http\RedirectResponse
     {
         $donnees = $request->validate([
-            'point_de_vente_id'      => ['required', 'integer', Appartenance::a('points_de_vente', 'id')],
-            'raison_entree'          => ['required', 'string', 'in:' . implode(',', array_keys(MouvementStock::RAISONS_ENTREE))],
-            'commentaire'            => ['nullable', 'string', 'max:255', 'required_if:raison_entree,autre'],
-            'lignes'                 => ['required', 'array', 'min:1'],
-            'lignes.*.produit_id'    => ['required', 'integer', Appartenance::a('produits', 'id')],
-            'lignes.*.quantite'      => Quantite::physique(),
+            'vue_tous_sites' => ['nullable', 'boolean'],
+            'raison_entree' => ['required', 'string', 'in:' . implode(',', array_keys(MouvementStock::RAISONS_ENTREE))],
+            'commentaire' => ['nullable', 'string', 'max:255', 'required_if:raison_entree,autre'],
+            'lignes' => ['required', 'array', 'min:1'],
+            'lignes.*.produit_id' => ['required', 'integer', Appartenance::a('produits', 'id')],
+            'lignes.*.point_de_vente_id' => ['required', 'integer', Appartenance::a('points_de_vente', 'id')],
+            'lignes.*.quantite' => Quantite::physique(),
             'lignes.*.cout_unitaire' => ['required', 'numeric', 'gt:0', 'max:999999999'],
         ], [
-            'commentaire.required_if'        => 'Précisez la raison de l\'entrée quand vous choisissez « Autre ».',
-            'lignes.required'                => 'Ajoutez au moins un article.',
-            'lignes.*.produit_id.required'   => 'Choisissez l\'article de chaque ligne.',
+            'commentaire.required_if' => 'Précisez la raison de l\'entrée quand vous choisissez « Autre ».',
+            'lignes.required' => 'Ajoutez au moins un article.',
+            'lignes.*.produit_id.required' => 'Choisissez l\'article de chaque ligne.',
+            'lignes.*.point_de_vente_id.required' => 'Le point de vente de chaque article est obligatoire.',
             'lignes.*.cout_unitaire.required' => 'Indiquez le coût unitaire de chaque ligne.',
-            'lignes.*.cout_unitaire.gt'      => 'Le coût unitaire doit être supérieur à zéro (pour un don, sa valeur estimée).',
+            'lignes.*.cout_unitaire.gt' => 'Le coût unitaire doit être supérieur à zéro (pour un don, sa valeur estimée).',
         ]);
 
         $entreprise = Auth::user()->entreprise;
+        $lignes = collect($donnees['lignes']);
+        $produitIds = $lignes->pluck('produit_id')->map(fn ($id) => (int) $id)->unique();
+        $siteIds = $lignes->pluck('point_de_vente_id')->map(fn ($id) => (int) $id)->unique();
+        $sites = PointDeVente::where('entreprise_id', $entreprise->id)->whereIn('id', $siteIds)->get()->keyBy('id');
+        $produits = Produit::where('entreprise_id', $entreprise->id)->whereIn('id', $produitIds)
+            ->whereIn('type', Produit::TYPES_STOCKABLES)
+            ->with(['stocks' => fn ($q) => $q->whereIn('point_de_vente_id', $siteIds)->where('reference', true)])
+            ->get()->keyBy('id');
 
-        $site = PointDeVente::where('id', $donnees['point_de_vente_id'])
-            ->where('entreprise_id', $entreprise->id)
-            ->firstOrFail();
-
-        $identifiantsProduits = collect($donnees['lignes'])
-            ->pluck('produit_id')
-            ->map(fn ($id) => (int) $id)
-            ->unique();
-
-        $produits = Produit::where('entreprise_id', $entreprise->id)
-            ->whereIn('id', $identifiantsProduits)
-            ->visiblesAuSite($site->id)
-            ->get()
-            ->keyBy('id');
-
-        // Le contrôle d'appartenance à l'entreprise ne suffit pas : un article
-        // référencé sur un autre site ne peut pas entrer dans celui-ci par un
-        // POST fabriqué à la main.
-        if ($produits->count() !== $identifiantsProduits->count()) {
-            return back()->withInput()->withErrors([
-                'lignes' => "Un ou plusieurs articles ne sont pas référencés sur « {$site->nom} ». Actualisez la liste ou faites d'abord référencer l'article sur ce site.",
-            ]);
+        foreach ($lignes as $index => $ligne) {
+            $site = $sites->get((int) $ligne['point_de_vente_id']);
+            $produit = $produits->get((int) $ligne['produit_id']);
+            $referenceValide = $produit && $produit->stocks->contains(fn ($stock) => (int) $stock->point_de_vente_id === (int) $ligne['point_de_vente_id']);
+            if (!$site || !$produit || !$referenceValide) {
+                return back()->withInput()->withErrors(["lignes.{$index}.produit_id" => 'Cet article n’est pas référencé sur le point de vente indiqué. Vérifiez le site associé à la ligne.']);
+            }
         }
 
         $reference = 'ENT-' . now()->format('YmdHis');
         $entrees = 0;
-
-        DB::transaction(function () use ($donnees, $produits, $site, $reference, &$entrees) {
+        DB::transaction(function () use ($donnees, $produits, $sites, &$entrees, $reference) {
             foreach ($donnees['lignes'] as $ligne) {
                 $produit = $produits->get((int) $ligne['produit_id']);
-
-                // Une prestation n'a pas de stock : le service ne la
-                // mouvemente pas, et l'annoncer entrée serait faux.
-                if (!$produit || !$produit->estStockable()) {
-                    continue;
-                }
-
-                $mouvement = StockService::entree(
-                    $produit,
-                    (int) $site->id,
-                    round((float) $ligne['quantite'], Stock::DECIMALES),
-                    MouvementStock::ENTREE_DIVERSE,
-                    [
-                        'reference'     => $reference,
-                        'cout_unitaire' => (float) $ligne['cout_unitaire'],
-                        'raison_entree' => $donnees['raison_entree'],
-                        'commentaire'   => $donnees['commentaire'] ?? null,
-                    ]
-                );
-
+                $site = $sites->get((int) $ligne['point_de_vente_id']);
+                $mouvement = StockService::entree($produit, (int) $site->id, round((float) $ligne['quantite'], Stock::DECIMALES), MouvementStock::ENTREE_DIVERSE, [
+                    'reference' => $reference, 'cout_unitaire' => (float) $ligne['cout_unitaire'],
+                    'raison_entree' => $donnees['raison_entree'], 'commentaire' => $donnees['commentaire'] ?? null,
+                ]);
                 $entrees += $mouvement ? 1 : 0;
             }
         });
 
-        if ($entrees === 0) {
-            return back()->withInput()->with('erreur', 'Aucun article stockable dans cette entrée : rien n\'a été enregistré.');
-        }
-
-        $this->journaliser('entree_stock', 'PointDeVente', $site->id);
-
-        return redirect()
-            ->route('admin.stock.entree', ['point_de_vente_id' => $site->id])
-            ->with('succes', "Entrée {$reference} enregistrée : {$entrees} article(s) sur « {$site->nom} ». Le coût moyen est recalculé.");
+        if ($entrees === 0) return back()->withInput()->with('erreur', 'Aucun article stockable dans cette entrée : rien n\'a été enregistré.');
+        foreach ($siteIds as $siteId) $this->journaliser('entree_stock', 'PointDeVente', (int) $siteId);
+        $retour = (bool) ($donnees['vue_tous_sites'] ?? false) ? 'tout' : (int) $lignes->first()['point_de_vente_id'];
+        return redirect()->route('admin.stock.entree', ['point_de_vente_id' => $retour])
+            ->with('succes', "Entrée {$reference} enregistrée : {$entrees} ligne(s) sur " . $siteIds->count() . " point(s) de vente. Chaque quantité a été affectée au site affiché sur sa ligne.");
     }
 
     /**
