@@ -10853,3 +10853,11 @@ mélanger les dépôts.
 **État.** Modifications et épreuves ajoutées sur la branche. php artisan test
 et php artisan verifier:variables restent à exécuter avant fusion dans
 main, puis synchronisation des deux dépôts.
+
+
+## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
+
+| Lot | Branche | Demande | Correctif préparé |
+|---|---|---|---|
+| **137** | `entrees-stock-tous-sites-couleurs` | Afficher le point de vente à côté de chaque produit et distinguer visuellement « Tous les points de vente » | La vue « Tous » affiche les fiches de stock référencées ; chaque option porte le couple article/site et sa couleur. La saisie transmet et contrôle le site de chaque ligne côté serveur ; l'historique reprend les mêmes couleurs. |
+
