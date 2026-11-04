@@ -202,4 +202,44 @@ class ArticlesParSiteTest extends TestCase
         $this->actingAs($caissier)->get(route('caissier.ventes.factures'))->assertForbidden()
             ->assertSee('Accès non autorisé')->assertSee(route('caissier.tableau_de_bord'), false);
     }
+
+    public function test_entree_de_stock_ne_montre_que_les_articles_du_site_choisi_et_son_historique(): void
+    {
+        $articleMarcory = $this->creerA($this->marcory, 'Article réservé Marcory');
+        $articlePlateau = $this->creerA($this->plateau, 'Article réservé Plateau');
+
+        $this->actingAs($this->admin);
+        StockService::entree($articleMarcory, $this->marcory->id, 2, MouvementStock::ENTREE_DIVERSE, ['cout_unitaire' => 1000]);
+        StockService::entree($articlePlateau, $this->plateau->id, 3, MouvementStock::ENTREE_DIVERSE, ['cout_unitaire' => 1200]);
+
+        $this->sur($this->plateau)
+            ->get(route('admin.stock.entree', ['point_de_vente_id' => $this->plateau->id]))
+            ->assertOk()
+            ->assertSee('Article réservé Plateau')
+            ->assertDontSee('Article réservé Marcory')
+            ->assertSee('PDV-plateau')
+            ->assertDontSee('PDV-marcory');
+    }
+
+    public function test_entree_de_stock_refuse_un_article_reference_sur_un_autre_site(): void
+    {
+        $articleMarcory = $this->creerA($this->marcory, 'Article réservé Marcory');
+
+        $this->sur($this->plateau)
+            ->post(route('admin.stock.entree.enregistrer'), [
+                'point_de_vente_id' => $this->plateau->id,
+                'raison_entree' => 'achat_sans_facture',
+                'lignes' => [[
+                    'produit_id' => $articleMarcory->id,
+                    'quantite' => 2,
+                    'cout_unitaire' => 1000,
+                ]],
+            ])
+            ->assertSessionHasErrors('lignes');
+
+        $this->assertSame(0.0, (float) Stock::where('produit_id', $articleMarcory->id)
+            ->where('point_de_vente_id', $this->plateau->id)
+            ->value('quantite_disponible'));
+    }
+
 }
