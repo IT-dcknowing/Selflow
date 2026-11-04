@@ -231,6 +231,7 @@ class ArticlesParSiteTest extends TestCase
                 'raison_entree' => 'achat_sans_facture',
                 'lignes' => [[
                     'produit_id' => $articleMarcory->id,
+                    'point_de_vente_id' => $this->plateau->id,
                     'quantite' => 2,
                     'cout_unitaire' => 1000,
                 ]],
@@ -241,5 +242,32 @@ class ArticlesParSiteTest extends TestCase
             ->where('point_de_vente_id', $this->plateau->id)
             ->value('quantite_disponible'));
     }
+
+    public function test_entree_en_vue_tous_affiche_les_articles_avec_leur_site(): void
+    {
+        $a=$this->creerA($this->marcory,'Poisson Marcory 5kg');$b=$this->creerA($this->plateau,'Poisson Plateau 5kg');
+        $page=$this->sur($this->marcory)->get(route('admin.stock.entree',['point_de_vente_id'=>'tout']))->assertOk()
+            ->assertSee('TOUS LES POINTS DE VENTE')->assertSee('Poisson Marcory 5kg')->assertSee('Poisson Plateau 5kg')
+            ->assertSee('PDV-marcory')->assertSee('PDV-plateau');
+        $page->assertSee('data-site-id="'.Stock::where('produit_id',$a->id)->where('reference',true)->value('point_de_vente_id').'"',false);
+        $page->assertSee('data-site-id="'.Stock::where('produit_id',$b->id)->where('reference',true)->value('point_de_vente_id').'"',false);
+    }
+
+    public function test_entree_en_vue_tous_affecte_chaque_ligne_a_son_site_sans_melange(): void
+    {
+        $a=$this->creerA($this->marcory,'Poisson Marcory 5kg');$b=$this->creerA($this->plateau,'Poisson Plateau 5kg');
+        $this->sur($this->marcory)->post(route('admin.stock.entree.enregistrer'),[
+            'vue_tous_sites'=>1,'raison_entree'=>'achat_sans_facture',
+            'lignes'=>[
+                ['produit_id'=>$a->id,'point_de_vente_id'=>$this->marcory->id,'quantite'=>5,'cout_unitaire'=>1000],
+                ['produit_id'=>$b->id,'point_de_vente_id'=>$this->plateau->id,'quantite'=>7,'cout_unitaire'=>1200],
+            ],
+        ])->assertRedirect(route('admin.stock.entree',['point_de_vente_id'=>'tout']))->assertSessionHas('succes');
+        $this->assertSame(5.0,(float)Stock::where('produit_id',$a->id)->where('point_de_vente_id',$this->marcory->id)->value('quantite_disponible'));
+        $this->assertSame(7.0,(float)Stock::where('produit_id',$b->id)->where('point_de_vente_id',$this->plateau->id)->value('quantite_disponible'));
+        $this->assertSame(0.0,(float)Stock::where('produit_id',$a->id)->where('point_de_vente_id',$this->plateau->id)->value('quantite_disponible'));
+        $this->assertSame(0.0,(float)Stock::where('produit_id',$b->id)->where('point_de_vente_id',$this->marcory->id)->value('quantite_disponible'));
+    }
+
 
 }
