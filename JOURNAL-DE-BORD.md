@@ -10796,3 +10796,55 @@ ensemble.
 
 Fabriqué par `etat.py`, dans le répertoire de travail de la session, non
 versionné — comme `plan.py`, c'est le PDF qui fait foi.
+
+
+---
+
+### Lot 136 — Entrées de stock isolées par point de vente — **EN COURS**
+
+Demande du propriétaire, le 04/11/2026 : les listes de produits et les
+informations affichées après sélection d'un point de vente ne doivent pas
+mélanger les dépôts.
+
+**Constat dans StockControleur::entree().**
+
+- Le formulaire chargeait tout le catalogue stockable de l'entreprise, sans
+  appliquer Produit::visiblesAuSite(). Un article référencé sur EDEN 1
+  pouvait donc être proposé lors d'une entrée destinée à EDEN 2.
+- Le tableau « Dernières entrées » ne filtrait que par entreprise : il
+  mélangeait les mouvements de tous les sites.
+- enregistrerEntree() vérifiait l'appartenance de l'article à l'entreprise,
+  mais pas son référencement sur le site destinataire. Un POST forgé pouvait
+  donc enregistrer un article d'un autre dépôt.
+
+**Correctif préparé sur entrees-stock-par-point-de-vente.**
+
+- La liste d'articles applique visiblesAuSite($pointDeVenteId) et ne charge
+  que la fiche de stock du site choisi.
+- L'historique est limité au site destinataire ; sans site choisi, il reste
+  vide.
+- Le serveur recontrôle le référencement de chaque article sur le site
+  destinataire avant d'écrire le moindre mouvement.
+- L'écran nomme explicitement le site dont les articles et l'historique sont
+  affichés.
+- Deux épreuves sont ajoutées à ArticlesParSiteTest : liste/historique
+  séparés par site, et refus d'un POST contenant un article d'un autre site.
+
+**Données historiques et migrations.**
+
+- Aucune migration de données n'est ajoutée à ce lot : le correctif porte sur
+  le filtrage et la validation, pas sur les quantités déjà enregistrées.
+- Le lot 115 précise que le lot 114 a fermé les saisies hors site mais n'a
+  déplacé aucun mouvement ancien. Le diagnostic existant
+  php artisan selflow:diagnostic-stock-sites "poissonnerie EDEN" est en
+  lecture seule : il liste les entrées par site et les mouvements saisis par
+  un membre affecté hors de son site.
+- Aucun résultat de ce diagnostic n'a encore été exécuté sur la base de
+  production d'EDEN dans cette session. Ne pas prétendre que les données
+  historiques sont propres avant d'avoir lancé la commande sur le serveur.
+  Un écart avéré se corrige par un transfert de stock validé par le gérant ;
+  on ne réécrit pas l'historique en masse.
+
+**État.** Modifications et épreuves ajoutées sur la branche. php artisan test
+et php artisan verifier:variables restent à exécuter avant fusion dans
+main, puis synchronisation des deux dépôts.
