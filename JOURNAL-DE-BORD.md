@@ -10834,6 +10834,11 @@ mélanger les dépôts.
 
 - Aucune migration de données n'est ajoutée à ce lot : le correctif porte sur
   le filtrage et la validation, pas sur les quantités déjà enregistrées.
+- La migration existante 2026_10_20_000001 a déjà renseigné stocks.reference :
+  les fiches à zéro sans mouvement ont été décochées sur les sites où l'article
+  n'avait pas servi. Un article jamais servi nulle part est resté référencé
+  partout, faute de site d'origine démontrable ; ce cas historique reste commun
+  jusqu'à ce que le gérant décide de son affectation.
 - Le lot 115 précise que le lot 114 a fermé les saisies hors site mais n'a
   déplacé aucun mouvement ancien. Le diagnostic existant
   php artisan selflow:diagnostic-stock-sites "poissonnerie EDEN" est en
