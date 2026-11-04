@@ -584,6 +584,9 @@ class StockControleur
         $produits = Produit::where('entreprise_id', $entreprise->id)
             ->whereIn('type', Produit::TYPES_STOCKABLES)
             ->visiblesEnStock()
+            // La liste est celle du site destinataire, pas le catalogue entier.
+            // Un article d'un autre site ne doit pas être proposé ici.
+            ->visiblesAuSite($pointDeVenteId)
             ->with(['stocks' => fn ($q) => $pointDeVenteId
                 ? $q->where('point_de_vente_id', $pointDeVenteId)
                 : $q->whereRaw('1 = 0')])
@@ -595,6 +598,10 @@ class StockControleur
         $dernieres = MouvementStock::with(['produit', 'pointDeVente', 'utilisateur'])
             ->where('sous_type', MouvementStock::ENTREE_DIVERSE)
             ->whereHas('pointDeVente', fn ($q) => $q->where('entreprise_id', $entreprise->id))
+            // Sans site choisi, aucune entrée d'un autre magasin n'est affichée.
+            ->when($pointDeVenteId,
+                fn ($q) => $q->where('point_de_vente_id', $pointDeVenteId),
+                fn ($q) => $q->whereRaw('1 = 0'))
             ->latest('id')
             ->limit(20)
             ->get();
@@ -634,10 +641,25 @@ class StockControleur
             ->where('entreprise_id', $entreprise->id)
             ->firstOrFail();
 
+        $identifiantsProduits = collect($donnees['lignes'])
+            ->pluck('produit_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique();
+
         $produits = Produit::where('entreprise_id', $entreprise->id)
-            ->whereIn('id', collect($donnees['lignes'])->pluck('produit_id'))
+            ->whereIn('id', $identifiantsProduits)
+            ->visiblesAuSite($site->id)
             ->get()
             ->keyBy('id');
+
+        // Le contrôle d'appartenance à l'entreprise ne suffit pas : un article
+        // référencé sur un autre site ne peut pas entrer dans celui-ci par un
+        // POST fabriqué à la main.
+        if ($produits->count() !== $identifiantsProduits->count()) {
+            return back()->withInput()->withErrors([
+                'lignes' => "Un ou plusieurs articles ne sont pas référencés sur « {$site->nom} ». Actualisez la liste ou faites d'abord référencer l'article sur ce site.",
+            ]);
+        }
 
         $reference = 'ENT-' . now()->format('YmdHis');
         $entrees = 0;
