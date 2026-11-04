@@ -278,3 +278,22 @@ la DGI reçoit ne change.
 | Les doublons déjà annulés ne doivent pas se mélanger aux autres ; quelles entreprises sont concernées ? | lot 134 ter (`doublons-factures-hors-annulees`) : annulées et avoirs écartés, bilan par entreprise (à traiter / déjà réglés) |
 | Les correctifs couvrent-ils l'avenir ? Fermer les transformations et l'API | lot 135 (`transformations-sans-doublons`) : verrou par pièce sur toute transformation, boutons bloqués au premier envoi, jeton anti-doublon sur l'API (`Idempotency-Key`) |
 | Panne « Route [admin.ventes.annuler_commande] not defined » | cache des routes non régénéré au déploiement : **`php artisan optimize:clear` puis `php artisan optimize`** après chaque mise en ligne (README) |
+
+
+## Retour du 04/11/2026 — entrées de stock et cloisonnement des points de vente
+
+| Lot | Branche | Demande | Défauts constatés | Correctif préparé |
+|---|---|---|---|---|
+| **136** | entrees-stock-par-point-de-vente | La liste des articles et les informations de stock doivent correspondre uniquement au point de vente choisi ; vérifier que les entrées ne se mélangent pas entre EDEN 1 et EDEN 2 | L'écran Entrée de stock chargeait le catalogue stockable de toute l'entreprise ; « Dernières entrées » mélangeait les sites ; le POST ne vérifiait que l'entreprise du produit, pas son référencement sur le site destinataire | Filtrer les articles et l'historique par site ; refuser côté serveur les articles d'un autre site ; afficher clairement le site destinataire ; ajouter deux tests. Aucun déplacement automatique des mouvements passés |
+
+**Données de production :** le lot 115 indique que le lot 114 a empêché les
+membres affectés de saisir sur un autre site, sans déplacer les mouvements
+historiques. La commande en lecture seule
+php artisan selflow:diagnostic-stock-sites "poissonnerie EDEN" doit être
+exécutée sur le serveur pour mesurer les écarts réels d'EDEN. Aucun résultat
+de production n'a été obtenu dans cette session. Tout mouvement réellement
+mal affecté sera corrigé par un transfert décidé par le gérant, pas par une
+migration qui réécrirait l'historique.
+
+Le lot reste à éprouver (php artisan test et
+php artisan verifier:variables) avant fusion et poussée sur les deux dépôts.
