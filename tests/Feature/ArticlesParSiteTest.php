@@ -270,4 +270,39 @@ class ArticlesParSiteTest extends TestCase
     }
 
 
+    public function test_un_responsable_pdv_ne_peut_pas_forcer_une_entree_sur_un_autre_site(): void
+    {
+        $articlePlateau = $this->creerA($this->plateau, 'Article réservé Plateau');
+        $responsable = Utilisateur::create([
+            'nom' => 'R', 'prenom' => 'P', 'email' => 'resp-entree@deuxmag.ci', 'password' => bcrypt('x'),
+            'role' => 'responsable_pdv', 'statut' => 'actif', 'entreprise_id' => $this->entreprise->id,
+            'point_de_vente_id' => $this->marcory->id, 'habilitations' => ['stock_articles'],
+        ]);
+
+        $this->actingAs($responsable)
+            ->get(route('admin.stock.entree', ['point_de_vente_id' => 'tout']))
+            ->assertOk()
+            ->assertDontSee('TOUS LES POINTS DE VENTE')
+            ->assertDontSee('PDV-plateau')
+            ->assertSee('PDV-marcory');
+
+        $this->actingAs($responsable)
+            ->post(route('admin.stock.entree.enregistrer'), [
+                'vue_tous_sites' => 1,
+                'raison_entree' => 'achat_sans_facture',
+                'lignes' => [[
+                    'produit_id' => $articlePlateau->id,
+                    'point_de_vente_id' => $this->plateau->id,
+                    'quantite' => 2,
+                    'cout_unitaire' => 1000,
+                ]],
+            ])
+            ->assertForbidden();
+
+        $this->assertSame(0.0, (float) Stock::where('produit_id', $articlePlateau->id)
+            ->where('point_de_vente_id', $this->plateau->id)
+            ->value('quantite_disponible'));
+    }
+
+
 }
