@@ -578,9 +578,16 @@ class StockControleur
      */
     public function entree(Request $request): View
     {
-        $entreprise = Auth::user()->entreprise;
-        $pointsDeVente = $entreprise->pointsDeVente()->orderBy('nom')->get();
-        $selectionSite = $request->input('point_de_vente_id') ?? session('point_de_vente_actif_id') ?? Auth::user()->point_de_vente_id ?? '';
+        $utilisateur = Auth::user();
+        $entreprise = $utilisateur->entreprise;
+        $pointsDeVente = $entreprise->pointsDeVente()
+            ->when($utilisateur->estAffecteAUnSite(), fn ($q) => $q->whereKey($utilisateur->point_de_vente_id))
+            ->orderBy('nom')->get();
+        // Un membre affecté à un site ne peut ni ouvrir le catalogue global,
+        // ni choisir un autre site, même en modifiant directement l'URL.
+        $selectionSite = $utilisateur->estAffecteAUnSite()
+            ? (string) $utilisateur->point_de_vente_id
+            : ($request->input('point_de_vente_id') ?? session('point_de_vente_actif_id') ?? $utilisateur->point_de_vente_id ?? '');
         if ($selectionSite !== 'tout' && $selectionSite !== '' && $selectionSite !== null) {
             $selectionSite = $pointsDeVente->contains(fn ($site) => (int) $site->id === (int) $selectionSite) ? (string) (int) $selectionSite : '';
         }
@@ -639,8 +646,24 @@ class StockControleur
             'lignes.*.cout_unitaire.gt' => 'Le coût unitaire doit être supérieur à zéro (pour un don, sa valeur estimée).',
         ]);
 
-        $entreprise = Auth::user()->entreprise;
+        $utilisateur = Auth::user();
+        $entreprise = $utilisateur->entreprise;
         $lignes = collect($donnees['lignes']);
+
+        // Le middleware global impose le site dans les champs simples de la
+        // requête, mais les sites des lignes sont imbriqués dans lignes[] :
+        // ils ne sont pas réécrits par ce middleware. Un utilisateur affecté
+        // à un site ne peut donc enregistrer aucune ligne sur un autre site,
+        // même en forgeant directement le POST « Tous les sites ».
+        if ($utilisateur->estAffecteAUnSite()) {
+            $siteAutorise = (int) $utilisateur->point_de_vente_id;
+            $ligneHorsSite = $lignes->contains(
+                fn ($ligne) => (int) ($ligne['point_de_vente_id'] ?? 0) !== $siteAutorise
+            );
+
+            abort_if($ligneHorsSite, 403, 'Vous ne pouvez enregistrer une entrée que sur votre point de vente affecté.');
+        }
+
         $produitIds = $lignes->pluck('produit_id')->map(fn ($id) => (int) $id)->unique();
         $siteIds = $lignes->pluck('point_de_vente_id')->map(fn ($id) => (int) $id)->unique();
         $sites = PointDeVente::where('entreprise_id', $entreprise->id)->whereIn('id', $siteIds)->get()->keyBy('id');
