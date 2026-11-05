@@ -315,7 +315,7 @@ class StockService
             InventairePermanentService::comptabiliser($mouvement);
 
             return $mouvement;
-        });
+        }, 5);
     }
 
     /**
