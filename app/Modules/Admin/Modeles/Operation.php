@@ -62,15 +62,23 @@ class Operation extends Model
     public static function prochainNumeroSaisie(int $entrepriseId): string
     {
         return DB::transaction(function () use ($entrepriseId) {
-            $dernier = self::where('entreprise_id', $entrepriseId)
+            // Verrouiller la ligne stable de l'entreprise, pas la dernière
+            // opération : sur une entreprise sans opération, InnoDB verrouillait
+            // une plage d'index (gap lock). Deux créations simultanées pouvaient
+            // alors se bloquer mutuellement au moment de l'INSERT.
+            Entreprise::query()
+                ->whereKey($entrepriseId)
                 ->lockForUpdate()
+                ->firstOrFail();
+
+            $dernier = self::where('entreprise_id', $entrepriseId)
                 ->orderByDesc('id')
                 ->value('numero_saisie');
 
             $prochainNum = $dernier ? ((int) $dernier + 1) : 1;
 
             return (string) $prochainNum;
-        });
+        }, 5);
     }
 
     /**
@@ -85,20 +93,29 @@ class Operation extends Model
         ?string $referenceDocument = null,
         ?string $libelleGeneral = null
     ): self {
-        $numeroSaisie = self::prochainNumeroSaisie($entrepriseId);
+        // Garder le verrou de l'entreprise jusqu'à l'INSERT. Sans cette
+        // transaction englobante, le verrou pris par prochainNumeroSaisie()
+        // serait libéré avant la création et deux appels pourraient réutiliser
+        // le même numéro.
+        return DB::transaction(function () use (
+            $entrepriseId, $pdvId, $date, $typeOperation, $codeJournal,
+            $referenceDocument, $libelleGeneral
+        ) {
+            $numeroSaisie = self::prochainNumeroSaisie($entrepriseId);
 
-        return self::create([
-            'entreprise_id'       => $entrepriseId,
-            'point_de_vente_id'   => $pdvId,
-            'date_operation'      => $date,
-            'type_operation'      => $typeOperation,
-            'code_journal'        => $codeJournal,
-            'numero_saisie'       => $numeroSaisie,
-            'reference_document'  => $referenceDocument,
-            'libelle_general'     => $libelleGeneral,
-            'solde_equilibre'     => 0,
-            'est_equilibree'      => false,
-        ]);
+            return self::create([
+                'entreprise_id'       => $entrepriseId,
+                'point_de_vente_id'   => $pdvId,
+                'date_operation'      => $date,
+                'type_operation'      => $typeOperation,
+                'code_journal'        => $codeJournal,
+                'numero_saisie'       => $numeroSaisie,
+                'reference_document'  => $referenceDocument,
+                'libelle_general'     => $libelleGeneral,
+                'solde_equilibre'     => 0,
+                'est_equilibree'      => false,
+            ]);
+        }, 5);
     }
 
     /**
