@@ -120,7 +120,7 @@ const CHEMIN_API = '/ws/invoices';
  * La FNE n'a pas d'histoire antérieure à son entrée en service ; remonter plus
  * loin ne rendrait rien de plus et ferait tourner la pagination pour rien.
  */
-const DEPUIS_PAR_DEFAUT = process.env.ACHATS_DEPUIS || '2024-01-01';
+const DEPUIS_PAR_DEFAUT = process.env.ACHATS_DEPUIS || `${new Date().getFullYear()}-01-01`;
 
 /* ------------------------------ Le mouchard ------------------------------- */
 
