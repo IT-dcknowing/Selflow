@@ -57,7 +57,7 @@ const LIBELLES_PAGE = [
 const PAGES_MAX = 200;
 const PAR_PAGE  = 100;
 const CHEMIN_API = '/ws/invoices';
-const DEPUIS_PAR_DEFAUT = process.env.AVOIRS_DEPUIS || '2024-01-01';
+const DEPUIS_PAR_DEFAUT = process.env.AVOIRS_DEPUIS || `${new Date().getFullYear()}-01-01`;
 
 /* ------------------------------ Le mouchard ------------------------------- */
 
