@@ -649,7 +649,7 @@ function lancerSyncComptaflow() {
 
     if (!btn) return;
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Synchronisation...';
+    btn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Lecture de COMPTAFLOW...';
 
     fetch("{{ route('admin.entreprise.comptaflow.sync_real') }}", {
         method: "POST",
@@ -662,8 +662,10 @@ function lancerSyncComptaflow() {
         feedback.style.display = "block";
         if (data.success) {
             feedback.style.cssText = "background:#e6fffa; color:#319795; border:1px solid #b2f5ea; padding:12px; border-radius:6px; font-weight:600; font-size:13px;";
-            feedback.innerText = data.message;
-            setTimeout(() => { window.location.reload(); }, 1200);
+            feedback.style.whiteSpace = "pre-line";
+            const refus = Array.isArray(data.refus) ? data.refus : [];
+            feedback.innerText = (data.message || "Référentiel actualisé.") + (refus.length ? "\\n\\nÀ vérifier :\\n" + refus.slice(0, 20).map((motif, i) => (i + 1) + ". " + motif).join("\\n") : "");
+            if (!refus.length) setTimeout(() => { window.location.reload(); }, 1200);
         } else {
             feedback.style.cssText = "background:#fff5f5; color:#e53e3e; border:1px solid #fed7d7; padding:12px; border-radius:6px; font-weight:600; font-size:13px;";
             feedback.innerText = "Erreur : " + data.message;
