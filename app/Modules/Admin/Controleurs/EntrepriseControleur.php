@@ -414,10 +414,10 @@ class EntrepriseControleur
      * Actualise dans Selflow le référentiel détenu par COMPTAFLOW.
      * Seules les écritures partent de Selflow vers Comptaflow.
      */
-    public function synchroniserComptaflow(Request $request): \\Illuminate\\Http\\JsonResponse
+    public function synchroniserComptaflow(Request $request): \Illuminate\Http\JsonResponse
     {
         $entreprise = Auth::user()->entreprise;
-        $result = \\App\\Modules\\Admin\\Services\\RecevoirReferentielComptaflowService::synchroniser($entreprise);
+        $result = \App\Modules\Admin\Services\RecevoirReferentielComptaflowService::synchroniser($entreprise);
 
         if ($result['success']) {
             return response()->json([
@@ -425,7 +425,7 @@ class EntrepriseControleur
                 'message' => $result['message'],
                 'bilan' => $result['bilan'] ?? [],
                 'refus' => $result['refus'] ?? [],
-                'last_sync' => now()->format('d/m/Y \\à H:i:s'),
+                'last_sync' => now()->format('d/m/Y \à H:i:s'),
             ]);
         }
 
