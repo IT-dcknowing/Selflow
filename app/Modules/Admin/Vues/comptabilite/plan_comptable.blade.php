@@ -339,7 +339,9 @@ function lancerSyncPlan() {
                     + (refus.length > 20 ? "\n... " + (refus.length - 20) + " autre(s) refus." : "")
                 : "";
             feedback.innerText = (data.message || "Déversement terminé.") + detailsRefus;
-            setTimeout(() => { window.location.reload(); }, 1200);
+            if (!data.partiel) {
+                setTimeout(() => { window.location.reload(); }, 1800);
+            }
         } else {
             feedback.style.background = "#fff5f5";
             feedback.style.color = "#e53e3e";
