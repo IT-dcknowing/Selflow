@@ -1,16 +1,16 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Modules\\Admin\\Modeles\\Client;
-use App\\Modules\\Admin\\Modeles\\CodeJournal;
-use App\\Modules\\Admin\\Modeles\\Entreprise;
-use App\\Modules\\Admin\\Modeles\\Fournisseur;
-use App\\Modules\\Admin\\Modeles\\PlanComptable;
-use App\\Modules\\Admin\\Services\\RecevoirReferentielComptaflowService;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Support\\Facades\\Http;
-use Tests\\TestCase;
+use App\Modules\Admin\Modeles\Client;
+use App\Modules\Admin\Modeles\CodeJournal;
+use App\Modules\Admin\Modeles\Entreprise;
+use App\Modules\Admin\Modeles\Fournisseur;
+use App\Modules\Admin\Modeles\PlanComptable;
+use App\Modules\Admin\Services\RecevoirReferentielComptaflowService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Tests\TestCase;
 
 /**
  * Le référentiel vient de Comptaflow vers Selflow.
