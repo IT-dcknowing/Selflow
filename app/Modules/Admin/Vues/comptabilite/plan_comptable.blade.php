@@ -160,7 +160,7 @@
                 @endif
             </p>
             <button type="button" id="btn-sync-plan" onclick="lancerSyncPlan()" class="btn btn-primary" style="font-weight: 700;">
-                <i class="fas fa-sync-alt" id="sync-icon-plan"></i> Synchroniser avec COMPTAFLOW
+                <i class="fas fa-sync-alt" id="sync-icon-plan"></i> Actualiser depuis COMPTAFLOW
             </button>
         </div>
 
@@ -169,7 +169,7 @@
         @if($comptesComptaflow->isEmpty())
         <div class="card" style="padding: 48px; text-align: center; color: var(--text-3);">
             <i class="fas fa-book-open" style="font-size: 48px; display:block; margin-bottom: 12px; opacity: 0.2;"></i>
-            Aucun compte COMPTAFLOW synchronisé.<br>Cliquez sur le bouton ci-dessus pour importer le plan comptable de COMPTAFLOW.
+            Aucun compte reçu de COMPTAFLOW.<br>Cliquez sur le bouton ci-dessus pour importer le plan comptable de COMPTAFLOW.
         </div>
         @else
         <div class="card">
@@ -326,7 +326,7 @@ function lancerSyncPlan() {
     .then(data => {
         btn.disabled = false;
         if (icon) icon.classList.remove('fa-spin');
-        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Synchroniser avec COMPTAFLOW';
+        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Actualiser depuis COMPTAFLOW';
 
         feedback.style.display = "block";
         if (data.success) {
@@ -345,7 +345,7 @@ function lancerSyncPlan() {
     .catch(err => {
         btn.disabled = false;
         if (icon) icon.classList.remove('fa-spin');
-        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Synchroniser avec COMPTAFLOW';
+        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Actualiser depuis COMPTAFLOW';
         feedback.style.display = "block";
         feedback.style.background = "#fff5f5";
         feedback.style.color = "#e53e3e";
