@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Jobs\DeverserReferentielComptaflow;
+use App\Jobs\RecevoirReferentielComptaflow;
 use App\Modules\Admin\Modeles\Entreprise;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
