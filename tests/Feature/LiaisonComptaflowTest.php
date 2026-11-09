@@ -114,7 +114,7 @@ class LiaisonComptaflowTest extends TestCase
             '*/api/external/companies/provision' => Http::response([
                 'success' => true, 'company_id' => 42, 'sync_key' => $cle,
             ]),
-            '*/api/external/referentiel/deverser' => Http::response(['success' => true]),
+            '*/api/external/link-company' => Http::response(['success' => true, 'company_id' => 42, 'plan_comptable' => [], 'codes_journaux' => [], 'tiers' => []]),
             '*/api/external/companies/revoke' => Http::response(['success' => true]),
             '*' => Http::response(['success' => true]),
         ]);
@@ -236,17 +236,20 @@ class LiaisonComptaflowTest extends TestCase
             && $requete['entreprise']['ncc'] === '2601234A');
     }
 
-    public function test_le_referentiel_part_dans_la_foulee(): void
+    public function test_le_referentiel_est_recu_de_comptaflow_dans_la_foulee(): void
     {
         LiaisonComptaflowService::demander($this->entreprise, $this->admin);
         $this->comptaflowRepond();
 
         LiaisonComptaflowService::valider($this->entreprise);
 
-        // Sans plan comptable, sans journaux et sans tiers, la première
-        // écriture déversée retomberait chez Comptaflow sur des comptes qu'il
-        // ne connaît pas.
-        Http::assertSent(fn ($requete) => str_contains($requete->url(), '/referentiel/deverser'));
+        // Selflow lit le référentiel du dossier lié. Aucun référentiel Selflow
+        // n'est envoyé vers Comptaflow.
+        Http::assertSent(fn ($requete) => str_contains($requete->url(), '/api/external/link-company')
+            && $requete['selflow_company_id'] === $this->entreprise->id
+            && !array_key_exists('clients', $requete->data())
+            && !array_key_exists('fournisseurs', $requete->data()));
+        Http::assertNotSent(fn ($requete) => str_contains($requete->url(), '/referentiel/deverser'));
     }
 
     public function test_un_provisionnement_en_echec_ne_laisse_pas_de_liaison_a_moitie_ouverte(): void
@@ -712,12 +715,15 @@ class LiaisonComptaflowTest extends TestCase
 
         $this->comptaflowRepond();
 
-        DeversementReferentielService::deverser($this->entreprise->fresh());
+        RecevoirReferentielComptaflowService::synchroniser($this->entreprise->fresh());
 
         // Le secret partagé est le même pour toutes les entreprises : il ne
         // dit pas laquelle appelle. La clé du dossier, si.
-        Http::assertSent(fn ($requete) => str_contains($requete->url(), '/referentiel/deverser')
-            && $requete->hasHeader('X-Company-Key', 'cptf_live_abcd'));
+        Http::assertSent(fn ($requete) => str_contains($requete->url(), '/api/external/link-company')
+            && $requete['selflow_sync_key'] === 'cptf_live_abcd'
+            && !array_key_exists('plan_comptable', $requete->data())
+            && !array_key_exists('codes_journaux', $requete->data())
+            && !array_key_exists('tiers', $requete->data()));
     }
 
     public function test_une_liaison_deja_ouverte_n_est_pas_rouverte_a_chaque_deversement(): void
@@ -731,7 +737,7 @@ class LiaisonComptaflowTest extends TestCase
 
         DeversementReferentielService::deverser($this->entreprise->fresh());
 
-        Http::assertNotSent(fn ($requete) => str_contains($requete->url(), '/link-company'));
+        Http::assertSent(fn ($requete) => str_contains($requete->url(), '/link-company'));
     }
 
     // ── Ce que la base et les écrans laissent voir ───────────────────
