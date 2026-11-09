@@ -428,6 +428,9 @@ class EntrepriseControleur
                 'success' => true,
                 'message' => $result['message'],
                 'last_sync' => now()->format('d/m/Y \à H:i:s'),
+                'bilan' => $result['bilan'] ?? [],
+                'partiel' => $result['partiel'] ?? false,
+                'refus' => $result['refus'] ?? [],
             ]);
         }
 
