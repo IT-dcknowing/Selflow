@@ -52,19 +52,11 @@ class DeversementHistoriqueService
             ];
         }
 
-        // ── 1. Le référentiel ──
-        $referentiel = DeversementReferentielService::deverser($entreprise);
+        // Le référentiel appartient à Comptaflow et est reçu dans
+        // Selflow par RecevoirReferentielComptaflowService. Cette commande
+        // n'envoie que les opérations comptables.
+        // ── Les opérations qui n'ont pas encore abouti ──
 
-        if (!$referentiel['success']) {
-            return [
-                'success'    => false,
-                'message'    => "Le référentiel n'a pas pu être déversé, et sans lui chaque écriture serait refusée : "
-                    . $referentiel['message'],
-                'operations' => 0,
-            ];
-        }
-
-        // ── 2. Les opérations qui n'ont pas encore abouti ──
         // L'exercice en cours part sans rien demander ; un exercice antérieur
         // seulement s'il a été accordé (propriétaire, 08/10/2026).
         $aEnvoyer = self::nonDeversees($entreprise)
@@ -84,9 +76,9 @@ class DeversementHistoriqueService
             ->count();
 
         $message = $aEnvoyer->isEmpty()
-            ? "Le référentiel est à jour, et toutes les opérations étaient déjà déversées."
+            ? "Toutes les opérations étaient déjà déversées."
             : sprintf(
-                "Le référentiel est passé. %d opération(s) sont en cours de déversement ; le planificateur les envoie dans la minute.",
+                "%d opération(s) sont en cours de déversement ; le planificateur les envoie dans la minute.",
                 $aEnvoyer->count()
             );
 
