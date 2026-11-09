@@ -36,7 +36,7 @@ use Illuminate\Support\Facades\Mail;
  *    NCC, RCCM, régime — avant qu'un livre s'ouvre au nom de quelqu'un.
  * 3. À la validation, Selflow appelle Comptaflow avec le secret **serveur**.
  * 4. Comptaflow crée le dossier, **génère la clé**, la renvoie.
- * 5. Selflow la range chiffrée et déverse le référentiel dans la foulée.
+ * 5. Selflow la range chiffrée, puis reçoit le référentiel du dossier Comptaflow.
  * 6. L'entreprise lit « Liaison active ». Elle n'a rien manipulé.
  *
  * C'est Comptaflow qui génère, et non Selflow : la clé désigne un dossier
@@ -116,8 +116,8 @@ class LiaisonComptaflowService
      *   rien écraser chez Comptaflow ;
      * - `annees` : les exercices Selflow à déverser — les exercices antérieurs
      *   cochés sont accordés comme le serait une demande de l'entreprise ;
-     * - `deverser` : déverser l'historique maintenant, ou plus tard (depuis
-     *   les paramètres de l'entreprise). Le référentiel part toujours.
+     * - `deverser` : déverser les écritures historiques maintenant, ou plus tard
+     *   (depuis les paramètres de l'entreprise). Le référentiel Comptaflow est reçu à la liaison.
      *
      * @param  array{comptaflow_company_id?: ?int, annees?: array<int, int>, deverser?: bool, par?: ?int}  $options
      */
