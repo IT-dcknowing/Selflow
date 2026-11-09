@@ -154,7 +154,7 @@
     @else
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
             <p style="color: var(--text-2); font-size: 14px; margin-bottom: 0;">
-                Référentiel Selflow envoyé vers <strong>COMPTAFLOW</strong>. 
+                Données reçues de <strong>COMPTAFLOW</strong> (historique). Le bouton envoie le plan Selflow vers COMPTAFLOW. 
                 @if($comptesComptaflow->total() > 0)
                     <span style="color: var(--success); font-weight: 600;">{{ $comptesComptaflow->total() }} comptes disponibles.</span>
                 @endif
