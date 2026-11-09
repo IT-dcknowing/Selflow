@@ -309,6 +309,40 @@ class DeversementReferentielTest extends TestCase
         Http::assertNotSent(fn ($r) => str_contains($r->url(), '/referentiel/deverser'));
     }
 
+    public function test_le_bilan_restitue_les_lignes_creees_et_refusees_par_comptaflow(): void
+    {
+        $refus = [
+            'Compte « 411000 Clients » : numéro invalide.',
+            'Tiers « 400003 » : compte collectif introuvable.',
+        ];
+
+        $this->comptaflowRepond([
+            '*/referentiel/deverser' => Http::response([
+                'success' => true,
+                'comptes' => 3,
+                'journaux' => 2,
+                'tiers' => 2,
+                'detail' => [
+                    'plan_comptable' => ['recues' => 3, 'creees' => 2, 'deja_la' => 0, 'ecartees' => 1],
+                    'codes_journaux' => ['recues' => 2, 'creees' => 1, 'deja_la' => 1, 'ecartees' => 0],
+                    'tiers' => ['recues' => 2, 'creees' => 1, 'deja_la' => 0, 'ecartees' => 1],
+                ],
+                'refus' => $refus,
+                'message' => '7 lignes reçues : 4 créées, 1 déjà présente, 2 écartées.',
+            ], 200),
+        ]);
+
+        $resultat = DeversementReferentielService::deverser($this->entreprise);
+
+        $this->assertTrue($resultat['success']);
+        $this->assertTrue($resultat['partiel']);
+        $this->assertSame(2, $resultat['bilan']['comptes_crees']);
+        $this->assertSame(1, $resultat['bilan']['journaux_deja_la']);
+        $this->assertSame(2, $resultat['bilan']['total_ecartes']);
+        $this->assertSame($refus, $resultat['refus']);
+        $this->assertSame('7 lignes reçues : 4 créées, 1 déjà présente, 2 écartées.', $resultat['message']);
+    }
+
     public function test_un_refus_de_comptaflow_est_rapporte_tel_quel(): void
     {
         $this->comptaflowRepond([
