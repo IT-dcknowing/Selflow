@@ -433,10 +433,9 @@ class EntrepriseControleur
     }
 
     /**
-     * Déverser chez Comptaflow tout ce que Selflow détient.
-     *
-     * Le référentiel d'abord — sans plan comptable ni journaux, chaque
-     * écriture serait refusée —, puis les opérations, d'un bloc chacune.
+     * Déverser chez Comptaflow les écritures comptables de Selflow.
+     * Le plan, les journaux et les tiers sont reçus depuis Comptaflow ;
+     * cette action ne transmet aucune donnée de référentiel.
      *
      * L'écran avertit avant d'appeler : **la configuration de Comptaflow
      * (modèle de plan, de tiers, de journaux) s'applique**, et c'est celle qui
