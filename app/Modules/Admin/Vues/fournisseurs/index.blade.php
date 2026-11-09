@@ -662,8 +662,8 @@ function lancerSyncComptaflow() {
         feedback.style.display = "block";
         if (data.success) {
             feedback.style.cssText = data.partiel
-                ? "background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; padding:12px; border-radius:6px; font-weight:600; font-size:13px;"
-                : "background:#e6fffa; color:#319795; border:1px solid #b2f5ea; padding:12px; border-radius:6px; font-weight:600; font-size:13px;";
+                ? "background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; padding:12px; border-radius:6px; font-weight:600; font-size:13px; white-space:pre-line;"
+                : "background:#e6fffa; color:#319795; border:1px solid #b2f5ea; padding:12px; border-radius:6px; font-weight:600; font-size:13px; white-space:pre-line;";
             const refus = Array.isArray(data.refus) ? data.refus : [];
             const detailsRefus = refus.length
                 ? "\n\nLignes écartées :\n" + refus.slice(0, 20).map((motif, index) => (index + 1) + ". " + motif).join("\n")
@@ -674,7 +674,7 @@ function lancerSyncComptaflow() {
                 setTimeout(() => { window.location.reload(); }, 1800);
             }
         } else {
-            feedback.style.cssText = "background:#fff5f5; color:#e53e3e; border:1px solid #fed7d7; padding:12px; border-radius:6px; font-weight:600; font-size:13px;";
+            feedback.style.cssText = "background:#fff5f5; color:#e53e3e; border:1px solid #fed7d7; padding:12px; border-radius:6px; font-weight:600; font-size:13px; white-space:pre-line;";
             feedback.innerText = "Erreur : " + data.message;
         }
     })
@@ -682,7 +682,7 @@ function lancerSyncComptaflow() {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-sync-alt"></i> Déverser le référentiel vers COMPTAFLOW';
         feedback.style.display = "block";
-        feedback.style.cssText = "background:#fff5f5; color:#e53e3e; border:1px solid #fed7d7; padding:12px; border-radius:6px; font-weight:600; font-size:13px;";
+        feedback.style.cssText = "background:#fff5f5; color:#e53e3e; border:1px solid #fed7d7; padding:12px; border-radius:6px; font-weight:600; font-size:13px; white-space:pre-line;";
         feedback.innerText = "Erreur de connexion.";
     });
 }
