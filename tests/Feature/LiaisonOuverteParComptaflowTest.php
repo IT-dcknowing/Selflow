@@ -14,7 +14,7 @@ use Tests\TestCase;
  * Comptaflow l'appelle depuis ses deux écrans de liaison, et **la route
  * n'existait pas chez Selflow** : 404 (Not Found — introuvable). Comptaflow
  * affichait « créé et lié avec succès », Selflow n'avait aucune clé à
- * présenter, et aucun déversement ne partait.
+ * présenter, et le référentiel de Comptaflow n'était pas reçu dans Selflow.
  */
 class LiaisonOuverteParComptaflowTest extends TestCase
 {
