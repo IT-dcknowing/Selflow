@@ -706,7 +706,7 @@ class LiaisonComptaflowTest extends TestCase
 
     // ── Ce que la clé authentifie ────────────────────────────────────
 
-    public function test_le_deversement_porte_la_cle_en_entete(): void
+    public function test_la_reception_envoie_la_cle_sans_exporter_le_referentiel(): void
     {
         $this->entreprise->comptaflow_sync_key = 'cptf_live_abcd';
         $this->entreprise->comptaflow_sync_status = 'active';
@@ -717,8 +717,8 @@ class LiaisonComptaflowTest extends TestCase
 
         RecevoirReferentielComptaflowService::synchroniser($this->entreprise->fresh());
 
-        // Le secret partagé est le même pour toutes les entreprises : il ne
-        // dit pas laquelle appelle. La clé du dossier, si.
+        // La clé identifie le dossier à relire. Le corps ne contient aucune
+        // donnée comptable Selflow à envoyer en sens inverse.
         Http::assertSent(fn ($requete) => str_contains($requete->url(), '/api/external/link-company')
             && $requete['selflow_sync_key'] === 'cptf_live_abcd'
             && !array_key_exists('plan_comptable', $requete->data())
@@ -726,7 +726,7 @@ class LiaisonComptaflowTest extends TestCase
             && !array_key_exists('tiers', $requete->data()));
     }
 
-    public function test_une_liaison_deja_ouverte_n_est_pas_rouverte_a_chaque_deversement(): void
+    public function test_l_actualisation_relit_le_referentiel_du_dossier_deja_lie(): void
     {
         $this->entreprise->comptaflow_sync_key = 'cptf_live_abcd';
         $this->entreprise->comptaflow_sync_status = 'active';
