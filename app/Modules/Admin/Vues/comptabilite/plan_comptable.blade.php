@@ -333,6 +333,7 @@ function lancerSyncPlan() {
             feedback.style.background = data.partiel ? "#fff7ed" : "#e6fffa";
             feedback.style.color = data.partiel ? "#9a3412" : "#319795";
             feedback.style.border = data.partiel ? "1px solid #fed7aa" : "1px solid #b2f5ea";
+            feedback.style.whiteSpace = "pre-line";
             const refus = Array.isArray(data.refus) ? data.refus : [];
             const detailsRefus = refus.length
                 ? "\n\nLignes écartées :\n" + refus.slice(0, 20).map((motif, index) => (index + 1) + ". " + motif).join("\n")
