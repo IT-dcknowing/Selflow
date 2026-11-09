@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Modules\Admin\Modeles\Entreprise;
 use App\Modules\Admin\Modeles\PointDeVente;
-use App\Modules\Admin\Services\DeversementReferentielService;
+use App\Modules\Admin\Services\RecevoirReferentielComptaflowService;
 use App\Modules\Admin\Services\LiaisonComptaflowService;
 use App\Modules\Authentification\Modeles\Utilisateur;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -735,7 +735,7 @@ class LiaisonComptaflowTest extends TestCase
 
         $this->comptaflowRepond();
 
-        DeversementReferentielService::deverser($this->entreprise->fresh());
+        RecevoirReferentielComptaflowService::synchroniser($this->entreprise->fresh());
 
         Http::assertSent(fn ($requete) => str_contains($requete->url(), '/link-company'));
     }
