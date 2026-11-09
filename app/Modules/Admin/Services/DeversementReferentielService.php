@@ -178,19 +178,50 @@ class DeversementReferentielService
 
         $entreprise->update(['comptaflow_last_sync_at' => now()]);
 
+        // Comptaflow renvoie le résultat réel de son import : reçues, créées,
+        // déjà présentes et écartées. Ne pas annoncer le nombre envoyé comme
+        // s'il s'agissait du nombre effectivement intégré.
+        $detail = (array) $reponse->json('detail', []);
+        $detailComptes = (array) ($detail['plan_comptable'] ?? []);
+        $detailJournaux = (array) ($detail['codes_journaux'] ?? []);
+        $detailTiers = (array) ($detail['tiers'] ?? []);
+
         $bilan = [
-            'comptes'  => count($comptes),
-            'journaux' => count($journaux),
-            'tiers'    => count($tiers),
+            'comptes' => (int) ($detailComptes['recues'] ?? $reponse->json('comptes', count($comptes))),
+            'journaux' => (int) ($detailJournaux['recues'] ?? $reponse->json('journaux', count($journaux))),
+            'tiers' => (int) ($detailTiers['recues'] ?? $reponse->json('tiers', count($tiers))),
+            'comptes_crees' => (int) ($detailComptes['creees'] ?? 0),
+            'journaux_crees' => (int) ($detailJournaux['creees'] ?? 0),
+            'tiers_crees' => (int) ($detailTiers['creees'] ?? 0),
+            'comptes_deja_la' => (int) ($detailComptes['deja_la'] ?? 0),
+            'journaux_deja_la' => (int) ($detailJournaux['deja_la'] ?? 0),
+            'tiers_deja_la' => (int) ($detailTiers['deja_la'] ?? 0),
+            'comptes_ecartes' => (int) ($detailComptes['ecartees'] ?? 0),
+            'journaux_ecartes' => (int) ($detailJournaux['ecartees'] ?? 0),
+            'tiers_ecartes' => (int) ($detailTiers['ecartees'] ?? 0),
         ];
+
+        $bilan['total_crees'] = $bilan['comptes_crees'] + $bilan['journaux_crees'] + $bilan['tiers_crees'];
+        $bilan['total_deja_la'] = $bilan['comptes_deja_la'] + $bilan['journaux_deja_la'] + $bilan['tiers_deja_la'];
+        $bilan['total_ecartes'] = $bilan['comptes_ecartes'] + $bilan['journaux_ecartes'] + $bilan['tiers_ecartes'];
+
+        $refus = (array) $reponse->json('refus', []);
+        $message = $reponse->json('message') ?: sprintf(
+            '%d compte(s), %d journal(aux) et %d tiers reçus par l’import : %d créé(s), %d déjà présent(s).',
+            $bilan['comptes'],
+            $bilan['journaux'],
+            $bilan['tiers'],
+            $bilan['total_crees'],
+            $bilan['total_deja_la']
+        );
 
         return [
             'success' => true,
-            'bilan'   => $bilan,
-            'message' => sprintf(
-                'Référentiel déversé dans Comptaflow : %d compte(s), %d journal/journaux, %d tiers.',
-                $bilan['comptes'], $bilan['journaux'], $bilan['tiers']
-            ),
+            'partiel' => $bilan['total_ecartes'] > 0 || count($refus) > 0,
+            'bilan' => $bilan,
+            'detail' => $detail,
+            'refus' => $refus,
+            'message' => $message,
         ];
     }
 
