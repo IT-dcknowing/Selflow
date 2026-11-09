@@ -208,26 +208,34 @@ class LiaisonComptaflowService
             );
         }
 
-        // Déverser maintenant : l'historique part derrière le référentiel.
-        // Sinon le référentiel seul — sans plan comptable, sans journaux et
-        // sans tiers, la première écriture retomberait chez Comptaflow sur
-        // des comptes qu'il ne connaît pas.
-        $deversement = !empty($options['deverser'])
+        // Comptaflow détient le référentiel : Selflow le reçoit après
+        // l'ouverture de la liaison. Aucun compte, journal ou tiers Selflow
+        // n'est envoyé à Comptaflow.
+        $reception = RecevoirReferentielComptaflowService::synchroniser($entreprise->fresh());
+
+        // Cette option ne concerne que les écritures historiques.
+        $historique = !empty($options['deverser'])
             ? DeversementHistoriqueService::lancer($entreprise->fresh())
-            : DeversementReferentielService::deverser($entreprise->fresh());
+            : null;
 
         if ($cible === null) {
             self::prevenirLeTitulaire($entreprise->fresh());
         }
 
+        $message = ($cible !== null ? 'Liaison ouverte sur le dossier existant. ' : 'Liaison ouverte. ')
+            . ($reception['success']
+                ? $reception['message']
+                : 'La réception du référentiel Comptaflow reste à effectuer : ' . $reception['message']);
+
+        if ($historique !== null) {
+            $message .= ' ' . $historique['message'];
+        } else {
+            $message .= " Les écritures historiques seront déversées plus tard, depuis les paramètres de l'entreprise.";
+        }
+
         return [
             'success' => true,
-            'message' => ($cible !== null ? 'Liaison ouverte sur le dossier existant. ' : 'Liaison ouverte. ')
-                . ($deversement['success']
-                    ? $deversement['message']
-                    : 'Le référentiel n\'a pas suivi : ' . $deversement['message'])
-                . (empty($options['deverser']) ? " L'historique se déversera plus tard, depuis les paramètres de l'entreprise." : '')
-                . $note,
+            'message' => $message . $note,
         ];
     }
 
