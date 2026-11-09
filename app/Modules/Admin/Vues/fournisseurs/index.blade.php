@@ -21,7 +21,7 @@
             </button>
             <button type="button" id="btn-vue-comptaflow" onclick="switchVue('comptaflow')" class="btn btn-sm btn-outline"
                 style="padding:6px 12px; font-size:12px; font-weight:700; border-radius:6px; border:none; cursor:pointer; background:transparent; color:var(--text-2);">
-                <i class="fas fa-sync"></i> COMPTAFLOW ({{ $fournisseursComptaflow->total() }})
+                <i class="fas fa-sync"></i> Reçus COMPTAFLOW ({{ $fournisseursComptaflow->total() }})
             </button>
         </div>
         <button class="btn btn-outline" onclick="ouvrirImport('modalImportFournisseurs')" style="font-size:13px;">
