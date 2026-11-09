@@ -670,7 +670,9 @@ function lancerSyncComptaflow() {
                     + (refus.length > 20 ? "\n... " + (refus.length - 20) + " autre(s) refus." : "")
                 : "";
             feedback.innerText = (data.message || "Déversement terminé.") + detailsRefus;
-            setTimeout(() => { window.location.reload(); }, 1200);
+            if (!data.partiel) {
+                setTimeout(() => { window.location.reload(); }, 1800);
+            }
         } else {
             feedback.style.cssText = "background:#fff5f5; color:#e53e3e; border:1px solid #fed7d7; padding:12px; border-radius:6px; font-weight:600; font-size:13px;";
             feedback.innerText = "Erreur : " + data.message;
