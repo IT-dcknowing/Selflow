@@ -174,7 +174,7 @@
                 Votre application Selflow est reliée avec succès à <strong>COMPTAFLOW</strong>. Les codes journaux ci-dessous sont importés directement de COMPTAFLOW.
             </p>
             <button type="button" id="btn-sync-action" onclick="lancerSyncComptaflow()" class="btn btn-primary" style="font-weight: 700;">
-                <i class="fas fa-sync-alt" id="sync-icon"></i> Synchroniser avec COMPTAFLOW
+                <i class="fas fa-sync-alt" id="sync-icon"></i> Actualiser depuis COMPTAFLOW
             </button>
         </div>
 
@@ -185,7 +185,7 @@
                 @if($codesComptaflow->isEmpty())
                 <div style="padding:48px; text-align:center; color:var(--text-3);">
                     <i class="fas fa-sync" style="font-size:48px; display:block; margin-bottom:12px; opacity:.2;"></i>
-                    Aucun code journal COMPTAFLOW synchronisé. Cliquez sur le bouton ci-dessus pour synchroniser.
+                    Aucun code journal reçu de COMPTAFLOW. Cliquez sur le bouton ci-dessus pour synchroniser.
                 </div>
                 @else
                 <table>
@@ -367,7 +367,7 @@ function lancerSyncComptaflow() {
     .then(data => {
         btn.disabled = false;
         if (icon) icon.classList.remove('fa-spin');
-        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Synchroniser avec COMPTAFLOW';
+        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Actualiser depuis COMPTAFLOW';
         
         feedback.style.display = "block";
         if (data.success) {
@@ -388,7 +388,7 @@ function lancerSyncComptaflow() {
     .catch(err => {
         btn.disabled = false;
         if (icon) icon.classList.remove('fa-spin');
-        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Synchroniser avec COMPTAFLOW';
+        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Actualiser depuis COMPTAFLOW';
         feedback.style.display = "block";
         feedback.style.background = "#fff5f5";
         feedback.style.color = "#e53e3e";
