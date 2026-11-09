@@ -194,9 +194,9 @@
     @else
         <div style="background: linear-gradient(135deg, #eff6ff, #f0fdf4); border: 1px solid #bfdbfe; border-radius: 12px; padding: 16px; margin-bottom: 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
             <div>
-                <p style="font-weight:700; color:#1e40af; margin-bottom:4px;"><i class="fas fa-link"></i> Référentiel Selflow envoyé vers COMPTAFLOW</p>
+                <p style="font-weight:700; color:#1e40af; margin-bottom:4px;"><i class="fas fa-link"></i> Fournisseurs reçus de COMPTAFLOW (historique)</p>
                 <p style="font-size: 13px; color: #64748b; margin-bottom:0;">
-                    Cette action transmet le plan comptable, les journaux et les tiers de Selflow à COMPTAFLOW. Le compte rendu ci-dessous distingue les lignes créées, déjà présentes et rejetées.
+                    La liste ci-dessous présente les fournisseurs reçus lors d'un ancien import. Le bouton envoie le référentiel Selflow vers COMPTAFLOW ; il ne rapatrie pas les fournisseurs. Le compte rendu distingue les lignes créées, déjà présentes et rejetées.
                 </p>
             </div>
             <button type="button" id="btn-sync-fournisseurs" onclick="lancerSyncComptaflow()" class="btn btn-primary" style="font-weight:700; white-space:nowrap;">
