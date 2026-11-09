@@ -376,7 +376,7 @@ function lancerSyncComptaflow() {
             feedback.style.border = "1px solid #b2f5ea";
             feedback.style.whiteSpace = "pre-line";
             const refus = Array.isArray(data.refus) ? data.refus : [];
-            feedback.innerText = (data.message || "Référentiel actualisé.") + (refus.length ? "\\n\\nÀ vérifier :\\n" + refus.slice(0, 20).map((motif, i) => (i + 1) + ". " + motif).join("\\n") : "");
+            feedback.innerText = (data.message || "Référentiel actualisé.") + (refus.length ? "\n\nÀ vérifier :\n" + refus.slice(0, 20).map((motif, i) => (i + 1) + ". " + motif).join("\n") : "");
             if (!refus.length) setTimeout(() => { window.location.reload(); }, 1200);
         } else {
             feedback.style.background = "#fff5f5";
