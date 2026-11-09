@@ -154,13 +154,13 @@
     @else
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
             <p style="color: var(--text-2); font-size: 14px; margin-bottom: 0;">
-                Plan comptable importé depuis <strong>COMPTAFLOW</strong>. 
+                Référentiel Selflow envoyé vers <strong>COMPTAFLOW</strong>. 
                 @if($comptesComptaflow->total() > 0)
                     <span style="color: var(--success); font-weight: 600;">{{ $comptesComptaflow->total() }} comptes disponibles.</span>
                 @endif
             </p>
             <button type="button" id="btn-sync-plan" onclick="lancerSyncPlan()" class="btn btn-primary" style="font-weight: 700;">
-                <i class="fas fa-sync-alt" id="sync-icon-plan"></i> Synchroniser avec COMPTAFLOW
+                <i class="fas fa-sync-alt" id="sync-icon-plan"></i> Déverser le référentiel vers COMPTAFLOW
             </button>
         </div>
 
@@ -169,7 +169,7 @@
         @if($comptesComptaflow->isEmpty())
         <div class="card" style="padding: 48px; text-align: center; color: var(--text-3);">
             <i class="fas fa-book-open" style="font-size: 48px; display:block; margin-bottom: 12px; opacity: 0.2;"></i>
-            Aucun compte COMPTAFLOW synchronisé.<br>Cliquez sur le bouton ci-dessus pour importer le plan comptable de COMPTAFLOW.
+            Aucun compte reçu de COMPTAFLOW.<br>Cette liaison envoie le plan comptable de Selflow vers COMPTAFLOW ; elle ne rapatrie pas le plan de COMPTAFLOW.
         </div>
         @else
         <div class="card">
@@ -313,7 +313,7 @@ function lancerSyncPlan() {
 
     btn.disabled = true;
     if (icon) icon.classList.add('fa-spin');
-    btn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Synchronisation en cours...';
+    btn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Déversement en cours...';
 
     fetch("{{ route('admin.entreprise.comptaflow.sync_real') }}", {
         method: "POST",
@@ -326,14 +326,19 @@ function lancerSyncPlan() {
     .then(data => {
         btn.disabled = false;
         if (icon) icon.classList.remove('fa-spin');
-        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Synchroniser avec COMPTAFLOW';
+        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Déverser le référentiel vers COMPTAFLOW';
 
         feedback.style.display = "block";
         if (data.success) {
-            feedback.style.background = "#e6fffa";
-            feedback.style.color = "#319795";
-            feedback.style.border = "1px solid #b2f5ea";
-            feedback.innerText = data.message;
+            feedback.style.background = data.partiel ? "#fff7ed" : "#e6fffa";
+            feedback.style.color = data.partiel ? "#9a3412" : "#319795";
+            feedback.style.border = data.partiel ? "1px solid #fed7aa" : "1px solid #b2f5ea";
+            const refus = Array.isArray(data.refus) ? data.refus : [];
+            const detailsRefus = refus.length
+                ? "\\n\\nLignes écartées :\\n" + refus.slice(0, 20).map((motif, index) => (index + 1) + ". " + motif).join("\\n")
+                    + (refus.length > 20 ? "\\n... " + (refus.length - 20) + " autre(s) refus." : "")
+                : "";
+            feedback.innerText = (data.message || "Déversement terminé.") + detailsRefus;
             setTimeout(() => { window.location.reload(); }, 1200);
         } else {
             feedback.style.background = "#fff5f5";
@@ -345,7 +350,7 @@ function lancerSyncPlan() {
     .catch(err => {
         btn.disabled = false;
         if (icon) icon.classList.remove('fa-spin');
-        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Synchroniser avec COMPTAFLOW';
+        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Déverser le référentiel vers COMPTAFLOW';
         feedback.style.display = "block";
         feedback.style.background = "#fff5f5";
         feedback.style.color = "#e53e3e";
