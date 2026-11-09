@@ -44,7 +44,7 @@ class LiaisonOuverteParComptaflowTest extends TestCase
         ], $corps));
     }
 
-    public function test_la_cle_est_rangee_chiffree_et_le_referentiel_part(): void
+    public function test_la_cle_est_rangee_chiffree_et_le_referentiel_sera_recu(): void
     {
         $this->lier()->assertOk()->assertJson(['success' => true]);
 
@@ -60,7 +60,7 @@ class LiaisonOuverteParComptaflowTest extends TestCase
             (string) \DB::table('entreprises')->where('id', $entreprise->id)->value('comptaflow_sync_key'));
 
         // Hors de la requête : Comptaflow attend encore la réponse.
-        Queue::assertPushed(DeverserReferentielComptaflow::class,
+        Queue::assertPushed(RecevoirReferentielComptaflow::class,
             fn ($job) => $job->entrepriseId === $entreprise->id);
     }
 
