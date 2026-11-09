@@ -1,15 +1,15 @@
 <?php
 
-namespace App\\Modules\\Admin\\Services;
+namespace App\Modules\Admin\Services;
 
-use App\\Modules\\Admin\\Modeles\\Client;
-use App\\Modules\\Admin\\Modeles\\CodeJournal;
-use App\\Modules\\Admin\\Modeles\\Entreprise;
-use App\\Modules\\Admin\\Modeles\\Fournisseur;
-use App\\Modules\\Admin\\Modeles\\PlanComptable;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Http;
-use Illuminate\\Support\\Facades\\Log;
+use App\Modules\Admin\Modeles\Client;
+use App\Modules\Admin\Modeles\CodeJournal;
+use App\Modules\Admin\Modeles\Entreprise;
+use App\Modules\Admin\Modeles\Fournisseur;
+use App\Modules\Admin\Modeles\PlanComptable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Reçoit dans Selflow le référentiel détenu par le dossier Comptaflow lié.
@@ -49,7 +49,7 @@ class RecevoirReferentielComptaflowService
                 'selflow_sync_key'      => $entreprise->comptaflow_sync_key,
                 'selflow_company_id'    => $entreprise->id,
             ]);
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             Log::warning('Réception du référentiel Comptaflow impossible', [
                 'entreprise_id' => $entreprise->id,
                 'erreur' => $e->getMessage(),
@@ -262,7 +262,7 @@ class RecevoirReferentielComptaflowService
                     'comptaflow_last_sync_at' => now(),
                 ]);
             });
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             Log::error('Réception du référentiel Comptaflow interrompue', [
                 'entreprise_id' => $entreprise->id,
                 'erreur' => $e->getMessage(),
