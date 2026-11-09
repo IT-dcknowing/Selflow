@@ -666,8 +666,8 @@ function lancerSyncComptaflow() {
                 : "background:#e6fffa; color:#319795; border:1px solid #b2f5ea; padding:12px; border-radius:6px; font-weight:600; font-size:13px;";
             const refus = Array.isArray(data.refus) ? data.refus : [];
             const detailsRefus = refus.length
-                ? "\\n\\nLignes écartées :\\n" + refus.slice(0, 20).map((motif, index) => (index + 1) + ". " + motif).join("\\n")
-                    + (refus.length > 20 ? "\\n... " + (refus.length - 20) + " autre(s) refus." : "")
+                ? "\n\nLignes écartées :\n" + refus.slice(0, 20).map((motif, index) => (index + 1) + ". " + motif).join("\n")
+                    + (refus.length > 20 ? "\n... " + (refus.length - 20) + " autre(s) refus." : "")
                 : "";
             feedback.innerText = (data.message || "Déversement terminé.") + detailsRefus;
             setTimeout(() => { window.location.reload(); }, 1200);
