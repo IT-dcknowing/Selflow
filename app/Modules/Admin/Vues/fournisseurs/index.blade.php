@@ -194,13 +194,13 @@
     @else
         <div style="background: linear-gradient(135deg, #eff6ff, #f0fdf4); border: 1px solid #bfdbfe; border-radius: 12px; padding: 16px; margin-bottom: 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
             <div>
-                <p style="font-weight:700; color:#1e40af; margin-bottom:4px;"><i class="fas fa-link"></i> Fournisseurs synchronisés depuis COMPTAFLOW</p>
+                <p style="font-weight:700; color:#1e40af; margin-bottom:4px;"><i class="fas fa-link"></i> Référentiel Selflow envoyé vers COMPTAFLOW</p>
                 <p style="font-size: 13px; color: #64748b; margin-bottom:0;">
-                    Leurs informations COMPTAFLOW (nom, numéro de tiers, compte collectif) sont protégées en écriture, mais vous pouvez compléter leurs données Selflow manquantes ci-dessous.
+                    Cette action transmet le plan comptable, les journaux et les tiers de Selflow à COMPTAFLOW. Le compte rendu ci-dessous distingue les lignes créées, déjà présentes et rejetées.
                 </p>
             </div>
             <button type="button" id="btn-sync-fournisseurs" onclick="lancerSyncComptaflow()" class="btn btn-primary" style="font-weight:700; white-space:nowrap;">
-                <i class="fas fa-sync-alt" id="sync-icon-fournisseurs"></i> Synchroniser les tiers
+                <i class="fas fa-sync-alt" id="sync-icon-fournisseurs"></i> Déverser le référentiel vers COMPTAFLOW
             </button>
         </div>
         <div id="sync-feedback-fournisseurs" style="display:none; margin-bottom: 16px; padding: 12px; border-radius: 6px; font-weight: 600; font-size: 13px;"></div>
@@ -210,7 +210,7 @@
                 @if($fournisseursComptaflow->isEmpty())
                 <div style="padding:48px; text-align:center; color:var(--text-3);">
                     <i class="fas fa-handshake" style="font-size:48px; display:block; margin-bottom:12px; opacity:.2;"></i>
-                    Aucun fournisseur COMPTAFLOW synchronisé. Cliquez sur <strong>Synchroniser les tiers</strong>.
+                    Aucun fournisseur reçu de COMPTAFLOW. Le déversement ci-dessus envoie les données de Selflow vers COMPTAFLOW ; il ne rapatrie pas les fournisseurs de COMPTAFLOW.
                 </div>
                 @else
                 <table>
@@ -649,7 +649,7 @@ function lancerSyncComptaflow() {
 
     if (!btn) return;
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Synchronisation...';
+    btn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Déversement en cours...';
 
     fetch("{{ route('admin.entreprise.comptaflow.sync_real') }}", {
         method: "POST",
@@ -658,11 +658,18 @@ function lancerSyncComptaflow() {
     .then(res => res.json())
     .then(data => {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Synchroniser les tiers';
+        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Déverser le référentiel vers COMPTAFLOW';
         feedback.style.display = "block";
         if (data.success) {
-            feedback.style.cssText = "background:#e6fffa; color:#319795; border:1px solid #b2f5ea; padding:12px; border-radius:6px; font-weight:600; font-size:13px;";
-            feedback.innerText = data.message;
+            feedback.style.cssText = data.partiel
+                ? "background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; padding:12px; border-radius:6px; font-weight:600; font-size:13px;"
+                : "background:#e6fffa; color:#319795; border:1px solid #b2f5ea; padding:12px; border-radius:6px; font-weight:600; font-size:13px;";
+            const refus = Array.isArray(data.refus) ? data.refus : [];
+            const detailsRefus = refus.length
+                ? "\\n\\nLignes écartées :\\n" + refus.slice(0, 20).map((motif, index) => (index + 1) + ". " + motif).join("\\n")
+                    + (refus.length > 20 ? "\\n... " + (refus.length - 20) + " autre(s) refus." : "")
+                : "";
+            feedback.innerText = (data.message || "Déversement terminé.") + detailsRefus;
             setTimeout(() => { window.location.reload(); }, 1200);
         } else {
             feedback.style.cssText = "background:#fff5f5; color:#e53e3e; border:1px solid #fed7d7; padding:12px; border-radius:6px; font-weight:600; font-size:13px;";
@@ -671,7 +678,7 @@ function lancerSyncComptaflow() {
     })
     .catch(() => {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Synchroniser les tiers';
+        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Déverser le référentiel vers COMPTAFLOW';
         feedback.style.display = "block";
         feedback.style.cssText = "background:#fff5f5; color:#e53e3e; border:1px solid #fed7d7; padding:12px; border-radius:6px; font-weight:600; font-size:13px;";
         feedback.innerText = "Erreur de connexion.";
