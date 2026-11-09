@@ -1,12 +1,12 @@
 <?php
 
-namespace App\\Jobs;
+namespace App\Jobs;
 
-use App\\Modules\\Admin\\Modeles\\Entreprise;
-use App\\Modules\\Admin\\Services\\RecevoirReferentielComptaflowService;
-use Illuminate\\Contracts\\Queue\\ShouldQueue;
-use Illuminate\\Foundation\\Queue\\Queueable;
-use Illuminate\\Support\\Facades\\Log;
+use App\Modules\Admin\Modeles\Entreprise;
+use App\Modules\Admin\Services\RecevoirReferentielComptaflowService;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Recevoir le référentiel Comptaflow après une liaison ouverte depuis ce côté.
