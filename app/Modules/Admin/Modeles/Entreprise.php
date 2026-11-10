@@ -145,9 +145,24 @@ class Entreprise extends Model
 
     public function liaisonComptaflowActive(): bool
     {
-        return $this->comptaflow_sync_status === 'active'
-            && filled($this->comptaflow_sync_key)
-            && $this->comptaflow_revoquee_le === null;
+        if ($this->comptaflow_sync_status !== 'active' || $this->comptaflow_revoquee_le !== null) {
+            return false;
+        }
+
+        // Une ancienne clé chiffrée avec un autre APP_KEY, ou une valeur
+        // corrompue en base, peut faire lever DecryptException au simple
+        // affichage de la page superadmin. L'état de liaison doit rester
+        // consultable même si la clé doit être réémise.
+        try {
+            return filled($this->comptaflow_sync_key);
+        } catch (\Illuminate\Contracts\Encryption\DecryptException $exception) {
+            \Illuminate\Support\Facades\Log::warning(
+                'Clé de liaison Comptaflow illisible pour l’entreprise #' . $this->getKey(),
+                ['exception' => $exception::class]
+            );
+
+            return false;
+        }
     }
 
     public function demandeComptaflowEnAttente(): bool
