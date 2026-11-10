@@ -720,6 +720,12 @@
 </div>
 </form>
 
+@php
+    $regimeSaisieLibre = Auth::user()->entreprise->regime_imposition ?? null;
+    $tauxSaisieLibre = in_array($regimeSaisieLibre, \\App\\Modules\\Admin\\Modeles\\Produit::REGIMES_EXONERATION_LEGALE, true) ? 0 : 18;
+    $codeTvaSaisieLibre = \\App\\Modules\\Admin\\Modeles\\Produit::deduireCodeTva($tauxSaisieLibre, $regimeSaisieLibre);
+@endphp
+
 <!-- Modal Saisie Libre -->
 <div class="modal-overlay" id="modalSaisieLibre">
     <div class="modal">
@@ -757,9 +763,10 @@
                      alors a 18 %. --}}
                 <div class="form-group">
                     <label class="form-label">Code TVA transmis à la DGI</label>
-                    <select id="saisieCodeTvaInput" class="form-control">
+                    <small style="display:block;color:var(--text-3);font-size:11px;">Calculé automatiquement selon le régime fiscal de l’entreprise.</small>
+                    <select id="saisieCodeTvaInput" class="form-control" disabled title="Déterminé automatiquement selon le régime fiscal de l’entreprise">
                         @foreach(\App\Modules\Admin\Modeles\Produit::CODES_TVA as $code => $infos)
-                            <option value="{{ $code }}" data-taux="{{ $infos['taux'] }}">{{ $infos['libelle'] }}</option>
+                            <option value="{{ $code }}" data-taux="{{ $infos['taux'] }}" @selected($code === $codeTvaSaisieLibre)>{{ $infos['libelle'] }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -1140,7 +1147,7 @@ function fermerSaisieLibre() {
     document.getElementById('saisiePrixInput').value = '';
     document.getElementById('saisieQteInput').value = '1';
     document.getElementById('saisieUniteInput').value = 'Unité';
-    document.getElementById('saisieCodeTvaInput').value = 'TVA';
+    document.getElementById('saisieCodeTvaInput').value = @json($codeTvaSaisieLibre);
 }
 
 /**
