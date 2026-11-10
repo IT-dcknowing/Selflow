@@ -166,6 +166,18 @@ class ProduitControleur
         // sont des missions, le tableau de bord n'annoncait que des ruptures —
         // sur des choses qui ne s'epuisent pas.
         if (!$produit->estStockable()) {
+            // Même pour un service, la catégorie peut être réservée à certains
+            // sites. À défaut d'affectation explicite, retenir le site courant.
+            if ($categorieId) {
+                $siteInitial = session('point_de_vente_actif_id')
+                    ?? auth()->user()->point_de_vente_id
+                    ?? $entreprise->pointsDeVente()->orderBy('id')->value('id');
+                if ($siteInitial) {
+                    \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)
+                        ->find($categorieId)?->pointsDeVente()->syncWithoutDetaching([(int) $siteInitial]);
+                }
+            }
+
             return back()->with('succes', 'Produit ajouté au catalogue avec succès. Référence générée : ' . $produit->reference);
         }
 
