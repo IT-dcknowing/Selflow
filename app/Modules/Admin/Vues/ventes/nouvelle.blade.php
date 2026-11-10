@@ -732,6 +732,10 @@
                 <label class="form-label">Désignation / Service <span style="color:var(--danger)">*</span></label>
                 <input type="text" id="saisieNomInput" class="form-control" placeholder="Ex: Prestation de service, Produit hors stock" required>
             </div>
+            <label style="display:flex;align-items:center;gap:8px;margin:4px 0 14px;font-size:13px;">
+                <input type="checkbox" id="saisieAjouterCatalogueInput" checked>
+                Enregistrer également cet article dans le catalogue
+            </label>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                 <div class="form-group">
                     <label class="form-label">Prix unitaire (F) <span style="color:var(--danger)">*</span></label>
@@ -1208,7 +1212,8 @@ function ajouterSaisieLibre(e, fermer = true) {
     const id = 'v_' + Date.now();
     panier[id] = {
         nom, prix, qte, stock: 99999, stock_minimum: 0, unite, tva,
-        remise_taux: remise, code_tva: codeTva, taxes: taxes, isVirtual: true
+        remise_taux: remise, code_tva: codeTva, taxes: taxes, isVirtual: true,
+        ajouter_catalogue: document.getElementById('saisieAjouterCatalogueInput')?.checked ?? true
     };
 
     if (fermer) {
@@ -1220,6 +1225,7 @@ function ajouterSaisieLibre(e, fermer = true) {
         uniteInput.value = 'Unité';
         document.getElementById('saisieRemiseInput').value = '0';
         document.getElementById('saisieCodeTvaInput').value = 'TVA';
+        document.getElementById('saisieAjouterCatalogueInput').checked = true;
         document.getElementById('saisieTaxesConteneur').innerHTML = '';
         nomInput.focus();
     }
@@ -1482,7 +1488,7 @@ function renderPanier() {
         container.appendChild(div);
 
         const form = document.getElementById('formVente');
-        ['produit_id', 'quantite', 'libelle_virtuel', 'prix_unitaire', 'unite', 'tva', 'remise_taux', 'code_tva'].forEach(field => {
+        ['produit_id', 'quantite', 'libelle_virtuel', 'prix_unitaire', 'unite', 'tva', 'remise_taux', 'code_tva', 'ajouter_catalogue'].forEach(field => {
             const input = document.createElement('input');
             input.type = 'hidden';
             input.name = `articles[${idx}][${field}]`;
@@ -1503,6 +1509,8 @@ function renderPanier() {
                 input.value = item.remise_taux || 0;
             } else if (field === 'code_tva') {
                 input.value = item.code_tva || '';
+            } else if (field === 'ajouter_catalogue') {
+                input.value = item.isVirtual && item.ajouter_catalogue ? '1' : '0';
             }
 
             input.className = 'article-input';
