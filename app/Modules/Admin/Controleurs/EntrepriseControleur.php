@@ -56,7 +56,7 @@ class EntrepriseControleur
             'rouverts' => $rouverts,
         ];
 
-        $categoriesProduits = \App\\Modules\\Admin\\Modeles\\Categorie::where('entreprise_id', $entreprise->id)
+        $categoriesProduits = \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)
             ->with(['pointsDeVente'])
             ->withCount('produits')
             ->orderBy('nom')
@@ -72,7 +72,7 @@ class EntrepriseControleur
     /**
      * Modifier une catégorie propre à l'entreprise et ses points de vente.
      */
-    public function modifierCategorieProduit(Request $request, \App\\Modules\\Admin\\Modeles\\Categorie $categorie): RedirectResponse
+    public function modifierCategorieProduit(Request $request, \App\Modules\Admin\Modeles\Categorie $categorie): RedirectResponse
     {
         $entreprise = Auth::user()->entreprise;
         abort_unless($categorie->entreprise_id === $entreprise->id, 404);
@@ -80,7 +80,7 @@ class EntrepriseControleur
         $donnees = $request->validate([
             'nom' => ['required', 'string', 'max:100'],
             'prefixe' => [
-                'required', 'string', 'max:5', 'regex:/^[A-Z0-9]{2,5}$/',
+                'required', 'string', 'max:5', 'regex:/^[A-Za-z0-9]{2,5}$/',
                 Rule::unique('categories', 'prefixe')
                     ->where(fn ($q) => $q->where('entreprise_id', $entreprise->id))
                     ->ignore($categorie->id),
@@ -93,7 +93,7 @@ class EntrepriseControleur
         $sitesValides = $entreprise->pointsDeVente()->whereIn('id', $siteIds)->pluck('id')->all();
         abort_unless(count($sitesValides) === count($siteIds), 422, 'Un point de vente sélectionné ne dépend pas de cette entreprise.');
 
-        \Illuminate\\Support\\Facades\\DB::transaction(function () use ($categorie, $donnees, $siteIds) {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($categorie, $donnees, $siteIds) {
             $ancienPrefixe = strtoupper((string) $categorie->prefixe);
             $nouveauPrefixe = strtoupper(trim($donnees['prefixe']));
 
@@ -111,7 +111,7 @@ class EntrepriseControleur
                 foreach ($categorie->produits()->orderBy('id')->get() as $produit) {
                     do {
                         $reference = $nouveauPrefixe . '-' . str_pad((string) $sequence++, 5, '0', STR_PAD_LEFT);
-                    } while (\App\\Modules\\Admin\\Modeles\\Produit::where('entreprise_id', $categorie->entreprise_id)
+                    } while (\App\Modules\Admin\Modeles\Produit::where('entreprise_id', $categorie->entreprise_id)
                         ->where('reference', $reference)
                         ->where('id', '!=', $produit->id)
                         ->exists());
@@ -129,7 +129,7 @@ class EntrepriseControleur
                 }
 
                 foreach ($siteIds as $siteId) {
-                    \App\\Modules\\Admin\\Modeles\\Stock::firstOrCreate(
+                    \App\Modules\Admin\Modeles\Stock::firstOrCreate(
                         ['produit_id' => $produit->id, 'point_de_vente_id' => $siteId],
                         [
                             'quantite_disponible' => 0,
@@ -155,22 +155,24 @@ class EntrepriseControleur
     /**
      * Retirer une catégorie inutile sans supprimer les produits ni leurs ventes.
      */
-    public function supprimerCategorieProduit(\App\\Modules\\Admin\\Modeles\\Categorie $categorie): RedirectResponse
+    public function supprimerCategorieProduit(\App\Modules\Admin\Modeles\Categorie $categorie): RedirectResponse
     {
         $entreprise = Auth::user()->entreprise;
         abort_unless($categorie->entreprise_id === $entreprise->id, 404);
 
-        if ($categorie->produits()->exists()) {
-            return back()->with('erreur', 'Cette catégorie contient encore des produits. Déplacez-les vers une autre catégorie avant de la supprimer.');
-        }
-
-        \Illuminate\\Support\\Facades\\DB::transaction(function () use ($categorie) {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($categorie) {
+            // Retirer le classement, jamais les produits ni leurs références
+            // déjà utilisées sur les factures.
+            $categorie->produits()->update([
+                'categorie_id' => null,
+                'sous_categorie_id' => null,
+            ]);
             $categorie->pointsDeVente()->detach();
             $categorie->sousCategories()->delete();
             $categorie->delete();
         });
 
-        return back()->with('succes', 'Catégorie retirée de la configuration de votre entreprise.');
+        return back()->with('succes', 'Catégorie retirée. Les produits sont conservés dans le catalogue avec leurs références existantes.');
     }
 
     /**
