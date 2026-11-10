@@ -506,52 +506,6 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
     }
     document.addEventListener('click',function(e){var del=e.target.closest('[data-retirer-saisie]');if(del)del.parentElement.remove();});
 })();
-// Configuration des catégories et ajout/suppression de lignes à l'étape 5.
-(function(){
-    var bouton=document.getElementById('ajouter-categorie-config');
-    var zone=document.getElementById('categories-config-ajoutees');
-    var source=document.getElementById('modele-points-de-vente');
-    if(bouton&&zone){
-        var index=0;
-        bouton.addEventListener('click',function(){
-            var ligne=document.createElement('div');ligne.className='ligne';ligne.style.cssText='display:grid;grid-template-columns:minmax(150px,1fr) minmax(100px,.45fr) minmax(220px,1.2fr) auto;gap:10px;align-items:end;margin-bottom:10px;';
-            ligne.innerHTML='<div><label class="form-label">Catégorie</label><input required class="form-control" name="categories_nouvelles_config['+index+'][nom]" maxlength="120" placeholder="Nom de la catégorie"></div>'+
-                '<div><label class="form-label">Préfixe</label><input required class="form-control" name="categories_nouvelles_config['+index+'][prefixe]" maxlength="12" placeholder="Préfixe"></div>'+
-                '<div><label class="form-label">Points de vente concernés</label><select required class="form-control" multiple size="3" name="categories_nouvelles_config['+index+'][points_de_vente][]"></select></div>'+
-                '<button type="button" class="btn btn-outline-danger" data-retirer-saisie title="Retirer"><i class="fas fa-trash"></i></button>';
-            var select=ligne.querySelector('select');if(source)select.innerHTML=source.innerHTML;
-            zone.appendChild(ligne);index++;
-        });
-    }
-    document.addEventListener('click',function(e){
-        var del=e.target.closest('[data-supprimer-categorie-config]');
-        if(!del)return;
-        var ligne=del.closest('.ligne');if(!ligne)return;
-        var id=ligne.querySelector('[name^="categories_config["]')?.name.match(/categories_config\\[(\\d+)\\]/)?.[1];
-        if(id){var hidden=document.createElement('input');hidden.type='hidden';hidden.name='categories_a_supprimer[]';hidden.value=id;document.getElementById('form-souscription').appendChild(hidden);}
-        ligne.remove();
-    });
-})();
-(function () {
-    function ajouter(zoneId, boutonId, nom, placeholder) {
-        var zone=document.getElementById(zoneId), bouton=document.getElementById(boutonId);
-        if(!zone||!bouton)return;
-        bouton.addEventListener('click',function(){
-            var ligne=document.createElement('div'); ligne.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px;';
-            var input=document.createElement('input'); input.type='text'; input.name=nom; input.maxLength=150; input.className='form-control'; input.placeholder=placeholder;
-            var del=document.createElement('button'); del.type='button'; del.className='btn btn-outline-danger'; del.setAttribute('data-retirer-saisie',''); del.innerHTML='<i class="fas fa-trash"></i>';
-            ligne.appendChild(input); ligne.appendChild(del); zone.appendChild(ligne);
-        });
-    }
-    ajouter('secteurs-personnalises','ajouter-secteur','secteurs_personnalises[]','Nom du secteur précis');
-    document.addEventListener('click',function(e){var del=e.target.closest('[data-retirer-saisie]');if(del)del.parentElement.remove();});
-})();
-window.addEventListener('pageshow', function () {
-    var form = document.getElementById('form-souscription');
-    if (form) { delete form.dataset.envoye; }
-});
-
-// Ajout/retrait des articles du catalogue pendant la souscription.
 (function () {
     var table=document.querySelector('.tableau-prix tbody');
     var bouton=document.getElementById('ajouter-article');
