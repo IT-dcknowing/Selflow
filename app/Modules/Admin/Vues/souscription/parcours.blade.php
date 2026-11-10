@@ -320,25 +320,6 @@
             @endif
             @endforeach
         </div>
-        <div class="autre" style="background:#f0fdf4;border-color:#86efac;">
-            <label style="color:#166534;">Ajouter un besoin de module non proposé</label>
-            <p>Les modules disponibles dans l'application sont activés selon vos choix. Les besoins personnalisés sont enregistrés pour étude ; ils ne créent pas automatiquement une fonctionnalité qui n'existe pas encore.</p>
-            <div id="modules-personnalises">
-                @foreach((array) $entreprise->modules_personnalises as $module)
-                    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
-                        <input type="text" class="form-control" value="{{ $module }}" readonly>
-                        <span class="badge-acquis">Créé</span>
-                    </div>
-                @endforeach
-                <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
-                    <input type="text" name="modules_personnalises[]" class="form-control" maxlength="120" placeholder="Nom du besoin ou module">
-                    <button type="button" class="btn btn-outline-danger" data-retirer-saisie title="Retirer"><i class="fas fa-trash"></i></button>
-                </div>
-            </div>
-            <button type="button" class="btn btn-outline" id="ajouter-module-personnalise"><i class="fas fa-plus"></i> Créer</button>
-        </div>
-
-
     {{-- ══ 4. Les catégories ══ --}}
     @elseif($etape === 4)
         <div class="sous-tete">
