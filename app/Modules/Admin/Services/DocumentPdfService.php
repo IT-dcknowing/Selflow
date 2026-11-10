@@ -238,7 +238,7 @@ class DocumentPdfService
                 : (float) ($detail->produit->taux_tva ?? 0);
 
             $lignes[] = [
-                'reference'   => $detail->produit?->reference ?? '—',
+                'reference'   => $detail->reference_produit ?: ($detail->produit?->reference ?? '—'),
                 'designation' => $detail->libelle_virtuel ?? ($detail->produit?->nom ?? 'Article'),
                 'quantite'    => (float) $detail->quantite,
                 'unite'       => $detail->unite ?? 'Unité',
