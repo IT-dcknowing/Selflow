@@ -85,8 +85,8 @@ class EntrepriseControleur
                     ->where(fn ($q) => $q->where('entreprise_id', $entreprise->id))
                     ->ignore($categorie->id),
             ],
-            'point_de_vente_ids' => ['nullable', 'array'],
-            'point_de_vente_ids.*' => ['integer'],
+            'point_de_vente_ids' => ['required', 'array', 'min:1'],
+            'point_de_vente_ids.*' => ['required', 'integer'],
         ]);
 
         $siteIds = array_values(array_unique(array_map('intval', $donnees['point_de_vente_ids'] ?? [])));
