@@ -156,6 +156,7 @@ class EntrepriseControleur
             // revient pas — le défaut exact de la clé de liaison Comptaflow,
             // corrigé au lot 15.
             'comptabilite_activee'   => ['nullable', 'in:0,1'],
+            'comptaflow_mode_deversement' => ['required', 'in:manuel,automatique'],
         ], [
             'pied_de_page_facture.max'    => 'Le pied de page ne peut pas dépasser 248 caractères.',
             'facture_autres_mentions.max' => 'Les autres mentions ne peuvent pas dépasser 248 caractères.',
@@ -164,6 +165,7 @@ class EntrepriseControleur
         ]);
 
         $data = $request->only([
+            'comptaflow_mode_deversement',
             'nom', 'gerant_nom', 'gerant_prenom', 'gerant_fonction',
             'adresse', 'telephone', 'email', 'ref_bancaire',
             'rccm', 'ncc', 'regime_imposition', 'centre_impots', 'compte_contribuable',

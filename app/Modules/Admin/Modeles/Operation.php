@@ -171,7 +171,8 @@ class Operation extends Model
 
         if ($entreprise
             && $entreprise->comptaflow_sync_status === 'active'
-            && $entreprise->comptaflow_sync_key) {
+            && $entreprise->comptaflow_sync_key
+            && ($entreprise->comptaflow_mode_deversement ?? 'manuel') === 'automatique') {
             \App\Jobs\DeverserOperationComptaflow::dispatch($this->id)->afterCommit();
         }
     }

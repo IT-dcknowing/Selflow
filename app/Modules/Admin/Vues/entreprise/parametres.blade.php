@@ -626,6 +626,19 @@
                                 </div>
                             @endif
 
+                            <div style="margin-top:14px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;">
+                                <label for="comptaflow_mode_deversement" style="display:block;font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px;">
+                                    Mode de transfert des écritures
+                                </label>
+                                <select id="comptaflow_mode_deversement" name="comptaflow_mode_deversement" class="form-control">
+                                    <option value="manuel" {{ old('comptaflow_mode_deversement', $entreprise->comptaflow_mode_deversement ?? 'manuel') === 'manuel' ? 'selected' : '' }}>Manuel — uniquement après clic sur « Déverser »</option>
+                                    <option value="automatique" {{ old('comptaflow_mode_deversement', $entreprise->comptaflow_mode_deversement ?? 'manuel') === 'automatique' ? 'selected' : '' }}>Automatique — après validation de chaque opération équilibrée</option>
+                                </select>
+                                <small style="display:block;margin-top:6px;color:var(--text-3);font-size:11px;line-height:1.5;">
+                                    Le mode manuel est sélectionné par défaut. Le changement de mode ne modifie pas les écritures déjà enregistrées.
+                                </small>
+                            </div>
+
                             {{-- Le champ « Clé de synchronisation COMPTAFLOW »
                                  était ici, en saisie libre, avec la consigne
                                  d'aller la chercher sur Comptaflow. Coller la

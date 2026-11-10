@@ -55,6 +55,7 @@ class Entreprise extends Model
         // Comptaflow, et par lui seul. Voir la migration
         // `liaison_comptaflow_delivree_et_non_saisie`.
         'comptaflow_sync_status',
+        'comptaflow_mode_deversement',
         'comptaflow_last_sync_at',
         'comptaflow_company_id',
         'comptaflow_demande_statut',

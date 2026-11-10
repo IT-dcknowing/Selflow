@@ -56,6 +56,7 @@ class SyncEcrituresToComptaflow extends Command
         $toutRejouer  = (bool) $this->option('all');
 
         $entreprises = Entreprise::where('comptaflow_sync_status', 'active')
+            ->where('comptaflow_mode_deversement', 'automatique')
             ->whereNotNull('comptaflow_sync_key')
             ->whereNotNull('comptaflow_company_id')
             ->when($entrepriseId, fn ($q) => $q->where('id', $entrepriseId))
