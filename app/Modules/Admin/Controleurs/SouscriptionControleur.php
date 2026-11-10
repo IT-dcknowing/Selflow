@@ -276,66 +276,6 @@ class SouscriptionControleur
 
         // La configuration des catégories se fait ici, à l'étape 5 :
         // nom, préfixe, références et périmètre des points de vente.
-        foreach ($donnees['categories_config'] ?? [] as $id => $configuration) {
-            $categorie = \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)
-                ->whereKey($id)->first();
-            if (!$categorie) continue;
-
-            $ancienNom = (string) $categorie->nom;
-            $ancienPrefixe = strtoupper((string) $categorie->prefixe);
-            $nom = trim($configuration['nom']);
-            $prefixeSaisi = strtoupper(trim($configuration['prefixe']));
-            $prefixe = ($nom !== $ancienNom && $prefixeSaisi === $ancienPrefixe)
-                ? strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $nom) ?: 'CAT', 0, 8))
-                : $prefixeSaisi;
-            $categorie->update(['nom' => $nom, 'prefixe' => $prefixe]);
-
-            $sites = PointDeVente::where('entreprise_id', $entreprise->id)
-                ->whereIn('id', $configuration['points_de_vente'])->pluck('id')->all();
-            if ($sites === []) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    "categories_config.{$id}.points_de_vente" => 'Sélectionnez au moins un point de vente de votre entreprise.',
-                ]);
-            }
-            $categorie->pointsDeVente()->sync($sites);
-
-            if ($prefixe !== $ancienPrefixe || $nom !== $ancienNom) {
-                $sequence = 1;
-                foreach (Produit::where('entreprise_id', $entreprise->id)
-                    ->where('categorie_id', $categorie->id)->orderBy('id')->get() as $produit) {
-                    do {
-                        $reference = $prefixe.'-'.str_pad((string) $sequence++, 5, '0', STR_PAD_LEFT);
-                    } while (Produit::where('entreprise_id', $entreprise->id)
-                        ->where('reference', $reference)->where('id', '!=', $produit->id)->exists());
-                    $produit->update(['reference' => $reference]);
-                }
-            }
-        }
-
-        foreach ($donnees['categories_nouvelles_config'] ?? [] as $configuration) {
-            $categorie = \App\Modules\Admin\Modeles\Categorie::create([
-                'entreprise_id' => $entreprise->id,
-                'nom' => trim($configuration['nom']),
-                'prefixe' => strtoupper(trim($configuration['prefixe'])),
-            ]);
-            $sites = PointDeVente::where('entreprise_id', $entreprise->id)
-                ->whereIn('id', $configuration['points_de_vente'])->pluck('id')->all();
-            $categorie->pointsDeVente()->sync($sites);
-        }
-
-        foreach ($donnees['categories_a_supprimer'] ?? [] as $categorieId) {
-            $categorie = \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)
-                ->whereKey($categorieId)->first();
-            if (!$categorie) continue;
-            // Conserver les produits et leurs références : seule l'affectation
-            // à cette catégorie est retirée.
-            Produit::where('entreprise_id', $entreprise->id)
-                ->where('categorie_id', $categorie->id)
-                ->update(['categorie_id' => null]);
-            $categorie->pointsDeVente()->detach();
-            $categorie->delete();
-        }
-
         $pointDeVenteId = $this->siteDuStock($entreprise)?->id;
 
         foreach ($donnees['articles'] ?? [] as $ligne) {
