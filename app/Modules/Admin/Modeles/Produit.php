@@ -392,10 +392,15 @@ class Produit extends Model
                               ->orWhereHas('category.pointsDeVente', fn ($sites) => $sites->where('points_de_vente.id', $pointDeVenteId));
                       });
               })
-              ->orWhereHas('stocks', fn ($s) => $s->where('stocks.point_de_vente_id', $pointDeVenteId)->where('stocks.reference', true))
-              // Un article stockable sans fiche nulle part (import ancien)
-              // reste commun à l'entreprise.
-              ->orWhereDoesntHave('stocks');
+              ->orWhere(function ($stockable) use ($pointDeVenteId) {
+                  $stockable->whereIn('type', self::TYPES_STOCKABLES)
+                      ->where(function ($stocks) use ($pointDeVenteId) {
+                          $stocks->whereHas('stocks', fn ($s) => $s->where('stocks.point_de_vente_id', $pointDeVenteId)->where('stocks.reference', true))
+                              // Un article stockable sans fiche nulle part (import ancien)
+                              // reste commun à l'entreprise.
+                              ->orWhereDoesntHave('stocks');
+                      });
+              });
         });
     }
 
