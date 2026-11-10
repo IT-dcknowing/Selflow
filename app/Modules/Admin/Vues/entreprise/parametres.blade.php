@@ -175,19 +175,13 @@
                 </div>
                 <div style="display:flex;gap:6px;align-items:center;">
                     <button type="submit" class="btn btn-primary btn-sm" title="Enregistrer"><i class="fas fa-save"></i></button>
-                    @if($categorie->produits_count === 0)
-                        <button type="submit" form="supprimer-categorie-{{ $categorie->id }}" class="btn btn-outline btn-sm" title="Retirer cette catégorie" onclick="return confirm('Retirer cette catégorie ?')"><i class="fas fa-trash"></i></button>
-                    @else
-                        <button type="button" class="btn btn-outline btn-sm" disabled title="Déplacez d'abord les produits de cette catégorie"><i class="fas fa-trash"></i></button>
-                    @endif
+                    <button type="submit" form="supprimer-categorie-{{ $categorie->id }}" class="btn btn-outline btn-sm" title="Retirer cette catégorie" onclick="return confirm('Retirer cette catégorie ? Les produits resteront dans le catalogue.')"><i class="fas fa-trash"></i></button>
                 </div>
             </form>
-            @if($categorie->produits_count === 0)
-                <form id="supprimer-categorie-{{ $categorie->id }}" method="POST" action="{{ route('admin.entreprise.categories.supprimer', $categorie) }}" style="display:none;">
-                    @csrf
-                    @method('DELETE')
-                </form>
-            @endif
+            <form id="supprimer-categorie-{{ $categorie->id }}" method="POST" action="{{ route('admin.entreprise.categories.supprimer', $categorie) }}" style="display:none;">
+                @csrf
+                @method('DELETE')
+            </form>
         @empty
             <p style="color:var(--text-2);font-size:13px;">Aucune catégorie personnalisée n'est encore enregistrée.</p>
         @endforelse
