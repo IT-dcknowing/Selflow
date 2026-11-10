@@ -494,6 +494,23 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
 // le domaine ne menait plus nulle part (retest du 14/10/2026). La page
 // rendue par le cache repart de zéro.
 // Création simple de catégories à l'étape 4.
+// Création de secteurs personnalisés : la saisie est conservée et peut être sélectionnée.
+(function(){
+    var zone=document.getElementById('secteurs-personnalises');
+    var bouton=document.getElementById('ajouter-secteur');
+    if(!zone||!bouton)return;
+    bouton.addEventListener('click',function(){
+        var ligne=document.createElement('div');ligne.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px;';
+        var input=document.createElement('input');input.type='text';input.name='secteurs_personnalises[]';input.maxLength=150;input.className='form-control';input.placeholder='Nom du secteur précis';
+        var label=document.createElement('label');label.style.cssText='display:flex;gap:5px;align-items:center;white-space:nowrap;';
+        var cb=document.createElement('input');cb.type='checkbox';cb.name='secteurs_personnalises_selection[]';
+        input.addEventListener('input',function(){cb.value=input.value;});cb.addEventListener('change',function(){cb.value=input.value;});
+        label.appendChild(cb);label.appendChild(document.createTextNode(' Sélectionner'));
+        var del=document.createElement('button');del.type='button';del.className='btn btn-outline-danger';del.setAttribute('data-retirer-saisie','');del.innerHTML='<i class="fas fa-trash"></i>';
+        ligne.appendChild(input);ligne.appendChild(label);ligne.appendChild(del);zone.appendChild(ligne);
+    });
+})();
+
 (function () {
     var bouton=document.getElementById('ajouter-categorie-simple');
     var zone=document.getElementById('nouvelles-categories');
@@ -513,7 +530,7 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
     var bouton=document.getElementById('ajouter-article');
     if(!table||!bouton)return;
     var index=table.querySelectorAll('tr').length;
-    var types=@json(\\App\\Modules\\Admin\\Modeles\\Produit::TYPES);
+    var types=@json(\App\Modules\Admin\Modeles\Produit::TYPES);
     var sites=@json(isset($pointsDeVente) ? $pointsDeVente->map(fn($site)=>['id'=>$site->id,'nom'=>$site->nom])->values() : []);
     var avecStock=@json(isset($avecStock) && (bool) $avecStock);
     function prefixe(nom){return (nom||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^A-Za-z0-9]/g,'').toUpperCase().slice(0,8)||'CAT';}
@@ -536,15 +553,15 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
         var i=index++;
         var tr=document.createElement('tr');
         var siteOptions='<option value="">Tous</option>'+sites.map(s=>'<option value="'+s.id+'">'+String(s.nom).replace(/[&<>"']/g,'')+'</option>').join('');
-        var typeOptions=Object.entries(types).map(([k,label])=>'<option value="'+k+'">'+label+'</option>').join('');
+        var typeOptions='<option value="">Type d’article</option>'+Object.entries(types).map(([k,label])=>'<option value="'+k+'">'+label+'</option>').join('');
         tr.innerHTML='<td><span class="cpt" data-reference>CAT-00001</span></td>'+
-          '<td><input required type="text" name="articles['+i+'][nom]" maxlength="255" placeholder="Nom de l’article"><input type="hidden" name="articles['+i+'][nouveau]" value="1"><input type="hidden" name="articles['+i+'][type]" value="marchandise"></td>'+
+          '<td><input required type="text" name="articles['+i+'][nom]" maxlength="255" placeholder="Nom de l’article"><input type="hidden" name="articles['+i+'][nouveau]" value="1"></td>'+
           '<td><input required type="text" name="articles['+i+'][categorie_nom]" maxlength="120" placeholder="Catégorie"></td>'+
           '<td><select name="articles['+i+'][point_de_vente_id]" class="form-control">'+siteOptions+'</select></td>'+
           '<td><input type="number" name="articles['+i+'][prix_achat]" min="0" step="1"></td>'+
           '<td><input type="number" name="articles['+i+'][prix_vente]" min="0" step="1"></td>'+
           '<td><button type="button" class="btn btn-outline-danger" data-retirer-article title="Retirer cette ligne"><i class="fas fa-trash"></i></button></td>';
-        var type=document.createElement('select');type.className='form-control';type.name='articles['+i+'][type]';type.innerHTML=typeOptions;
+        var type=document.createElement('select');type.required=true;type.className='form-control';type.name='articles['+i+'][type]';type.innerHTML=typeOptions;
         tr.querySelector('input[name="articles['+i+'][type]"]').replaceWith(type);
         if(avecStock){var td=document.createElement('td');td.innerHTML='<input type="number" name="articles['+i+'][stock_initial]" min="0" step="1" placeholder="0">';tr.insertBefore(td,tr.lastElementChild);}
         table.appendChild(tr);
