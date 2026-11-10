@@ -187,6 +187,7 @@
                             <option value="actif">Actif</option>
                             <option value="suspendu">Suspendu / Bloqué</option>
                             <option value="inactif">Inactif</option>
+                            <option value="en_attente">En attente de validation</option>
                         </select>
                     </div>
                 </div>
