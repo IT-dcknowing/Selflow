@@ -395,8 +395,9 @@
             <table class="tableau-prix">
                 <thead>
                     <tr><th>Référence</th><th>Article</th><th>Catégorie</th><th>Point de vente</th>
-                        <th style="width:130px;">Prix d'achat</th><th style="width:130px;">Prix de vente</th><th style="width:48px;"></th>
+                        <th style="width:130px;">Prix d'achat</th><th style="width:130px;">Prix de vente</th>
                         @if($avecStock)<th style="width:130px;">Stock de départ</th>@endif
+                        <th style="width:48px;"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -424,6 +425,7 @@
                             @endif
                         </td>
                         @endif
+                        <td><button type="button" class="btn btn-outline-danger" data-retirer-article title="Retirer cette ligne"><i class="fas fa-trash"></i></button></td>
                     </tr>
                     @empty
                     <tr><td colspan="{{ $colonnes + 1 }}" style="text-align:center; padding:26px; color:var(--text-3);">
