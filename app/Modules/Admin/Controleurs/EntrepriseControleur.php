@@ -56,7 +56,105 @@ class EntrepriseControleur
             'rouverts' => $rouverts,
         ];
 
-        return view('admin::entreprise.parametres', compact('entreprise', 'periodes', 'fneStatut', 'configuration'));
+        $categoriesProduits = \\App\\Modules\\Admin\\Modeles\\Categorie::where('entreprise_id', $entreprise->id)
+            ->with(['pointsDeVente'])
+            ->withCount('produits')
+            ->orderBy('nom')
+            ->get();
+        $pointsDeVente = $entreprise->pointsDeVente()->orderBy('nom')->get();
+
+        return view('admin::entreprise.parametres', compact(
+            'entreprise', 'periodes', 'fneStatut', 'configuration', 'categoriesProduits', 'pointsDeVente'
+        ));
+    }
+
+
+    /**
+     * Modifier une catégorie propre à l'entreprise et ses points de vente.
+     */
+    public function modifierCategorieProduit(Request $request, \\App\\Modules\\Admin\\Modeles\\Categorie $categorie): RedirectResponse
+    {
+        $entreprise = Auth::user()->entreprise;
+        abort_unless($categorie->entreprise_id === $entreprise->id, 404);
+
+        $donnees = $request->validate([
+            'nom' => ['required', 'string', 'max:100'],
+            'prefixe' => [
+                'required', 'string', 'max:5', 'regex:/^[A-Z0-9]{2,5}$/',
+                Rule::unique('categories', 'prefixe')
+                    ->where(fn ($q) => $q->where('entreprise_id', $entreprise->id))
+                    ->ignore($categorie->id),
+            ],
+            'point_de_vente_ids' => ['nullable', 'array'],
+            'point_de_vente_ids.*' => ['integer'],
+        ]);
+
+        $siteIds = array_values(array_unique(array_map('intval', $donnees['point_de_vente_ids'] ?? [])));
+        $sitesValides = $entreprise->pointsDeVente()->whereIn('id', $siteIds)->pluck('id')->all();
+        abort_unless(count($sitesValides) === count($siteIds), 422, 'Un point de vente sélectionné ne dépend pas de cette entreprise.');
+
+        \\Illuminate\\Support\\Facades\\DB::transaction(function () use ($categorie, $donnees, $siteIds) {
+            $ancienPrefixe = strtoupper((string) $categorie->prefixe);
+            $nouveauPrefixe = strtoupper(trim($donnees['prefixe']));
+
+            $categorie->update([
+                'nom' => trim($donnees['nom']),
+                'prefixe' => $nouveauPrefixe,
+            ]);
+            $categorie->pointsDeVente()->sync($siteIds);
+
+            // Si le préfixe change, les références du catalogue suivent.
+            // Les références déjà imprimées restent intactes grâce au snapshot
+            // enregistré dans chaque ligne de facture.
+            if ($ancienPrefixe !== $nouveauPrefixe) {
+                $sequence = 1;
+                foreach ($categorie->produits()->orderBy('id')->get() as $produit) {
+                    do {
+                        $reference = $nouveauPrefixe . '-' . str_pad((string) $sequence++, 5, '0', STR_PAD_LEFT);
+                    } while (\\App\\Modules\\Admin\\Modeles\\Produit::where('entreprise_id', $categorie->entreprise_id)
+                        ->where('reference', $reference)
+                        ->where('id', '!=', $produit->id)
+                        ->exists());
+
+                    $produit->forceFill(['reference' => $reference])->saveQuietly();
+                }
+            }
+
+            // Les lignes de stock déterminent la visibilité d'un article sur
+            // chaque site. Une quantité existante reste visible même si le site
+            // vient d'être décoché : on ne masque jamais un stock physique.
+            foreach ($categorie->produits()->with('stocks')->get() as $produit) {
+                foreach ($produit->stocks as $stock) {
+                    $stock->update([
+                        'reference' => in_array((int) $stock->point_de_vente_id, $siteIds, true)
+                            || (float) $stock->quantite_disponible > 0,
+                    ]);
+                }
+            }
+        });
+
+        return back()->with('succes', 'Catégorie mise à jour. Les références produits ont été recalculées si le préfixe a changé.');
+    }
+
+    /**
+     * Retirer une catégorie inutile sans supprimer les produits ni leurs ventes.
+     */
+    public function supprimerCategorieProduit(\\App\\Modules\\Admin\\Modeles\\Categorie $categorie): RedirectResponse
+    {
+        $entreprise = Auth::user()->entreprise;
+        abort_unless($categorie->entreprise_id === $entreprise->id, 404);
+
+        if ($categorie->produits()->exists()) {
+            return back()->with('erreur', 'Cette catégorie contient encore des produits. Déplacez-les vers une autre catégorie avant de la supprimer.');
+        }
+
+        \\Illuminate\\Support\\Facades\\DB::transaction(function () use ($categorie) {
+            $categorie->pointsDeVente()->detach();
+            $categorie->sousCategories()->delete();
+            $categorie->delete();
+        });
+
+        return back()->with('succes', 'Catégorie retirée de la configuration de votre entreprise.');
     }
 
     /**
