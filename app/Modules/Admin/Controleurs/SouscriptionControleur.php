@@ -128,7 +128,7 @@ class SouscriptionControleur
         //
         // L'étape 4 réalignera la colonne sur les métiers réellement souscrits.
         if (empty($entreprise->secteur_activite) && !empty($donnees['categorie_id'])) {
-            $nom = Categorie::find($donnees['categorie_id'])?->nom;
+            $nom = !empty($donnees['categorie_id']) ? Categorie::find($donnees['categorie_id'])?->nom : $domaine;
 
             if ($nom) {
                 $entreprise->update(['secteur_activite' => [$nom]]);
