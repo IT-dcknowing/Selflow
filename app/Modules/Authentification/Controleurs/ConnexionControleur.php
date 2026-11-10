@@ -67,6 +67,13 @@ class ConnexionControleur
             ]);
         }
 
+        if (Auth::user()->statut === 'en_attente') {
+            Auth::logout();
+            throw ValidationException::withMessages([
+                'connexion_erreur' => 'Votre inscription est en attente de validation par notre équipe.',
+            ]);
+        }
+
         // Vérifier que le compte est actif
         if (Auth::user()->statut !== 'actif') {
             Auth::logout();
