@@ -623,7 +623,7 @@ class SouscriptionControleur
             // anciens se reprennent depuis le catalogue.
             5 => ['articles' => Produit::with(['categorieRelation', 'stocks'])
                     ->where('entreprise_id', $entreprise->id)
-                    ->when(session("souscription_articles.{$entreprise->id}"), fn ($q, $ids) => $q->whereIn('id', $ids))
+                    ->whereIn('id', (array) session("souscription_articles.{$entreprise->id}", []))
                     ->orderBy('reference')->get(),
                   'categoriesEntreprise' => \App\Modules\Admin\Modeles\Categorie::with('pointsDeVente')
                     ->where('entreprise_id', $entreprise->id)->orderBy('nom')->get(),
