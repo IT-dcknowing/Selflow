@@ -175,7 +175,7 @@
         <div class="autre" style="background:#f0fdf4;border-color:#86efac;">
             <label for="domaine_personnalise" style="color:#166534;">Créer un domaine</label>
             <input type="text" id="domaine_personnalise" name="nouveau_domaine" class="form-control"
-                   value="{{ old('domaine_personnalise', ((array) $entreprise->domaines_personnalises)[0] ?? '') }}" list="domaines-personnalises-existants" maxlength="120" placeholder="Ex. : Services aux entreprises">
+                   value="{{ old('nouveau_domaine') }}" list="domaines-personnalises-existants" maxlength="120" placeholder="Ex. : Services aux entreprises">
             <datalist id="domaines-personnalises-existants">@foreach((array) $entreprise->domaines_personnalises as $domaine)<option value="{{ $domaine }}">@endforeach</datalist>
             <span class="badge-acquis">Créé</span>
             @foreach((array) $entreprise->domaines_personnalises as $domaine)
@@ -334,7 +334,7 @@
     @elseif($etape === 4)
         <div class="sous-tete">
             <h2>Les catégories de votre activité</h2>
-            <p>Sélectionnez les catégories proposées qui correspondent à votre activité, ou créez simplement les vôtres. Leur nom détaillé, leur préfixe et les points de vente seront configurés à l'étape suivante.</p>
+            <p>Sélectionnez uniquement les catégories dont vous avez besoin, ou créez les vôtres. Rien n'est ajouté automatiquement pour un domaine ou un secteur personnalisé.</p>
         </div>
         <div class="liste" id="liste-categories-souscription">
             @foreach($familles as $famille)
@@ -348,7 +348,7 @@
             @endforeach
             @foreach($categoriesPersonnalisees ?? [] as $categoriePerso)
                 <label class="ligne acquise" style="display:flex;gap:12px;align-items:center;">
-                    <input type="checkbox" checked disabled>
+                    <input type="checkbox" name="categories_personnalisees_selection[]" value="{{ $categoriePerso->id }}" checked>
                     <span><strong>{{ $categoriePerso->nom }}</strong>
                         <span class="badge-acquis">Créé</span>
                     </span>
