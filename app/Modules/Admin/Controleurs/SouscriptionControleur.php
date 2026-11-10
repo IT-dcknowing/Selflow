@@ -282,6 +282,13 @@ class SouscriptionControleur
             'categories_config.*.prefixe' => ['required', 'string', 'max:12', 'regex:/^[A-Za-z0-9_-]+$/'],
             'categories_config.*.points_de_vente' => ['required', 'array', 'min:1'],
             'categories_config.*.points_de_vente.*' => ['integer', 'distinct', 'exists:points_de_vente,id'],
+            'categories_nouvelles_config' => ['nullable', 'array'],
+            'categories_nouvelles_config.*.nom' => ['required', 'string', 'max:120'],
+            'categories_nouvelles_config.*.prefixe' => ['required', 'string', 'max:12', 'regex:/^[A-Za-z0-9_-]+$/'],
+            'categories_nouvelles_config.*.points_de_vente' => ['required', 'array', 'min:1'],
+            'categories_nouvelles_config.*.points_de_vente.*' => ['integer', 'distinct', 'exists:points_de_vente,id'],
+            'categories_a_supprimer' => ['nullable', 'array'],
+            'categories_a_supprimer.*' => ['integer', 'distinct'],
         ]);
 
         // La configuration des catégories se fait ici, à l'étape 5 :
@@ -312,6 +319,30 @@ class SouscriptionControleur
                     $produit->update(['reference' => $reference]);
                 }
             }
+        }
+
+        foreach ($donnees['categories_nouvelles_config'] ?? [] as $configuration) {
+            $categorie = \App\Modules\Admin\Modeles\Categorie::create([
+                'entreprise_id' => $entreprise->id,
+                'nom' => trim($configuration['nom']),
+                'prefixe' => strtoupper(trim($configuration['prefixe'])),
+            ]);
+            $sites = PointDeVente::where('entreprise_id', $entreprise->id)
+                ->whereIn('id', $configuration['points_de_vente'])->pluck('id')->all();
+            $categorie->pointsDeVente()->sync($sites);
+        }
+
+        foreach ($donnees['categories_a_supprimer'] ?? [] as $categorieId) {
+            $categorie = \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)
+                ->whereKey($categorieId)->first();
+            if (!$categorie) continue;
+            // Conserver les produits et leurs références : seule l'affectation
+            // à cette catégorie est retirée.
+            Produit::where('entreprise_id', $entreprise->id)
+                ->where('categorie_id', $categorie->id)
+                ->update(['categorie_id' => null]);
+            $categorie->pointsDeVente()->detach();
+            $categorie->delete();
         }
 
         $pointDeVenteId = $this->siteDuStock($entreprise)?->id;
