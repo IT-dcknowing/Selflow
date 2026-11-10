@@ -171,7 +171,7 @@
                             <option value="{{ $site->id }}" @selected($categorie->pointsDeVente->contains('id', $site->id))>{{ $site->nom }}</option>
                         @endforeach
                     </select>
-                    <small style="font-size:10px;color:var(--text-3);">Maintenez Ctrl pour choisir plusieurs sites. Les stocks existants restent visibles.</small>
+                    <small style="font-size:10px;color:var(--text-3);">Choisissez au moins un site. Maintenez Ctrl pour en sélectionner plusieurs. Les stocks existants restent visibles.</small>
                 </div>
                 <div style="display:flex;gap:6px;align-items:center;">
                     <button type="submit" class="btn btn-primary btn-sm" title="Enregistrer"><i class="fas fa-save"></i></button>
