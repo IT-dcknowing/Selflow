@@ -23,7 +23,7 @@ return new class extends Migration
         // les sites qui utilisaient déjà ces catégories.
         \Illuminate\Support\Facades\DB::table('categories')
             ->orderBy('id')
-            ->get(['id'])
+            ->get(['id', 'entreprise_id'])
             ->each(function ($categorie) {
                 $sites = \Illuminate\Support\Facades\DB::table('stocks')
                     ->join('produits', 'produits.id', '=', 'stocks.produit_id')
@@ -31,6 +31,14 @@ return new class extends Migration
                     ->where('stocks.reference', true)
                     ->distinct()
                     ->pluck('stocks.point_de_vente_id');
+
+                if ($sites->isEmpty()) {
+                    // Les services et catégories sans stock étaient proposés
+                    // partout avant cette configuration : conserver ce périmètre.
+                    $sites = \Illuminate\Support\Facades\DB::table('points_de_vente')
+                        ->where('entreprise_id', $categorie->entreprise_id)
+                        ->pluck('id');
+                }
 
                 foreach ($sites as $siteId) {
                     \Illuminate\Support\Facades\DB::table('categorie_point_de_vente')->insertOrIgnore([
