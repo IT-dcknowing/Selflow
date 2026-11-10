@@ -194,6 +194,10 @@ class ProduitControleur
         $sitesReferences = $sitesCategorie !== [] ? $sitesCategorie : array_filter([$defaultPdvId]);
         if ($categorieId && $sitesCategorie === [] && $defaultPdvId) {
             \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)
+                ->find($categorieId)?->pointsDeVente()->sync([(int) $defaultPdvId]);
+        }
+        if ($categorieId && $sitesCategorie === [] && $defaultPdvId) {
+            \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)
                 ->find($categorieId)?->pointsDeVente()->syncWithoutDetaching([(int) $defaultPdvId]);
         }
 
