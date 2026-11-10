@@ -399,6 +399,7 @@ class VenteControleur
                 $detail = VenteDetail::create([
                     'vente_id' => $vente->id,
                     'produit_id' => $produit ? $produit->id : null,
+                    'reference_produit' => $produit?->reference,
                     'libelle_virtuel' => $produit ? null : $nomElement,
                     'quantite' => $article['quantite'],
                     'unite' => $article['unite'] ?? 'Unité',
@@ -1151,6 +1152,7 @@ class VenteControleur
                     'coupon_id' => null,
                     'vente_id' => $vente->id,
                     'produit_id' => $produit ? $produit->id : null,
+                    'reference_produit' => $produit?->reference,
                     'libelle_virtuel' => $produit ? null : $nomElement,
                     'quantite' => $article['quantite'],
                     'unite' => $article['unite'] ?? 'Unité',
@@ -1803,6 +1805,7 @@ class VenteControleur
                 VenteDetail::create([
                     'vente_id' => $avoir->id,
                     'produit_id' => $detail->produit_id,
+                    'reference_produit' => $detail->reference_produit ?: $detail->produit?->reference,
                     'libelle_virtuel' => $detail->libelle_virtuel,
                     'quantite' => $detail->quantite,
                     'unite' => $detail->unite,
