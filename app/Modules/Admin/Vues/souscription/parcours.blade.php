@@ -449,7 +449,7 @@
     <div class="pieds">
         {{-- Un bouton qui ne peut mener nulle part vaut mieux caché : sans
              domaine à choisir, le formulaire revient sur lui-même. --}}
-        @unless($etape === 1 && $categories->isEmpty() && empty($entreprise->domaines_personnalises))
+        @unless(false)
         <button type="submit" class="btn btn-primary">
             @if($etape === $derniere)
                 <i class="fas fa-check"></i> Terminer
