@@ -1538,6 +1538,8 @@ function saisirPrix(id, val) {
     rafraichirSousTotalLigne(id);
     majChampsArticles();
     calculerTotaux();
+    // Mettre aussi à jour le total affiché dans la boîte de l'étape 1.
+    if (typeof majSelectionPasAPas === 'function') majSelectionPasAPas();
 }
 
 function saisirUnite(id, val) {
