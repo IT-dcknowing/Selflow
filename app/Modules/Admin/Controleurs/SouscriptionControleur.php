@@ -150,7 +150,7 @@ class SouscriptionControleur
             'profils'          => ['nullable', 'array'],
             'profils.*'        => ['string', 'exists:referentiel_profils,code'],
             'secteurs_personnalises' => ['nullable', 'array'],
-            'secteurs_personnalises.*' => ['required', 'string', 'max:150'],
+            'secteurs_personnalises.*' => ['nullable', 'string', 'max:150'],
             'activite_autre'   => ['nullable', 'string', 'max:150'],
         ], [
             'profils.*.exists'         => 'Un des métiers choisis est inconnu.',
@@ -186,7 +186,7 @@ class SouscriptionControleur
             'modules'   => ['array'],
             'modules.*' => ['string', 'in:' . implode(',', Entreprise::TOUS_LES_MODULES)],
             'modules_personnalises' => ['nullable', 'array'],
-            'modules_personnalises.*' => ['required', 'string', 'max:120'],
+            'modules_personnalises.*' => ['nullable', 'string', 'max:120'],
         ]);
 
         // Un module qui n'est pas autorisé ne peut pas s'activer, même envoyé
