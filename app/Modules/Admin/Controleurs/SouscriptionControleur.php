@@ -301,11 +301,19 @@ class SouscriptionControleur
             $ancienNom = (string) $categorie->nom;
             $ancienPrefixe = strtoupper((string) $categorie->prefixe);
             $nom = trim($configuration['nom']);
-            $prefixe = strtoupper(trim($configuration['prefixe']));
+            $prefixeSaisi = strtoupper(trim($configuration['prefixe']));
+            $prefixe = ($nom !== $ancienNom && $prefixeSaisi === $ancienPrefixe)
+                ? strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $nom) ?: 'CAT', 0, 8))
+                : $prefixeSaisi;
             $categorie->update(['nom' => $nom, 'prefixe' => $prefixe]);
 
             $sites = PointDeVente::where('entreprise_id', $entreprise->id)
                 ->whereIn('id', $configuration['points_de_vente'])->pluck('id')->all();
+            if ($sites === []) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    "categories_config.{$id}.points_de_vente" => 'Sélectionnez au moins un point de vente de votre entreprise.',
+                ]);
+            }
             $categorie->pointsDeVente()->sync($sites);
 
             if ($prefixe !== $ancienPrefixe || $nom !== $ancienNom) {
