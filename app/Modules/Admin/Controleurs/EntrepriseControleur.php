@@ -129,7 +129,7 @@ class EntrepriseControleur
                 }
 
                 foreach ($siteIds as $siteId) {
-                    \\App\\Modules\\Admin\\Modeles\\Stock::firstOrCreate(
+                    \App\\Modules\\Admin\\Modeles\\Stock::firstOrCreate(
                         ['produit_id' => $produit->id, 'point_de_vente_id' => $siteId],
                         [
                             'quantite_disponible' => 0,
