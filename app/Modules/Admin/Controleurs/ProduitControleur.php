@@ -40,7 +40,7 @@ class ProduitControleur
             ->actifs()
             ->visiblesAuSite($siteDuCatalogue)
             ->when($filtres['q'] !== '', function ($q) use ($filtres) {
-                $terme = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $filtres['q']) . '%';
+                $terme = '%' . str_replace(['%', '_'], ['\%', '\_'], $filtres['q']) . '%';
                 $q->where(fn ($w) => $w->where('nom', 'like', $terme)->orWhere('reference', 'like', $terme));
             })
             ->when($filtres['categorie'] > 0, fn ($q) => $q->where('categorie_id', $filtres['categorie']))
@@ -174,10 +174,14 @@ class ProduitControleur
             ?? auth()->user()->point_de_vente_id
             ?? ($pdvs->first()->id ?? null);
         $sitesCategorie = $categorieId
-            ? \App\\Modules\\Admin\\Modeles\\Categorie::where('entreprise_id', $entreprise->id)
+            ? \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)
                 ->find($categorieId)?->pointsDeVente()->pluck('points_de_vente.id')->all() ?? []
             : [];
         $sitesReferences = $sitesCategorie !== [] ? $sitesCategorie : array_filter([$defaultPdvId]);
+        if ($categorieId && $sitesCategorie === [] && $defaultPdvId) {
+            \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)
+                ->find($categorieId)?->pointsDeVente()->syncWithoutDetaching([(int) $defaultPdvId]);
+        }
 
         /*
          * La fiche s'ouvre à zéro partout, et la quantité de départ entre par
