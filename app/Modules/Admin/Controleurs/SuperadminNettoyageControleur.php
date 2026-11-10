@@ -223,6 +223,10 @@ class SuperadminNettoyageControleur
                     ? DB::table('ordres_production')->where('entreprise_id', $entrepriseId)->pluck('id')->all() : [];
                 $immoIds = Schema::hasTable('immobilisations')
                     ? DB::table('immobilisations')->where('entreprise_id', $entrepriseId)->pluck('id')->all() : [];
+                $produitIds = Schema::hasTable('produits')
+                    ? DB::table('produits')->where('entreprise_id', $entrepriseId)->pluck('id')->all() : [];
+                $rejetIds = Schema::hasTable('fne_rejets')
+                    ? DB::table('fne_rejets')->where('entreprise_id', $entrepriseId)->pluck('id')->all() : [];
 
                 // Lignes et dépendances des documents.
                 $venteDetailIds = Schema::hasTable('vente_details')
@@ -236,6 +240,8 @@ class SuperadminNettoyageControleur
                 $deleteIds('fiche_technique_details', 'fiche_technique_id', $ficheIds);
                 $deleteIds('ordre_production_lignes', 'ordre_production_id', $ordreIds);
                 $deleteIds('dotations_amortissement', 'immobilisation_id', $immoIds);
+                $deleteIds('produit_taxes', 'produit_id', $produitIds);
+                $deleteIds('portail_fne_demandes', 'rejet_id', $rejetIds);
 
                 // Paiements liés aux ventes et achats : gérer les deux conventions
                 // de nommage rencontrées dans les versions du schéma.
@@ -249,8 +255,15 @@ class SuperadminNettoyageControleur
                     'mouvement_lots', 'lots', 'stocks', 'transferts_stock',
                     'ordres_production', 'fiches_techniques', 'immobilisations',
                     'dotations_amortissement', 'consignations', 'fne_rejets',
-                    'portail_fne_factures_recues', 'portail_fne_facture_recues_lignes',
+                    'portail_fne_factures_recues', 'portail_fne_facture_recues_lignes', 'portail_fne_demandes',
                 ] as $table) $deleteScoped($table);
+
+                // Transferts de stock : les deux sites sont portés par des colonnes distinctes.
+                if (Schema::hasTable('transferts_stock') && $siteIds !== []) {
+                    $effaces['transferts_stock'] = DB::table('transferts_stock')
+                        ->whereIn('point_de_vente_source_id', $siteIds)
+                        ->orWhereIn('point_de_vente_destination_id', $siteIds)->delete();
+                }
 
                 // Discussions B2B où l'entreprise est l'une des deux parties.
                 if (Schema::hasTable('b2b_negotiations')) {
