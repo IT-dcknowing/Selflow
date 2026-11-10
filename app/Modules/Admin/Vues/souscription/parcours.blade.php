@@ -340,53 +340,33 @@
 
     {{-- ══ 4. Les catégories ══ --}}
     @elseif($etape === 4)
-        @php $comptaOuverte = $comptaChoisie ?? $comptaOuverte; @endphp
         <div class="sous-tete">
             <h2>Les catégories de votre activité</h2>
-            <p>Modifiez le nom et le préfixe de chaque catégorie, choisissez les points de vente concernés ou retirez les lignes inutiles. Le bouton « Créer » ajoute vos propres catégories. Les comptes comptables du référentiel sont conservés automatiquement.</p>
+            <p>Sélectionnez les catégories proposées qui correspondent à votre activité, ou créez simplement les vôtres. Leur nom détaillé, leur préfixe et les points de vente seront configurés à l'étape suivante.</p>
         </div>
-
         <div class="liste" id="liste-categories-souscription">
             @foreach($familles as $famille)
-                @php
-                    $categorieEntreprise = \\App\\Modules\\Admin\\Modeles\\Categorie::where('entreprise_id', $entreprise->id)->where('nom', $famille->nom)->first();
-                    $sitesCategorie = $categorieEntreprise ? $categorieEntreprise->pointsDeVente->pluck('id')->all() : [];
-                @endphp
-                <div class="ligne" data-ligne-categorie style="display:block;">
-                    <div style="display:grid;grid-template-columns:minmax(160px,1.2fr) minmax(100px,.55fr) minmax(220px,1.3fr) auto;gap:10px;align-items:end;">
-                        <div>
-                            <label class="form-label">Catégorie</label>
-                            <input type="text" class="form-control" name="familles_config[{{ $famille->code }}][nom]" value="{{ $categorieEntreprise->nom ?? $famille->nom }}" maxlength="120">
-                            <input type="hidden" name="familles[]" value="{{ $famille->code }}">
-                            <div class="sous">{{ $famille->profil->nom }} · {{ $famille->articles_count }} produit(s)</div>
-                        </div>
-                        <div>
-                            <label class="form-label">Préfixe</label>
-                            <input type="text" class="form-control" name="familles_config[{{ $famille->code }}][prefixe]" value="{{ $categorieEntreprise->prefixe ?? $famille->code }}" maxlength="12">
-                        </div>
-                        <div>
-                            <label class="form-label">Points de vente concernés</label>
-                            <select class="form-control" name="familles_config[{{ $famille->code }}][points_de_vente][]" multiple size="3">
-                                @foreach($pointsDeVente as $site)
-                                    <option value="{{ $site->id }}" {{ in_array($site->id, $sitesCategorie) || $sitesCategorie === [] ? 'selected' : '' }}>{{ $site->nom }}</option>
-                                @endforeach
-                            </select>
-                            <div class="sous">Maintenez Ctrl (ou Cmd) pour plusieurs points de vente.</div>
-                        </div>
-                        <button type="button" class="btn btn-outline-danger" title="Retirer cette catégorie" data-supprimer-ligne><i class="fas fa-trash"></i></button>
-                    </div>
-                </div>
+                <label class="ligne" style="display:flex;gap:12px;align-items:center;">
+                    <input type="checkbox" name="familles[]" value="{{ $famille->code }}"
+                           {{ in_array($famille->code, $choix['familles'] ?? []) ? 'checked' : '' }}>
+                    <span><strong>{{ $famille->nom }}</strong>
+                        <span class="sous">{{ $famille->profil->nom }} · {{ $famille->articles_count }} produit(s)</span>
+                    </span>
+                </label>
             @endforeach
         </div>
+        <div class="autre" style="background:#f0fdf4;border-color:#86efac;">
+            <label style="color:#166534;">Créer une catégorie qui manque</label>
+            <div id="nouvelles-categories">
+                <div class="ligne-saisie" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+                    <input type="text" name="categories_personnalisees[0][nom]" class="form-control" maxlength="120" placeholder="Nom de la catégorie">
+                    <button type="button" class="btn btn-outline-danger" data-retirer-saisie title="Retirer"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+            <button type="button" class="btn btn-outline" id="ajouter-categorie-simple"><i class="fas fa-plus"></i> Créer une catégorie</button>
+        </div>
 
-        <select id="modele-points-de-vente" hidden>
-            @foreach($pointsDeVente as $site)
-                <option value="{{ $site->id }}">{{ $site->nom }}</option>
-            @endforeach
-        </select>
-        <div id="nouvelles-categories"></div>
-        <button type="button" class="btn btn-outline" id="ajouter-categorie"><i class="fas fa-plus"></i> Créer une catégorie</button>
-    {{-- ══ 5. Prix et stock ══ --}}
+{{-- ══ 5. Prix et stock ══ --}}
     @elseif($etape === 5)
         @php
             // La colonne de stock n'a de sens que si le module est ouvert, qu'un
@@ -407,6 +387,41 @@
                    à « {{ $siteDuStock->nom }} » : c'est votre inventaire d'ouverture.
                @endif
             </p>
+        </div>
+
+        <div class="autre" style="margin-bottom:18px;">
+            <h3>Configuration des catégories et des points de vente</h3>
+            <p>Sur chaque ligne, adaptez le nom et le préfixe. Les références des produits suivront le préfixe. Sélectionnez un ou plusieurs points de vente concernés.</p>
+            @forelse($categoriesEntreprise as $categorie)
+                @php $sitesSelectionnes = $categorie->pointsDeVente->pluck('id')->all(); @endphp
+                <div class="ligne" style="display:grid;grid-template-columns:minmax(150px,1fr) minmax(100px,.45fr) minmax(220px,1.2fr) auto;gap:10px;align-items:end;margin-bottom:10px;">
+                    <div>
+                        <label class="form-label">Catégorie</label>
+                        <input required class="form-control" name="categories_config[{{ $categorie->id }}][nom]" value="{{ $categorie->nom }}" maxlength="120">
+                    </div>
+                    <div>
+                        <label class="form-label">Préfixe</label>
+                        <input required class="form-control" name="categories_config[{{ $categorie->id }}][prefixe]" value="{{ $categorie->prefixe }}" maxlength="12">
+                    </div>
+                    <div>
+                        <label class="form-label">Points de vente concernés</label>
+                        <select required class="form-control" name="categories_config[{{ $categorie->id }}][points_de_vente][]" multiple size="3">
+                            @foreach($pointsDeVente as $site)
+                                <option value="{{ $site->id }}" {{ in_array($site->id, $sitesSelectionnes) || $sitesSelectionnes === [] ? 'selected' : '' }}>{{ $site->nom }}</option>
+                            @endforeach
+                        </select>
+                        <div class="sous">Maintenez Ctrl (ou Cmd) pour plusieurs points de vente.</div>
+                    </div>
+                    <button type="button" class="btn btn-outline-danger" data-supprimer-categorie-config title="Retirer cette catégorie"><i class="fas fa-trash"></i></button>
+                </div>
+            @empty
+                <p class="vide">Aucune catégorie n'est encore créée.</p>
+            @endforelse
+            <select id="modele-points-de-vente" hidden>
+                @foreach($pointsDeVente as $site)<option value="{{ $site->id }}">{{ $site->nom }}</option>@endforeach
+            </select>
+            <div id="categories-config-ajoutees"></div>
+            <button type="button" class="btn btn-outline" id="ajouter-categorie-config"><i class="fas fa-plus"></i> Ajouter une ligne</button>
         </div>
 
         <div class="cadre-defilant">
