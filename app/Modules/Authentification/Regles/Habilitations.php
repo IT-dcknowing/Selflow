@@ -605,6 +605,8 @@ class Habilitations
         // Ils portent le NCC, le RCCM et le régime d'imposition : ce que la
         // plateforme lit sur chaque facture.
         'admin.entreprise.parametres'             => 'parametres_entreprise',
+        'admin.entreprise.categories.modifier'    => 'gestion_entreprise',
+        'admin.entreprise.categories.supprimer'   => 'gestion_entreprise',
         'admin.entreprise.parametres.enregistrer' => 'parametres_entreprise',
         'admin.entreprise.periodes.creer'         => 'comptabilite_globale',
         'admin.entreprise.periodes.cloturer'      => 'comptabilite_globale',
