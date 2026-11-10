@@ -101,13 +101,14 @@ class SouscriptionControleur
     {
         $donnees = $request->validate([
             'categorie_id' => ['nullable', 'integer', 'exists:referentiel_categories,id', 'required_without:domaine_personnalise'],
-            'domaine_personnalise' => ['nullable', 'string', 'max:120', 'required_without:categorie_id'],
+            'domaine_personnalise' => ['nullable', 'string', 'max:120', 'required_without_all:categorie_id,nouveau_domaine'],
+            'nouveau_domaine' => ['nullable', 'string', 'max:120', 'required_without_all:categorie_id,domaine_personnalise'],
         ], [
             'categorie_id.required_without' => 'Choisissez un domaine ou créez le vôtre.',
             'domaine_personnalise.required_without' => 'Saisissez le nom de votre domaine.',
         ]);
 
-        $domaine = trim((string) ($donnees['domaine_personnalise'] ?? ''));
+        $domaine = trim((string) (($donnees['nouveau_domaine'] ?? '') ?: ($donnees['domaine_personnalise'] ?? ''));
         if ($domaine !== '') {
             $personnalises = array_values(array_unique(array_filter(array_merge(
                 (array) $entreprise->domaines_personnalises, [$domaine]
