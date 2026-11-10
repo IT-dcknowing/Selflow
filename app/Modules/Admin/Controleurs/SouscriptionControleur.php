@@ -227,7 +227,7 @@ class SouscriptionControleur
             'familles' => ['nullable', 'array'],
             'familles.*' => ['string', 'max:32'],
             'categories_personnalisees' => ['nullable', 'array'],
-            'categories_personnalisees.*.nom' => ['required', 'string', 'max:120'],
+            'categories_personnalisees.*.nom' => ['nullable', 'string', 'max:120'],
         ]);
 
         $choix = $this->choix($entreprise);
