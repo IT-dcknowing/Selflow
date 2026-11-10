@@ -71,11 +71,15 @@ class Operation extends Model
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $dernier = self::where('entreprise_id', $entrepriseId)
-                ->orderByDesc('id')
-                ->value('numero_saisie');
+            // Le plus grand identifiant technique n'est pas forcément
+            // l'opération portant le plus grand numéro de saisie : imports,
+            // reprises et écritures historiques peuvent rompre cet ordre.
+            // On calcule donc le maximum numérique réellement utilisé.
+            $dernierNumero = self::where('entreprise_id', $entrepriseId)
+                ->selectRaw('MAX(CAST(numero_saisie AS UNSIGNED)) as dernier_numero')
+                ->value('dernier_numero');
 
-            $prochainNum = $dernier ? ((int) $dernier + 1) : 1;
+            $prochainNum = ((int) ($dernierNumero ?? 0)) + 1;
 
             return (string) $prochainNum;
         }, 5);
