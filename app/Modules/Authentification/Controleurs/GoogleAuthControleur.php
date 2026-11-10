@@ -39,6 +39,10 @@ class GoogleAuthControleur
 
         if ($utilisateur) {
             // ── Connexion directe ──────────────────────────────────────────
+            if ($utilisateur->statut === 'en_attente') {
+                return redirect()->route('connexion')
+                    ->withErrors(['connexion_erreur' => 'Votre inscription est en attente de validation par notre équipe.']);
+            }
             if ($utilisateur->statut !== 'actif') {
                 return redirect()->route('connexion')
                     ->withErrors(['connexion_erreur' => 'Votre compte est désactivé. Veuillez contacter le service client.']);
