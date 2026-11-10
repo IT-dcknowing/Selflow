@@ -256,7 +256,7 @@ class SouscriptionControleur
             ->where('created_at', '>=', $avant)->pluck('id')->all();
         session(["souscription_articles.{$entreprise->id}" => $ajoutes ?: null]);
 
-        if (isset($choix['modules'])) {
+        if (isset($choix['modules']) && !empty($bilan['modules'])) {
             $entreprise->update([
                 'modules_actifs' => array_values(array_intersect(
                     $bilan['modules'],
@@ -265,7 +265,9 @@ class SouscriptionControleur
             ]);
         }
 
-        VerrouConfigurationService::alignerLeSecteur($entreprise->refresh());
+        if (!empty($choix['profils'])) {
+            VerrouConfigurationService::alignerLeSecteur($entreprise->refresh());
+        }
 
         return $this->avancerVers(5, $entreprise)->with('succes', sprintf(
             '%d catégorie(s) et %d article(s) ajoutés à votre catalogue.',
