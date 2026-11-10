@@ -454,6 +454,50 @@ class SuperadminControleur
     /**
      * Activer ou Bloquer une entreprise.
      */
+
+    /**
+     * Valider une inscription classique ou Google.
+     */
+    public function validerInscription(Entreprise $entreprise): RedirectResponse
+    {
+        abort_if($entreprise->estEnCorbeille(), 404);
+        if ($entreprise->statut !== 'en_attente') {
+            return back()->with('erreur', 'Cette inscription a déjà été traitée.');
+        }
+
+        DB::transaction(function () use ($entreprise) {
+            $entreprise->forceFill(['statut' => 'actif'])->save();
+            $entreprise->utilisateurs()->where('statut', 'en_attente')->update(['statut' => 'actif']);
+        });
+
+        $entreprise->utilisateurs()->where('role', 'admin')->where('statut', 'actif')->get()
+            ->each(fn ($utilisateur) => \\App\\Mail\\EnvoiCourriel::annoncerCompte($utilisateur, false));
+        $this->journaliser('validation_inscription_entreprise', 'Entreprise', $entreprise->id);
+
+        return redirect()->route('superadmin.entreprises')
+            ->with('succes', "Inscription de « {$entreprise->nom} » validée. L'entreprise et son administrateur peuvent maintenant accéder à Selflow.");
+    }
+
+    /**
+     * Refuser une inscription sans effacer les informations reçues.
+     */
+    public function refuserInscription(Entreprise $entreprise): RedirectResponse
+    {
+        abort_if($entreprise->estEnCorbeille(), 404);
+        if ($entreprise->statut !== 'en_attente') {
+            return back()->with('erreur', 'Cette inscription a déjà été traitée.');
+        }
+
+        DB::transaction(function () use ($entreprise) {
+            $entreprise->forceFill(['statut' => 'bloque'])->save();
+            $entreprise->utilisateurs()->where('statut', 'en_attente')->update(['statut' => 'inactif']);
+        });
+        $this->journaliser('refus_inscription_entreprise', 'Entreprise', $entreprise->id);
+
+        return redirect()->route('superadmin.entreprises')
+            ->with('succes', "Inscription de « {$entreprise->nom} » refusée. Les données sont conservées.");
+    }
+
     public function toggleStatus(Entreprise $entreprise): RedirectResponse
     {
         $nouveauStatut = $entreprise->statut === 'bloque' ? 'actif' : 'bloque';
@@ -648,7 +692,7 @@ class SuperadminControleur
     {
         $request->validate([
             'role'          => ['required', 'string', 'in:superadmin,admin,admin_secondaire,responsable_pdv,caissier'],
-            'statut'        => ['required', 'string', 'in:actif,suspendu,inactif'],
+            'statut'        => ['required', 'string', 'in:actif,suspendu,inactif,en_attente'],
             'habilitations' => ['nullable', 'array'],
             'password'      => ['nullable', 'string', 'min:6'],
         ]);
