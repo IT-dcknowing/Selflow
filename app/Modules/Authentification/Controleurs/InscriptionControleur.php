@@ -155,6 +155,9 @@ class InscriptionControleur
                 'quota_points_de_vente' => \App\Modules\Admin\Regles\Abonnements::QUOTA_PAR_DEFAUT,
                 'plan_abonnement'     => \App\Modules\Admin\Regles\Abonnements::A_CHOISIR,
             ]);
+            // `statut` est volontairement hors `$fillable` : l'état de validation
+            // ne doit jamais être fourni par un formulaire d'entreprise.
+            $entreprise->forceFill(['statut' => 'en_attente'])->save();
             $entreprise->forceFill(['quota_utilisateurs' => \App\Modules\Admin\Regles\Abonnements::QUOTA_PAR_DEFAUT])->save();
 
             // Sans plan comptable ni journal, la premiere vente s'impute sur des
