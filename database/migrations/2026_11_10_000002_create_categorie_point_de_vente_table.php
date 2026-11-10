@@ -17,6 +17,30 @@ return new class extends Migration
                 $table->unique(['categorie_id', 'point_de_vente_id'], 'cat_pdv_unique');
             });
         }
+
+        // Reprendre les affectations déjà appliquées aux fiches de stock :
+        // la première ouverture de cette configuration ne doit pas décocher
+        // les sites qui utilisaient déjà ces catégories.
+        \Illuminate\Support\Facades\DB::table('categories')
+            ->orderBy('id')
+            ->get(['id'])
+            ->each(function ($categorie) {
+                $sites = \Illuminate\Support\Facades\DB::table('stocks')
+                    ->join('produits', 'produits.id', '=', 'stocks.produit_id')
+                    ->where('produits.categorie_id', $categorie->id)
+                    ->where('stocks.reference', true)
+                    ->distinct()
+                    ->pluck('stocks.point_de_vente_id');
+
+                foreach ($sites as $siteId) {
+                    \Illuminate\Support\Facades\DB::table('categorie_point_de_vente')->insertOrIgnore([
+                        'categorie_id' => $categorie->id,
+                        'point_de_vente_id' => $siteId,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            });
     }
 
     public function down(): void
