@@ -263,9 +263,13 @@ class SouscriptionControleur
                 continue;
             }
 
-            $nom = trim((string) ($configuration['nom'] ?? '')) ?: $categorie->nom;
+            $ancienNom = (string) $categorie->nom;
+            $nom = trim((string) ($configuration['nom'] ?? '')) ?: $ancienNom;
             $ancienPrefixe = strtoupper((string) $categorie->prefixe);
-            $prefixe = strtoupper(trim((string) ($configuration['prefixe'] ?? ''))) ?: $ancienPrefixe;
+            $prefixeSaisi = strtoupper(trim((string) ($configuration['prefixe'] ?? '')));
+            $prefixe = $prefixeSaisi ?: ($nom !== $ancienNom
+                ? strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $nom) ?: 'CAT', 0, 8))
+                : $ancienPrefixe);
             $categorie->update(['nom' => $nom, 'prefixe' => $prefixe]);
 
             $sites = PointDeVente::where('entreprise_id', $entreprise->id)
