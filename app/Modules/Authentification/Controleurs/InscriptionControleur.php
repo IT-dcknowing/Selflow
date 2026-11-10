@@ -149,7 +149,7 @@ class InscriptionControleur
                 'gerant_prenom'       => trim($request->prenom),
                 'gerant_fonction'     => trim($request->fonction_gerant ?? ''),
                 'modules_actifs'      => ['principal', 'ventes', 'achats', 'stock', 'production', 'comptabilite', 'points_de_vente', 'personnel', 'b2b', 'fne'],
-                'statut'              => 'actif',
+                'statut'              => 'en_attente',
                 // L'offre se choisit juste après, en cartes (15/10/2026) ;
                 // d'ici là, trois points de vente et trois utilisateurs.
                 'quota_points_de_vente' => \App\Modules\Admin\Regles\Abonnements::QUOTA_PAR_DEFAUT,
@@ -177,19 +177,11 @@ class InscriptionControleur
                 'password'              => Hash::make($request->password),
                 'role'                  => 'admin',
                 'fonction'              => trim($request->fonction_gerant ?? ''),
-                'statut'                => 'actif',
+                'statut'                => 'en_attente',
                 'doit_changer_password' => false,
             ]);
 
             DB::commit();
-
-            // Le courriel d'accueil ne bloque pas l'inscription : il est
-            // envoyé après la validation, et son échec est seulement journalisé.
-            \App\Mail\EnvoiCourriel::annoncerCompte($utilisateur, false);
-
-            // 3. Connecter directement
-            Auth::login($utilisateur);
-            $request->session()->regenerate();
 
             // Alerte au superadministrateur : une entreprise vient de s'inscrire
             // (16/10/2026). Enveloppée : une alerte qui échoue ne gâche pas une
@@ -208,10 +200,9 @@ class InscriptionControleur
                 \Illuminate\Support\Facades\Log::warning('Alerte inscription non envoyée : ' . $e->getMessage());
             }
 
-            // L'inscription terminée — complète ou « sans remplir la suite » —
-            // mène aux offres, en cartes.
-            $redirection = redirect()->route('admin.abonnement.choisir')
-                ->with('succes', 'Bienvenue sur Selflow ! Votre espace est prêt. Choisissez votre offre.');
+            // L'accès sera ouvert après validation par le superadministrateur.
+            $redirection = redirect()->route('connexion')
+                ->with('inscription_en_attente', 'Votre demande d’inscription a bien été reçue. Votre espace sera accessible après validation par notre équipe.');
 
             if ($ecartees !== []) {
                 $redirection->with('avertissement', 'Non retenu à l\'inscription : ' . implode(' ; ', $ecartees)
