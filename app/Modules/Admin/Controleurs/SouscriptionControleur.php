@@ -108,7 +108,7 @@ class SouscriptionControleur
             'domaine_personnalise.required_without' => 'Saisissez le nom de votre domaine.',
         ]);
 
-        $domaine = trim((string) (($donnees['nouveau_domaine'] ?? '') ?: ($donnees['domaine_personnalise'] ?? ''));
+        $domaine = trim((string) (($donnees['nouveau_domaine'] ?? '') ?: ($donnees['domaine_personnalise'] ?? '')));
         if ($domaine !== '') {
             $personnalises = array_values(array_unique(array_filter(array_merge(
                 (array) $entreprise->domaines_personnalises, [$domaine]
