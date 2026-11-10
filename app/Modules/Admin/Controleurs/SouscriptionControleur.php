@@ -630,6 +630,7 @@ class SouscriptionControleur
 
                 return [
                     'pointsDeVente' => PointDeVente::where('entreprise_id', $entreprise->id)->orderBy('nom')->get(),
+                    'categoriesPersonnalisees' => \\App\\Modules\\Admin\\Modeles\\Categorie::where('entreprise_id', $entreprise->id)->orderBy('nom')->get(),
                     'familles' => Famille::with(['typeArticle', 'profil'])
                         ->whereHas('profil', fn ($q) => $q->whereIn('code', $nouveaux !== [] ? $nouveaux : ($choix['profils'] ?? [])))
                         ->withCount('articles')
