@@ -355,6 +355,14 @@
                     </span>
                 </label>
             @endforeach
+            @foreach($categoriesPersonnalisees ?? [] as $categoriePerso)
+                <label class="ligne acquise" style="display:flex;gap:12px;align-items:center;">
+                    <input type="checkbox" checked disabled>
+                    <span><strong>{{ $categoriePerso->nom }}</strong>
+                        <span class="badge-acquis">Créé</span>
+                    </span>
+                </label>
+            @endforeach
         </div>
         <div class="autre" style="background:#f0fdf4;border-color:#86efac;">
             <label style="color:#166534;">Créer une catégorie qui manque</label>
