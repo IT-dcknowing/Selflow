@@ -101,7 +101,7 @@ class RapportControleur
             ->paginate(50)
             ->withQueryString();
 
-        $vendeurs = \\App\\Modules\\Authentification\\Modeles\\Utilisateur::where('entreprise_id', $entreprise->id)
+        $vendeurs = \App\Modules\Authentification\Modeles\Utilisateur::where('entreprise_id', $entreprise->id)
             ->whereIn('id', function ($q) use ($pdvIds) {
                 $q->select('utilisateur_id')->from('ventes')->whereIn('point_de_vente_id', $pdvIds)->whereNotNull('utilisateur_id');
             })
