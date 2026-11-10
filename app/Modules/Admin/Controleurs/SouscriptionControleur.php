@@ -330,6 +330,7 @@ class SouscriptionControleur
                     'prix_achat' => $ligne['prix_achat'] ?? 0,
                     'prix_vente' => $ligne['prix_vente'] ?? 0,
                 ]);
+                $produit->setRelation('categorieRelation', $categorie);
                 $idsCreesDansCeParcours[] = $produit->id;
                 session(["souscription_articles.{$entreprise->id}" => array_values(array_unique($idsCreesDansCeParcours))]);
             }
