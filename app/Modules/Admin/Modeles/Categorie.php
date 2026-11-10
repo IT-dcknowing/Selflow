@@ -87,7 +87,7 @@ class Categorie extends Model
         return $this->hasMany(Produit::class, 'categorie_id');
     }
 
-    public function pointsDeVente(): \\Illuminate\\Database\\Eloquent\\Relations\\BelongsToMany
+    public function pointsDeVente(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
         return $this->belongsToMany(PointDeVente::class, 'categorie_point_de_vente', 'categorie_id', 'point_de_vente_id')
             ->withTimestamps();
