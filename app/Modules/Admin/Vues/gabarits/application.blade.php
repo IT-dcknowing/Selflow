@@ -828,6 +828,9 @@
                 <i class="fas fa-trash-can"></i> Corbeille
                 @if($__enCorbeille)<span style="margin-left:auto; background:#64748b; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700;">{{ $__enCorbeille }}</span>@endif
             </a>
+            <a href="{{ route('superadmin.nettoyage.index') }}" class="nav-item {{ request()->routeIs('superadmin.nettoyage*') ? 'active' : '' }}">
+                <i class="fas fa-broom"></i> Nettoyage des données
+            </a>
             <a href="{{ route('superadmin.utilisateurs') }}" class="nav-item {{ request()->routeIs('superadmin.utilisateurs*') ? 'active' : '' }}">
                 <i class="fas fa-users-gear"></i> Habilitations &amp; Accès
             </a>

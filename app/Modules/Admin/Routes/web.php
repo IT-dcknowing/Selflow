@@ -649,6 +649,10 @@ Route::prefix('superadmin')
             Route::post('/basculer', [\App\Modules\Admin\Controleurs\SuperadminTracabiliteControleur::class, 'basculerTracabilite'])->name('basculer');
         });
 
+        // ── Nettoyage contrôlé des données d'une entreprise ──
+        Route::get('/nettoyage', [\\App\\Modules\\Admin\\Controleurs\\SuperadminNettoyageControleur::class, 'index'])->name('nettoyage.index');
+        Route::post('/nettoyage', [\\App\\Modules\\Admin\\Controleurs\\SuperadminNettoyageControleur::class, 'executer'])->name('nettoyage.executer');
+
         // ── Corbeille des entreprises (16/10/2026) ──
         Route::get('/corbeille', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'corbeille'])->name('corbeille');
         Route::post('/corbeille/{entreprise}/restaurer', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'restaurer'])->name('corbeille.restaurer');
