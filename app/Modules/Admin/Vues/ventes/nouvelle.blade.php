@@ -722,8 +722,8 @@
 
 @php
     $regimeSaisieLibre = Auth::user()->entreprise->regime_imposition ?? null;
-    $tauxSaisieLibre = in_array($regimeSaisieLibre, \\App\\Modules\\Admin\\Modeles\\Produit::REGIMES_EXONERATION_LEGALE, true) ? 0 : 18;
-    $codeTvaSaisieLibre = \\App\\Modules\\Admin\\Modeles\\Produit::deduireCodeTva($tauxSaisieLibre, $regimeSaisieLibre);
+    $tauxSaisieLibre = in_array($regimeSaisieLibre, \App\Modules\Admin\Modeles\Produit::REGIMES_EXONERATION_LEGALE, true) ? 0 : 18;
+    $codeTvaSaisieLibre = \App\Modules\Admin\Modeles\Produit::deduireCodeTva($tauxSaisieLibre, $regimeSaisieLibre);
 @endphp
 
 <!-- Modal Saisie Libre -->
