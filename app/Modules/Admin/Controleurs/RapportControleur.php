@@ -36,11 +36,16 @@ class RapportControleur
 
         $request->validate([
             'debut' => ['nullable', 'date'],
-            'fin' => ['nullable', 'date', 'after_or_equal:debut'],
+            'fin' => ['nullable', 'date'],
             'pdv_id' => ['nullable', 'integer'],
             'vendeur_id' => ['nullable', 'integer'],
             'produit' => ['nullable', 'string', 'max:150'],
         ]);
+
+        if ($request->filled('debut') && $request->filled('fin')
+            && $request->input('fin') < $request->input('debut')) {
+            $request->validate(['fin' => ['after_or_equal:debut']]);
+        }
 
         $pointsDeVente = CacheService::pointsDeVente($entreprise->id);
         $pdvIds = $pointsDeVente->pluck('id');
