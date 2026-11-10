@@ -56,6 +56,7 @@
 @endsection
 
 
+@section('contenu')
     {{-- Configuration des catégories propres à l'entreprise --}}
     <div class="card" id="categories-produits" style="padding:22px 24px;margin:22px 0;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
@@ -106,7 +107,7 @@
         @endforelse
     </div>
 
-@section('contenu')
+
     <div class="page-header">
         <div>
             <h1><i class="fas fa-building"></i> Paramètres de l'entreprise</h1>
