@@ -2629,6 +2629,7 @@ class VenteControleur
                     VenteDetail::create([
                         'vente_id' => $avoir->id,
                         'produit_id' => $produitId,
+                        'reference_produit' => $produit?->reference,
                         'libelle_virtuel' => $libelle,
                         'quantite' => $qteAvoir,
                         'unite' => $unite,
