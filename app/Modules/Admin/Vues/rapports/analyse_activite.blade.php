@@ -22,6 +22,9 @@
             </div>
         </div>
         <div class="rapport-header-right">
+            <a href="{{ route('admin.rapports.analyse_prix') }}" class="btn btn-primary">
+                <i class="fas fa-tags"></i> Analyse des prix par produit et vendeur
+            </a>
             <div class="kpi-badge kpi-badge-blue">
                 <i class="fas fa-store"></i>
                 {{ $pointsDeVente->count() }} point{{ $pointsDeVente->count() > 1 ? 's' : '' }} de vente
