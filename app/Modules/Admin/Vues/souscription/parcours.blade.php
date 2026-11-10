@@ -245,7 +245,7 @@
                 @endforeach
                 <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
                     <input type="text" name="secteurs_personnalises[]" class="form-control" maxlength="150" placeholder="Nom du secteur précis" data-nouveau-secteur>
-                    <label style="display:flex;gap:5px;align-items:center;white-space:nowrap;"><input type="checkbox" data-selection-nouveau-secteur> Sélectionner</label>
+                    <label style="display:flex;gap:5px;align-items:center;white-space:nowrap;"><input type="checkbox" name="secteurs_personnalises_selection[]" data-selection-nouveau-secteur> Sélectionner</label>
                     <button type="button" class="btn btn-outline-danger" data-retirer-saisie title="Retirer"><i class="fas fa-trash"></i></button>
                 </div>
             </div>
@@ -501,6 +501,18 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
     var zone=document.getElementById('secteurs-personnalises');
     var bouton=document.getElementById('ajouter-secteur');
     if(!zone||!bouton)return;
+    zone.addEventListener('input',function(e){
+        if(e.target.matches('[data-nouveau-secteur]')){
+            var cb=e.target.parentElement.querySelector('[data-selection-nouveau-secteur]');
+            if(cb)cb.value=e.target.value;
+        }
+    });
+    zone.addEventListener('change',function(e){
+        if(e.target.matches('[data-selection-nouveau-secteur]')){
+            var input=e.target.parentElement.querySelector('[data-nouveau-secteur]');
+            e.target.value=input?input.value:'';
+        }
+    });
     bouton.addEventListener('click',function(){
         var ligne=document.createElement('div');ligne.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px;';
         var input=document.createElement('input');input.type='text';input.name='secteurs_personnalises[]';input.maxLength=150;input.className='form-control';input.placeholder='Nom du secteur précis';
