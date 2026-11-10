@@ -471,7 +471,7 @@ class SuperadminControleur
         });
 
         $entreprise->utilisateurs()->where('role', 'admin')->where('statut', 'actif')->get()
-            ->each(fn ($utilisateur) => \\App\\Mail\\EnvoiCourriel::annoncerCompte($utilisateur, false));
+            ->each(fn ($utilisateur) => \App\Mail\EnvoiCourriel::annoncerCompte($utilisateur, false));
         $this->journaliser('validation_inscription_entreprise', 'Entreprise', $entreprise->id);
 
         return redirect()->route('superadmin.entreprises')
