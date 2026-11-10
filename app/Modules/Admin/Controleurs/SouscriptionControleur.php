@@ -100,12 +100,25 @@ class SouscriptionControleur
     private function validerCategorie(Request $request, Entreprise $entreprise): RedirectResponse
     {
         $donnees = $request->validate([
-            'categorie_id' => ['required', 'integer', 'exists:referentiel_categories,id'],
+            'categorie_id' => ['nullable', 'integer', 'exists:referentiel_categories,id', 'required_without:domaine_personnalise'],
+            'domaine_personnalise' => ['nullable', 'string', 'max:120', 'required_without:categorie_id'],
         ], [
-            'categorie_id.required' => 'Choisissez le domaine qui se rapproche le plus de votre activité.',
+            'categorie_id.required_without' => 'Choisissez un domaine ou créez le vôtre.',
+            'domaine_personnalise.required_without' => 'Saisissez le nom de votre domaine.',
         ]);
 
-        $this->memoriser($entreprise, ['categorie_id' => (int) $donnees['categorie_id']]);
+        $domaine = trim((string) ($donnees['domaine_personnalise'] ?? ''));
+        if ($domaine !== '') {
+            $personnalises = array_values(array_unique(array_filter(array_merge(
+                (array) $entreprise->domaines_personnalises, [$domaine]
+            ))));
+            $entreprise->update(['domaines_personnalises' => $personnalises]);
+        }
+
+        $this->memoriser($entreprise, [
+            'categorie_id' => isset($donnees['categorie_id']) ? (int) $donnees['categorie_id'] : null,
+            'domaine_personnalise' => $domaine ?: null,
+        ]);
 
         // Le domaine choisi vaut secteur d'activité dès maintenant, sans
         // attendre la souscription de l'étape 4. Sans cela, une entreprise
@@ -114,7 +127,7 @@ class SouscriptionControleur
         // cochait son secteur n'existe plus pour la débloquer.
         //
         // L'étape 4 réalignera la colonne sur les métiers réellement souscrits.
-        if (empty($entreprise->secteur_activite)) {
+        if (empty($entreprise->secteur_activite) && !empty($donnees['categorie_id'])) {
             $nom = Categorie::find($donnees['categorie_id'])?->nom;
 
             if ($nom) {
@@ -134,11 +147,12 @@ class SouscriptionControleur
             // qui a déjà souscrit en porte un : lui redemander d'en cocher un
             // bloquerait le parcours de quelqu'un qui vient seulement le
             // traverser pour rouvrir un module ou ajouter un rayon.
-            'profils'          => [$acquis === [] ? 'required_without:activite_autre' : 'nullable', 'array'],
+            'profils'          => ['nullable', 'array'],
             'profils.*'        => ['string', 'exists:referentiel_profils,code'],
+            'secteurs_personnalises' => ['nullable', 'array'],
+            'secteurs_personnalises.*' => ['required', 'string', 'max:150'],
             'activite_autre'   => ['nullable', 'string', 'max:150'],
         ], [
-            'profils.required_without' => 'Choisissez au moins un métier, ou décrivez le vôtre.',
             'profils.*.exists'         => 'Un des métiers choisis est inconnu.',
         ]);
 
@@ -148,6 +162,13 @@ class SouscriptionControleur
         // qui restait ouvert, avec ses rayons et ses articles. Le remettre
         // dans le choix retenu accorde l'écran et la base.
         $retenus = array_values(array_unique(array_merge($donnees['profils'] ?? [], $acquis)));
+
+        $secteursPersonnalises = array_values(array_unique(array_filter(array_map('trim', $donnees['secteurs_personnalises'] ?? []))));
+        if ($secteursPersonnalises !== []) {
+            $entreprise->update(['secteurs_personnalises' => array_values(array_unique(array_merge(
+                (array) $entreprise->secteurs_personnalises, $secteursPersonnalises
+            )))]);
+        }
 
         $this->memoriser($entreprise, ['profils' => $retenus]);
 
@@ -164,6 +185,8 @@ class SouscriptionControleur
         $donnees = $request->validate([
             'modules'   => ['array'],
             'modules.*' => ['string', 'in:' . implode(',', Entreprise::TOUS_LES_MODULES)],
+            'modules_personnalises' => ['nullable', 'array'],
+            'modules_personnalises.*' => ['required', 'string', 'max:120'],
         ]);
 
         // Un module qui n'est pas autorisé ne peut pas s'activer, même envoyé
@@ -185,6 +208,13 @@ class SouscriptionControleur
             )),
             $entreprise->modulesAutorises()
         ));
+
+        $modulesPersonnalises = array_values(array_unique(array_filter(array_map('trim', $donnees['modules_personnalises'] ?? []))));
+        if ($modulesPersonnalises !== []) {
+            $entreprise->update(['modules_personnalises' => array_values(array_unique(array_merge(
+                (array) $entreprise->modules_personnalises, $modulesPersonnalises
+            )))]);
+        }
 
         $this->memoriser($entreprise, ['modules' => $retenus]);
 
