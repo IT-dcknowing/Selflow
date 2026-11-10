@@ -187,8 +187,6 @@ class SouscriptionControleur
         $donnees = $request->validate([
             'modules'   => ['array'],
             'modules.*' => ['string', 'in:' . implode(',', Entreprise::TOUS_LES_MODULES)],
-            'modules_personnalises' => ['nullable', 'array'],
-            'modules_personnalises.*' => ['nullable', 'string', 'max:120'],
         ]);
 
         // Un module qui n'est pas autorisé ne peut pas s'activer, même envoyé
@@ -210,13 +208,6 @@ class SouscriptionControleur
             )),
             $entreprise->modulesAutorises()
         ));
-
-        $modulesPersonnalises = array_values(array_unique(array_filter(array_map('trim', $donnees['modules_personnalises'] ?? []))));
-        if ($modulesPersonnalises !== []) {
-            $entreprise->update(['modules_personnalises' => array_values(array_unique(array_merge(
-                (array) $entreprise->modules_personnalises, $modulesPersonnalises
-            )))]);
-        }
 
         $this->memoriser($entreprise, ['modules' => $retenus]);
 
