@@ -180,15 +180,15 @@
     {{-- ══ 2. Le métier ══ --}}
     @elseif($etape === 2)
         <div class="sous-tete">
-            <h2>Quel est votre métier ?</h2>
+            <h2>Quel est votre secteur précis ?</h2>
             <p>Plusieurs réponses sont possibles : une quincaillerie qui livre des chantiers
-               coche les deux. Chaque métier apporte ses rayons, ses articles et ses comptes.</p>
+               coche les deux. Chaque secteur précis apporte les catégories et les articles correspondants.</p>
         </div>
 
         @if(!empty($profilsAcquis))
             <p class="note-verrou">
                 <i class="fas fa-circle-check"></i>
-                Les métiers marqués <strong>déjà en place</strong> vous appartiennent : leurs rayons,
+                Les secteurs précis marqués <strong>déjà en place</strong> vous appartiennent : leurs catégories,
                 leurs articles et leurs comptes sont chez vous. Ils ne se retirent pas d'ici — vous
                 pouvez en ajouter d'autres, ici ou dans un autre domaine.
             </p>
@@ -211,7 +211,7 @@
                     @if($acquis)
                         <span class="badge-acquis">déjà en place</span>
                     @else
-                        {{ $profil->familles_count }} rayons · {{ $profil->articles_count }} articles
+                        {{ $profil->familles_count }} catégories · {{ $profil->articles_count }} articles
                     @endif
                 </div>
             </label>
@@ -224,15 +224,7 @@
             @endforeach
         </div>
 
-        <div class="autre">
-            <label for="activite_autre">Aucun ne correspond ?</label>
-            <p>Décrivez votre activité en quelques mots. Nous la prendrons en compte pour
-               enrichir la liste ; en attendant, vous partirez d'un catalogue vide que vous
-               remplirez à votre main.</p>
-            <input type="text" id="activite_autre" name="activite_autre" class="form-control"
-                   value="{{ old('activite_autre', $entreprise->activite_autre) }}"
-                   placeholder="Ex. : atelier de reliure et dorure" maxlength="150">
-        </div>
+
 
     {{-- ══ 3. Les modules ══ --}}
     @elseif($etape === 3)
@@ -315,43 +307,49 @@
             @endforeach
         </div>
 
-    {{-- ══ 4. Les rayons ══ --}}
+    {{-- ══ 4. Les catégories ══ --}}
     @elseif($etape === 4)
         @php $comptaOuverte = $comptaChoisie ?? $comptaOuverte; @endphp
         <div class="sous-tete">
-            <h2>Vos rayons</h2>
-            <p>Tout est coché : décochez ce que vous ne vendez pas. Chaque rayon apporte ses
-               articles{{ $comptaOuverte ? ' et ses comptes comptables' : '' }}. Rien n'est définitif — vous pourrez en
-               ajouter et en archiver ensuite.</p>
-            @if(!empty($seulementLesNouveaux))
-            <p style="margin-top:6px; font-size:12.5px; color:var(--text-3);">Seuls les rayons des métiers que vous venez d'ajouter sont proposés : ceux des métiers déjà en place sont dans votre catalogue.</p>
-            @endif
+            <h2>Les catégories de votre activité</h2>
+            <p>Modifiez le nom et le préfixe de chaque catégorie, choisissez les points de vente concernés ou retirez les lignes inutiles. Le bouton « Créer » ajoute vos propres catégories. Les comptes comptables du référentiel sont conservés automatiquement.</p>
         </div>
 
-        <div class="liste">
+        <div class="liste" id="liste-categories-souscription">
             @foreach($familles as $famille)
-            <label class="ligne">
-                <input type="checkbox" name="familles[]" value="{{ $famille->code }}" checked>
-                <div>
-                    <div class="nom">{{ $famille->nom }}</div>
-                    <div class="sous">
-                        {{ $famille->profil->nom }} ·
-                        {{-- Le numéro de compte ne se montre qu'à qui tient ses
-                             livres (chantier 3.4). Le préparamétrage, lui, se
-                             pose en base dans tous les cas. --}}
-                        @if($comptaOuverte)
-                        <span class="cpt">{{ $famille->compte_vente ?? $famille->compte_achat ?? '—' }}</span>
-                        {{ $famille->intituleCompte('compte_vente') ?? $famille->typeArticle->libelle }}
-                        @else
-                        {{ $famille->typeArticle->libelle }}
-                        @endif
+                @php
+                    $categorieEntreprise = \\App\\Modules\\Admin\\Modeles\\Categorie::where('entreprise_id', $entreprise->id)->where('nom', $famille->nom)->first();
+                    $sitesCategorie = $categorieEntreprise ? $categorieEntreprise->pointsDeVente->pluck('id')->all() : [];
+                @endphp
+                <div class="ligne" data-ligne-categorie style="display:block;">
+                    <div style="display:grid;grid-template-columns:minmax(160px,1.2fr) minmax(100px,.55fr) minmax(220px,1.3fr) auto;gap:10px;align-items:end;">
+                        <div>
+                            <label class="form-label">Catégorie</label>
+                            <input type="text" class="form-control" name="familles_config[{{ $famille->code }}][nom]" value="{{ $categorieEntreprise->nom ?? $famille->nom }}" maxlength="120">
+                            <input type="hidden" name="familles[]" value="{{ $famille->code }}">
+                            <div class="sous">{{ $famille->profil->nom }} · {{ $famille->articles_count }} produit(s)</div>
+                        </div>
+                        <div>
+                            <label class="form-label">Préfixe</label>
+                            <input type="text" class="form-control" name="familles_config[{{ $famille->code }}][prefixe]" value="{{ $categorieEntreprise->prefixe ?? $famille->code }}" maxlength="12">
+                        </div>
+                        <div>
+                            <label class="form-label">Points de vente concernés</label>
+                            <select class="form-control" name="familles_config[{{ $famille->code }}][points_de_vente][]" multiple size="3">
+                                @foreach($pointsDeVente as $site)
+                                    <option value="{{ $site->id }}" {{ in_array($site->id, $sitesCategorie) || $sitesCategorie === [] ? 'selected' : '' }}>{{ $site->nom }}</option>
+                                @endforeach
+                            </select>
+                            <div class="sous">Maintenez Ctrl (ou Cmd) pour plusieurs points de vente.</div>
+                        </div>
+                        <button type="button" class="btn btn-outline-danger" title="Retirer cette catégorie" data-supprimer-ligne><i class="fas fa-trash"></i></button>
                     </div>
                 </div>
-                <div class="droite">{{ $famille->articles_count }} articles</div>
-            </label>
             @endforeach
         </div>
 
+        <div id="nouvelles-categories"></div>
+        <button type="button" class="btn btn-outline" id="ajouter-categorie"><i class="fas fa-plus"></i> Créer une catégorie</button>
     {{-- ══ 5. Prix et stock ══ --}}
     @elseif($etape === 5)
         @php
@@ -378,7 +376,7 @@
         <div class="cadre-defilant">
             <table class="tableau-prix">
                 <thead>
-                    <tr><th>Référence</th><th>Article</th><th>Rayon</th>
+                    <tr><th>Référence</th><th>Article</th><th>Catégorie</th>
                         <th style="width:130px;">Prix d'achat</th><th style="width:130px;">Prix de vente</th>
                         @if($avecStock)<th style="width:130px;">Stock de départ</th>@endif
                     </tr>
@@ -475,6 +473,40 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
 // quittée, drapeau « déjà envoyé » compris : revenu à l'étape 1, le clic sur
 // le domaine ne menait plus nulle part (retest du 14/10/2026). La page
 // rendue par le cache repart de zéro.
+// Ajout/retrait de catégories dans l'étape 4, sans quitter le formulaire.
+(function () {
+    var bouton = document.getElementById('ajouter-categorie');
+    var zone = document.getElementById('nouvelles-categories');
+    if (!bouton || !zone) return;
+    var index = 0;
+    bouton.addEventListener('click', function () {
+        var ligne = document.createElement('div');
+        ligne.className = 'ligne';
+        ligne.style.display = 'block';
+        ligne.setAttribute('data-ligne-categorie', '');
+        ligne.innerHTML = '<div style="display:grid;grid-template-columns:minmax(160px,1.2fr) minmax(100px,.55fr) minmax(220px,1.3fr) auto;gap:10px;align-items:end;">' +
+            '<div><label class="form-label">Nouvelle catégorie</label><input required class="form-control" name="categories_personnalisees['+index+'][nom]" maxlength="120" placeholder="Nom de la catégorie"></div>' +
+            '<div><label class="form-label">Préfixe</label><input class="form-control" name="categories_personnalisees['+index+'][prefixe]" maxlength="12" placeholder="Ex. CAT"></div>' +
+            '<div><label class="form-label">Points de vente concernés</label><select required class="form-control" multiple size="3" name="categories_personnalisees['+index+'][points_de_vente][]">' +
+            "<option value=\"\">Chargement</option>" + '</select></div>' +
+            '<button type="button" class="btn btn-outline-danger" data-supprimer-ligne title="Supprimer"><i class="fas fa-trash"></i></button></div>';
+        // Les options des points de vente sont reprises de la première liste existante.
+        var source = document.querySelector('select[name^="familles_config"]');
+        var cible = ligne.querySelector('select');
+        if (source) cible.innerHTML = source.innerHTML;
+        zone.appendChild(ligne);
+        index++;
+    });
+    document.addEventListener('click', function (event) {
+        var boutonSupprimer = event.target.closest('[data-supprimer-ligne]');
+        if (!boutonSupprimer) return;
+        var ligne = boutonSupprimer.closest('[data-ligne-categorie]');
+        if (!ligne) return;
+        // Pour une ligne du référentiel, retirer aussi la famille de la soumission.
+        ligne.querySelectorAll('input[name="familles[]"]').forEach(function (champ) { champ.remove(); });
+        ligne.remove();
+    });
+})();
 window.addEventListener('pageshow', function () {
     var form = document.getElementById('form-souscription');
     if (form) { delete form.dataset.envoye; }
