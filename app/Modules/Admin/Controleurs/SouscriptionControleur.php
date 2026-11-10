@@ -387,7 +387,7 @@ class SouscriptionControleur
                 ? PointDeVente::where('entreprise_id', $entreprise->id)->whereKey($ligne['point_de_vente_id'])->value('id')
                 : $pointDeVenteId;
             if ($siteArticleId && $produit->estStockable()) {
-                \\App\\Modules\\Admin\\Modeles\\Stock::firstOrCreate(
+                \App\Modules\Admin\Modeles\Stock::firstOrCreate(
                     ['produit_id' => $produit->id, 'point_de_vente_id' => $siteArticleId],
                     ['quantite_disponible' => 0, 'stock_minimum' => 5, 'stock_maximum' => 100, 'reference' => true]
                 );
