@@ -276,21 +276,11 @@ class SouscriptionControleur
             'articles'                 => ['array'],
             'articles.*.id'            => ['required', 'integer', Appartenance::a('produits')],
             'articles.*.nom'           => ['nullable', 'string', 'max:255'],
+            'articles.*.categorie_nom' => ['nullable', 'string', 'max:120'],
+            'articles.*.point_de_vente_id' => ['nullable', 'integer', 'exists:points_de_vente,id'],
             'articles.*.prix_achat'    => ['nullable', 'numeric', 'min:0', 'max:99999999999'],
             'articles.*.prix_vente'    => ['nullable', 'numeric', 'min:0', 'max:99999999999'],
             'articles.*.stock_initial' => Quantite::facultative(),
-            'categories_config' => ['nullable', 'array'],
-            'categories_config.*.nom' => ['required', 'string', 'max:120'],
-            'categories_config.*.prefixe' => ['required', 'string', 'max:12', 'regex:/^[A-Za-z0-9_-]+$/'],
-            'categories_config.*.points_de_vente' => ['required', 'array', 'min:1'],
-            'categories_config.*.points_de_vente.*' => ['integer', 'distinct', 'exists:points_de_vente,id'],
-            'categories_nouvelles_config' => ['nullable', 'array'],
-            'categories_nouvelles_config.*.nom' => ['required', 'string', 'max:120'],
-            'categories_nouvelles_config.*.prefixe' => ['required', 'string', 'max:12', 'regex:/^[A-Za-z0-9_-]+$/'],
-            'categories_nouvelles_config.*.points_de_vente' => ['required', 'array', 'min:1'],
-            'categories_nouvelles_config.*.points_de_vente.*' => ['integer', 'distinct', 'exists:points_de_vente,id'],
-            'categories_a_supprimer' => ['nullable', 'array'],
-            'categories_a_supprimer.*' => ['integer', 'distinct'],
         ]);
 
         // La configuration des catégories se fait ici, à l'étape 5 :
@@ -371,13 +361,38 @@ class SouscriptionControleur
             // Chaque clé est facultative : le corps de la requête n'est pas le
             // formulaire, et une ligne partielle ne doit pas faire tomber
             // l'écran. Une valeur absente laisse l'existante en place.
+            $categorieNom = trim((string) ($ligne['categorie_nom'] ?? ''));
+            $categorieActuelle = $produit->categorieRelation;
+            if ($categorieNom !== '' && $categorieActuelle && $categorieNom !== $categorieActuelle->nom) {
+                $ancienNom = $categorieActuelle->nom;
+                $prefixe = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $categorieNom) ?: 'CAT', 0, 8));
+                $categorieActuelle->update(['nom' => $categorieNom, 'prefixe' => $prefixe]);
+
+                $sequence = 1;
+                foreach (Produit::where('entreprise_id', $entreprise->id)->where('categorie_id', $categorieActuelle->id)->orderBy('id')->get() as $articleCategorie) {
+                    do {
+                        $reference = $prefixe . '-' . str_pad((string) $sequence++, 5, '0', STR_PAD_LEFT);
+                    } while (Produit::where('entreprise_id', $entreprise->id)->where('reference', $reference)->where('id', '!=', $articleCategorie->id)->exists());
+                    $articleCategorie->update(['reference' => $reference]);
+                }
+            }
+
             $produit->update(array_filter([
                 'nom'        => ($ligne['nom'] ?? null) ?: null,
                 'prix_achat' => $ligne['prix_achat'] ?? null,
                 'prix_vente' => $ligne['prix_vente'] ?? null,
             ], fn ($v) => $v !== null));
 
-            $this->poserStockInitial($produit, $pointDeVenteId, $ligne['stock_initial'] ?? null);
+            $siteArticleId = isset($ligne['point_de_vente_id']) && $ligne['point_de_vente_id'] !== ''
+                ? PointDeVente::where('entreprise_id', $entreprise->id)->whereKey($ligne['point_de_vente_id'])->value('id')
+                : $pointDeVenteId;
+            if ($siteArticleId && $produit->estStockable()) {
+                \\App\\Modules\\Admin\\Modeles\\Stock::firstOrCreate(
+                    ['produit_id' => $produit->id, 'point_de_vente_id' => $siteArticleId],
+                    ['quantite_disponible' => 0, 'stock_minimum' => 5, 'stock_maximum' => 100, 'reference' => true]
+                );
+            }
+            $this->poserStockInitial($produit, $siteArticleId, $ligne['stock_initial'] ?? null);
         }
 
         $entreprise->update([
