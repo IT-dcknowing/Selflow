@@ -111,7 +111,16 @@
                         @endif
                     </td>
                     <td style="text-align: center;">
-                        <button type="button" class="btn btn-primary btn-sm" onclick="ouvrirModalPermissions({{ json_encode($user) }})" style="padding: 4px 8px; font-size: 12px;">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="ouvrirModalPermissions(@js([
+                                'id' => $user->uuid,
+                                'nom' => $user->nom,
+                                'prenom' => $user->prenom,
+                                'email' => $user->email,
+                                'role' => $user->role,
+                                'statut' => $user->statut,
+                                'habilitations' => $user->habilitations ?? [],
+                                'entreprise' => ['nom' => $user->entreprise?->nom],
+                            ]))" style="padding: 4px 8px; font-size: 12px;">
                             <i class="fas fa-user-shield"></i> Modifier
                         </button>
                     </td>
