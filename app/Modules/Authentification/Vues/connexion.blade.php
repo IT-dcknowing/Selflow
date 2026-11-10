@@ -186,6 +186,11 @@
     {{-- ── Connexion ── --}}
     <main class="connexion">
         <div class="formulaire">
+            @if(session('inscription_en_attente'))
+                <div role="status" style="padding:13px 15px;border:1px solid #86efac;background:#f0fdf4;color:#166534;border-radius:10px;font-size:13px;line-height:1.5;">
+                    <i class="fas fa-circle-check"></i> {{ session('inscription_en_attente') }}
+                </div>
+            @endif
             <div class="marque">
                 <img src="{{ asset('images/selflow/logo-bleu.png') }}" alt="">
                 <span>SELFLOW</span>
