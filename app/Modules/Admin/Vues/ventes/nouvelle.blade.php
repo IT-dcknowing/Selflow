@@ -1952,8 +1952,9 @@ function remplirBoite(boite, id, item) {
                 <input type="text" class="form-control" data-champ="unite" style="width:90px;"
                        onchange="saisirUnite(${cle}, this.value)">
             </label>
-            <label>Prix unitaire
-                <span class="form-control" data-champ="prix" style="width:110px; display:flex; align-items:center; background:transparent;"></span>
+            <label>Prix unitaire (F)
+                <input type="number" class="form-control" data-champ="prix" min="0" step="0.01" style="width:120px;"
+                       oninput="saisirPrix(${cle}, this.value)">
             </label>
             <label>Remise (%)
                 <input type="number" class="form-control" data-champ="remise" min="0" max="100" step="0.01" style="width:80px;"
@@ -1973,7 +1974,7 @@ function remplirBoite(boite, id, item) {
     poser('qte', item.qte);
     poser('unite', item.unite || 'Unité');
     poser('remise', parseFloat(item.remise_taux || 0));
-    boite.querySelector('[data-champ="prix"]').textContent = formatFcfa(item.prix);
+    poser('prix', item.prix);
     const tva = boite.querySelector('[data-champ="tva"]');
     if (!tva.contains(actif)) tva.innerHTML = selecteurCodeTva(id, item) + alerteCodeTva(item);
     const remise = parseFloat(item.remise_taux || 0);
