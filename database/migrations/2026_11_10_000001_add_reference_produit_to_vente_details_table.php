@@ -13,6 +13,26 @@ return new class extends Migration
                 $table->string('reference_produit', 100)->nullable()->after('produit_id');
             });
         }
+
+        // Figer la référence actuelle pour les factures déjà émises avant
+        // toute modification future du préfixe d'une catégorie.
+        \Illuminate\Support\Facades\DB::table('vente_details')
+            ->whereNotNull('produit_id')
+            ->whereNull('reference_produit')
+            ->orderBy('id')
+            ->chunkById(500, function ($lignes) {
+                $references = \Illuminate\Support\Facades\DB::table('produits')
+                    ->whereIn('id', $lignes->pluck('produit_id')->unique())
+                    ->pluck('reference', 'id');
+
+                foreach ($lignes as $ligne) {
+                    if (isset($references[$ligne->produit_id])) {
+                        \Illuminate\Support\Facades\DB::table('vente_details')
+                            ->where('id', $ligne->id)
+                            ->update(['reference_produit' => $references[$ligne->produit_id]]);
+                    }
+                }
+            });
     }
 
     public function down(): void
