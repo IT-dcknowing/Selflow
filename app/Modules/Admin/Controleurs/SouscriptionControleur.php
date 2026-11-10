@@ -592,6 +592,9 @@ class SouscriptionControleur
                     ->where('entreprise_id', $entreprise->id)
                     ->when(session("souscription_articles.{$entreprise->id}"), fn ($q, $ids) => $q->whereIn('id', $ids))
                     ->orderBy('reference')->get(),
+                  'categoriesEntreprise' => \App\Modules\Admin\Modeles\Categorie::with('pointsDeVente')
+                    ->where('entreprise_id', $entreprise->id)->orderBy('nom')->get(),
+                  'pointsDeVente' => PointDeVente::where('entreprise_id', $entreprise->id)->orderBy('nom')->get(),
                   'siteDuStock' => $this->siteDuStock($entreprise)],
 
             default => [],
