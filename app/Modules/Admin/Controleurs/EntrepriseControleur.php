@@ -124,6 +124,22 @@ class EntrepriseControleur
             // chaque site. Une quantité existante reste visible même si le site
             // vient d'être décoché : on ne masque jamais un stock physique.
             foreach ($categorie->produits()->with('stocks')->get() as $produit) {
+                if (!$produit->estStockable()) {
+                    continue;
+                }
+
+                foreach ($siteIds as $siteId) {
+                    \\App\\Modules\\Admin\\Modeles\\Stock::firstOrCreate(
+                        ['produit_id' => $produit->id, 'point_de_vente_id' => $siteId],
+                        [
+                            'quantite_disponible' => 0,
+                            'stock_minimum' => 5,
+                            'stock_maximum' => 100,
+                            'reference' => true,
+                        ]
+                    );
+                }
+
                 foreach ($produit->stocks as $stock) {
                     $stock->update([
                         'reference' => in_array((int) $stock->point_de_vente_id, $siteIds, true)
