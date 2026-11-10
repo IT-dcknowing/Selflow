@@ -558,8 +558,8 @@ window.addEventListener('pageshow', function () {
     if(!table||!bouton)return;
     var index=table.querySelectorAll('tr').length;
     var types=@json(\\App\\Modules\\Admin\\Modeles\\Produit::TYPES);
-    var sites=@json($pointsDeVente->map(fn($site)=>['id'=>$site->id,'nom'=>$site->nom])->values());
-    var avecStock=@json((bool) $avecStock);
+    var sites=@json(isset($pointsDeVente) ? $pointsDeVente->map(fn($site)=>['id'=>$site->id,'nom'=>$site->nom])->values() : []);
+    var avecStock=@json(isset($avecStock) && (bool) $avecStock);
     function prefixe(nom){return (nom||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^A-Za-z0-9]/g,'').toUpperCase().slice(0,8)||'CAT';}
     function majReference(ligne){
         var cat=ligne.querySelector('[name$="[categorie_nom]"]');
