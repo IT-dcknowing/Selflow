@@ -84,6 +84,8 @@
                             <span class="badge badge-success" style="font-weight: 700; font-size: 10px; text-transform: uppercase;">Actif</span>
                         @elseif($user->statut === 'suspendu')
                             <span class="badge badge-danger" style="font-weight: 700; font-size: 10px; text-transform: uppercase;">Suspendu</span>
+                        @elseif($user->statut === 'en_attente')
+                            <span class="badge badge-warning" style="font-weight: 700; font-size: 10px; text-transform: uppercase;">En attente de validation</span>
                         @else
                             <span class="badge badge-warning" style="font-weight: 700; font-size: 10px; text-transform: uppercase;">{{ $user->statut }}</span>
                         @endif
