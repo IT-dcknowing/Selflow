@@ -51,6 +51,8 @@ class VerifierHabilitationRoute
         'superadmin.entreprises.supprimer'            => 'gestion_entreprises',
         'superadmin.utilisateurs'                     => 'gestion_entreprises',
         'superadmin.utilisateurs.modifier'            => 'gestion_entreprises',
+        'superadmin.nettoyage.index'                     => 'gestion_entreprises',
+        'superadmin.nettoyage.executer'                   => 'gestion_entreprises',
 
         // Ce que la plateforme ouvre a une entreprise donnee, quel que soit
         // son statut -- la comptabilite, fermee par defaut depuis le
