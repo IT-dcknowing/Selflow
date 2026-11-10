@@ -146,7 +146,7 @@
             </p>
         @endif
 
-        @if($categories->isNotEmpty())
+        @if($categories->isNotEmpty() || !empty($entreprise->domaines_personnalises))
         <div class="tuiles">
             @foreach($categories as $categorie)
             <label class="tuile">
@@ -158,13 +158,23 @@
                 </div>
             </label>
             @endforeach
+            @foreach((array) $entreprise->domaines_personnalises as $domaine)
+                <label class="tuile">
+                    <input type="radio" name="domaine_personnalise" data-etape-suivante value="{{ $domaine }}"
+                           {{ ($choix['domaine_personnalise'] ?? '') === $domaine ? 'checked' : '' }}>
+                    <div class="corps">
+                        <div class="titre">{{ $domaine }}</div>
+                        <div class="detail"><span class="badge-acquis">Créé</span></div>
+                    </div>
+                </label>
+            @endforeach
         </div>
         @else
             <p class="note-verrou">Aucun domaine du référentiel n'est disponible. Vous pouvez créer le vôtre ci-dessous.</p>
         @endif
         <div class="autre" style="background:#f0fdf4;border-color:#86efac;">
             <label for="domaine_personnalise" style="color:#166534;">Créer un domaine</label>
-            <input type="text" id="domaine_personnalise" name="domaine_personnalise" class="form-control"
+            <input type="text" id="domaine_personnalise" name="nouveau_domaine" class="form-control"
                    value="{{ old('domaine_personnalise', ((array) $entreprise->domaines_personnalises)[0] ?? '') }}" list="domaines-personnalises-existants" maxlength="120" placeholder="Ex. : Services aux entreprises">
             <datalist id="domaines-personnalises-existants">@foreach((array) $entreprise->domaines_personnalises as $domaine)<option value="{{ $domaine }}">@endforeach</datalist>
             <span class="badge-acquis">Créé</span>
