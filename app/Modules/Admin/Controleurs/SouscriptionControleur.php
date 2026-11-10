@@ -202,8 +202,10 @@ class SouscriptionControleur
             'familles_config' => ['array'],
             'familles_config.*.nom' => ['nullable', 'string', 'max:120'],
             'familles_config.*.prefixe' => ['nullable', 'string', 'max:12', 'regex:/^[A-Za-z0-9_-]+$/'],
-            'familles_config.*.points_de_vente' => ['array'],
+            'familles_config.*.points_de_vente' => ['required', 'array', 'min:1'],
             'familles_config.*.points_de_vente.*' => ['integer', 'distinct', 'exists:points_de_vente,id'],
+            'categories_personnalisees.*.points_de_vente' => ['required', 'array', 'min:1'],
+            'categories_personnalisees.*.points_de_vente.*' => ['integer', 'distinct', 'exists:points_de_vente,id'],
         ]);
 
         $choix = $this->choix($entreprise);
