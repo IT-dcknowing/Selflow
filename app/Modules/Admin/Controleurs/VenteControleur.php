@@ -474,7 +474,7 @@ class VenteControleur
 
                     TresorerieJournal::create([
                         'point_de_vente_id' => $pointDeVenteId,
-                        'date_operation' => $vente->date_vente->toDateString(),
+                        'date_operation' => now()->toDateString(),
                         'type_operation' => 'Encaissement',
                         'libelle' => \App\Modules\Admin\Services\ComptabiliteService::libelleTresorerieVente($vente),
                         'mode_paiement' => $modePaiementFinal,
@@ -494,7 +494,7 @@ class VenteControleur
 
                     TresorerieJournal::create([
                         'point_de_vente_id' => $pointDeVenteId,
-                        'date_operation' => $vente->date_vente->toDateString(),
+                        'date_operation' => now()->toDateString(),
                         'type_operation' => 'Encaissement',
                         'libelle' => 'Acompte Vente — Devis ' . $numero,
                         'mode_paiement' => $modePaiementFinal,
@@ -1182,7 +1182,7 @@ class VenteControleur
 
                 TresorerieJournal::create([
                     'point_de_vente_id' => $pointDeVenteId,
-                    'date_operation' => $vente->date_vente->toDateString(),
+                    'date_operation' => now()->toDateString(),
                     'type_operation' => 'Encaissement',
                     'libelle' => 'Modification Vente — Facture ' . $vente->numero_facture,
                     'mode_paiement' => $modePaiementFinal,
