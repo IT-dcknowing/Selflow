@@ -146,23 +146,7 @@
             </p>
         @endif
 
-        {{-- Le référentiel absent laissait cette page muette : la question, le
-             bouton, et rien entre les deux. L'utilisateur n'avait aucun moyen
-             de savoir que le catalogue des domaines n'était pas chargé, ni que
-             continuer était impossible — le formulaire exige un domaine que
-             rien ne proposait. --}}
-        @if($categories->isEmpty())
-            <div class="referentiel-absent">
-                <i class="fas fa-triangle-exclamation"></i>
-                <div>
-                    <strong>Le catalogue des domaines d'activité n'est pas chargé.</strong>
-                    <p>La configuration ne peut pas commencer sans lui. Demandez à votre
-                       administrateur de charger le référentiel de préparamétrage
-                       (<code>php artisan db:seed --class=ReferentielSeeder</code>),
-                       puis revenez sur cette page.</p>
-                </div>
-            </div>
-        @else
+        @if($categories->isNotEmpty())
         <div class="tuiles">
             @foreach($categories as $categorie)
             <label class="tuile">
@@ -170,12 +154,23 @@
                        {{ ($choix['categorie_id'] ?? null) == $categorie->id ? 'checked' : '' }}>
                 <div class="corps">
                     <div class="titre">{{ $categorie->nom }}</div>
-                    <div class="detail">{{ $categorie->profils_count }} métier{{ $categorie->profils_count > 1 ? 's' : '' }}</div>
+                    <div class="detail">{{ $categorie->profils_count }} secteur(s) précis</div>
                 </div>
             </label>
             @endforeach
         </div>
+        @else
+            <p class="note-verrou">Aucun domaine du référentiel n'est disponible. Vous pouvez créer le vôtre ci-dessous.</p>
         @endif
+        <div class="autre" style="background:#f0fdf4;border-color:#86efac;">
+            <label for="domaine_personnalise" style="color:#166534;">Créer un domaine</label>
+            <input type="text" id="domaine_personnalise" name="domaine_personnalise" class="form-control"
+                   value="{{ old('domaine_personnalise') }}" maxlength="120" placeholder="Ex. : Services aux entreprises">
+            <span class="badge-acquis">Créé</span>
+            @foreach((array) $entreprise->domaines_personnalises as $domaine)
+                <span class="badge-acquis">{{ $domaine }}</span>
+            @endforeach
+        </div>
 
     {{-- ══ 2. Le métier ══ --}}
     @elseif($etape === 2)
@@ -227,17 +222,20 @@
 
 
         <div class="autre" style="background:#f0fdf4;border-color:#86efac;">
-            <label for="activite_autre" style="color:#166534;">Ajouter un secteur précis</label>
-            @if($entreprise->activite_autre)
-                <span class="badge-acquis">Créé</span>
-                <span>{{ $entreprise->activite_autre }}</span>
-            @endif
-            <div style="display:flex;gap:8px;align-items:center;">
-                <input type="text" id="activite_autre" name="activite_autre" class="form-control"
-                       value="{{ old('activite_autre', $entreprise->activite_autre) }}"
-                       placeholder="Nom du secteur précis à ajouter" maxlength="150">
-                <span class="badge-acquis">Créé</span>
+            <label style="color:#166534;">Créer un ou plusieurs secteurs précis</label>
+            <div id="secteurs-personnalises">
+                @foreach((array) $entreprise->secteurs_personnalises as $secteur)
+                    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+                        <input type="text" class="form-control" value="{{ $secteur }}" readonly>
+                        <span class="badge-acquis">Créé</span>
+                    </div>
+                @endforeach
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+                    <input type="text" name="secteurs_personnalises[]" class="form-control" maxlength="150" placeholder="Nom du secteur précis">
+                    <button type="button" class="btn btn-outline-danger" data-retirer-saisie title="Retirer"><i class="fas fa-trash"></i></button>
+                </div>
             </div>
+            <button type="button" class="btn btn-outline" id="ajouter-secteur"><i class="fas fa-plus"></i> Créer un secteur précis</button>
         </div>
 
     {{-- ══ 3. Les modules ══ --}}
@@ -320,6 +318,24 @@
             @endif
             @endforeach
         </div>
+        <div class="autre" style="background:#f0fdf4;border-color:#86efac;">
+            <label style="color:#166534;">Ajouter un besoin de module non proposé</label>
+            <p>Les modules disponibles dans l'application sont activés selon vos choix. Les besoins personnalisés sont enregistrés pour étude ; ils ne créent pas automatiquement une fonctionnalité qui n'existe pas encore.</p>
+            <div id="modules-personnalises">
+                @foreach((array) $entreprise->modules_personnalises as $module)
+                    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+                        <input type="text" class="form-control" value="{{ $module }}" readonly>
+                        <span class="badge-acquis">Créé</span>
+                    </div>
+                @endforeach
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+                    <input type="text" name="modules_personnalises[]" class="form-control" maxlength="120" placeholder="Nom du besoin ou module">
+                    <button type="button" class="btn btn-outline-danger" data-retirer-saisie title="Retirer"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+            <button type="button" class="btn btn-outline" id="ajouter-module-personnalise"><i class="fas fa-plus"></i> Créer</button>
+        </div>
+
 
     {{-- ══ 4. Les catégories ══ --}}
     @elseif($etape === 4)
@@ -520,6 +536,21 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
         ligne.querySelectorAll('input[name="familles[]"]').forEach(function (champ) { champ.remove(); });
         ligne.remove();
     });
+})();
+(function () {
+    function ajouter(zoneId, boutonId, nom, placeholder) {
+        var zone=document.getElementById(zoneId), bouton=document.getElementById(boutonId);
+        if(!zone||!bouton)return;
+        bouton.addEventListener('click',function(){
+            var ligne=document.createElement('div'); ligne.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px;';
+            var input=document.createElement('input'); input.type='text'; input.name=nom; input.maxLength=150; input.className='form-control'; input.placeholder=placeholder;
+            var del=document.createElement('button'); del.type='button'; del.className='btn btn-outline-danger'; del.setAttribute('data-retirer-saisie',''); del.innerHTML='<i class="fas fa-trash"></i>';
+            ligne.appendChild(input); ligne.appendChild(del); zone.appendChild(ligne);
+        });
+    }
+    ajouter('secteurs-personnalises','ajouter-secteur','secteurs_personnalises[]','Nom du secteur précis');
+    ajouter('modules-personnalises','ajouter-module-personnalise','modules_personnalises[]','Nom du besoin ou module');
+    document.addEventListener('click',function(e){var del=e.target.closest('[data-retirer-saisie]');if(del)del.parentElement.remove();});
 })();
 window.addEventListener('pageshow', function () {
     var form = document.getElementById('form-souscription');
