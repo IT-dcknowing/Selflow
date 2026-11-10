@@ -234,7 +234,8 @@ class SouscriptionControleur
             }
 
             $nom = trim((string) ($configuration['nom'] ?? '')) ?: $categorie->nom;
-            $prefixe = strtoupper(trim((string) ($configuration['prefixe'] ?? ''))) ?: $categorie->prefixe;
+            $ancienPrefixe = strtoupper((string) $categorie->prefixe);
+            $prefixe = strtoupper(trim((string) ($configuration['prefixe'] ?? ''))) ?: $ancienPrefixe;
             $categorie->update(['nom' => $nom, 'prefixe' => $prefixe]);
 
             $sites = PointDeVente::where('entreprise_id', $entreprise->id)
@@ -243,16 +244,19 @@ class SouscriptionControleur
                 $categorie->pointsDeVente()->sync($sites);
             }
 
-            // Le préfixe est une partie de la référence : réattribuer des
-            // références cohérentes à tous les produits de cette catégorie.
-            $sequence = 1;
-            foreach (Produit::where('entreprise_id', $entreprise->id)
-                ->where('categorie_id', $categorie->id)->orderBy('id')->get() as $produit) {
-                do {
-                    $reference = strtoupper($prefixe).'-'.str_pad((string) $sequence++, 5, '0', STR_PAD_LEFT);
-                } while (Produit::where('entreprise_id', $entreprise->id)
-                    ->where('reference', $reference)->where('id', '!=', $produit->id)->exists());
-                $produit->update(['reference' => $reference]);
+            // Le préfixe est une partie de la référence : ne recalculer les
+            // références que s'il change, en évitant toute collision dans
+            // l'ensemble du catalogue de l'entreprise.
+            if ($prefixe !== $ancienPrefixe) {
+                $sequence = 1;
+                foreach (Produit::where('entreprise_id', $entreprise->id)
+                    ->where('categorie_id', $categorie->id)->orderBy('id')->get() as $produit) {
+                    do {
+                        $reference = $prefixe.'-'.str_pad((string) $sequence++, 5, '0', STR_PAD_LEFT);
+                    } while (Produit::where('entreprise_id', $entreprise->id)
+                        ->where('reference', $reference)->where('id', '!=', $produit->id)->exists());
+                    $produit->update(['reference' => $reference]);
+                }
             }
         }
 
