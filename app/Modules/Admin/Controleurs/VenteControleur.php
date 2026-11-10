@@ -376,7 +376,7 @@ class VenteControleur
                     $regimeFiscal = Auth::user()->entreprise?->regime_imposition;
                     $tvaRate = in_array($regimeFiscal, Produit::REGIMES_EXONERATION_LEGALE, true) ? 0.0 : 18.0;
 
-                    if ($request->boolean('articles.' . array_search($article, $request->articles, true) . '.ajouter_catalogue')) {
+                    if (filter_var($article['ajouter_catalogue'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
                         $produit = Produit::create([
                             'entreprise_id' => Auth::user()->entreprise_id,
                             'nom' => $nomElement !== '' ? $nomElement : 'Article libre',
