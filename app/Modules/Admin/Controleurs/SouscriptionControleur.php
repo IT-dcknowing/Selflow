@@ -227,7 +227,7 @@ class SouscriptionControleur
                 continue;
             }
 
-            $categorie = \\App\\Modules\\Admin\\Modeles\\Categorie::where('entreprise_id', $entreprise->id)
+            $categorie = \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)
                 ->where('nom', $famille->nom)->first();
             if (!$categorie) {
                 continue;
@@ -268,7 +268,7 @@ class SouscriptionControleur
             if ($prefixe === '') {
                 $prefixe = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $nom) ?: 'CAT', 0, 8));
             }
-            $categorie = \\App\\Modules\\Admin\\Modeles\\Categorie::create([
+            $categorie = \App\Modules\Admin\Modeles\Categorie::create([
                 'entreprise_id' => $entreprise->id,
                 'nom' => $nom,
                 'prefixe' => $prefixe,
