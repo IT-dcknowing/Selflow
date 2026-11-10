@@ -382,11 +382,19 @@ class Produit extends Model
 
         return $query->where(function ($q) use ($pointDeVenteId) {
             $q->whereNull('type')
-              ->orWhereNotIn('type', self::TYPES_STOCKABLES)
+              ->orWhere(function ($nonStockable) use ($pointDeVenteId) {
+                  $nonStockable->whereNotIn('type', self::TYPES_STOCKABLES)
+                      ->where(function ($categorie) use ($pointDeVenteId) {
+                          // Une catégorie affectée à des sites limite aussi
+                          // les services/non-stockables. Sans affectation,
+                          // l'article reste commun à toute l'entreprise.
+                          $categorie->whereDoesntHave('category.pointsDeVente')
+                              ->orWhereHas('category.pointsDeVente', fn ($sites) => $sites->where('points_de_vente.id', $pointDeVenteId));
+                      });
+              })
               ->orWhereHas('stocks', fn ($s) => $s->where('stocks.point_de_vente_id', $pointDeVenteId)->where('stocks.reference', true))
-              // Un article qui n'a encore de fiche nulle part (repris d'un
-              // import, d'une ancienne version) n'est à aucun site en
-              // particulier : il reste proposé partout.
+              // Un article stockable sans fiche nulle part (import ancien)
+              // reste commun à l'entreprise.
               ->orWhereDoesntHave('stocks');
         });
     }
