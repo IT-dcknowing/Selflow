@@ -209,7 +209,9 @@ class VenteControleur
             foreach ($request->articles as $article) {
                 if (!empty($article['produit_id'])) {
                     $produit = $produitDe($article['produit_id']);
-                    $prix = $produit->prix_vente;
+                    $prix = isset($article['prix_unitaire']) && $article['prix_unitaire'] !== ''
+                        ? (float) $article['prix_unitaire']
+                        : (float) $produit->prix_vente;
                 } else {
                     $prix = floatval($article['prix_unitaire'] ?? 0);
                 }
@@ -235,7 +237,9 @@ class VenteControleur
                     $tvaRate = isset($article['tva']) && $article['tva'] !== ''
                         ? self::tauxBorne($article['tva'])
                         : $produit->taux_tva;
-                    $prix = $produit->prix_vente;
+                    $prix = isset($article['prix_unitaire']) && $article['prix_unitaire'] !== ''
+                        ? (float) $article['prix_unitaire']
+                        : (float) $produit->prix_vente;
                 } else {
                     $tvaRate = self::tauxBorne($article['tva'] ?? 18);
                     $prix = floatval($article['prix_unitaire'] ?? 0);
@@ -350,7 +354,9 @@ class VenteControleur
             foreach ($request->articles as $article) {
                 if (!empty($article['produit_id'])) {
                     $produit = Produit::lockForUpdate()->findOrFail($article['produit_id']);
-                    $prix = $produit->prix_vente;
+                    $prix = isset($article['prix_unitaire']) && $article['prix_unitaire'] !== ''
+                        ? (float) $article['prix_unitaire']
+                        : (float) $produit->prix_vente;
                     $nomElement = $produit->nom;
                     $tvaRate = isset($article['tva']) && $article['tva'] !== ''
                         ? self::tauxBorne($article['tva'])
@@ -1008,7 +1014,9 @@ class VenteControleur
             foreach ($request->articles as $article) {
                 if (!empty($article['produit_id'])) {
                     $produit = Produit::findOrFail($article['produit_id']);
-                    $prix = $produit->prix_vente;
+                    $prix = isset($article['prix_unitaire']) && $article['prix_unitaire'] !== ''
+                        ? (float) $article['prix_unitaire']
+                        : (float) $produit->prix_vente;
                 } else {
                     $prix = floatval($article['prix_unitaire'] ?? 0);
                 }
@@ -1030,7 +1038,9 @@ class VenteControleur
                     $tvaRate = isset($article['tva']) && $article['tva'] !== ''
                         ? self::tauxBorne($article['tva'])
                         : $produit->taux_tva;
-                    $prix = $produit->prix_vente;
+                    $prix = isset($article['prix_unitaire']) && $article['prix_unitaire'] !== ''
+                        ? (float) $article['prix_unitaire']
+                        : (float) $produit->prix_vente;
                 } else {
                     $tvaRate = self::tauxBorne($article['tva'] ?? 18);
                     $prix = floatval($article['prix_unitaire'] ?? 0);
@@ -1091,7 +1101,9 @@ class VenteControleur
             foreach ($request->articles as $article) {
                 if (!empty($article['produit_id'])) {
                     $produit = Produit::lockForUpdate()->findOrFail($article['produit_id']);
-                    $prix = $produit->prix_vente;
+                    $prix = isset($article['prix_unitaire']) && $article['prix_unitaire'] !== ''
+                        ? (float) $article['prix_unitaire']
+                        : (float) $produit->prix_vente;
                     $nomElement = $produit->nom;
                     $tvaRate = isset($article['tva']) && $article['tva'] !== ''
                         ? self::tauxBorne($article['tva'])

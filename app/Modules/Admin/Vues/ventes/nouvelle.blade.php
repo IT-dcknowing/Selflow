@@ -1452,6 +1452,9 @@ function renderPanier() {
                     <label>Unité
                         <input type="text" class="form-control form-control-sm" value="${item.unite || 'Unité'}" onchange="saisirUnite('${id}', this.value)" style="width: 76px;">
                     </label>
+                    <label>Prix unitaire (F)
+                        <input type="number" class="form-control form-control-sm" value="${item.prix}" min="0" step="0.01" oninput="saisirPrix('${id}', this.value)" style="width: 105px;">
+                    </label>
                     <label>Remise&nbsp;(%)
                         <input type="number" class="form-control form-control-sm" value="${remiseLigne}" min="0" max="100" step="0.01" oninput="saisirRemiseLigne('${id}', this.value)" style="width: 64px;">
                     </label>
@@ -1485,7 +1488,7 @@ function renderPanier() {
             } else if (field === 'libelle_virtuel') {
                 input.value = item.isVirtual ? item.nom : '';
             } else if (field === 'prix_unitaire') {
-                input.value = item.isVirtual ? item.prix : '';
+                input.value = item.prix;
             } else if (field === 'unite') {
                 input.value = item.unite || 'Unité';
             } else if (field === 'tva') {
@@ -1517,6 +1520,17 @@ function renderPanier() {
     nbArt.textContent = ids.length + ' article(s)';
     btnVal.disabled = false;
     if (btnDevis) btnDevis.disabled = false;
+    calculerTotaux();
+}
+
+function saisirPrix(id, val) {
+    if (!panier[id]) return;
+    const prix = parseFloat(val);
+    if (!Number.isFinite(prix) || prix < 0) return;
+    panier[id].prix = prix;
+    savePanier();
+    rafraichirSousTotalLigne(id);
+    majChampsArticles();
     calculerTotaux();
 }
 
