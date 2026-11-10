@@ -96,7 +96,7 @@
 
 {{-- ── Le fil du parcours ── --}}
 @php
-    $titres = [1 => 'Domaine', 2 => 'Métier', 3 => 'Modules', 4 => 'Rayons', 5 => 'Prix'];
+    $titres = [1 => 'Domaine', 2 => 'Secteur précis', 3 => 'Modules', 4 => 'Catégories', 5 => 'Prix'];
 @endphp
 <div class="sous-fil">
     @foreach($titres as $numero => $titre)
