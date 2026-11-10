@@ -48,6 +48,9 @@ class Entreprise extends Model
         'souscription_etape',
         'souscription_terminee_le',
         'activite_autre',
+        'domaines_personnalises',
+        'secteurs_personnalises',
+        'modules_personnalises',
         // La clé de liaison Comptaflow ne figure PAS ici, et c'est délibéré :
         // elle était un champ du formulaire des paramètres, et coller celle
         // d'une autre entreprise ouvrait la liaison vers ses livres. Elle
@@ -99,6 +102,9 @@ class Entreprise extends Model
     protected $casts = [
         'corbeille_le'       => 'datetime',
         'secteur_activite'   => 'array',
+        'domaines_personnalises' => 'array',
+        'secteurs_personnalises' => 'array',
+        'modules_personnalises' => 'array',
         'modules_actifs'     => 'array',
         'modules_autorises'  => 'array',
         'comptabilite_activee' => 'boolean',
