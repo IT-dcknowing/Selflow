@@ -279,6 +279,7 @@ class SouscriptionControleur
         // nom, préfixe, références et périmètre des points de vente.
         $pointDeVenteId = $this->siteDuStock($entreprise)?->id;
 
+        $categoriesRenommees = [];
         foreach ($donnees['articles'] ?? [] as $ligne) {
             // `Appartenance` a déjà écarté les produits d'une autre entreprise ;
             // la condition ci-dessous est la ceinture après les bretelles.
@@ -295,7 +296,8 @@ class SouscriptionControleur
             // l'écran. Une valeur absente laisse l'existante en place.
             $categorieNom = trim((string) ($ligne['categorie_nom'] ?? ''));
             $categorieActuelle = $produit->categorieRelation;
-            if ($categorieNom !== '' && $categorieActuelle && $categorieNom !== $categorieActuelle->nom) {
+            if ($categorieNom !== '' && $categorieActuelle && $categorieNom !== $categorieActuelle->nom && !isset($categoriesRenommees[$categorieActuelle->id])) {
+                $categoriesRenommees[$categorieActuelle->id] = true;
                 $ancienNom = $categorieActuelle->nom;
                 $prefixe = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $categorieNom) ?: 'CAT', 0, 8));
                 $categorieActuelle->update(['nom' => $categorieNom, 'prefixe' => $prefixe]);
