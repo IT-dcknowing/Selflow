@@ -378,6 +378,11 @@
             @endforeach
         </div>
 
+        <select id="modele-points-de-vente" hidden>
+            @foreach($pointsDeVente as $site)
+                <option value="{{ $site->id }}">{{ $site->nom }}</option>
+            @endforeach
+        </select>
         <div id="nouvelles-categories"></div>
         <button type="button" class="btn btn-outline" id="ajouter-categorie"><i class="fas fa-plus"></i> Créer une catégorie</button>
     {{-- ══ 5. Prix et stock ══ --}}
@@ -449,7 +454,7 @@
     <div class="pieds">
         {{-- Un bouton qui ne peut mener nulle part vaut mieux caché : sans
              domaine à choisir, le formulaire revient sur lui-même. --}}
-        @unless(false)
+        
         <button type="submit" class="btn btn-primary">
             @if($etape === $derniere)
                 <i class="fas fa-check"></i> Terminer
@@ -457,7 +462,7 @@
                 Continuer <i class="fas fa-arrow-right"></i>
             @endif
         </button>
-        @endunless
+        
 
         @if($etape > 1)
             <a href="{{ $routeEtape($etape - 1) }}" class="btn btn-outline">
@@ -521,7 +526,7 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
             "<option value=\"\">Chargement</option>" + '</select></div>' +
             '<button type="button" class="btn btn-outline-danger" data-supprimer-ligne title="Supprimer"><i class="fas fa-trash"></i></button></div>';
         // Les options des points de vente sont reprises de la première liste existante.
-        var source = document.querySelector('select[name^="familles_config"]');
+        var source = document.getElementById('modele-points-de-vente');
         var cible = ligne.querySelector('select');
         if (source) cible.innerHTML = source.innerHTML;
         zone.appendChild(ligne);
