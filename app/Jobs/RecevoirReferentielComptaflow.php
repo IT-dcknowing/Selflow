@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Modules\Admin\Modeles\Entreprise;
 use App\Modules\Admin\Services\RecevoirReferentielComptaflowService;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 
@@ -17,7 +18,7 @@ use Illuminate\Support\Facades\Log;
  */
 class RecevoirReferentielComptaflow implements ShouldQueue
 {
-    use Queueable;
+    use Dispatchable, Queueable;
 
     public int $tries = 3;
     public int $backoff = 60;
