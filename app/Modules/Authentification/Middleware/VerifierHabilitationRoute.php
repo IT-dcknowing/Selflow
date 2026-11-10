@@ -48,6 +48,8 @@ class VerifierHabilitationRoute
         'superadmin.entreprises.parcours'             => 'gestion_entreprises',
         'superadmin.entreprises.parcours.enregistrer' => 'gestion_entreprises',
         'superadmin.entreprises.toggle_status'        => 'gestion_entreprises',
+        'superadmin.entreprises.valider_inscription'  => 'gestion_entreprises',
+        'superadmin.entreprises.refuser_inscription'   => 'gestion_entreprises',
         'superadmin.entreprises.supprimer'            => 'gestion_entreprises',
         'superadmin.utilisateurs'                     => 'gestion_entreprises',
         'superadmin.utilisateurs.modifier'            => 'gestion_entreprises',
