@@ -175,7 +175,9 @@ class SouscriptionControleur
         // Le référentiel ne couvre pas tous les métiers. Plutôt que de forcer
         // l'utilisateur dans une case, on retient ce qu'il dit — et cela
         // alimentera les versions suivantes du classeur.
-        if (array_key_exists('activite_autre', $donnees) && filled($donnees['activite_autre'])) {\n            $entreprise->update(['activite_autre' => trim($donnees['activite_autre'])]);\n        }
+        if (array_key_exists('activite_autre', $donnees) && filled($donnees['activite_autre'])) {
+            $entreprise->update(['activite_autre' => trim($donnees['activite_autre'])]);
+        }
 
         return $this->avancerVers(3, $entreprise);
     }
