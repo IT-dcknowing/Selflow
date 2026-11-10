@@ -237,13 +237,15 @@
             <label style="color:#166534;">Créer un ou plusieurs secteurs précis</label>
             <div id="secteurs-personnalises">
                 @foreach((array) $entreprise->secteurs_personnalises as $secteur)
-                    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
-                        <input type="text" class="form-control" value="{{ $secteur }}" readonly>
-                        <span class="badge-acquis">Créé</span>
-                    </div>
+                    <label class="ligne acquise" style="display:flex;gap:10px;align-items:center;">
+                        <input type="checkbox" name="secteurs_personnalises_selection[]" value="{{ $secteur }}"
+                               {{ in_array($secteur, $choix['secteurs_personnalises_selection'] ?? [], true) ? 'checked' : '' }}>
+                        <strong>{{ $secteur }}</strong><span class="badge-acquis">Créé</span>
+                    </label>
                 @endforeach
                 <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
-                    <input type="text" name="secteurs_personnalises[]" class="form-control" maxlength="150" placeholder="Nom du secteur précis">
+                    <input type="text" name="secteurs_personnalises[]" class="form-control" maxlength="150" placeholder="Nom du secteur précis" data-nouveau-secteur>
+                    <label style="display:flex;gap:5px;align-items:center;white-space:nowrap;"><input type="checkbox" data-selection-nouveau-secteur> Sélectionner</label>
                     <button type="button" class="btn btn-outline-danger" data-retirer-saisie title="Retirer"><i class="fas fa-trash"></i></button>
                 </div>
             </div>
