@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class AchatDetail extends Model
 {
     protected $table = 'achat_details';
-    protected $fillable = ['achat_id', 'produit_id', 'libelle_virtuel', 'quantite', 'quantite_receptionnee', 'unite', 'prix_unitaire', 'remise_taux', 'montant_tva', 'montant_ttc'];
+    protected $fillable = ['achat_id', 'produit_id', 'reference_produit', 'libelle_virtuel', 'quantite', 'quantite_receptionnee', 'unite', 'prix_unitaire', 'remise_taux', 'montant_tva', 'montant_ttc'];
 
     protected function casts(): array
     {
