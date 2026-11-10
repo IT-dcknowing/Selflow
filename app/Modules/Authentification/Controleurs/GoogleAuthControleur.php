@@ -69,7 +69,7 @@ class GoogleAuthControleur
                 'secteur_activite'    => [],
                 'quota_points_de_vente' => \App\Modules\Admin\Regles\Abonnements::QUOTA_PAR_DEFAUT,
                 'plan_abonnement'     => \App\Modules\Admin\Regles\Abonnements::A_CHOISIR,
-                'statut'              => 'actif',
+                'statut'              => 'en_attente',
             ]);
             $entreprise->forceFill(['quota_utilisateurs' => \App\Modules\Admin\Regles\Abonnements::QUOTA_PAR_DEFAUT])->save();
 
@@ -88,19 +88,25 @@ class GoogleAuthControleur
                 'email'                 => $googleUser->getEmail(),
                 'password'              => Hash::make(Str::random(32)), // mdp aléatoire — compte Google
                 'role'                  => 'admin',
-                'statut'                => 'actif',
+                'statut'                => 'en_attente',
                 'doit_changer_password' => false,
                 'avatar_path'           => $googleUser->getAvatar(),
             ]);
 
             DB::commit();
 
-            Auth::login($utilisateur, true);
-            request()->session()->regenerate();
+            try {
+                \App\Modules\Admin\Services\AlerteSuperadminService::alerter(
+                    \App\Modules\Admin\Services\AlerteSuperadminService::CREATION_ENTREPRISE,
+                    'Nouvelle entreprise inscrite via Google : ' . $entreprise->nom,
+                    "Entreprise : {$entreprise->nom}\nAdministrateur : {$prenom} {$nom}\nCourriel : {$utilisateur->email}\nLe " . now()->format('d/m/Y à H:i') . '.'
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Alerte inscription Google non envoyée : ' . $e->getMessage());
+            }
 
-            // Rediriger vers onboarding (compléter les infos entreprise)
-            return redirect()->route('admin.tableau_de_bord')
-                ->with('succes', '👋 Bienvenue ' . $prenom . ' ! Votre compte a été créé via Google. Pensez à compléter les informations de votre entreprise.');
+            return redirect()->route('connexion')
+                ->with('inscription_en_attente', 'Votre demande d’inscription Google a bien été reçue. Votre espace sera accessible après validation par notre équipe.');
 
         } catch (\Exception $e) {
             DB::rollBack();
