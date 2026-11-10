@@ -152,6 +152,8 @@ class SouscriptionControleur
             'profils.*'        => ['string', 'exists:referentiel_profils,code'],
             'secteurs_personnalises' => ['nullable', 'array'],
             'secteurs_personnalises.*' => ['nullable', 'string', 'max:150'],
+            'secteurs_personnalises_selection' => ['nullable', 'array'],
+            'secteurs_personnalises_selection.*' => ['string', 'max:150'],
             'activite_autre'   => ['nullable', 'string', 'max:150'],
         ], [
             'profils.*.exists'         => 'Un des métiers choisis est inconnu.',
@@ -171,7 +173,10 @@ class SouscriptionControleur
             )))]);
         }
 
-        $this->memoriser($entreprise, ['profils' => $retenus]);
+        $this->memoriser($entreprise, [
+            'profils' => $retenus,
+            'secteurs_personnalises_selection' => array_values(array_unique($donnees['secteurs_personnalises_selection'] ?? [])),
+        ]);
 
         // Le référentiel ne couvre pas tous les métiers. Plutôt que de forcer
         // l'utilisateur dans une case, on retient ce qu'il dit — et cela
