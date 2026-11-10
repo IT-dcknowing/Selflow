@@ -34,6 +34,14 @@ class VerifierEntrepriseActive
                         'email' => 'Votre espace a été fermé. Pour le rouvrir, contactez le support.',
                     ]);
                 }
+                if ($entreprise && $entreprise->statut === 'en_attente') {
+                    Auth::logout();
+                    $request->session()->invalidate();
+                    $request->session()->regenerateToken();
+                    return redirect()->route('connexion')->withErrors([
+                        'email' => 'Votre inscription est en attente de validation par notre équipe.',
+                    ]);
+                }
                 if ($entreprise && $entreprise->statut === 'bloque') {
                     Auth::logout();
                     
