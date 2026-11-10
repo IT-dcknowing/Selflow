@@ -272,8 +272,11 @@ class SouscriptionControleur
     {
         $donnees = $request->validate([
             'articles'                 => ['array'],
-            'articles.*.id'            => ['required', 'integer', Appartenance::a('produits')],
+            'articles.*.id'            => ['nullable', 'integer', Appartenance::a('produits')],
             'articles.*.nom'           => ['nullable', 'string', 'max:255'],
+            'articles.*.type'          => ['nullable', 'string', 'in:' . implode(',', array_keys(Produit::TYPES))],
+            'articles_supprimer'       => ['nullable', 'array'],
+            'articles_supprimer.*'     => ['integer', 'distinct'],
             'articles.*.categorie_nom' => ['nullable', 'string', 'max:120'],
             'articles.*.point_de_vente_id' => ['nullable', 'integer', 'exists:points_de_vente,id'],
             'articles.*.prix_achat'    => ['nullable', 'numeric', 'min:0', 'max:99999999999'],
@@ -286,16 +289,40 @@ class SouscriptionControleur
         $pointDeVenteId = $this->siteDuStock($entreprise)?->id;
 
         $categoriesRenommees = [];
-        foreach ($donnees['articles'] ?? [] as $ligne) {
-            // `Appartenance` a déjà écarté les produits d'une autre entreprise ;
-            // la condition ci-dessous est la ceinture après les bretelles.
-            $produit = Produit::where('id', $ligne['id'])
-                ->where('entreprise_id', $entreprise->id)
-                ->first();
-
-            if (!$produit) {
-                continue;
+        $idsCreesDansCeParcours = array_filter((array) session("souscription_articles.{$entreprise->id}", []));
+        foreach ($donnees['articles_supprimer'] ?? [] as $idASupprimer) {
+            if (in_array((int) $idASupprimer, $idsCreesDansCeParcours, true)) {
+                Produit::where('entreprise_id', $entreprise->id)->whereKey($idASupprimer)->delete();
             }
+        }
+
+        foreach ($donnees['articles'] ?? [] as $ligne) {
+            $produit = !empty($ligne['id'])
+                ? Produit::where('id', $ligne['id'])->where('entreprise_id', $entreprise->id)->first()
+                : null;
+
+            // Une ligne ajoutée dans le tableau devient un article seulement
+            // si son nom, sa catégorie et son type ont été renseignés.
+            if (!$produit && !empty($ligne['nouveau']) && filled($ligne['nom'] ?? null)
+                && filled($ligne['categorie_nom'] ?? null) && filled($ligne['type'] ?? null)) {
+                $nomCategorie = trim($ligne['categorie_nom']);
+                $categorie = \App\Modules\Admin\Modeles\Categorie::firstOrCreate(
+                    ['entreprise_id' => $entreprise->id, 'nom' => $nomCategorie],
+                    ['prefixe' => strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $nomCategorie) ?: 'CAT', 0, 8))]
+                );
+                $produit = Produit::create([
+                    'entreprise_id' => $entreprise->id,
+                    'nom' => trim($ligne['nom']),
+                    'type' => $ligne['type'],
+                    'categorie_id' => $categorie->id,
+                    'prix_achat' => $ligne['prix_achat'] ?? 0,
+                    'prix_vente' => $ligne['prix_vente'] ?? 0,
+                ]);
+                $idsCreesDansCeParcours[] = $produit->id;
+                session(["souscription_articles.{$entreprise->id}" => array_values(array_unique($idsCreesDansCeParcours))]);
+            }
+
+            if (!$produit) continue;
 
             // Chaque clé est facultative : le corps de la requête n'est pas le
             // formulaire, et une ligne partielle ne doit pas faire tomber
