@@ -170,6 +170,7 @@
             @foreach((array) $entreprise->domaines_personnalises as $domaine)
                 <span class="badge-acquis">{{ $domaine }}</span>
             @endforeach
+            <button type="submit" class="btn btn-outline" style="margin-top:8px;"><i class="fas fa-plus"></i> Ajouter ce domaine et continuer</button>
         </div>
 
     {{-- ══ 2. Le métier ══ --}}
