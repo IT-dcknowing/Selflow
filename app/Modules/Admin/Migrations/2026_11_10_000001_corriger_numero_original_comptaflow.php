@@ -1,20 +1,18 @@
 <?php
 
-use Illuminate\\Database\\Migrations\\Migration;
-use Illuminate\\Database\\Schema\\Blueprint;
-use Illuminate\\Support\\Facades\\Schema;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Assure la présence des numéros d'origine reçus de COMPTAFLOW.
  *
- * La migration initiale avait été déposée dans
- * app/Modules/Admin/Database/migrations, alors que les migrations du module
- * Admin sont chargées depuis app/Modules/Admin/Migrations. Sur les bases où
- * ce fichier n'a pas été exécuté, la réception du référentiel échoue dès le
- * premier compte avec « Unknown column numero_original ».
+ * La migration initiale était rangée dans un répertoire différent de celui
+ * utilisé par les migrations du module Admin. Sur les bases où elle n'a pas
+ * été exécutée, la réception échoue avec « Unknown column numero_original ».
  *
- * Les colonnes restent nullable : les comptes et journaux locaux n'ont pas
- * nécessairement de numéro d'origine COMPTAFLOW.
+ * Les colonnes restent nullable : les lignes locales n'ont pas forcément
+ * de numéro d'origine COMPTAFLOW.
  */
 return new class extends Migration
 {
