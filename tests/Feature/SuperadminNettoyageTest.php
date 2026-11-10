@@ -52,6 +52,26 @@ class SuperadminNettoyageTest extends TestCase
         ], $extra));
     }
 
+    public function test_la_purge_totale_supprime_les_ventes_sans_supprimer_l_entreprise_ni_ses_sites(): void
+    {
+        $vente = $this->vente();
+
+        $this->post(route('superadmin.nettoyage.executer'), [
+            'entreprise_id' => $this->entreprise->id,
+            'cible' => 'tout',
+            'etat' => 'tous',
+            'action' => 'purge_total',
+            'confirmation' => $this->entreprise->nom,
+            'confirmer' => '1',
+        ])->assertRedirect(route('superadmin.nettoyage.index'))
+          ->assertSessionHas('succes');
+
+        $this->assertDatabaseMissing('ventes', ['id' => $vente->id]);
+        $this->assertDatabaseHas('entreprises', ['id' => $this->entreprise->id, 'nom' => 'Entreprise Alpha']);
+        $this->assertDatabaseHas('points_de_vente', ['id' => $this->site->id, 'entreprise_id' => $this->entreprise->id]);
+        $this->assertDatabaseHas('utilisateurs', ['id' => $this->superadmin->id]);
+    }
+
     public function test_la_page_de_nettoyage_est_accessible_au_superadmin(): void
     {
         $this->get(route('superadmin.nettoyage.index'))
