@@ -296,6 +296,11 @@ class SouscriptionControleur
         $pointDeVenteId = $this->siteDuStock($entreprise)?->id;
 
         $categoriesRenommees = [];
+        $idsArticlesEnvoyes = collect($donnees['articles'] ?? [])->pluck('id')->filter()->map(fn ($id) => (int) $id)->all();
+        $produitsExistants = Produit::with('categorieRelation')
+            ->where('entreprise_id', $entreprise->id)
+            ->whereIn('id', $idsArticlesEnvoyes)
+            ->get()->keyBy('id');
         $idsCreesDansCeParcours = array_filter((array) session("souscription_articles.{$entreprise->id}", []));
         foreach ($donnees['articles_supprimer'] ?? [] as $idASupprimer) {
             if (in_array((int) $idASupprimer, $idsCreesDansCeParcours, true)) {
@@ -305,7 +310,7 @@ class SouscriptionControleur
 
         foreach ($donnees['articles'] ?? [] as $ligne) {
             $produit = !empty($ligne['id'])
-                ? Produit::where('id', $ligne['id'])->where('entreprise_id', $entreprise->id)->first()
+                ? $produitsExistants->get((int) $ligne['id'])
                 : null;
 
             // Une ligne ajoutée dans le tableau devient un article seulement
