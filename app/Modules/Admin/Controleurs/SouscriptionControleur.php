@@ -227,7 +227,13 @@ class SouscriptionControleur
         $choix = $this->choix($entreprise);
         $retenues = $donnees['familles'] ?? [];
         $avant = now()->subSecond();
-        $bilan = SouscriptionProfilService::souscrire($entreprise, $choix['profils'] ?? [], $retenues);
+        // Un domaine/secteur personnalisé n'hérite pas du catalogue standard.
+        // Le référentiel n'est copié que si l'utilisateur a réellement choisi
+        // des profils et des familles proposés.
+        $bilan = ['familles' => 0, 'articles' => 0, 'modules' => []];
+        if (!empty($choix['profils'])) {
+            $bilan = SouscriptionProfilService::souscrire($entreprise, $choix['profils'], $retenues);
+        }
 
         // À l'étape 4, on choisit simplement les catégories proposées ou on
         // crée une catégorie. Leur personnalisation détaillée est à l'étape 5.
@@ -537,9 +543,11 @@ class SouscriptionControleur
             1 => ['categories' => Categorie::withCount('profils')->orderBy('ordre')->get(),
                   'domainesDejaLa' => VerrouConfigurationService::domainesSouscrits($entreprise)],
 
-            2 => ['profils' => Profil::withCount(['familles', 'articles'])
-                    ->when(isset($choix['categorie_id']), fn ($q) => $q->where('categorie_id', $choix['categorie_id']))
-                    ->orderBy('nom')->get(),
+            2 => ['profils' => !empty($choix['domaine_personnalise'])
+                    ? collect()
+                    : Profil::withCount(['familles', 'articles'])
+                        ->when(isset($choix['categorie_id']), fn ($q) => $q->where('categorie_id', $choix['categorie_id']))
+                        ->orderBy('nom')->get(),
                   'profilsAcquis' => VerrouConfigurationService::profilsAcquis($entreprise)],
 
             // Un module verrouillé rejoint la liste affichée même si aucun des
