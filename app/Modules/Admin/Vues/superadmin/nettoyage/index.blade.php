@@ -9,12 +9,11 @@
         <strong><i class="fas fa-triangle-exclamation" style="color:#d97706;"></i> Opérations de maintenance par entreprise</strong>
         <p style="margin:8px 0 0; color:var(--text-2); font-size:13px;">
             Choisissez une entreprise, une catégorie et le statut des éléments à traiter.
-            Les ventes, avoirs et achats peuvent être archivés, restaurés ou purgés.
-            Les points de vente peuvent être fermés, rouverts ou supprimés uniquement lorsqu'ils sont vides.
+            Les ventes, avoirs et achats peuvent être archivés, restaurés ou purgés individuellement.
+            La purge totale efface les données opérationnelles, les écritures et le catalogue produits d'une entreprise de test, sans supprimer l'entreprise ni ses paramètres.
         </p>
         <p style="margin:6px 0 0; color:var(--text-2); font-size:12px;">
-            Une purge conserve les pièces certifiées, les écritures comptables, les règlements, les mouvements de stock et les documents liés.
-            Pour supprimer une pièce protégée, il faut d'abord traiter correctement ses dépendances dans les modules concernés.
+            ATTENTION : la purge totale est irréversible. Elle conserve l'entreprise, ses paramètres, ses utilisateurs, ses clients/fournisseurs, ses catégories, ses journaux et ses points de vente. Elle supprime les produits, ventes, avoirs, achats, écritures, opérations, trésorerie et stocks.
         </p>
     </div>
 
@@ -50,6 +49,7 @@
                         <option value="avoirs">Factures d'avoir</option>
                         <option value="achats">Achats de produits</option>
                         <option value="points_de_vente">Points de vente</option>
+                        <option value="tout">TOUTES les données opérationnelles (entreprise de test)</option>
                     </select>
                 </div>
                 <div>
@@ -71,6 +71,7 @@
                         <option value="fermer">Fermer les points de vente</option>
                         <option value="ouvrir">Rouvrir les points de vente</option>
                         <option value="supprimer">Supprimer les points de vente vides</option>
+                        <option value="purge_total">PURGE TOTALE — tout effacer sauf les paramètres</option>
                     </select>
                 </div>
             </div>
@@ -134,21 +135,27 @@
 
     function adapter() {
         const site = cible.value === 'points_de_vente';
+        const total = cible.value === 'tout';
         [...action.options].forEach(option => {
-            option.hidden = site
-                ? !['fermer', 'ouvrir', 'supprimer'].includes(option.value)
-                : !['archiver', 'restaurer', 'purger'].includes(option.value);
+            option.hidden = total
+                ? option.value !== 'purge_total'
+                : site
+                    ? !['fermer', 'ouvrir', 'supprimer'].includes(option.value)
+                    : !['archiver', 'restaurer', 'purger'].includes(option.value);
         });
         [...etat.options].forEach(option => {
-            option.hidden = site
-                ? !['ouverts', 'fermes', 'tous'].includes(option.value)
-                : !['actifs', 'archives', 'tous'].includes(option.value);
+            option.hidden = total
+                ? option.value !== 'tous'
+                : site
+                    ? !['ouverts', 'fermes', 'tous'].includes(option.value)
+                    : !['actifs', 'archives', 'tous'].includes(option.value);
         });
+        if (total) { action.value = 'purge_total'; etat.value = 'tous'; }
         if (site && !['fermer', 'ouvrir', 'supprimer'].includes(action.value)) action.value = 'fermer';
-        if (!site && !['archiver', 'restaurer', 'purger'].includes(action.value)) action.value = 'archiver';
+        if (!site && !total && !['archiver', 'restaurer', 'purger'].includes(action.value)) action.value = 'archiver';
         if (site && !['ouverts', 'fermes', 'tous'].includes(etat.value)) etat.value = 'ouverts';
-        if (!site && !['actifs', 'archives', 'tous'].includes(etat.value)) etat.value = 'actifs';
-        const destructif = action.value === 'purger' || action.value === 'supprimer';
+        if (!site && !total && !['actifs', 'archives', 'tous'].includes(etat.value)) etat.value = 'actifs';
+        const destructif = action.value === 'purger' || action.value === 'supprimer' || action.value === 'purge_total';
         bouton.style.background = destructif ? '#b91c1c' : '';
         bouton.style.borderColor = destructif ? '#b91c1c' : '';
         bouton.innerHTML = destructif
@@ -172,7 +179,7 @@
             alert('Le nom de l’entreprise doit être saisi exactement.');
             return;
         }
-        if (destructif && !confirm('Dernière confirmation : cette suppression est définitive. Continuer ?')) {
+        if (destructif && !confirm(action.value === 'purge_total' ? 'PURGE TOTALE : ventes, achats, écritures, mouvements, stocks et produits seront supprimés pour cette entreprise. Opération irréversible. Continuer ?' : 'Dernière confirmation : cette suppression est définitive. Continuer ?')) {
             event.preventDefault();
         }
     });

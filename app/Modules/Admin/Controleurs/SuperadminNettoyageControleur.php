@@ -53,9 +53,9 @@ class SuperadminNettoyageControleur
     {
         $request->validate([
             'entreprise_id' => ['required', 'integer', 'exists:entreprises,id'],
-            'cible' => ['required', 'in:ventes,avoirs,achats,points_de_vente'],
-            'etat' => ['required', 'in:actifs,archives,tous,ouverts,fermes'],
-            'action' => ['required', 'in:archiver,restaurer,purger,fermer,ouvrir,supprimer'],
+            'cible' => ['required', 'in:ventes,avoirs,achats,points_de_vente,tout'],
+            'etat' => ['nullable', 'in:actifs,archives,tous,ouverts,fermes'],
+            'action' => ['required', 'in:archiver,restaurer,purger,purge_total,fermer,ouvrir,supprimer'],
             'confirmation' => ['required', 'string', 'max:150'],
             'confirmer' => ['accepted'],
         ]);
@@ -66,6 +66,20 @@ class SuperadminNettoyageControleur
 
         $cible = $request->string('cible')->toString();
         $action = $request->string('action')->toString();
+
+        if ($cible === 'tout') {
+            abort_unless($action === 'purge_total', 422, 'Seule la purge totale est autorisée pour cette catégorie.');
+            $effaces = $this->purgerTotalement($entreprise);
+            $nombre = array_sum($effaces);
+            $this->journaliser('purge_totale_entreprise_test', 'Entreprise', $entreprise->id, null, [
+                'tables' => $effaces, 'total_lignes' => $nombre,
+            ]);
+            return redirect()->route('superadmin.nettoyage.index')->with(
+                'succes',
+                'Purge totale terminée : ' . number_format($nombre, 0, ',', ' ') .
+                ' ligne(s) supprimée(s). Entreprise, paramètres, utilisateurs, clients, fournisseurs, catégories et points de vente conservés.'
+            );
+        }
         $actionsDocuments = ['archiver', 'restaurer', 'purger'];
         $actionsSites = ['fermer', 'ouvrir', 'supprimer'];
         abort_unless(
@@ -162,6 +176,97 @@ class SuperadminNettoyageControleur
         }
 
         return redirect()->route('superadmin.nettoyage.index')->with('succes', $message);
+    }
+
+
+    /**
+     * Supprime les données opérationnelles et le catalogue d'une entreprise de test.
+     * Les données de configuration et les tiers sont conservés.
+     */
+    private function purgerTotalement(Entreprise $entreprise): array
+    {
+        $entrepriseId = $entreprise->id;
+        $siteIds = PointDeVente::where('entreprise_id', $entrepriseId)->pluck('id')->all();
+
+        return DB::transaction(function () use ($entrepriseId, $siteIds) {
+            return Schema::withoutForeignKeyConstraints(function () use ($entrepriseId, $siteIds) {
+                $effaces = [];
+                $deleteIds = function (string $table, string $column, array $ids) use (&$effaces): void {
+                    if ($ids !== [] && Schema::hasTable($table) && Schema::hasColumn($table, $column)) {
+                        $effaces[$table] = ($effaces[$table] ?? 0) + DB::table($table)->whereIn($column, $ids)->delete();
+                    }
+                };
+                $deleteScoped = function (string $table) use ($entrepriseId, $siteIds, &$effaces): void {
+                    if (!Schema::hasTable($table)) return;
+                    $hasEntreprise = Schema::hasColumn($table, 'entreprise_id');
+                    $hasSite = Schema::hasColumn($table, 'point_de_vente_id');
+                    if (!$hasEntreprise && !$hasSite) return;
+                    $effaces[$table] = DB::table($table)->where(function ($q) use ($entrepriseId, $siteIds, $hasEntreprise, $hasSite) {
+                        if ($hasEntreprise) $q->where('entreprise_id', $entrepriseId);
+                        if ($hasSite && $siteIds !== []) {
+                            $hasEntreprise ? $q->orWhereIn('point_de_vente_id', $siteIds) : $q->whereIn('point_de_vente_id', $siteIds);
+                        }
+                    })->delete();
+                };
+
+                $venteIds = Schema::hasTable('ventes')
+                    ? DB::table('ventes')->whereIn('point_de_vente_id', $siteIds)->pluck('id')->all() : [];
+                $achatIds = Schema::hasTable('achats')
+                    ? DB::table('achats')->whereIn('point_de_vente_id', $siteIds)->pluck('id')->all() : [];
+                $blIds = Schema::hasTable('bons_livraison')
+                    ? DB::table('bons_livraison')->whereIn('point_de_vente_id', $siteIds)->pluck('id')->all() : [];
+                $mouvementIds = Schema::hasTable('mouvements_stock')
+                    ? DB::table('mouvements_stock')->whereIn('point_de_vente_id', $siteIds)->pluck('id')->all() : [];
+                $ficheIds = Schema::hasTable('fiches_techniques')
+                    ? DB::table('fiches_techniques')->where('entreprise_id', $entrepriseId)->pluck('id')->all() : [];
+                $ordreIds = Schema::hasTable('ordres_production')
+                    ? DB::table('ordres_production')->where('entreprise_id', $entrepriseId)->pluck('id')->all() : [];
+                $immoIds = Schema::hasTable('immobilisations')
+                    ? DB::table('immobilisations')->where('entreprise_id', $entrepriseId)->pluck('id')->all() : [];
+
+                // Lignes et dépendances des documents.
+                $venteDetailIds = Schema::hasTable('vente_details')
+                    ? DB::table('vente_details')->whereIn('vente_id', $venteIds)->pluck('id')->all() : [];
+                $deleteIds('vente_detail_taxes', 'vente_detail_id', $venteDetailIds);
+                $deleteIds('vente_taxes', 'vente_id', $venteIds);
+                $deleteIds('vente_details', 'vente_id', $venteIds);
+                $deleteIds('achat_details', 'achat_id', $achatIds);
+                $deleteIds('bon_livraison_details', 'bon_livraison_id', $blIds);
+                $deleteIds('mouvement_lots', 'mouvement_stock_id', $mouvementIds);
+                $deleteIds('fiche_technique_details', 'fiche_technique_id', $ficheIds);
+                $deleteIds('ordre_production_lignes', 'ordre_production_id', $ordreIds);
+                $deleteIds('dotations_amortissement', 'immobilisation_id', $immoIds);
+
+                // Paiements liés aux ventes et achats : gérer les deux conventions
+                // de nommage rencontrées dans les versions du schéma.
+                foreach (['vente_paiements', 'paiements_ventes'] as $table) $deleteScoped($table);
+                foreach (['achat_paiements', 'paiements_achats'] as $table) $deleteScoped($table);
+
+                // Données opérationnelles avec rattachement direct à l'entreprise/site.
+                foreach ([
+                    'bons_livraison', 'ventes', 'achats', 'ecritures_comptables',
+                    'operations', 'lettrages', 'tresorerie_journal', 'mouvements_stock',
+                    'mouvement_lots', 'lots', 'stocks', 'transferts_stock',
+                    'ordres_production', 'fiches_techniques', 'immobilisations',
+                    'dotations_amortissement', 'consignations', 'fne_rejets',
+                    'portail_fne_factures_recues', 'portail_fne_facture_recues_lignes',
+                ] as $table) $deleteScoped($table);
+
+                // Discussions B2B où l'entreprise est l'une des deux parties.
+                if (Schema::hasTable('b2b_negotiations')) {
+                    $effaces['b2b_negotiations'] = DB::table('b2b_negotiations')
+                        ->where('entreprise_client_id', $entrepriseId)
+                        ->orWhere('entreprise_fournisseur_id', $entrepriseId)->delete();
+                }
+
+                // Catalogue produits, sans toucher aux catégories et paramètres.
+                if (Schema::hasTable('produits') && Schema::hasColumn('produits', 'entreprise_id')) {
+                    $effaces['produits'] = DB::table('produits')->where('entreprise_id', $entrepriseId)->delete();
+                }
+
+                return $effaces;
+            });
+        });
     }
 
     private function piecePeutEtrePurgee(Vente|Achat $piece): bool
