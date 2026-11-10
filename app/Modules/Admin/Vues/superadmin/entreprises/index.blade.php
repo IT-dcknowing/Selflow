@@ -42,7 +42,9 @@
                     <td>
                         <div style="font-weight: 700; color: var(--text); font-size: 14px; display: flex; align-items: center; gap: 8px;">
                             {{ $ent->nom }}
-                            @if($ent->statut === 'bloque')
+                            @if($ent->statut === 'en_attente')
+                                <span class="badge" style="font-size:10px;padding:2px 6px;background:#fef3c7;color:#92400e;border:1px solid #fbbf24;font-weight:700;border-radius:4px;">En attente de validation</span>
+                            @elseif($ent->statut === 'bloque')
                                 <span class="badge" style="font-size: 10px; padding: 2px 6px; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; font-weight: 700; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;"><i class="fas fa-lock"></i> Suspendue</span>
                             @endif
                         </div>
@@ -130,6 +132,16 @@
                                 <i class="fas fa-route"></i> Parcours
                             </a>
                             @endunless
+                            @if($ent->statut === 'en_attente')
+                            <form method="POST" action="{{ route('superadmin.entreprises.valider_inscription', $ent) }}" style="margin:0;display:inline;">
+                                @csrf
+                                <button type="submit" class="btn btn-success btn-sm" style="padding:4px 8px;font-size:12px;" onclick="return confirm('Valider cette inscription ?')"><i class="fas fa-check"></i> Valider</button>
+                            </form>
+                            <form method="POST" action="{{ route('superadmin.entreprises.refuser_inscription', $ent) }}" style="margin:0;display:inline;">
+                                @csrf
+                                <button type="submit" class="btn btn-outline btn-sm" style="padding:4px 8px;font-size:12px;" onclick="return confirm('Refuser cette inscription ?')"><i class="fas fa-ban"></i> Refuser</button>
+                            </form>
+                            @else
                             <form method="POST" action="{{ route('superadmin.entreprises.toggle_status', $ent) }}" style="margin: 0; display: inline;">
                                 @csrf
                                 <button type="submit" class="btn btn-sm" style="padding: 4px 8px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; background: {{ $ent->statut === 'bloque' ? '#d1fae5' : '#fef3c7' }}; color: {{ $ent->statut === 'bloque' ? '#065f46' : '#92400e' }}; border: 1px solid {{ $ent->statut === 'bloque' ? '#34d399' : '#fbbf24' }}; border-radius: 6px; cursor: pointer;">
@@ -140,6 +152,7 @@
                                     @endif
                                 </button>
                             </form>
+                            @endif
                             <form method="POST" action="{{ route('superadmin.entreprises.supprimer', $ent) }}" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer définitivement l\'entreprise « {{ $ent->nom }} » et toutes ses données : utilisateurs, points de vente, factures, stock, écritures ? Cette action est définitive.')" style="margin: 0; display: inline;">
                                 @csrf
                                 @method('DELETE')
