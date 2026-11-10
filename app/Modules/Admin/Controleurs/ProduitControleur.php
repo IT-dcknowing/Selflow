@@ -170,9 +170,14 @@ class ProduitControleur
         }
 
         $pdvs = $entreprise->pointsDeVente;
-        $defaultPdvId = session('point_de_vente_actif_id') 
-            ?? auth()->user()->point_de_vente_id 
+        $defaultPdvId = session('point_de_vente_actif_id')
+            ?? auth()->user()->point_de_vente_id
             ?? ($pdvs->first()->id ?? null);
+        $sitesCategorie = $categorieId
+            ? \\App\\Modules\\Admin\\Modeles\\Categorie::where('entreprise_id', $entreprise->id)
+                ->find($categorieId)?->pointsDeVente()->pluck('points_de_vente.id')->all() ?? []
+            : [];
+        $sitesReferences = $sitesCategorie !== [] ? $sitesCategorie : array_filter([$defaultPdvId]);
 
         /*
          * La fiche s'ouvre à zéro partout, et la quantité de départ entre par
@@ -194,7 +199,7 @@ class ProduitControleur
                 'stock_maximum'       => 100,
                 // Référencé sur le site où on le crée, et non sur tous
                 // (20/10/2026). Sans site actif, partout, comme avant.
-                'reference'           => $defaultPdvId ? $isDefault : true,
+                'reference'           => in_array((int) $pdv->id, array_map('intval', $sitesReferences), true),
             ]);
         }
 
