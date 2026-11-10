@@ -374,7 +374,7 @@
             // pour un cabinet comptable, dont tous les articles sont des
             // missions, elle serait une colonne de tirets.
             $avecStock = $siteDuStock && $articles->contains(fn ($a) => $a->estStockable());
-            $colonnes  = $avecStock ? 6 : 5;
+            $colonnes  = $avecStock ? 7 : 6;
         @endphp
 
         <div class="sous-tete">
@@ -393,14 +393,14 @@
             <table class="tableau-prix">
                 <thead>
                     <tr><th>Référence</th><th>Article</th><th>Catégorie</th><th>Point de vente</th>
-                        <th style="width:130px;">Prix d'achat</th><th style="width:130px;">Prix de vente</th>
+                        <th style="width:130px;">Prix d'achat</th><th style="width:130px;">Prix de vente</th><th style="width:48px;"></th>
                         @if($avecStock)<th style="width:130px;">Stock de départ</th>@endif
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($articles as $i => $article)
                     <tr>
-                        <td><span class="cpt">{{ $article->reference }}</span></td>
+                        <td><span class="cpt" data-reference>{{ $article->reference }}</span></td>
                         <td>
                             <input type="hidden" name="articles[{{ $i }}][id]" value="{{ $article->id }}">
                             <input type="text" name="articles[{{ $i }}][nom]" value="{{ $article->nom }}" maxlength="255">
@@ -431,6 +431,7 @@
                 </tbody>
             </table>
         </div>
+        <button type="button" class="btn btn-outline" id="ajouter-article"><i class="fas fa-plus"></i> Ajouter un article</button>
     @endif
 
     <div class="pieds">
@@ -549,5 +550,49 @@ window.addEventListener('pageshow', function () {
     var form = document.getElementById('form-souscription');
     if (form) { delete form.dataset.envoye; }
 });
+
+// Ajout/retrait des articles du catalogue pendant la souscription.
+(function () {
+    var table=document.querySelector('.tableau-prix tbody');
+    var bouton=document.getElementById('ajouter-article');
+    if(!table||!bouton)return;
+    var index=table.querySelectorAll('tr').length;
+    var types=@json(\\App\\Modules\\Admin\\Modeles\\Produit::TYPES);
+    var sites=@json($pointsDeVente->map(fn($site)=>['id'=>$site->id,'nom'=>$site->nom])->values());
+    var avecStock=@json((bool) $avecStock);
+    function prefixe(nom){return (nom||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^A-Za-z0-9]/g,'').toUpperCase().slice(0,8)||'CAT';}
+    function majReference(ligne){
+        var cat=ligne.querySelector('[name$="[categorie_nom]"]');
+        var ref=ligne.querySelector('[data-reference]');
+        if(!cat||!ref)return;
+        var numero=(ref.textContent.match(/(\\d{3,5})$/)||[])[1]||'00001';
+        ref.textContent=prefixe(cat.value)+'-'+numero.padStart(5,'0');
+    }
+    table.addEventListener('input',function(e){if(e.target.name&&e.target.name.endsWith('[categorie_nom]'))majReference(e.target.closest('tr'));});
+    table.addEventListener('change',function(e){if(e.target.name&&e.target.name.endsWith('[categorie_nom]'))majReference(e.target.closest('tr'));});
+    table.addEventListener('click',function(e){
+        var del=e.target.closest('[data-retirer-article]');if(!del)return;
+        var row=del.closest('tr');var id=row.querySelector('input[name$="[id]"]');
+        if(id){var hidden=document.createElement('input');hidden.type='hidden';hidden.name='articles_supprimer[]';hidden.value=id.value;document.getElementById('form-souscription').appendChild(hidden);}
+        row.remove();
+    });
+    bouton.addEventListener('click',function(){
+        var i=index++;
+        var tr=document.createElement('tr');
+        var siteOptions='<option value="">Tous</option>'+sites.map(s=>'<option value="'+s.id+'">'+String(s.nom).replace(/[&<>"']/g,'')+'</option>').join('');
+        var typeOptions=Object.entries(types).map(([k,label])=>'<option value="'+k+'">'+label+'</option>').join('');
+        tr.innerHTML='<td><span class="cpt" data-reference>CAT-00001</span></td>'+
+          '<td><input required type="text" name="articles['+i+'][nom]" maxlength="255" placeholder="Nom de l’article"><input type="hidden" name="articles['+i+'][nouveau]" value="1"><input type="hidden" name="articles['+i+'][type]" value="marchandise"></td>'+
+          '<td><input required type="text" name="articles['+i+'][categorie_nom]" maxlength="120" placeholder="Catégorie"></td>'+
+          '<td><select name="articles['+i+'][point_de_vente_id]" class="form-control">'+siteOptions+'</select></td>'+
+          '<td><input type="number" name="articles['+i+'][prix_achat]" min="0" step="1"></td>'+
+          '<td><input type="number" name="articles['+i+'][prix_vente]" min="0" step="1"></td>'+
+          '<td><button type="button" class="btn btn-outline-danger" data-retirer-article title="Retirer cette ligne"><i class="fas fa-trash"></i></button></td>';
+        var type=document.createElement('select');type.className='form-control';type.name='articles['+i+'][type]';type.innerHTML=typeOptions;
+        tr.querySelector('input[name="articles['+i+'][type]"]').replaceWith(type);
+        if(avecStock){var td=document.createElement('td');td.innerHTML='<input type="number" name="articles['+i+'][stock_initial]" min="0" step="1" placeholder="0">';tr.insertBefore(td,tr.lastElementChild);}
+        table.appendChild(tr);
+    });
+})();
 </script>
 @endsection
