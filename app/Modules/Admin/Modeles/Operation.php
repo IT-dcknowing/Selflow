@@ -75,9 +75,16 @@ class Operation extends Model
             // l'opération portant le plus grand numéro de saisie : imports,
             // reprises et écritures historiques peuvent rompre cet ordre.
             // On calcule donc le maximum numérique réellement utilisé.
+            // Lecture verrouillée (current read InnoDB), pas une lecture
+            // cohérente issue du snapshot de la transaction appelante.
+            // Une vente peut créer plusieurs mouvements dans la même transaction ;
+            // une transaction concurrente peut aussi avoir commencé avant que le
+            // verrou entreprise soit libéré. Sans current read, elle relit un MAX
+            // périmé après l'attente et réutilise le numéro déjà inséré.
             $dernierNumero = self::where('entreprise_id', $entrepriseId)
-                ->selectRaw('MAX(CAST(numero_saisie AS UNSIGNED)) as dernier_numero')
-                ->value('dernier_numero');
+                ->orderByRaw('CAST(numero_saisie AS UNSIGNED) DESC')
+                ->lockForUpdate()
+                ->value('numero_saisie');
 
             $prochainNum = ((int) ($dernierNumero ?? 0)) + 1;
 
