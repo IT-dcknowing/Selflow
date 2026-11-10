@@ -10,9 +10,6 @@ use App\Modules\Admin\Modeles\PointDeVente;
 use App\Modules\Admin\Modeles\TresorerieJournal;
 use App\Modules\Admin\Modeles\Vente;
 use App\Modules\Admin\Modeles\VenteDetail;
-use App\Modules\Admin\Modeles\VenteDetailTaxe;
-use App\Modules\Admin\Modeles\VenteTaxe;
-use App\Modules\Authentification\Modeles\Utilisateur;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -127,7 +124,7 @@ class SuperadminNettoyageControleur
             $traites = 0;
             $refuses = 0;
             foreach ($requete->get() as $piece) {
-                if (!$this->piecePeutEtrePurgee($piece, $cible)) {
+                if (!$this->piecePeutEtrePurgee($piece)) {
                     $refuses++;
                     continue;
                 }
@@ -167,16 +164,22 @@ class SuperadminNettoyageControleur
         return redirect()->route('superadmin.nettoyage.index')->with('succes', $message);
     }
 
-    private function piecePeutEtrePurgee(Vente|Achat $piece, string $cible): bool
+    private function piecePeutEtrePurgee(Vente|Achat $piece): bool
     {
         if ((bool) $piece->normalise || filled($piece->numero_fne) || filled($piece->signature_dgi)) {
             return false;
         }
 
         $reference = (string) $piece->numero_facture;
+        $morph = $piece->getMorphClass();
+        $mouvementExiste = MouvementStock::where(function ($q) use ($reference, $morph, $piece) {
+            $q->where('reference_document', $reference)
+                ->orWhere(fn ($m) => $m->where('piece_type', $morph)->where('piece_id', $piece->id));
+        })->exists();
+
         if (Operation::where('reference_document', $reference)->exists()
             || TresorerieJournal::where('reference_document', $reference)->exists()
-            || MouvementStock::where('reference_document', $reference)->exists()) {
+            || $mouvementExiste) {
             return false;
         }
 

@@ -52,6 +52,15 @@ class SuperadminNettoyageTest extends TestCase
         ], $extra));
     }
 
+    public function test_la_page_de_nettoyage_est_accessible_au_superadmin(): void
+    {
+        $this->get(route('superadmin.nettoyage.index'))
+            ->assertOk()
+            ->assertSee('Nettoyage des données')
+            ->assertSee('Achats de produits')
+            ->assertSee('Factures d\'avoir');
+    }
+
     public function test_le_superadmin_peut_archiver_les_ventes_d_une_seule_entreprise(): void
     {
         $venteCible = $this->vente();
