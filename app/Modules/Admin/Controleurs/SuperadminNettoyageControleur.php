@@ -1,27 +1,27 @@
 <?php
 
-namespace App\\Modules\\Admin\\Controleurs;
+namespace App\Modules\Admin\Controleurs;
 
-use App\\Modules\\Admin\\Modeles\\Achat;
-use App\\Modules\\Admin\\Modeles\\Entreprise;
-use App\\Modules\\Admin\\Modeles\\MouvementStock;
-use App\\Modules\\Admin\\Modeles\\Operation;
-use App\\Modules\\Admin\\Modeles\\PointDeVente;
-use App\\Modules\\Admin\\Modeles\\TresorerieJournal;
-use App\\Modules\\Admin\\Modeles\\Vente;
-use App\\Modules\\Admin\\Modeles\\VenteDetail;
-use App\\Modules\\Admin\\Modeles\\VenteDetailTaxe;
-use App\\Modules\\Admin\\Modeles\\VenteTaxe;
-use App\\Modules\\Authentification\\Modeles\\Utilisateur;
-use Illuminate\\Http\\RedirectResponse;
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Schema;
-use Illuminate\\View\\View;
+use App\Modules\Admin\Modeles\Achat;
+use App\Modules\Admin\Modeles\Entreprise;
+use App\Modules\Admin\Modeles\MouvementStock;
+use App\Modules\Admin\Modeles\Operation;
+use App\Modules\Admin\Modeles\PointDeVente;
+use App\Modules\Admin\Modeles\TresorerieJournal;
+use App\Modules\Admin\Modeles\Vente;
+use App\Modules\Admin\Modeles\VenteDetail;
+use App\Modules\Admin\Modeles\VenteDetailTaxe;
+use App\Modules\Admin\Modeles\VenteTaxe;
+use App\Modules\Authentification\Modeles\Utilisateur;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\View\View;
 
 class SuperadminNettoyageControleur
 {
-    use \\App\\Modules\\Admin\\Traits\\JournaliseActions;
+    use \App\Modules\Admin\Traits\JournaliseActions;
 
     public function index(): View
     {

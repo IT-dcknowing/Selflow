@@ -1,14 +1,14 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Modules\\Admin\\Modeles\\Entreprise;
-use App\\Modules\\Admin\\Modeles\\PointDeVente;
-use App\\Modules\\Admin\\Modeles\\Vente;
-use App\\Modules\\Authentification\\Modeles\\Utilisateur;
-use App\\Modules\\Authentification\\Regles\\Habilitations;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Tests\\TestCase;
+use App\Modules\Admin\Modeles\Entreprise;
+use App\Modules\Admin\Modeles\PointDeVente;
+use App\Modules\Admin\Modeles\Vente;
+use App\Modules\Authentification\Modeles\Utilisateur;
+use App\Modules\Authentification\Regles\Habilitations;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class SuperadminNettoyageTest extends TestCase
 {
