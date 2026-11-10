@@ -479,6 +479,12 @@
                             @endforeach
                         </select>
                     </div>
+                    <div class="form-group" data-pas="2">
+                        <label class="form-label" for="dateVente">Date d'établissement de la facture <span style="color:var(--danger)">*</span></label>
+                        <input type="date" name="date_vente" id="dateVente" class="form-control"
+                               value="{{ old('date_vente', now()->toDateString()) }}" required>
+                        <small style="color:var(--text-3); font-size:11px;">Cette date sera reprise dans les écritures comptables. La date d'enregistrement reste automatique.</small>
+                    </div>
 
                     {{-- Lot G : Sélecteur du type de document --}}
                     <input type="hidden" name="etape" id="etapeInput" value="Facture">

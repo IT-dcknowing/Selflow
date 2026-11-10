@@ -98,6 +98,9 @@ class VenteControleur
             'articles.*.prix_unitaire' => ['nullable', 'numeric', 'min:0'],
             'articles.*.tva' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'type_piece' => ['nullable', 'string', 'in:facture,recu'],
+            // La date de la pièce commande aussi la période comptable ;
+            // created_at reste l'horodatage de saisie dans la plateforme.
+            'date_vente' => ['required', 'date'],
             // Un terme dans le passé ne serait pas une offre, mais une offre
             // déjà caduque au moment où on la remet au client.
             'date_validite' => ['nullable', 'date', 'after_or_equal:today'],
@@ -317,7 +320,7 @@ class VenteControleur
                 'point_de_vente_id' => $pointDeVenteId,
                 'client_id' => $request->client_id ?: null,
                 'numero_facture' => $numero,
-                'date_vente' => now()->toDateString(),
+                'date_vente' => $request->date('date_vente')->toDateString(),
                 // Un devis sans terme engage indéfiniment celui qui l'a fait :
                 // il reste présentable des mois plus tard, aux prix du jour où
                 // il a été établi. Une facture, elle, n'expire pas.
@@ -460,7 +463,7 @@ class VenteControleur
                     $vente,
                     $statutVente === 'Crédit' ? 0 : $montantPaye,
                     $modePaiementFinal,
-                    now()->toDateString(),
+                    $vente->date_vente->toDateString(),
                     $request->mode_paiement === 'Banque' ? $request->moyen_bancaire : null,
                     $request->mode_paiement === 'Banque' ? $request->reference_paiement : null
                 );
@@ -471,7 +474,7 @@ class VenteControleur
 
                     TresorerieJournal::create([
                         'point_de_vente_id' => $pointDeVenteId,
-                        'date_operation' => now()->toDateString(),
+                        'date_operation' => $vente->date_vente->toDateString(),
                         'type_operation' => 'Encaissement',
                         'libelle' => \App\Modules\Admin\Services\ComptabiliteService::libelleTresorerieVente($vente),
                         'mode_paiement' => $modePaiementFinal,
@@ -491,7 +494,7 @@ class VenteControleur
 
                     TresorerieJournal::create([
                         'point_de_vente_id' => $pointDeVenteId,
-                        'date_operation' => now()->toDateString(),
+                        'date_operation' => $vente->date_vente->toDateString(),
                         'type_operation' => 'Encaissement',
                         'libelle' => 'Acompte Vente — Devis ' . $numero,
                         'mode_paiement' => $modePaiementFinal,
@@ -957,6 +960,9 @@ class VenteControleur
             'articles.*.prix_unitaire' => ['nullable', 'numeric', 'min:0'],
             'articles.*.tva' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'type_piece' => ['nullable', 'string', 'in:facture,recu'],
+            // La date de la pièce commande aussi la période comptable ;
+            // created_at reste l'horodatage de saisie dans la plateforme.
+            'date_vente' => ['required', 'date'],
             // Un terme dans le passé ne serait pas une offre, mais une offre
             // déjà caduque au moment où on la remet au client.
             'date_validite' => ['nullable', 'date', 'after_or_equal:today'],
@@ -1090,6 +1096,7 @@ class VenteControleur
                 'remise_taux' => $remiseTaux,
                 'montant_ttc' => $montantTtc,
                 'statut' => $statutVente,
+                'date_vente' => $request->date('date_vente')->toDateString(),
                 'type_piece' => $request->input('type_piece') === Vente::TYPE_RECU
                     ? Vente::TYPE_RECU
                     : $vente->type_piece,
@@ -1175,7 +1182,7 @@ class VenteControleur
 
                 TresorerieJournal::create([
                     'point_de_vente_id' => $pointDeVenteId,
-                    'date_operation' => now()->toDateString(),
+                    'date_operation' => $vente->date_vente->toDateString(),
                     'type_operation' => 'Encaissement',
                     'libelle' => 'Modification Vente — Facture ' . $vente->numero_facture,
                     'mode_paiement' => $modePaiementFinal,
@@ -1200,7 +1207,7 @@ class VenteControleur
                     $vente->fresh(),
                     $statutVente === 'Crédit' ? 0 : $montantPaye,
                     $modePaiementFinal,
-                    null, // la date de la facture, non celle de la correction
+                    $vente->fresh()->date_vente->toDateString(), // date de la pièce, non celle de la correction
                     $request->mode_paiement === 'Banque' ? $request->moyen_bancaire : null,
                     $request->mode_paiement === 'Banque' ? $request->reference_paiement : null
                 );

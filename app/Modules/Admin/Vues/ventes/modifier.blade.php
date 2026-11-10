@@ -328,6 +328,12 @@
                             @endforeach
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label class="form-label" for="dateVente">Date d'établissement de la facture <span style="color:var(--danger)">*</span></label>
+                        <input type="date" name="date_vente" id="dateVente" class="form-control"
+                               value="{{ old('date_vente', $vente->date_vente?->toDateString() ?? now()->toDateString()) }}" required>
+                        <small style="color:var(--text-3); font-size:11px;">La date choisie sera reprise en comptabilité. La date d'enregistrement reste inchangée.</small>
+                    </div>
 
                     {{-- Mode de paiement style buttons --}}
                     <input type="hidden" name="mode_paiement" id="modePaiementInput" value="{{ $modeSimple }}">

@@ -347,7 +347,8 @@
                         @else N° Facture
                         @endif
                     </th>
-                    <th style="white-space: nowrap;">Date</th>
+                    <th style="white-space: nowrap;">Date facture</th>
+                    <th style="white-space: nowrap;">Date d’enregistrement</th>
                     <th style="white-space: nowrap;">Client</th>
                     <th style="white-space: nowrap;">Point de vente</th>
                     <th style="white-space: nowrap;">HT</th>
@@ -398,7 +399,8 @@
                     </td>
                     @endif
                     <td style="font-weight:700; color:var(--primary); white-space: nowrap;">{{ $vente->numero_facture }}</td>
-                    <td style="white-space: nowrap;">{{ \Carbon\Carbon::parse($vente->date_vente)->format('d/m/Y') }}</td>
+                    <td style="white-space: nowrap;">{{ $vente->date_vente?->format('d/m/Y') ?? '—' }}</td>
+                    <td style="white-space: nowrap;" title="Date et heure de création dans Selflow">{{ $vente->created_at?->format('d/m/Y H:i') ?? '—' }}</td>
                     <td style="white-space: nowrap;">{{ $vente->client?->nom ?? '— Passage —' }}</td>
                     <td style="font-weight:500; color:var(--text-2); white-space: nowrap;"><i class="fas fa-store" style="font-size:11px; margin-right:4px;"></i>{{ $vente->pointDeVente->nom }}</td>
                     @php

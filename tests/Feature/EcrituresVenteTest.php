@@ -225,6 +225,24 @@ class EcrituresVenteTest extends TestCase
         }
     }
 
+    public function test_la_date_de_facture_est_reprise_dans_les_operations_comptables(): void
+    {
+        $vente = $this->vente([
+            ['produit' => $this->riz, 'quantite' => 1, 'prix' => 20000, 'tva' => 3600],
+        ], ['date_vente' => '2026-08-21']);
+
+        ComptabiliteService::genererEcrituresVente(
+            $vente,
+            $vente->net_a_payer,
+            'especes',
+            $vente->date_vente->toDateString()
+        );
+
+        $facturation = $this->operations($vente)->first();
+        $this->assertSame('2026-08-21', $facturation->date_operation->toDateString());
+        $this->assertSame('2026-08-21', $this->ecrituresDe($facturation)->first()->date_ecriture->toDateString());
+    }
+
     public function test_une_vente_a_credit_n_ecrit_aucun_reglement(): void
     {
         $vente = $this->vente([
