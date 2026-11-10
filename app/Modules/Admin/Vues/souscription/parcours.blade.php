@@ -524,37 +524,44 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
 // quittée, drapeau « déjà envoyé » compris : revenu à l'étape 1, le clic sur
 // le domaine ne menait plus nulle part (retest du 14/10/2026). La page
 // rendue par le cache repart de zéro.
-// Ajout/retrait de catégories dans l'étape 4, sans quitter le formulaire.
+// Création simple de catégories à l'étape 4.
 (function () {
-    var bouton = document.getElementById('ajouter-categorie');
-    var zone = document.getElementById('nouvelles-categories');
-    if (!bouton || !zone) return;
-    var index = 0;
-    bouton.addEventListener('click', function () {
-        var ligne = document.createElement('div');
-        ligne.className = 'ligne';
-        ligne.style.display = 'block';
-        ligne.setAttribute('data-ligne-categorie', '');
-        ligne.innerHTML = '<div style="display:grid;grid-template-columns:minmax(160px,1.2fr) minmax(100px,.55fr) minmax(220px,1.3fr) auto;gap:10px;align-items:end;">' +
-            '<div><label class="form-label">Nouvelle catégorie <span class="badge-acquis">Créé</span></label><input required class="form-control" name="categories_personnalisees['+index+'][nom]" maxlength="120" placeholder="Nom de la catégorie"></div>' +
-            '<div><label class="form-label">Préfixe</label><input class="form-control" name="categories_personnalisees['+index+'][prefixe]" maxlength="12" placeholder="Ex. CAT"></div>' +
-            '<div><label class="form-label">Points de vente concernés</label><select required class="form-control" multiple size="3" name="categories_personnalisees['+index+'][points_de_vente][]">' +
-            "<option value=\"\">Chargement</option>" + '</select></div>' +
-            '<button type="button" class="btn btn-outline-danger" data-supprimer-ligne title="Supprimer"><i class="fas fa-trash"></i></button></div>';
-        // Les options des points de vente sont reprises de la première liste existante.
-        var source = document.getElementById('modele-points-de-vente');
-        var cible = ligne.querySelector('select');
-        if (source) cible.innerHTML = source.innerHTML;
-        zone.appendChild(ligne);
-        index++;
-    });
-    document.addEventListener('click', function (event) {
-        var boutonSupprimer = event.target.closest('[data-supprimer-ligne]');
-        if (!boutonSupprimer) return;
-        var ligne = boutonSupprimer.closest('[data-ligne-categorie]');
-        if (!ligne) return;
-        // Pour une ligne du référentiel, retirer aussi la famille de la soumission.
-        ligne.querySelectorAll('input[name="familles[]"]').forEach(function (champ) { champ.remove(); });
+    var bouton=document.getElementById('ajouter-categorie-simple');
+    var zone=document.getElementById('nouvelles-categories');
+    if(bouton&&zone){
+        var index=1;
+        bouton.addEventListener('click',function(){
+            var ligne=document.createElement('div');ligne.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px;';
+            var input=document.createElement('input');input.type='text';input.required=true;input.maxLength=120;input.name='categories_personnalisees['+index+'][nom]';input.className='form-control';input.placeholder='Nom de la catégorie';
+            var del=document.createElement('button');del.type='button';del.className='btn btn-outline-danger';del.setAttribute('data-retirer-saisie','');del.innerHTML='<i class="fas fa-trash"></i>';
+            ligne.appendChild(input);ligne.appendChild(del);zone.appendChild(ligne);index++;
+        });
+    }
+    document.addEventListener('click',function(e){var del=e.target.closest('[data-retirer-saisie]');if(del)del.parentElement.remove();});
+})();
+// Configuration des catégories et ajout/suppression de lignes à l'étape 5.
+(function(){
+    var bouton=document.getElementById('ajouter-categorie-config');
+    var zone=document.getElementById('categories-config-ajoutees');
+    var source=document.getElementById('modele-points-de-vente');
+    if(bouton&&zone){
+        var index=0;
+        bouton.addEventListener('click',function(){
+            var ligne=document.createElement('div');ligne.className='ligne';ligne.style.cssText='display:grid;grid-template-columns:minmax(150px,1fr) minmax(100px,.45fr) minmax(220px,1.2fr) auto;gap:10px;align-items:end;margin-bottom:10px;';
+            ligne.innerHTML='<div><label class="form-label">Catégorie</label><input required class="form-control" name="categories_nouvelles_config['+index+'][nom]" maxlength="120" placeholder="Nom de la catégorie"></div>'+
+                '<div><label class="form-label">Préfixe</label><input required class="form-control" name="categories_nouvelles_config['+index+'][prefixe]" maxlength="12" placeholder="Préfixe"></div>'+
+                '<div><label class="form-label">Points de vente concernés</label><select required class="form-control" multiple size="3" name="categories_nouvelles_config['+index+'][points_de_vente][]"></select></div>'+
+                '<button type="button" class="btn btn-outline-danger" data-retirer-saisie title="Retirer"><i class="fas fa-trash"></i></button>';
+            var select=ligne.querySelector('select');if(source)select.innerHTML=source.innerHTML;
+            zone.appendChild(ligne);index++;
+        });
+    }
+    document.addEventListener('click',function(e){
+        var del=e.target.closest('[data-supprimer-categorie-config]');
+        if(!del)return;
+        var ligne=del.closest('.ligne');if(!ligne)return;
+        var id=ligne.querySelector('[name^="categories_config["]')?.name.match(/categories_config\\[(\\d+)\\]/)?.[1];
+        if(id){var hidden=document.createElement('input');hidden.type='hidden';hidden.name='categories_a_supprimer[]';hidden.value=id;document.getElementById('form-souscription').appendChild(hidden);}
         ligne.remove();
     });
 })();
