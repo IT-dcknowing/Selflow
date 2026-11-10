@@ -200,7 +200,7 @@
                 </p>
             </div>
             <button type="button" id="btn-sync-fournisseurs" onclick="lancerSyncComptaflow()" class="btn btn-primary" style="font-weight:700; white-space:nowrap;">
-                <i class="fas fa-sync-alt" id="sync-icon-fournisseurs"></i> Synchroniser les tiers
+                <i class="fas fa-sync-alt" id="sync-icon-fournisseurs"></i> Actualiser depuis COMPTAFLOW
             </button>
         </div>
         <div id="sync-feedback-fournisseurs" style="display:none; margin-bottom: 16px; padding: 12px; border-radius: 6px; font-weight: 600; font-size: 13px;"></div>
@@ -210,7 +210,7 @@
                 @if($fournisseursComptaflow->isEmpty())
                 <div style="padding:48px; text-align:center; color:var(--text-3);">
                     <i class="fas fa-handshake" style="font-size:48px; display:block; margin-bottom:12px; opacity:.2;"></i>
-                    Aucun fournisseur COMPTAFLOW synchronisé. Cliquez sur <strong>Synchroniser les tiers</strong>.
+                    Aucun fournisseur reçu de COMPTAFLOW. Cliquez sur <strong>Actualiser depuis COMPTAFLOW</strong>.
                 </div>
                 @else
                 <table>
@@ -649,7 +649,7 @@ function lancerSyncComptaflow() {
 
     if (!btn) return;
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Synchronisation...';
+    btn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Lecture de COMPTAFLOW...';
 
     fetch("{{ route('admin.entreprise.comptaflow.sync_real') }}", {
         method: "POST",
@@ -658,12 +658,14 @@ function lancerSyncComptaflow() {
     .then(res => res.json())
     .then(data => {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Synchroniser les tiers';
+        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Actualiser depuis COMPTAFLOW';
         feedback.style.display = "block";
         if (data.success) {
             feedback.style.cssText = "background:#e6fffa; color:#319795; border:1px solid #b2f5ea; padding:12px; border-radius:6px; font-weight:600; font-size:13px;";
-            feedback.innerText = data.message;
-            setTimeout(() => { window.location.reload(); }, 1200);
+            feedback.style.whiteSpace = "pre-line";
+            const refus = Array.isArray(data.refus) ? data.refus : [];
+            feedback.innerText = (data.message || "Référentiel actualisé.") + (refus.length ? "\n\nÀ vérifier :\n" + refus.slice(0, 20).map((motif, i) => (i + 1) + ". " + motif).join("\n") : "");
+            if (!refus.length) setTimeout(() => { window.location.reload(); }, 1200);
         } else {
             feedback.style.cssText = "background:#fff5f5; color:#e53e3e; border:1px solid #fed7d7; padding:12px; border-radius:6px; font-weight:600; font-size:13px;";
             feedback.innerText = "Erreur : " + data.message;
@@ -671,7 +673,7 @@ function lancerSyncComptaflow() {
     })
     .catch(() => {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Synchroniser les tiers';
+        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Actualiser depuis COMPTAFLOW';
         feedback.style.display = "block";
         feedback.style.cssText = "background:#fff5f5; color:#e53e3e; border:1px solid #fed7d7; padding:12px; border-radius:6px; font-weight:600; font-size:13px;";
         feedback.innerText = "Erreur de connexion.";

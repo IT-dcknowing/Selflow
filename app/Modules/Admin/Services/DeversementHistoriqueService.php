@@ -9,33 +9,16 @@ use App\Modules\Admin\Modeles\Entreprise;
 use App\Modules\Admin\Modeles\Operation;
 
 /**
- * Envoyer chez Comptaflow ce que Selflow détient déjà.
+ * Envoyer chez Comptaflow les écritures comptables déjà produites par Selflow.
  *
- * ## Ce qui manquait
+ * Le plan comptable, les journaux et les tiers sont détenus par Comptaflow et
+ * sont reçus dans Selflow par RecevoirReferentielComptaflowService. Ce service
+ * ne transmet aucun référentiel : il ne remet en file que les opérations
+ * comptables non encore déversées.
  *
- * Le déversement ne partait que sur une écriture **nouvelle**. Une entreprise
- * qui tenait sa caisse depuis six mois avant d'être reliée gardait ses six
- * mois : rien, dans aucun écran, ne permettait de dire « envoie tout ce que
- * j'ai déjà ». Il fallait une ligne de commande, que le client n'a pas.
- *
- * ## L'ordre, et pourquoi il n'est pas négociable
- *
- * **Le référentiel d'abord.** Comptaflow refuse une écriture dont il ne
- * connaît pas le journal — et il a raison : un code inconnu rattrapé au hasard
- * mettrait une vente au journal de caisse. Envoyer les écritures avant le plan
- * comptable et les journaux, c'est les faire toutes refuser.
- *
- * **Puis les opérations, dans l'ordre où elles ont été passées.** Une opération
- * est un ensemble équilibré ; elle part d'un bloc, par
- * `DeverserOperationComptaflow`. Les envoyer dans le désordre ne casserait
- * rien — chacune est autonome — mais un journal lu dans l'ordre se relit.
- *
- * ## Ce que ce service ne fait pas
- *
- * Il ne renvoie pas ce qui est déjà passé : une opération dont toutes les
- * lignes portent `synced` est laissée tranquille. Et même s'il le faisait,
- * `cle_selflow` empêcherait le doublon côté Comptaflow. Les deux gardes valent
- * mieux qu'une.
+ * Une opération est un ensemble équilibré ; elle part d'un bloc, par
+ * DeverserOperationComptaflow. Les opérations déjà reçues restent protégées
+ * par leur clé d'idempotence.
  */
 class DeversementHistoriqueService
 {
@@ -52,19 +35,11 @@ class DeversementHistoriqueService
             ];
         }
 
-        // ── 1. Le référentiel ──
-        $referentiel = DeversementReferentielService::deverser($entreprise);
+        // Le référentiel appartient à Comptaflow et est reçu dans
+        // Selflow par RecevoirReferentielComptaflowService. Cette commande
+        // n'envoie que les opérations comptables.
+        // ── Les opérations qui n'ont pas encore abouti ──
 
-        if (!$referentiel['success']) {
-            return [
-                'success'    => false,
-                'message'    => "Le référentiel n'a pas pu être déversé, et sans lui chaque écriture serait refusée : "
-                    . $referentiel['message'],
-                'operations' => 0,
-            ];
-        }
-
-        // ── 2. Les opérations qui n'ont pas encore abouti ──
         // L'exercice en cours part sans rien demander ; un exercice antérieur
         // seulement s'il a été accordé (propriétaire, 08/10/2026).
         $aEnvoyer = self::nonDeversees($entreprise)
@@ -84,9 +59,9 @@ class DeversementHistoriqueService
             ->count();
 
         $message = $aEnvoyer->isEmpty()
-            ? "Le référentiel est à jour, et toutes les opérations étaient déjà déversées."
+            ? "Toutes les opérations étaient déjà déversées."
             : sprintf(
-                "Le référentiel est passé. %d opération(s) sont en cours de déversement ; le planificateur les envoie dans la minute.",
+                "%d opération(s) sont en cours de déversement ; le planificateur les envoie dans la minute.",
                 $aEnvoyer->count()
             );
 

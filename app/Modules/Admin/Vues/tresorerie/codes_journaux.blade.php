@@ -174,7 +174,7 @@
                 Votre application Selflow est reliée avec succès à <strong>COMPTAFLOW</strong>. Les codes journaux ci-dessous sont importés directement de COMPTAFLOW.
             </p>
             <button type="button" id="btn-sync-action" onclick="lancerSyncComptaflow()" class="btn btn-primary" style="font-weight: 700;">
-                <i class="fas fa-sync-alt" id="sync-icon"></i> Synchroniser avec COMPTAFLOW
+                <i class="fas fa-sync-alt" id="sync-icon"></i> Actualiser depuis COMPTAFLOW
             </button>
         </div>
 
@@ -185,7 +185,7 @@
                 @if($codesComptaflow->isEmpty())
                 <div style="padding:48px; text-align:center; color:var(--text-3);">
                     <i class="fas fa-sync" style="font-size:48px; display:block; margin-bottom:12px; opacity:.2;"></i>
-                    Aucun code journal COMPTAFLOW synchronisé. Cliquez sur le bouton ci-dessus pour synchroniser.
+                    Aucun code journal reçu de COMPTAFLOW. Cliquez sur le bouton ci-dessus pour synchroniser.
                 </div>
                 @else
                 <table>
@@ -354,7 +354,7 @@ function lancerSyncComptaflow() {
 
     btn.disabled = true;
     if (icon) icon.classList.add('fa-spin');
-    btn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Synchronisation en cours...';
+    btn.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> Lecture de COMPTAFLOW...';
 
     fetch("{{ route('admin.entreprise.comptaflow.sync_real') }}", {
         method: "POST",
@@ -367,17 +367,17 @@ function lancerSyncComptaflow() {
     .then(data => {
         btn.disabled = false;
         if (icon) icon.classList.remove('fa-spin');
-        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Synchroniser avec COMPTAFLOW';
+        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Actualiser depuis COMPTAFLOW';
         
         feedback.style.display = "block";
         if (data.success) {
             feedback.style.background = "#e6fffa";
             feedback.style.color = "#319795";
             feedback.style.border = "1px solid #b2f5ea";
-            feedback.innerText = data.message;
-            setTimeout(() => {
-                window.location.reload();
-            }, 1200);
+            feedback.style.whiteSpace = "pre-line";
+            const refus = Array.isArray(data.refus) ? data.refus : [];
+            feedback.innerText = (data.message || "Référentiel actualisé.") + (refus.length ? "\n\nÀ vérifier :\n" + refus.slice(0, 20).map((motif, i) => (i + 1) + ". " + motif).join("\n") : "");
+            if (!refus.length) setTimeout(() => { window.location.reload(); }, 1200);
         } else {
             feedback.style.background = "#fff5f5";
             feedback.style.color = "#e53e3e";
@@ -388,7 +388,7 @@ function lancerSyncComptaflow() {
     .catch(err => {
         btn.disabled = false;
         if (icon) icon.classList.remove('fa-spin');
-        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Synchroniser avec COMPTAFLOW';
+        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Actualiser depuis COMPTAFLOW';
         feedback.style.display = "block";
         feedback.style.background = "#fff5f5";
         feedback.style.color = "#e53e3e";

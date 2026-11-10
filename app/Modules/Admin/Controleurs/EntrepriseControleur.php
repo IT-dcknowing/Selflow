@@ -411,37 +411,31 @@ class EntrepriseControleur
     }
 
     /**
-     * Déverse le référentiel de l'entreprise dans COMPTAFLOW.
-     *
-     * L'écran parlait de « synchronisation », et l'appel tirait effectivement
-     * les données de Comptaflow pour écraser celles de Selflow. Le sens est
-     * rétabli : l'entreprise verse son plan comptable, ses journaux et ses
-     * tiers chez son comptable, comme elle y verserait un fichier d'import.
+     * Actualise dans Selflow le référentiel détenu par COMPTAFLOW.
+     * Seules les écritures partent de Selflow vers Comptaflow.
      */
     public function synchroniserComptaflow(Request $request): \Illuminate\Http\JsonResponse
     {
         $entreprise = Auth::user()->entreprise;
-        $result = \App\Modules\Admin\Services\DeversementReferentielService::deverser($entreprise);
+        $result = \App\Modules\Admin\Services\RecevoirReferentielComptaflowService::synchroniser($entreprise);
 
         if ($result['success']) {
             return response()->json([
                 'success' => true,
                 'message' => $result['message'],
+                'bilan' => $result['bilan'] ?? [],
+                'refus' => $result['refus'] ?? [],
                 'last_sync' => now()->format('d/m/Y \à H:i:s'),
             ]);
         }
 
-        return response()->json([
-            'success' => false,
-            'message' => $result['message'],
-        ]);
+        return response()->json(['success' => false, 'message' => $result['message']]);
     }
 
     /**
-     * Déverser chez Comptaflow tout ce que Selflow détient.
-     *
-     * Le référentiel d'abord — sans plan comptable ni journaux, chaque
-     * écriture serait refusée —, puis les opérations, d'un bloc chacune.
+     * Déverser chez Comptaflow les écritures comptables de Selflow.
+     * Le plan, les journaux et les tiers sont reçus depuis Comptaflow ;
+     * cette action ne transmet aucune donnée de référentiel.
      *
      * L'écran avertit avant d'appeler : **la configuration de Comptaflow
      * (modèle de plan, de tiers, de journaux) s'applique**, et c'est celle qui

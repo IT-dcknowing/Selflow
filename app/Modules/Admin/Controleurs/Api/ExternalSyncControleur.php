@@ -477,7 +477,7 @@ class ExternalSyncControleur
             'comptaflow_refus_motif'    => null,
         ])->save();
 
-        \App\Jobs\DeverserReferentielComptaflow::dispatch($entreprise->id);
+        \App\Jobs\RecevoirReferentielComptaflow::dispatch($entreprise->id);
 
         Log::info('Liaison Comptaflow : clé rangée à la demande de Comptaflow', [
             'entreprise_id' => $entreprise->id,
@@ -486,7 +486,7 @@ class ExternalSyncControleur
 
         return response()->json([
             'success' => true,
-            'message' => 'Clé rangée. Le référentiel part vers Comptaflow.',
+            'message' => 'Clé rangée. Le référentiel Comptaflow sera reçu dans Selflow.',
         ]);
     }
 

@@ -36,7 +36,7 @@ use Illuminate\Support\Facades\Mail;
  *    NCC, RCCM, régime — avant qu'un livre s'ouvre au nom de quelqu'un.
  * 3. À la validation, Selflow appelle Comptaflow avec le secret **serveur**.
  * 4. Comptaflow crée le dossier, **génère la clé**, la renvoie.
- * 5. Selflow la range chiffrée et déverse le référentiel dans la foulée.
+ * 5. Selflow la range chiffrée, puis reçoit le référentiel du dossier Comptaflow.
  * 6. L'entreprise lit « Liaison active ». Elle n'a rien manipulé.
  *
  * C'est Comptaflow qui génère, et non Selflow : la clé désigne un dossier
@@ -116,8 +116,8 @@ class LiaisonComptaflowService
      *   rien écraser chez Comptaflow ;
      * - `annees` : les exercices Selflow à déverser — les exercices antérieurs
      *   cochés sont accordés comme le serait une demande de l'entreprise ;
-     * - `deverser` : déverser l'historique maintenant, ou plus tard (depuis
-     *   les paramètres de l'entreprise). Le référentiel part toujours.
+     * - `deverser` : déverser les écritures historiques maintenant, ou plus tard
+     *   (depuis les paramètres de l'entreprise). Le référentiel Comptaflow est reçu à la liaison.
      *
      * @param  array{comptaflow_company_id?: ?int, annees?: array<int, int>, deverser?: bool, par?: ?int}  $options
      */
@@ -208,26 +208,34 @@ class LiaisonComptaflowService
             );
         }
 
-        // Déverser maintenant : l'historique part derrière le référentiel.
-        // Sinon le référentiel seul — sans plan comptable, sans journaux et
-        // sans tiers, la première écriture retomberait chez Comptaflow sur
-        // des comptes qu'il ne connaît pas.
-        $deversement = !empty($options['deverser'])
+        // Comptaflow détient le référentiel : Selflow le reçoit après
+        // l'ouverture de la liaison. Aucun compte, journal ou tiers Selflow
+        // n'est envoyé à Comptaflow.
+        $reception = RecevoirReferentielComptaflowService::synchroniser($entreprise->fresh());
+
+        // Cette option ne concerne que les écritures historiques.
+        $historique = !empty($options['deverser'])
             ? DeversementHistoriqueService::lancer($entreprise->fresh())
-            : DeversementReferentielService::deverser($entreprise->fresh());
+            : null;
 
         if ($cible === null) {
             self::prevenirLeTitulaire($entreprise->fresh());
         }
 
+        $message = ($cible !== null ? 'Liaison ouverte sur le dossier existant. ' : 'Liaison ouverte. ')
+            . ($reception['success']
+                ? $reception['message']
+                : 'La réception du référentiel Comptaflow reste à effectuer : ' . $reception['message']);
+
+        if ($historique !== null) {
+            $message .= ' ' . $historique['message'];
+        } else {
+            $message .= " Les écritures historiques seront déversées plus tard, depuis les paramètres de l'entreprise.";
+        }
+
         return [
             'success' => true,
-            'message' => ($cible !== null ? 'Liaison ouverte sur le dossier existant. ' : 'Liaison ouverte. ')
-                . ($deversement['success']
-                    ? $deversement['message']
-                    : 'Le référentiel n\'a pas suivi : ' . $deversement['message'])
-                . (empty($options['deverser']) ? " L'historique se déversera plus tard, depuis les paramètres de l'entreprise." : '')
-                . $note,
+            'message' => $message . $note,
         ];
     }
 

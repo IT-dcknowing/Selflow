@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Jobs\DeverserReferentielComptaflow;
+use App\Jobs\RecevoirReferentielComptaflow;
 use App\Modules\Admin\Modeles\Entreprise;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -14,7 +14,7 @@ use Tests\TestCase;
  * Comptaflow l'appelle depuis ses deux écrans de liaison, et **la route
  * n'existait pas chez Selflow** : 404 (Not Found — introuvable). Comptaflow
  * affichait « créé et lié avec succès », Selflow n'avait aucune clé à
- * présenter, et aucun déversement ne partait.
+ * présenter, et le référentiel de Comptaflow n'était pas reçu dans Selflow.
  */
 class LiaisonOuverteParComptaflowTest extends TestCase
 {
@@ -44,7 +44,7 @@ class LiaisonOuverteParComptaflowTest extends TestCase
         ], $corps));
     }
 
-    public function test_la_cle_est_rangee_chiffree_et_le_referentiel_part(): void
+    public function test_la_cle_est_rangee_chiffree_et_le_referentiel_sera_recu(): void
     {
         $this->lier()->assertOk()->assertJson(['success' => true]);
 
@@ -60,7 +60,7 @@ class LiaisonOuverteParComptaflowTest extends TestCase
             (string) \DB::table('entreprises')->where('id', $entreprise->id)->value('comptaflow_sync_key'));
 
         // Hors de la requête : Comptaflow attend encore la réponse.
-        Queue::assertPushed(DeverserReferentielComptaflow::class,
+        Queue::assertPushed(RecevoirReferentielComptaflow::class,
             fn ($job) => $job->entrepriseId === $entreprise->id);
     }
 
