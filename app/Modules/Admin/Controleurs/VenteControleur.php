@@ -93,6 +93,7 @@ class VenteControleur
             'articles' => ['required', 'array', 'min:1'],
             'articles.*.produit_id' => ['nullable', 'integer', Appartenance::a('produits', 'id')],
             'articles.*.libelle_virtuel' => ['nullable', 'string', 'max:255'],
+            'articles.*.ajouter_catalogue' => ['nullable', 'boolean'],
             'articles.*.quantite' => Quantite::physique(),
             'articles.*.unite' => ['nullable', 'string', 'max:50'],
             'articles.*.prix_unitaire' => ['nullable', 'numeric', 'min:0'],
@@ -367,8 +368,28 @@ class VenteControleur
                 } else {
                     $produit = null;
                     $prix = floatval($article['prix_unitaire'] ?? 0);
-                    $nomElement = $article['libelle_virtuel'] ?? 'Saisie libre';
-                    $tvaRate = self::tauxBorne($article['tva'] ?? 18);
+                    $nomElement = trim((string) ($article['libelle_virtuel'] ?? 'Saisie libre'));
+
+                    // Une saisie libre suit le régime fiscal de l'entreprise :
+                    // TEE/TCE/RME sont exonérés légalement, les autres régimes
+                    // appliquent le taux normal. Le navigateur ne décide pas du taux.
+                    $regimeFiscal = Auth::user()->entreprise?->regime_imposition;
+                    $tvaRate = in_array($regimeFiscal, Produit::REGIMES_EXONERATION_LEGALE, true) ? 0.0 : 18.0;
+
+                    if ($request->boolean('articles.' . array_search($article, $request->articles, true) . '.ajouter_catalogue')) {
+                        $produit = Produit::create([
+                            'entreprise_id' => Auth::user()->entreprise_id,
+                            'nom' => $nomElement !== '' ? $nomElement : 'Article libre',
+                            'type' => 'service',
+                            'prix_achat' => 0,
+                            'prix_vente' => $prix,
+                            'taux_tva' => $tvaRate,
+                            'unite' => $article['unite'] ?? 'Unité',
+                            'code_tva_manuel' => false,
+                            'statut' => 'actif',
+                        ]);
+                        $nomElement = $produit->nom;
+                    }
                 }
 
                 $remiseLigne = self::tauxBorne($article['remise_taux'] ?? 0);
@@ -390,7 +411,7 @@ class VenteControleur
                 // Taxes de la ligne : celles de la fiche produit, ou celles
                 // saisies directement sur une ligne libre.
                 self::copierTaxesProduitSurLigne($detail, $produit);
-                if (!$produit) {
+                if (!$produit || !empty($article['ajouter_catalogue'])) {
                     self::enregistrerTaxesDeLigne($detail, $article['taxes'] ?? []);
                 }
 
