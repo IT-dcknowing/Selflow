@@ -224,104 +224,33 @@ class SouscriptionControleur
     private function validerFamilles(Request $request, Entreprise $entreprise): RedirectResponse
     {
         $donnees = $request->validate([
-            'familles'   => ['array'],
+            'familles' => ['nullable', 'array'],
             'familles.*' => ['string', 'max:32'],
-            'categories_personnalisees' => ['array'],
+            'categories_personnalisees' => ['nullable', 'array'],
             'categories_personnalisees.*.nom' => ['required', 'string', 'max:120'],
-            'categories_personnalisees.*.prefixe' => ['nullable', 'string', 'max:12', 'regex:/^[A-Za-z0-9_-]+$/'],
-            'familles_config' => ['array'],
-            'familles_config.*.nom' => ['nullable', 'string', 'max:120'],
-            'familles_config.*.prefixe' => ['nullable', 'string', 'max:12', 'regex:/^[A-Za-z0-9_-]+$/'],
-            'familles_config.*.points_de_vente' => ['required', 'array', 'min:1'],
-            'familles_config.*.points_de_vente.*' => ['integer', 'distinct', 'exists:points_de_vente,id'],
-            'categories_personnalisees.*.points_de_vente' => ['required', 'array', 'min:1'],
-            'categories_personnalisees.*.points_de_vente.*' => ['integer', 'distinct', 'exists:points_de_vente,id'],
         ]);
 
         $choix = $this->choix($entreprise);
         $retenues = $donnees['familles'] ?? [];
-
-        // C'est ici que la souscription s'effectue : familles, articles,
-        // comptes et modules. Tout ce qui précède n'était qu'un choix.
         $avant = now()->subSecond();
         $bilan = SouscriptionProfilService::souscrire($entreprise, $choix['profils'] ?? [], $retenues);
 
-        // Personnaliser les catégories issues du référentiel et leur périmètre
-        // de points de vente. Les comptes restent ceux du référentiel : ils ne
-        // sont jamais demandés à l'utilisateur.
-        foreach ($donnees['familles_config'] ?? [] as $code => $configuration) {
-            $famille = Famille::where('code', $code)
-                ->whereHas('profil', fn ($q) => $q->whereIn('code', $choix['profils'] ?? []))
-                ->first();
-            if (!$famille) {
-                continue;
-            }
-
-            $categorie = \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)
-                ->where('nom', $famille->nom)->first();
-            if (!$categorie) {
-                continue;
-            }
-
-            $ancienNom = (string) $categorie->nom;
-            $nom = trim((string) ($configuration['nom'] ?? '')) ?: $ancienNom;
-            $ancienPrefixe = strtoupper((string) $categorie->prefixe);
-            $prefixeSaisi = strtoupper(trim((string) ($configuration['prefixe'] ?? '')));
-            $prefixe = $prefixeSaisi ?: ($nom !== $ancienNom
-                ? strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $nom) ?: 'CAT', 0, 8))
-                : $ancienPrefixe);
-            $categorie->update(['nom' => $nom, 'prefixe' => $prefixe]);
-
-            $sites = PointDeVente::where('entreprise_id', $entreprise->id)
-                ->whereIn('id', $configuration['points_de_vente'] ?? [])->pluck('id')->all();
-            if ($sites !== []) {
-                $categorie->pointsDeVente()->sync($sites);
-            }
-
-            // Le préfixe est une partie de la référence : ne recalculer les
-            // références que s'il change, en évitant toute collision dans
-            // l'ensemble du catalogue de l'entreprise.
-            if ($prefixe !== $ancienPrefixe) {
-                $sequence = 1;
-                foreach (Produit::where('entreprise_id', $entreprise->id)
-                    ->where('categorie_id', $categorie->id)->orderBy('id')->get() as $produit) {
-                    do {
-                        $reference = $prefixe.'-'.str_pad((string) $sequence++, 5, '0', STR_PAD_LEFT);
-                    } while (Produit::where('entreprise_id', $entreprise->id)
-                        ->where('reference', $reference)->where('id', '!=', $produit->id)->exists());
-                    $produit->update(['reference' => $reference]);
-                }
-            }
-        }
-
-        // Les catégories ajoutées librement sont de vraies catégories de
-        // l'entreprise, sans compte comptable inventé. Les comptes ne sont
-        // renseignés que par les familles du référentiel.
+        // À l'étape 4, on choisit simplement les catégories proposées ou on
+        // crée une catégorie. Leur personnalisation détaillée est à l'étape 5.
         foreach ($donnees['categories_personnalisees'] ?? [] as $ligne) {
-            $nom = trim($ligne['nom']);
-            if ($nom === '') {
-                continue;
-            }
-            $prefixe = strtoupper(trim((string) ($ligne['prefixe'] ?? '')));
-            if ($prefixe === '') {
-                $prefixe = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $nom) ?: 'CAT', 0, 8));
-            }
-            $categorie = \App\Modules\Admin\Modeles\Categorie::create([
-                'entreprise_id' => $entreprise->id,
-                'nom' => $nom,
-                'prefixe' => $prefixe,
-            ]);
-            $sites = PointDeVente::where('entreprise_id', $entreprise->id)
-                ->whereIn('id', $ligne['points_de_vente'] ?? [])->pluck('id')->all();
-            if ($sites !== []) {
-                $categorie->pointsDeVente()->sync($sites);
-            }
+            $nom = trim((string) ($ligne['nom'] ?? ''));
+            if ($nom === '') continue;
+            $prefixe = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $nom) ?: 'CAT', 0, 8));
+            \App\Modules\Admin\Modeles\Categorie::firstOrCreate(
+                ['entreprise_id' => $entreprise->id, 'nom' => $nom],
+                ['prefixe' => $prefixe]
+            );
         }
-        $ajoutes = Produit::where('entreprise_id', $entreprise->id)->where('created_at', '>=', $avant)->pluck('id')->all();
+
+        $ajoutes = Produit::where('entreprise_id', $entreprise->id)
+            ->where('created_at', '>=', $avant)->pluck('id')->all();
         session(["souscription_articles.{$entreprise->id}" => $ajoutes ?: null]);
 
-        // Les modules décochés à l'étape 3 le restent : la souscription ouvre
-        // ce que le métier demande, la préférence de l'utilisateur prime.
         if (isset($choix['modules'])) {
             $entreprise->update([
                 'modules_actifs' => array_values(array_intersect(
@@ -331,18 +260,12 @@ class SouscriptionControleur
             ]);
         }
 
-        // Le secteur d'activité se déduit d'ici, et de nulle part ailleurs. Il
-        // se cochait à la main dans les paramètres, à côté d'un parcours qui
-        // posait la même question autrement : une entreprise pouvait déclarer
-        // « Santé » d'un côté et souscrire au métier « Boulangerie » de
-        // l'autre, sans que rien ne les rapproche. Une seule réponse, désormais.
         VerrouConfigurationService::alignerLeSecteur($entreprise->refresh());
 
-        return $this->avancerVers(5, $entreprise)
-            ->with('succes', sprintf(
-                '%d famille(s) et %d article(s) ajoutés à votre catalogue.',
-                $bilan['familles'], $bilan['articles']
-            ));
+        return $this->avancerVers(5, $entreprise)->with('succes', sprintf(
+            '%d catégorie(s) et %d article(s) ajoutés à votre catalogue.',
+            $bilan['familles'], $bilan['articles']
+        ));
     }
 
     private function validerPrix(Request $request, Entreprise $entreprise): RedirectResponse
@@ -354,7 +277,42 @@ class SouscriptionControleur
             'articles.*.prix_achat'    => ['nullable', 'numeric', 'min:0', 'max:99999999999'],
             'articles.*.prix_vente'    => ['nullable', 'numeric', 'min:0', 'max:99999999999'],
             'articles.*.stock_initial' => Quantite::facultative(),
+            'categories_config' => ['nullable', 'array'],
+            'categories_config.*.nom' => ['required', 'string', 'max:120'],
+            'categories_config.*.prefixe' => ['required', 'string', 'max:12', 'regex:/^[A-Za-z0-9_-]+$/'],
+            'categories_config.*.points_de_vente' => ['required', 'array', 'min:1'],
+            'categories_config.*.points_de_vente.*' => ['integer', 'distinct', 'exists:points_de_vente,id'],
         ]);
+
+        // La configuration des catégories se fait ici, à l'étape 5 :
+        // nom, préfixe, références et périmètre des points de vente.
+        foreach ($donnees['categories_config'] ?? [] as $id => $configuration) {
+            $categorie = \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)
+                ->whereKey($id)->first();
+            if (!$categorie) continue;
+
+            $ancienNom = (string) $categorie->nom;
+            $ancienPrefixe = strtoupper((string) $categorie->prefixe);
+            $nom = trim($configuration['nom']);
+            $prefixe = strtoupper(trim($configuration['prefixe']));
+            $categorie->update(['nom' => $nom, 'prefixe' => $prefixe]);
+
+            $sites = PointDeVente::where('entreprise_id', $entreprise->id)
+                ->whereIn('id', $configuration['points_de_vente'])->pluck('id')->all();
+            $categorie->pointsDeVente()->sync($sites);
+
+            if ($prefixe !== $ancienPrefixe || $nom !== $ancienNom) {
+                $sequence = 1;
+                foreach (Produit::where('entreprise_id', $entreprise->id)
+                    ->where('categorie_id', $categorie->id)->orderBy('id')->get() as $produit) {
+                    do {
+                        $reference = $prefixe.'-'.str_pad((string) $sequence++, 5, '0', STR_PAD_LEFT);
+                    } while (Produit::where('entreprise_id', $entreprise->id)
+                        ->where('reference', $reference)->where('id', '!=', $produit->id)->exists());
+                    $produit->update(['reference' => $reference]);
+                }
+            }
+        }
 
         $pointDeVenteId = $this->siteDuStock($entreprise)?->id;
 
