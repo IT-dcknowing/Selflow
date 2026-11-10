@@ -165,7 +165,6 @@
         @php
             $__groupesMatrice = \App\Modules\Authentification\Regles\Habilitations::pourLEntreprise(auth()->user()->entreprise);
         @endphp
-        @include('admin::personnel.partials.modules-fermes', ['entreprise' => auth()->user()->entreprise])
         <table class="matrix-table">
             <thead>
                 <tr>
