@@ -21,6 +21,95 @@ class RapportControleur
     /**
      * Page principale d'analyse d'activité.
      */
+
+    /**
+     * Comparer les prix réellement pratiqués par article et par vendeur.
+     *
+     * Le périmètre est toujours celui de l'entreprise connectée ; un membre
+     * affecté à un site ne peut jamais élargir le rapport à d'autres sites.
+     */
+    public function analysePrix(Request $request)
+    {
+        $utilisateur = Auth::user();
+        $entreprise = $utilisateur->entreprise;
+        abort_unless($entreprise, 403);
+
+        $request->validate([
+            'debut' => ['nullable', 'date'],
+            'fin' => ['nullable', 'date', 'after_or_equal:debut'],
+            'pdv_id' => ['nullable', 'integer'],
+            'vendeur_id' => ['nullable', 'integer'],
+            'produit' => ['nullable', 'string', 'max:150'],
+        ]);
+
+        $pointsDeVente = CacheService::pointsDeVente($entreprise->id);
+        $pdvIds = $pointsDeVente->pluck('id');
+
+        if ($utilisateur->estAffecteAUnSite()) {
+            $pdvIds = $pdvIds->intersect([$utilisateur->point_de_vente_id])->values();
+        } elseif ($request->filled('pdv_id')) {
+            abort_unless($pdvIds->contains((int) $request->input('pdv_id')), 403);
+            $pdvIds = collect([(int) $request->input('pdv_id')]);
+        }
+
+        $lignes = DB::table('vente_details')
+            ->join('ventes', 'ventes.id', '=', 'vente_details.vente_id')
+            ->leftJoin('produits', 'produits.id', '=', 'vente_details.produit_id')
+            ->leftJoin('utilisateurs', 'utilisateurs.id', '=', 'ventes.utilisateur_id')
+            ->whereIn('ventes.point_de_vente_id', $pdvIds)
+            ->where('ventes.etape', 'Facture')
+            ->where(function ($q) {
+                $q->whereNull('ventes.type_facture')->orWhere('ventes.type_facture', '!=', 'avoir');
+            })
+            ->when($request->filled('debut'), fn ($q) => $q->whereDate('ventes.date_vente', '>=', $request->input('debut')))
+            ->when($request->filled('fin'), fn ($q) => $q->whereDate('ventes.date_vente', '<=', $request->input('fin')))
+            ->when($request->filled('vendeur_id'), fn ($q) => $q->where('ventes.utilisateur_id', (int) $request->input('vendeur_id')))
+            ->when($request->filled('produit'), function ($q) use ($request) {
+                $terme = '%' . str_replace(['%', '_'], ['\\%', '\\_'], trim($request->input('produit'))) . '%';
+                $q->where(function ($w) use ($terme) {
+                    $w->where('produits.nom', 'like', $terme)
+                      ->orWhere('produits.reference', 'like', $terme)
+                      ->orWhere('vente_details.libelle_virtuel', 'like', $terme);
+                });
+            })
+            ->select([
+                'vente_details.produit_id',
+                'vente_details.libelle_virtuel',
+                'produits.nom as nom_produit',
+                'produits.reference as reference_produit',
+                'ventes.utilisateur_id',
+                'utilisateurs.nom as vendeur_nom',
+                'utilisateurs.prenom as vendeur_prenom',
+            ])
+            ->selectRaw('SUM(vente_details.quantite) as quantite_vendue')
+            ->selectRaw('AVG(vente_details.prix_unitaire) as prix_moyen')
+            ->selectRaw('MIN(vente_details.prix_unitaire) as prix_minimum')
+            ->selectRaw('MAX(vente_details.prix_unitaire) as prix_maximum')
+            ->selectRaw('SUM(vente_details.montant_ttc) as chiffre_affaires')
+            ->selectRaw('COUNT(DISTINCT ventes.id) as nombre_factures')
+            ->groupBy([
+                'vente_details.produit_id',
+                'vente_details.libelle_virtuel',
+                'produits.nom',
+                'produits.reference',
+                'ventes.utilisateur_id',
+                'utilisateurs.nom',
+                'utilisateurs.prenom',
+            ])
+            ->orderBy('produits.nom')
+            ->orderBy('utilisateurs.nom')
+            ->paginate(50)
+            ->withQueryString();
+
+        $vendeurs = \\App\\Modules\\Authentification\\Modeles\\Utilisateur::where('entreprise_id', $entreprise->id)
+            ->whereIn('id', function ($q) use ($pdvIds) {
+                $q->select('utilisateur_id')->from('ventes')->whereIn('point_de_vente_id', $pdvIds)->whereNotNull('utilisateur_id');
+            })
+            ->orderBy('nom')->orderBy('prenom')->get(['id', 'nom', 'prenom']);
+
+        return view('admin::rapports.analyse_prix', compact('entreprise', 'pointsDeVente', 'lignes', 'vendeurs'));
+    }
+
     public function analyseActivite(Request $request)
     {
         $utilisateur = Auth::user();
