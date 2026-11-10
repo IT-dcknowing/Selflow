@@ -296,6 +296,7 @@ class AchatControleur
                 $detail = AchatDetail::create([
                     'achat_id'       => $achat->id,
                     'produit_id'     => $produit ? $produit->id : null,
+                    'reference_produit' => $produit?->reference,
                     'libelle_virtuel'=> $produit ? null : ($article['libelle_virtuel'] ?? 'Saisie libre'),
                     'quantite'       => $article['quantite'],
                     'unite'          => $article['unite'] ?? 'Unité',
