@@ -173,8 +173,10 @@ class ProduitControleur
                     ?? auth()->user()->point_de_vente_id
                     ?? $entreprise->pointsDeVente()->orderBy('id')->value('id');
                 if ($siteInitial) {
-                    \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)
-                        ->find($categorieId)?->pointsDeVente()->syncWithoutDetaching([(int) $siteInitial]);
+                    $categorie = \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)->find($categorieId);
+                    if ($categorie && !$categorie->pointsDeVente()->exists()) {
+                        $categorie->pointsDeVente()->sync([(int) $siteInitial]);
+                    }
                 }
             }
 
