@@ -165,7 +165,8 @@
         <div class="autre" style="background:#f0fdf4;border-color:#86efac;">
             <label for="domaine_personnalise" style="color:#166534;">Créer un domaine</label>
             <input type="text" id="domaine_personnalise" name="domaine_personnalise" class="form-control"
-                   value="{{ old('domaine_personnalise', ((array) $entreprise->domaines_personnalises)[0] ?? '') }}" list="domaines-personnalises-existants" maxlength="120" placeholder="Ex. : Services aux entreprises">\n            <datalist id="domaines-personnalises-existants">@foreach((array) $entreprise->domaines_personnalises as $domaine)<option value="{{ $domaine }}">@endforeach</datalist>
+                   value="{{ old('domaine_personnalise', ((array) $entreprise->domaines_personnalises)[0] ?? '') }}" list="domaines-personnalises-existants" maxlength="120" placeholder="Ex. : Services aux entreprises">
+            <datalist id="domaines-personnalises-existants">@foreach((array) $entreprise->domaines_personnalises as $domaine)<option value="{{ $domaine }}">@endforeach</datalist>
             <span class="badge-acquis">Créé</span>
             @foreach((array) $entreprise->domaines_personnalises as $domaine)
                 <span class="badge-acquis">{{ $domaine }}</span>
@@ -389,45 +390,10 @@
             </p>
         </div>
 
-        <div class="autre" style="margin-bottom:18px;">
-            <h3>Configuration des catégories et des points de vente</h3>
-            <p>Sur chaque ligne, adaptez le nom et le préfixe. Les références des produits suivront le préfixe. Sélectionnez un ou plusieurs points de vente concernés.</p>
-            @forelse($categoriesEntreprise as $categorie)
-                @php $sitesSelectionnes = $categorie->pointsDeVente->pluck('id')->all(); @endphp
-                <div class="ligne" style="display:grid;grid-template-columns:minmax(150px,1fr) minmax(100px,.45fr) minmax(220px,1.2fr) auto;gap:10px;align-items:end;margin-bottom:10px;">
-                    <div>
-                        <label class="form-label">Catégorie</label>
-                        <input required class="form-control" name="categories_config[{{ $categorie->id }}][nom]" value="{{ $categorie->nom }}" maxlength="120">
-                    </div>
-                    <div>
-                        <label class="form-label">Préfixe</label>
-                        <input required class="form-control" name="categories_config[{{ $categorie->id }}][prefixe]" value="{{ $categorie->prefixe }}" maxlength="12">
-                    </div>
-                    <div>
-                        <label class="form-label">Points de vente concernés</label>
-                        <select required class="form-control" name="categories_config[{{ $categorie->id }}][points_de_vente][]" multiple size="3">
-                            @foreach($pointsDeVente as $site)
-                                <option value="{{ $site->id }}" {{ in_array($site->id, $sitesSelectionnes) || $sitesSelectionnes === [] ? 'selected' : '' }}>{{ $site->nom }}</option>
-                            @endforeach
-                        </select>
-                        <div class="sous">Maintenez Ctrl (ou Cmd) pour plusieurs points de vente.</div>
-                    </div>
-                    <button type="button" class="btn btn-outline-danger" data-supprimer-categorie-config title="Retirer cette catégorie"><i class="fas fa-trash"></i></button>
-                </div>
-            @empty
-                <p class="vide">Aucune catégorie n'est encore créée.</p>
-            @endforelse
-            <select id="modele-points-de-vente" hidden>
-                @foreach($pointsDeVente as $site)<option value="{{ $site->id }}">{{ $site->nom }}</option>@endforeach
-            </select>
-            <div id="categories-config-ajoutees"></div>
-            <button type="button" class="btn btn-outline" id="ajouter-categorie-config"><i class="fas fa-plus"></i> Ajouter une ligne</button>
-        </div>
-
         <div class="cadre-defilant">
             <table class="tableau-prix">
                 <thead>
-                    <tr><th>Référence</th><th>Article</th><th>Catégorie</th>
+                    <tr><th>Référence</th><th>Article</th><th>Catégorie</th><th>Point de vente</th>
                         <th style="width:130px;">Prix d'achat</th><th style="width:130px;">Prix de vente</th>
                         @if($avecStock)<th style="width:130px;">Stock de départ</th>@endif
                     </tr>
@@ -440,7 +406,8 @@
                             <input type="hidden" name="articles[{{ $i }}][id]" value="{{ $article->id }}">
                             <input type="text" name="articles[{{ $i }}][nom]" value="{{ $article->nom }}" maxlength="255">
                         </td>
-                        <td>{{ $article->categorieRelation->nom ?? '—' }}</td>
+                        <td><input type="text" name="articles[{{ $i }}][categorie_nom]" value="{{ $article->categorieRelation->nom ?? '' }}" maxlength="120"></td>
+                        <td><select name="articles[{{ $i }}][point_de_vente_id]" class="form-control"><option value="">Tous</option>@foreach($pointsDeVente as $site)<option value="{{ $site->id }}" {{ $article->stocks->contains('point_de_vente_id', $site->id) ? 'selected' : '' }}>{{ $site->nom }}</option>@endforeach</select></td>
                         <td><input type="number" name="articles[{{ $i }}][prix_achat]" min="0" step="1"
                                    value="{{ $article->prix_achat > 0 ? (int) $article->prix_achat : '' }}"></td>
                         <td><input type="number" name="articles[{{ $i }}][prix_vente]" min="0" step="1"
@@ -458,7 +425,7 @@
                         @endif
                     </tr>
                     @empty
-                    <tr><td colspan="{{ $colonnes }}" style="text-align:center; padding:26px; color:var(--text-3);">
+                    <tr><td colspan="{{ $colonnes + 1 }}" style="text-align:center; padding:26px; color:var(--text-3);">
                         Votre catalogue est vide — vous le remplirez depuis l'écran des produits.
                     </td></tr>
                     @endforelse
@@ -577,7 +544,6 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
         });
     }
     ajouter('secteurs-personnalises','ajouter-secteur','secteurs_personnalises[]','Nom du secteur précis');
-    ajouter('modules-personnalises','ajouter-module-personnalise','modules_personnalises[]','Nom du besoin ou module');
     document.addEventListener('click',function(e){var del=e.target.closest('[data-retirer-saisie]');if(del)del.parentElement.remove();});
 })();
 window.addEventListener('pageshow', function () {
