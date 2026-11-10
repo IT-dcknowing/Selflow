@@ -226,6 +226,20 @@
 
 
 
+        <div class="autre" style="background:#f0fdf4;border-color:#86efac;">
+            <label for="activite_autre" style="color:#166534;">Ajouter un secteur précis</label>
+            @if($entreprise->activite_autre)
+                <span class="badge-acquis">Créé</span>
+                <span>{{ $entreprise->activite_autre }}</span>
+            @endif
+            <div style="display:flex;gap:8px;align-items:center;">
+                <input type="text" id="activite_autre" name="activite_autre" class="form-control"
+                       value="{{ old('activite_autre', $entreprise->activite_autre) }}"
+                       placeholder="Nom du secteur précis à ajouter" maxlength="150">
+                <span class="badge-acquis">Créé</span>
+            </div>
+        </div>
+
     {{-- ══ 3. Les modules ══ --}}
     @elseif($etape === 3)
         <div class="sous-tete">
@@ -485,7 +499,7 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
         ligne.style.display = 'block';
         ligne.setAttribute('data-ligne-categorie', '');
         ligne.innerHTML = '<div style="display:grid;grid-template-columns:minmax(160px,1.2fr) minmax(100px,.55fr) minmax(220px,1.3fr) auto;gap:10px;align-items:end;">' +
-            '<div><label class="form-label">Nouvelle catégorie</label><input required class="form-control" name="categories_personnalisees['+index+'][nom]" maxlength="120" placeholder="Nom de la catégorie"></div>' +
+            '<div><label class="form-label">Nouvelle catégorie <span class="badge-acquis">Créé</span></label><input required class="form-control" name="categories_personnalisees['+index+'][nom]" maxlength="120" placeholder="Nom de la catégorie"></div>' +
             '<div><label class="form-label">Préfixe</label><input class="form-control" name="categories_personnalisees['+index+'][prefixe]" maxlength="12" placeholder="Ex. CAT"></div>' +
             '<div><label class="form-label">Points de vente concernés</label><select required class="form-control" multiple size="3" name="categories_personnalisees['+index+'][points_de_vente][]">' +
             "<option value=\"\">Chargement</option>" + '</select></div>' +
