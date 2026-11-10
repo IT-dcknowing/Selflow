@@ -55,6 +55,57 @@
     </style>
 @endsection
 
+
+    {{-- Configuration des catégories propres à l'entreprise --}}
+    <div class="card" id="categories-produits" style="padding:22px 24px;margin:22px 0;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+            <div>
+                <h2 style="font-size:17px;margin:0 0 5px;"><i class="fas fa-tags" style="color:var(--primary);"></i> Catégories de produits</h2>
+                <p style="font-size:12px;color:var(--text-2);margin:0;">Vérifiez les catégories de votre entreprise, corrigez leur nom ou leur préfixe de référence et choisissez les points de vente concernés.</p>
+            </div>
+        </div>
+        @forelse($categoriesProduits as $categorie)
+            <form method="POST" action="{{ route('admin.entreprise.categories.modifier', $categorie) }}" style="display:grid;grid-template-columns:minmax(150px,1.3fr) minmax(90px,.5fr) minmax(180px,1.4fr) auto;gap:10px;align-items:end;padding:13px 0;border-top:1px solid var(--border);">
+                @csrf
+                @method('PUT')
+                <div>
+                    <label class="form-label">Catégorie</label>
+                    <input class="form-control" name="nom" value="{{ $categorie->nom }}" maxlength="100" required>
+                    <small style="font-size:11px;color:var(--text-3);">{{ $categorie->produits_count }} produit(s)</small>
+                </div>
+                <div>
+                    <label class="form-label">Préfixe</label>
+                    <input class="form-control" name="prefixe" value="{{ $categorie->prefixe }}" maxlength="5" pattern="[A-Za-z0-9]{2,5}" required>
+                </div>
+                <div>
+                    <label class="form-label">Points de vente concernés</label>
+                    <select class="form-control" name="point_de_vente_ids[]" multiple size="3" style="min-height:72px;">
+                        @foreach($pointsDeVente as $site)
+                            <option value="{{ $site->id }}" @selected($categorie->pointsDeVente->contains('id', $site->id))>{{ $site->nom }}</option>
+                        @endforeach
+                    </select>
+                    <small style="font-size:10px;color:var(--text-3);">Maintenez Ctrl pour choisir plusieurs sites. Les stocks existants restent visibles.</small>
+                </div>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <button type="submit" class="btn btn-primary btn-sm" title="Enregistrer"><i class="fas fa-save"></i></button>
+                    @if($categorie->produits_count === 0)
+                        <button type="submit" form="supprimer-categorie-{{ $categorie->id }}" class="btn btn-outline btn-sm" title="Retirer cette catégorie" onclick="return confirm('Retirer cette catégorie ?')"><i class="fas fa-trash"></i></button>
+                    @else
+                        <button type="button" class="btn btn-outline btn-sm" disabled title="Déplacez d'abord les produits de cette catégorie"><i class="fas fa-trash"></i></button>
+                    @endif
+                </div>
+            </form>
+            @if($categorie->produits_count === 0)
+                <form id="supprimer-categorie-{{ $categorie->id }}" method="POST" action="{{ route('admin.entreprise.categories.supprimer', $categorie) }}" style="display:none;">
+                    @csrf
+                    @method('DELETE')
+                </form>
+            @endif
+        @empty
+            <p style="color:var(--text-2);font-size:13px;">Aucune catégorie personnalisée n'est encore enregistrée.</p>
+        @endforelse
+    </div>
+
 @section('contenu')
     <div class="page-header">
         <div>
