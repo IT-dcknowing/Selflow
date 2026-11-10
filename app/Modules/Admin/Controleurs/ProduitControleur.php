@@ -174,7 +174,7 @@ class ProduitControleur
             ?? auth()->user()->point_de_vente_id
             ?? ($pdvs->first()->id ?? null);
         $sitesCategorie = $categorieId
-            ? \\App\\Modules\\Admin\\Modeles\\Categorie::where('entreprise_id', $entreprise->id)
+            ? \App\\Modules\\Admin\\Modeles\\Categorie::where('entreprise_id', $entreprise->id)
                 ->find($categorieId)?->pointsDeVente()->pluck('points_de_vente.id')->all() ?? []
             : [];
         $sitesReferences = $sitesCategorie !== [] ? $sitesCategorie : array_filter([$defaultPdvId]);
