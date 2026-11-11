@@ -168,23 +168,21 @@ class SouscriptionProfilService
      */
     private static function categoriePour(Entreprise $entreprise, Famille $famille): array
     {
+        $profil = $famille->profil;
+        $domaine = $profil?->categorie?->nom;
+        $metier = $profil?->nom;
+
+        // Le nom d'un rayon n'est pas une identité : deux métiers peuvent
+        // employer le même libellé. Seul le triplet entreprise/domaine/métier
+        // autorise une réutilisation. Les anciennes catégories sans contexte
+        // restent intactes mais ne sont jamais absorbées par un nouveau secteur.
         $existante = Categorie::where('entreprise_id', $entreprise->id)
             ->where('nom', $famille->nom)
+            ->where('domaine_configuration', $domaine)
+            ->where('metier_configuration', $metier)
             ->first();
 
         if ($existante) {
-            $profil = $famille->profil;
-            $completer = [];
-            if (!$existante->domaine_configuration && $profil?->categorie?->nom) {
-                $completer['domaine_configuration'] = $profil->categorie->nom;
-            }
-            if (!$existante->metier_configuration && $profil?->nom) {
-                $completer['metier_configuration'] = $profil->nom;
-            }
-            if ($completer !== []) {
-                $existante->update($completer);
-            }
-
             return [$existante, false];
         }
 
@@ -273,12 +271,26 @@ class SouscriptionProfilService
     {
         $reference = $article->code;
 
-        $existe = Produit::where('entreprise_id', $entreprise->id)
+        // Un même article du référentiel peut être proposé dans deux métiers.
+        // Il doit alors exister deux fiches, chacune dans son rayon : la
+        // référence reste unique dans l'entreprise, mais sa variante est
+        // suffixée par le préfixe de la catégorie lorsqu'elle est déjà prise.
+        $existeDansCetteCategorie = Produit::where('entreprise_id', $entreprise->id)
             ->where('reference', $reference)
+            ->where('categorie_id', $categorie?->id)
             ->exists();
 
-        if ($existe) {
+        if ($existeDansCetteCategorie) {
             return false;
+        }
+
+        if (Produit::where('entreprise_id', $entreprise->id)->where('reference', $reference)->exists()) {
+            $base = Str::substr($reference, 0, 70) . '-' . Str::substr($categorie?->prefixe ?? 'CAT', 0, 12);
+            $reference = $base;
+            $suffixe = 2;
+            while (Produit::where('entreprise_id', $entreprise->id)->where('reference', $reference)->exists()) {
+                $reference = $base . '-' . $suffixe++;
+            }
         }
 
         Produit::create([
