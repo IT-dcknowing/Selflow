@@ -197,7 +197,12 @@ class SouscriptionControleur
         ));
         // Refuser uniquement les doublons strictement identiques, dans la liste
         // existante comme dans les nouvelles lignes du formulaire.
-        $secteursDejaEnregistres = (array) $entreprise->secteurs_personnalises;
+        $choixCourant = $this->choix($entreprise);
+        $cleDomaine = !empty($choixCourant['categorie_id'])
+            ? 'referentiel:' . $choixCourant['categorie_id']
+            : 'personnalise:' . (string) ($choixCourant['domaine_personnalise'] ?? '');
+        $secteursParDomaine = (array) $entreprise->secteurs_personnalises_par_domaine;
+        $secteursDejaEnregistres = (array) ($secteursParDomaine[$cleDomaine] ?? []);
         $doublonSecteur = count($secteursSaisis) !== count(array_unique($secteursSaisis, SORT_STRING));
         foreach ($secteursSaisis as $secteur) {
             if (in_array($secteur, $secteursDejaEnregistres, true)) {
@@ -211,9 +216,13 @@ class SouscriptionControleur
             ]);
         }
         if ($secteursSaisis !== []) {
-            $entreprise->update(['secteurs_personnalises' => array_merge(
-                $secteursDejaEnregistres, $secteursSaisis
-            )]);
+            $secteursParDomaine[$cleDomaine] = array_merge($secteursDejaEnregistres, $secteursSaisis);
+            $entreprise->update([
+                'secteurs_personnalises_par_domaine' => $secteursParDomaine,
+                'secteurs_personnalises' => array_values(array_unique(array_merge(
+                    (array) $entreprise->secteurs_personnalises, $secteursSaisis
+                ))),
+            ]);
         }
 
         // Créer un secteur ne fait pas avancer le parcours : il revient dans
@@ -332,6 +341,7 @@ class SouscriptionControleur
         $donnees = $request->validate([
             'articles'                 => ['array'],
             'articles.*.id'            => ['nullable', 'integer', Appartenance::a('produits')],
+            'articles.*.nouveau'       => ['nullable', 'boolean'],
             'articles.*.nom'           => ['nullable', 'string', 'max:255'],
             'articles.*.type'          => ['nullable', 'string', 'in:' . implode(',', array_keys(Produit::TYPES))],
             'articles_supprimer'       => ['nullable', 'array'],
@@ -635,7 +645,10 @@ class SouscriptionControleur
             1 => ['categories' => Categorie::withCount('profils')->orderBy('ordre')->get(),
                   'domainesDejaLa' => VerrouConfigurationService::domainesSouscrits($entreprise)],
 
-            2 => ['profils' => !empty($choix['domaine_personnalise'])
+            2 => ['secteursPersonnalises' => (array) (($entreprise->secteurs_personnalises_par_domaine ?? [])[
+                    !empty($choix['categorie_id']) ? 'referentiel:' . $choix['categorie_id'] : 'personnalise:' . (string) ($choix['domaine_personnalise'] ?? '')
+                ] ?? (!empty($choix['domaine_personnalise']) ? $entreprise->secteurs_personnalises : [])),
+                  'profils' => !empty($choix['domaine_personnalise'])
                     ? collect()
                     : Profil::withCount(['familles', 'articles'])
                         ->when(isset($choix['categorie_id']), fn ($q) => $q->where('categorie_id', $choix['categorie_id']))
