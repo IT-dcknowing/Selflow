@@ -312,7 +312,7 @@
     @elseif($etape === 4)
         <div class="sous-tete">
             <h2>Les catégories de votre activité</h2>
-            <p>Sélectionnez uniquement les catégories dont vous avez besoin, ou créez les vôtres. Rien n'est ajouté automatiquement pour un domaine ou un secteur personnalisé.</p>
+            <p>Seules les catégories du domaine et du secteur sélectionnés sont affichées. Chaque catégorie créée reste dans ce secteur et ne sera pas visible dans les autres.</p>
         </div>
         <div class="tuiles" id="liste-categories-souscription">
             @foreach($familles as $famille)
@@ -346,6 +346,12 @@
             <div id="nouvelles-categories">
                 <div class="ligne-saisie" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
                     <input type="text" name="categories_personnalisees[0][nom]" class="form-control" maxlength="120" placeholder="Nom de la catégorie">
+                    <select name="categories_personnalisees[0][metier_configuration]" class="form-control" required>
+                        <option value="">Secteur de rattachement</option>
+                        @foreach($metiersCourants ?? [] as $metier)
+                            <option value="{{ $metier }}">{{ $metier }}</option>
+                        @endforeach
+                    </select>
                     <button type="button" class="btn btn-outline-danger" data-retirer-saisie title="Retirer"><i class="fas fa-trash"></i></button>
                 </div>
             </div>
@@ -530,8 +536,10 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
         bouton.addEventListener('click',function(){
             var ligne=document.createElement('div');ligne.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px;';
             var input=document.createElement('input');input.type='text';input.required=true;input.maxLength=120;input.name='categories_personnalisees['+index+'][nom]';input.className='form-control';input.placeholder='Nom de la catégorie';
+            var metier=document.createElement('select');metier.required=true;metier.name='categories_personnalisees['+index+'][metier_configuration]';metier.className='form-control';
+            metier.innerHTML='<option value="">Secteur de rattachement</option>'+@json($metiersCourants ?? []).map(function(n){var o=document.createElement('option');o.value=n;o.textContent=n;return o.outerHTML;}).join('');
             var del=document.createElement('button');del.type='button';del.className='btn btn-outline-danger';del.setAttribute('data-retirer-saisie','');del.innerHTML='<i class="fas fa-trash"></i>';
-            ligne.appendChild(input);ligne.appendChild(del);zone.appendChild(ligne);index++;
+            ligne.appendChild(input);ligne.appendChild(metier);ligne.appendChild(del);zone.appendChild(ligne);index++;
         });
     }
     document.addEventListener('click',function(e){
