@@ -328,6 +328,7 @@ class SouscriptionControleur
             'familles.*' => ['string', 'max:32'],
             'categories_personnalisees' => ['nullable', 'array'],
             'categories_personnalisees.*.nom' => ['nullable', 'string', 'max:120'],
+            'categories_personnalisees.*.metier_configuration' => ['nullable', 'string', 'max:150'],
             'supprimer_categorie_personnalisee' => ['nullable', 'integer'],
         ]);
 
@@ -368,37 +369,36 @@ class SouscriptionControleur
         $domaineCourant = !empty($choix['categorie_id'])
             ? Categorie::whereKey($choix['categorie_id'])->value('nom')
             : ($choix['domaine_personnalise'] ?? null);
-        $metierCourant = !empty($choix['secteurs_personnalises_selection'])
-            ? implode(', ', $choix['secteurs_personnalises_selection'])
-            : Profil::whereIn('code', $choix['profils'] ?? [])->orderBy('nom')->value('nom');
+        $metiersCourants = !empty($choix['secteurs_personnalises_selection'])
+            ? array_values($choix['secteurs_personnalises_selection'])
+            : Profil::whereIn('code', $choix['profils'] ?? [])->orderBy('nom')->pluck('nom')->all();
 
-        // À l'étape 4, on choisit simplement les catégories proposées ou on
-        // crée une catégorie. Leur personnalisation détaillée est à l'étape 5.
+        // Une catégorie personnalisée appartient à un seul domaine et à un seul secteur.
         foreach ($donnees['categories_personnalisees'] ?? [] as $ligne) {
             $nom = trim((string) ($ligne['nom'] ?? ''));
             if ($nom === '') continue;
-            $prefixe = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $nom) ?: 'CAT', 0, 8));
-            $categoriePersonnalisee = \App\Modules\Admin\Modeles\Categorie::firstOrCreate(
-                ['entreprise_id' => $entreprise->id, 'nom' => $nom],
-                [
-                    'prefixe' => $prefixe,
-                    'domaine_configuration' => $domaineCourant,
-                    'metier_configuration' => $metierCourant,
-                ]
-            );
 
-            // Une catégorie historique récupère son contexte une fois ;
-            // un domaine déjà défini n'est jamais remplacé.
-            $contexteManquant = [];
-            if (!$categoriePersonnalisee->domaine_configuration && $domaineCourant) {
-                $contexteManquant['domaine_configuration'] = $domaineCourant;
+            $metierCategorie = trim((string) ($ligne['metier_configuration'] ?? ''));
+            if ($metierCategorie === '' && count($metiersCourants) === 1) {
+                $metierCategorie = $metiersCourants[0];
             }
-            if (!$categoriePersonnalisee->metier_configuration && $metierCourant) {
-                $contexteManquant['metier_configuration'] = $metierCourant;
+            if ($domaineCourant === null || $metierCategorie === ''
+                || !in_array($metierCategorie, $metiersCourants, true)) {
+                return back()->withInput()->withErrors([
+                    'categories_personnalisees' => 'Choisissez le secteur auquel rattacher chaque catégorie.',
+                ]);
             }
-            if ($contexteManquant !== []) {
-                $categoriePersonnalisee->update($contexteManquant);
-            }
+
+            $prefixe = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $nom) ?: 'CAT', 0, 8));
+            \App\Modules\Admin\Modeles\Categorie::firstOrCreate(
+                [
+                    'entreprise_id' => $entreprise->id,
+                    'nom' => $nom,
+                    'domaine_configuration' => $domaineCourant,
+                    'metier_configuration' => $metierCategorie,
+                ],
+                ['prefixe' => $prefixe]
+            );
         }
 
         $ajoutes = Produit::where('entreprise_id', $entreprise->id)
@@ -428,6 +428,19 @@ class SouscriptionControleur
 
     private function validerPrix(Request $request, Entreprise $entreprise): RedirectResponse
     {
+        $choixCourant = $this->choix($entreprise);
+        $domaineCourant = !empty($choixCourant['categorie_id'])
+            ? Categorie::whereKey($choixCourant['categorie_id'])->value('nom')
+            : ($choixCourant['domaine_personnalise'] ?? null);
+        $metiersCourants = !empty($choixCourant['secteurs_personnalises_selection'])
+            ? array_values($choixCourant['secteurs_personnalises_selection'])
+            : Profil::whereIn('code', $choixCourant['profils'] ?? [])->pluck('nom')->all();
+        $idsCategoriesCourantes = \App\Modules\Admin\Modeles\Categorie::query()
+            ->where('entreprise_id', $entreprise->id)
+            ->where('domaine_configuration', $domaineCourant)
+            ->whereIn('metier_configuration', $metiersCourants)
+            ->pluck('id')->all();
+
         $donnees = $request->validate([
             'articles'                 => ['array'],
             'articles.*.id'            => ['nullable', 'integer', Appartenance::a('produits')],
@@ -438,7 +451,9 @@ class SouscriptionControleur
             'articles_supprimer.*'     => ['integer', 'distinct'],
             'articles.*.categorie_id' => [
                 'required', 'integer',
-                Rule::exists('categories', 'id')->where(fn ($query) => $query->where('entreprise_id', $entreprise->id)),
+                Rule::exists('categories', 'id')->where(fn ($query) => $query
+                    ->where('entreprise_id', $entreprise->id)
+                    ->whereIn('id', $idsCategoriesCourantes)),
             ],
             'articles.*.point_de_vente_id' => ['nullable', 'integer', 'exists:points_de_vente,id'],
             'articles.*.prix_achat'    => ['nullable', 'numeric', 'min:0', 'max:99999999999'],
@@ -453,6 +468,7 @@ class SouscriptionControleur
         $idsArticlesEnvoyes = collect($donnees['articles'] ?? [])->pluck('id')->filter()->map(fn ($id) => (int) $id)->all();
         $produitsExistants = Produit::with('categorieRelation')
             ->where('entreprise_id', $entreprise->id)
+            ->whereIn('categorie_id', $idsCategoriesCourantes)
             ->whereIn('id', $idsArticlesEnvoyes)
             ->get()->keyBy('id');
         $idsCreesDansCeParcours = array_filter((array) session("souscription_articles.{$entreprise->id}", []));
@@ -679,35 +695,30 @@ class SouscriptionControleur
      */
     private function choixDejaRetenus(Entreprise $entreprise): array
     {
-        $profils = $entreprise->profils()->get();
         $choix = [];
 
-        if ($profils->isNotEmpty()) {
-            $choix['profils'] = $profils->pluck('code')->all();
-            if ($categorieId = $profils->first()->categorie_id) {
-                $choix['categorie_id'] = $categorieId;
-            }
-        }
-
-        if (!empty($entreprise->modules_actifs)) {
-            $choix['modules'] = $entreprise->modules_actifs;
-        }
-
-        // Le dernier domaine choisi sert de point de reprise, même sans profil.
+        // Reprendre uniquement les métiers du dernier domaine ouvert.
         $domaines = (array) $entreprise->domaines_souscrits;
         if ($domaines === []) {
             $domaines = (array) $entreprise->secteur_activite;
         }
         $dernierDomaine = $domaines !== [] ? end($domaines) : null;
-        if ($dernierDomaine) {
-            $categorieId = Categorie::where('nom', $dernierDomaine)->value('id');
-            if ($categorieId) {
-                $choix['categorie_id'] = $categorieId;
-                unset($choix['domaine_personnalise']);
-            } elseif (in_array($dernierDomaine, (array) $entreprise->domaines_personnalises, true)) {
-                $choix['domaine_personnalise'] = $dernierDomaine;
-                unset($choix['categorie_id']);
-            }
+        $categorieId = $dernierDomaine
+            ? Categorie::where('nom', $dernierDomaine)->value('id')
+            : null;
+
+        if ($categorieId) {
+            $choix['categorie_id'] = $categorieId;
+            $profils = $entreprise->profils()
+                ->where('referentiel_profils.categorie_id', $categorieId)->get();
+            $choix['profils'] = $profils->pluck('code')->all();
+        } elseif ($dernierDomaine && in_array($dernierDomaine, (array) $entreprise->domaines_personnalises, true)) {
+            $choix['domaine_personnalise'] = $dernierDomaine;
+            $choix['profils'] = [];
+        }
+
+        if (!empty($entreprise->modules_actifs)) {
+            $choix['modules'] = $entreprise->modules_actifs;
         }
 
         return $choix;
@@ -767,11 +778,14 @@ class SouscriptionControleur
                 return [
                     'pointsDeVente' => PointDeVente::where('entreprise_id', $entreprise->id)->orderBy('nom')->get(),
                     'categoriesPersonnalisees' => \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)
-                        ->when($domaineCourant, fn ($query) => $query->where(function ($sousQuery) use ($domaineCourant) {
-                            $sousQuery->whereNull('domaine_configuration')
-                                ->orWhere('domaine_configuration', $domaineCourant);
-                        }))
-                        ->orderBy('nom')->get(),
+                        ->where('domaine_configuration', $domaineCourant)
+                        ->whereIn('metier_configuration', !empty($choix['secteurs_personnalises_selection'])
+                            ? $choix['secteurs_personnalises_selection']
+                            : Profil::whereIn('code', $choix['profils'] ?? [])->pluck('nom')->all())
+                        ->orderBy('metier_configuration')->orderBy('nom')->get(),
+                    'metiersCourants' => !empty($choix['secteurs_personnalises_selection'])
+                        ? array_values($choix['secteurs_personnalises_selection'])
+                        : Profil::whereIn('code', $choix['profils'] ?? [])->orderBy('nom')->pluck('nom')->all(),
                     'familles' => (!empty($choix['domaine_personnalise']) || !empty($choix['secteurs_personnalises_selection']))
                         ? collect()
                         : Famille::with(['typeArticle', 'profil'])
@@ -788,18 +802,31 @@ class SouscriptionControleur
             // ne ferait qu'avaler la saisie. On la retire plutôt que de mentir.
             // Les articles qui viennent d'arriver, s'il y en a : les prix des
             // anciens se reprennent depuis le catalogue.
-            5 => ['articles' => Produit::with(['categorieRelation', 'stocks'])
+            5 => (function () use ($choix, $entreprise) {
+                $domaineCourant = !empty($choix['categorie_id'])
+                    ? Categorie::whereKey($choix['categorie_id'])->value('nom')
+                    : ($choix['domaine_personnalise'] ?? null);
+                $metiersCourants = !empty($choix['secteurs_personnalises_selection'])
+                    ? array_values($choix['secteurs_personnalises_selection'])
+                    : Profil::whereIn('code', $choix['profils'] ?? [])->pluck('nom')->all();
+                $categories = \App\Modules\Admin\Modeles\Categorie::with('pointsDeVente')
                     ->where('entreprise_id', $entreprise->id)
+                    ->where('domaine_configuration', $domaineCourant)
+                    ->whereIn('metier_configuration', $metiersCourants)
+                    ->orderBy('nom')->get();
+                $idsCategories = $categories->pluck('id')->all();
+
+                return [
+                  'articles' => Produit::with(['categorieRelation', 'stocks'])
+                    ->where('entreprise_id', $entreprise->id)
+                    ->whereIn('categorie_id', $idsCategories)
                     ->whereIn('id', (array) session("souscription_articles.{$entreprise->id}", []))
                     ->orderBy('reference')->get(),
-                  // Les articles d'un parcours repris peuvent venir de plusieurs
-                  // domaines : toutes les catégories restent disponibles, avec
-                  // leur domaine indiqué, sans perdre les associations existantes.
-                  'categoriesEntreprise' => \App\Modules\Admin\Modeles\Categorie::with('pointsDeVente')
-                    ->where('entreprise_id', $entreprise->id)
-                    ->orderBy('domaine_configuration')->orderBy('nom')->get(),
+                  'categoriesEntreprise' => $categories,
                   'pointsDeVente' => PointDeVente::where('entreprise_id', $entreprise->id)->orderBy('nom')->get(),
-                  'siteDuStock' => $this->siteDuStock($entreprise)],
+                  'siteDuStock' => $this->siteDuStock($entreprise),
+                ];
+            })(),
 
             default => [],
         };
