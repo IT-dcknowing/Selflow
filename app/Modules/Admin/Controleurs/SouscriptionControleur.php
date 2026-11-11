@@ -110,11 +110,20 @@ class SouscriptionControleur
 
         // La création d'un domaine est une action distincte : on l'enregistre,
         // on revient à la liste, et l'utilisateur le sélectionne ensuite.
-        $nouveauDomaine = trim((string) ($donnees['nouveau_domaine'] ?? ''));
-        if ($nouveauDomaine !== '') {
-            $personnalises = array_values(array_unique(array_filter(array_merge(
+        $nouveauDomaine = (string) ($donnees['nouveau_domaine'] ?? '');
+        if (trim($nouveauDomaine) !== '') {
+            // Comparaison volontairement stricte : seule une chaîne strictement
+            // identique est refusée. Une variante réellement différente passe.
+            $domaineDejaCree = in_array($nouveauDomaine, (array) $entreprise->domaines_personnalises, true);
+            $domaineDuReferentiel = Categorie::query()->where('nom', $nouveauDomaine)->exists();
+            if ($domaineDejaCree || $domaineDuReferentiel) {
+                return back()->withInput()->withErrors([
+                    'nouveau_domaine' => 'Ce domaine existe déjà à l’identique. Sélectionnez-le dans la liste.',
+                ]);
+            }
+            $personnalises = array_values(array_merge(
                 (array) $entreprise->domaines_personnalises, [$nouveauDomaine]
-            ))));
+            ));
             $entreprise->update(['domaines_personnalises' => $personnalises]);
             return redirect()->to($this->adresseDeLEtape(1, $entreprise))
                 ->with('succes', 'Domaine créé. Sélectionnez-le pour continuer.');
@@ -181,11 +190,29 @@ class SouscriptionControleur
         // dans le choix retenu accorde l'écran et la base.
         $retenus = array_values(array_unique(array_merge($donnees['profils'] ?? [], $acquis)));
 
-        $secteursPersonnalises = array_values(array_unique(array_filter(array_map('trim', $donnees['secteurs_personnalises'] ?? []))));
-        if ($secteursPersonnalises !== []) {
-            $entreprise->update(['secteurs_personnalises' => array_values(array_unique(array_merge(
-                (array) $entreprise->secteurs_personnalises, $secteursPersonnalises
-            )))]);
+        $secteursSaisis = array_values(array_filter(
+            array_map(static fn ($nom) => (string) $nom, $donnees['secteurs_personnalises'] ?? []),
+            static fn ($nom) => trim($nom) !== ''
+        ));
+        // Refuser uniquement les doublons strictement identiques, dans la liste
+        // existante comme dans les nouvelles lignes du formulaire.
+        $secteursDejaEnregistres = (array) $entreprise->secteurs_personnalises;
+        $doublonSecteur = count($secteursSaisis) !== count(array_unique($secteursSaisis, SORT_STRING));
+        foreach ($secteursSaisis as $secteur) {
+            if (in_array($secteur, $secteursDejaEnregistres, true)) {
+                $doublonSecteur = true;
+                break;
+            }
+        }
+        if ($doublonSecteur) {
+            return back()->withInput()->withErrors([
+                'secteurs_personnalises' => 'Ce secteur précis existe déjà à l’identique. Modifiez son nom ou sélectionnez-le dans la liste.',
+            ]);
+        }
+        if ($secteursSaisis !== []) {
+            $entreprise->update(['secteurs_personnalises' => array_merge(
+                $secteursDejaEnregistres, $secteursSaisis
+            )]);
         }
 
         // Créer un secteur ne fait pas avancer le parcours : il revient dans
