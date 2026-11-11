@@ -230,6 +230,9 @@ class SouscriptionControleur
         ));
 
         $this->memoriser($entreprise, ['modules' => $retenus]);
+        // Les modules sont déterminés par les choix métier, jamais par une
+        // sélection utilisateur sur cette étape désormais informative.
+        $entreprise->update(['modules_actifs' => $retenus]);
 
         return $this->avancerVers(4, $entreprise);
     }
@@ -626,8 +629,10 @@ class SouscriptionControleur
 
                 return [
                     'pointsDeVente' => PointDeVente::where('entreprise_id', $entreprise->id)->orderBy('nom')->get(),
-                    'categoriesPersonnalisees' => \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)->orderBy('nom')->get(),
-                    'familles' => !empty($choix['domaine_personnalise'])
+                    'categoriesPersonnalisees' => (!empty($choix['domaine_personnalise']) || !empty($choix['secteurs_personnalises_selection']))
+                        ? collect()
+                        : \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)->orderBy('nom')->get(),
+                    'familles' => (!empty($choix['domaine_personnalise']) || !empty($choix['secteurs_personnalises_selection']))
                         ? collect()
                         : Famille::with(['typeArticle', 'profil'])
                             ->whereHas('profil', fn ($q) => $q->whereIn('code', $nouveaux !== [] ? $nouveaux : ($choix['profils'] ?? [])))
