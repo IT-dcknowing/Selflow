@@ -830,9 +830,10 @@ class SouscriptionControleur
                     'pointsDeVente' => PointDeVente::where('entreprise_id', $entreprise->id)->orderBy('nom')->get(),
                     'categoriesPersonnalisees' => \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)
                         ->where('domaine_configuration', $domaineCourant)
-                        ->whereIn('metier_configuration', !empty($choix['secteurs_personnalises_selection'])
-                            ? $choix['secteurs_personnalises_selection']
-                            : Profil::whereIn('code', $choix['profils'] ?? [])->pluck('nom')->all())
+                        ->whereIn('metier_configuration', array_values(array_unique(array_merge(
+                            Profil::whereIn('code', $choix['profils'] ?? [])->pluck('nom')->all(),
+                            (array) ($choix['secteurs_personnalises_selection'] ?? [])
+                        ))))
                         ->orderBy('metier_configuration')->orderBy('nom')->get(),
                     'metiersCourants' => array_values(array_unique(array_merge(
                         Profil::whereIn('code', $choix['profils'] ?? [])->orderBy('nom')->pluck('nom')->all(),
