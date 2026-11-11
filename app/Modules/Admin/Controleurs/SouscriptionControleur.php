@@ -391,7 +391,14 @@ class SouscriptionControleur
                 ]);
             }
 
-            $prefixe = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $nom) ?: 'CAT', 0, 8));
+            $prefixeBase = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $nom) ?: 'CAT', 0, 8));
+            $prefixe = $prefixeBase;
+            $suffixe = 2;
+            while (\App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)
+                ->where('prefixe', $prefixe)->exists()) {
+                $prefixe = substr($prefixeBase, 0, 6) . $suffixe++;
+            }
+
             \App\Modules\Admin\Modeles\Categorie::firstOrCreate(
                 [
                     'entreprise_id' => $entreprise->id,
