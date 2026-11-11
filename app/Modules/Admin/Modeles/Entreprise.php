@@ -52,6 +52,7 @@ class Entreprise extends Model
         'domaines_souscrits',
         'secteurs_personnalises',
         'secteurs_personnalises_par_domaine',
+        'secteurs_selectionnes_par_domaine',
         'modules_personnalises',
         // La clé de liaison Comptaflow ne figure PAS ici, et c'est délibéré :
         // elle était un champ du formulaire des paramètres, et coller celle
@@ -108,6 +109,7 @@ class Entreprise extends Model
         'domaines_souscrits' => 'array',
         'secteurs_personnalises' => 'array',
         'secteurs_personnalises_par_domaine' => 'array',
+        'secteurs_selectionnes_par_domaine' => 'array',
         'modules_personnalises' => 'array',
         'modules_actifs'     => 'array',
         'modules_autorises'  => 'array',
