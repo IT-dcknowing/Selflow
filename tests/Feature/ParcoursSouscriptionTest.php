@@ -742,7 +742,7 @@ class ParcoursSouscriptionTest extends TestCase
             'domaine_configuration' => $commerce->nom, 'metier_configuration' => $commerceProfil->nom,
         ]);
         $categorieAgri = \App\Modules\Admin\Modeles\Categorie::create([
-            'entreprise_id' => $this->entreprise->id, 'nom' => 'Divers', 'prefixe' => 'DIVAGR',
+            'entreprise_id' => $this->entreprise->id, 'nom' => 'Rayon agriculture privé', 'prefixe' => 'DIVAGR',
             'domaine_configuration' => $agriculture->nom, 'metier_configuration' => $agriProfil->nom,
         ]);
         $produitCommerce = Produit::create([
@@ -758,6 +758,11 @@ class ParcoursSouscriptionTest extends TestCase
         $this->withSession(["souscription.{$this->entreprise->id}" => [
             'categorie_id' => $commerce->id, 'profils' => [$commerceProfil->code],
         ]]);
+
+        $pageCategories = $this->get(route('admin.souscription.index', ['etape' => 4]))
+            ->assertOk()->getContent();
+        $this->assertStringContainsString($categorieCommerce->nom, $pageCategories);
+        $this->assertStringNotContainsString($categorieAgri->nom, $pageCategories);
 
         $pagePrix = $this->get(route('admin.souscription.index', ['etape' => 5]))
             ->assertOk()->getContent();
