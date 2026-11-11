@@ -446,8 +446,8 @@ class SouscriptionControleur
             'articles.*.stock_initial' => Quantite::facultative(),
         ]);
 
-        // La configuration des catégories se fait ici, à l'étape 5 :
-        // nom, préfixe, références et périmètre des points de vente.
+        // À l'étape 5, l'utilisateur choisit une catégorie déjà créée à l'étape 4
+        // et renseigne les prix, le point de vente et le stock d'ouverture.
         $pointDeVenteId = $this->siteDuStock($entreprise)?->id;
 
         $idsArticlesEnvoyes = collect($donnees['articles'] ?? [])->pluck('id')->filter()->map(fn ($id) => (int) $id)->all();
