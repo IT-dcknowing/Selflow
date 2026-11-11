@@ -655,6 +655,23 @@ class ParcoursSouscriptionTest extends TestCase
             ->assertSee('name="articles[0][categorie_id]"', false)
             ->assertSee('Choisir une catégorie')
             ->assertSee($categorie->nom);
+
+        // Un nouvel article doit recevoir l'identifiant de la catégorie
+        // sélectionnée, et non simplement enregistrer son libellé.
+        $this->post(route('admin.souscription.enregistrer', 5), [
+            'articles' => [[
+                'nouveau' => 1,
+                'nom' => 'Produit de contrôle',
+                'type' => 'marchandise',
+                'categorie_id' => $categorie->id,
+            ]],
+        ])->assertRedirect(route('admin.tableau_de_bord'));
+
+        $this->assertDatabaseHas('produits', [
+            'entreprise_id' => $this->entreprise->id,
+            'nom' => 'Produit de contrôle',
+            'categorie_id' => $categorie->id,
+        ]);
     }
 
     public function test_une_categorie_d_une_autre_entreprise_est_refusee_a_l_etape_5(): void
