@@ -151,10 +151,16 @@ class SouscriptionControleur
             : ($domaine ?: null);
         if ($nomDomaineSelectionne) {
             $entreprise->update([
-                'domaines_souscrits' => array_values(array_unique(array_merge(
-                    (array) $entreprise->domaines_souscrits,
+                // Le domaine actif est placé en dernier : le parcours
+                // retrouve ainsi le bon contexte après expiration de session,
+                // même lorsqu'on revient vers un domaine déjà enregistré.
+                'domaines_souscrits' => array_values(array_merge(
+                    array_filter(
+                        (array) $entreprise->domaines_souscrits,
+                        fn ($domaineEnregistre) => $domaineEnregistre !== $nomDomaineSelectionne
+                    ),
                     [$nomDomaineSelectionne]
-                ))),
+                )),
             ]);
         }
 
