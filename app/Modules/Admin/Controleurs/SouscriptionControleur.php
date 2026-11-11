@@ -130,8 +130,16 @@ class SouscriptionControleur
                 ->with('succes', 'Domaine créé. Sélectionnez-le pour continuer.');
         }
 
-        $domaine = trim((string) ($donnees['domaine_personnalise'] ?? ''));
-        $nouvelleCategorieId = isset($donnees['categorie_id']) ? (int) $donnees['categorie_id'] : null;
+        // Les domaines du référentiel et les domaines personnalisés sont
+        // deux groupes de radios HTML distincts. Si le navigateur transmet
+        // les deux, le choix du référentiel explicitement envoyé est prioritaire ;
+        // un ancien domaine personnalisé ne doit jamais prendre le dessus.
+        $nouvelleCategorieId = !empty($donnees['categorie_id'])
+            ? (int) $donnees['categorie_id']
+            : null;
+        $domaine = $nouvelleCategorieId
+            ? ''
+            : trim((string) ($donnees['domaine_personnalise'] ?? ''));
         $ancienChoix = $this->choix($entreprise);
         $domaineChange = ($ancienChoix['categorie_id'] ?? null) != $nouvelleCategorieId
             || ($ancienChoix['domaine_personnalise'] ?? null) !== ($domaine ?: null);
