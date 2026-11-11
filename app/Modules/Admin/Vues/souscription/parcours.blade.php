@@ -531,8 +531,6 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
           '<td><input type="number" name="articles['+i+'][prix_achat]" min="0" step="1"></td>'+
           '<td><input type="number" name="articles['+i+'][prix_vente]" min="0" step="1"></td>'+
           '<td><button type="button" class="btn btn-outline-danger" data-retirer-article title="Retirer cette ligne"><i class="fas fa-trash"></i></button></td>';
-        var type=document.createElement('select');type.required=true;type.className='form-control';type.name='articles['+i+'][type]';type.innerHTML=typeOptions;
-        tr.querySelector('input[name="articles['+i+'][type]"]').replaceWith(type);
         if(avecStock){var td=document.createElement('td');td.innerHTML='<input type="number" name="articles['+i+'][stock_initial]" min="0" step="1" placeholder="0">';tr.insertBefore(td,tr.lastElementChild);}
         table.appendChild(tr);
     });
