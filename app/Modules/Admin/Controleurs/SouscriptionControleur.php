@@ -272,10 +272,10 @@ class SouscriptionControleur
         // la liste des cartes et l'utilisateur le choisit ensuite.
         if ($request->input('action_secteur') === 'creer') {
             return redirect()->to($this->adresseDeLEtape(2, $entreprise))
-                ->with('succes', 'Secteur(s) créé(s). Sélectionnez un seul secteur pour continuer.');
+                ->with('succes', 'Secteur(s) créé(s). Cochez un ou plusieurs secteurs pour continuer.');
         }
 
-        $secteurSelectionne = array_slice(array_values(array_unique($donnees['secteurs_personnalises_selection'] ?? [])), 0, 1);
+        $secteurSelectionne = array_values(array_unique($donnees['secteurs_personnalises_selection'] ?? []));
         $choixPourDomaine = $this->choix($entreprise);
         $cleDomaineSelectionne = !empty($choixPourDomaine['categorie_id'])
             ? 'referentiel:' . $choixPourDomaine['categorie_id']
@@ -378,7 +378,7 @@ class SouscriptionControleur
         // Le référentiel n'est copié que si l'utilisateur a réellement choisi
         // des profils et des familles proposés.
         $bilan = ['familles' => 0, 'articles' => 0, 'modules' => []];
-        if (!empty($choix['profils']) && empty($choix['secteurs_personnalises_selection'])) {
+        if (!empty($choix['profils'])) {
             $bilan = SouscriptionProfilService::souscrire($entreprise, $choix['profils'], $retenues);
         }
 
@@ -397,13 +397,10 @@ class SouscriptionControleur
             if ($nom === '') continue;
 
             $metierCategorie = trim((string) ($ligne['metier_configuration'] ?? ''));
-            if ($metierCategorie === '' && count($metiersCourants) === 1) {
-                $metierCategorie = $metiersCourants[0];
-            }
             if ($domaineCourant === null || $metierCategorie === ''
                 || !in_array($metierCategorie, $metiersCourants, true)) {
                 return back()->withInput()->withErrors([
-                    'categories_personnalisees' => 'Choisissez le secteur auquel rattacher chaque catégorie.',
+                    'categories_personnalisees' => 'Le secteur de cette catégorie ne correspond pas aux secteurs sélectionnés.',
                 ]);
             }
 
