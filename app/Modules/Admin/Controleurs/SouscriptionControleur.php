@@ -280,11 +280,12 @@ class SouscriptionControleur
         $cleDomaineSelectionne = !empty($choixPourDomaine['categorie_id'])
             ? 'referentiel:' . $choixPourDomaine['categorie_id']
             : 'personnalise:' . (string) ($choixPourDomaine['domaine_personnalise'] ?? '');
-        $metiersSelectionnes = $secteurSelectionne !== []
-            ? $secteurSelectionne
-            : Profil::whereIn('code', $retenus)
+        $metiersSelectionnes = array_values(array_unique(array_merge(
+            Profil::whereIn('code', $retenus)
                 ->when($categorieCouranteId, fn ($q) => $q->where('categorie_id', $categorieCouranteId))
-                ->orderBy('nom')->pluck('nom')->all();
+                ->orderBy('nom')->pluck('nom')->all(),
+            $secteurSelectionne
+        )));
 
         $selectionsParDomaine = (array) $entreprise->secteurs_selectionnes_par_domaine;
         $selectionsParDomaine[$cleDomaineSelectionne] = $metiersSelectionnes;
@@ -387,9 +388,10 @@ class SouscriptionControleur
         $domaineCourant = !empty($choix['categorie_id'])
             ? Categorie::whereKey($choix['categorie_id'])->value('nom')
             : ($choix['domaine_personnalise'] ?? null);
-        $metiersCourants = !empty($choix['secteurs_personnalises_selection'])
-            ? array_values($choix['secteurs_personnalises_selection'])
-            : Profil::whereIn('code', $choix['profils'] ?? [])->orderBy('nom')->pluck('nom')->all();
+        $metiersCourants = array_values(array_unique(array_merge(
+            Profil::whereIn('code', $choix['profils'] ?? [])->orderBy('nom')->pluck('nom')->all(),
+            (array) ($choix['secteurs_personnalises_selection'] ?? [])
+        )));
 
         // Une catégorie personnalisée appartient à un seul domaine et à un seul secteur.
         foreach ($donnees['categories_personnalisees'] ?? [] as $ligne) {
@@ -832,10 +834,11 @@ class SouscriptionControleur
                             ? $choix['secteurs_personnalises_selection']
                             : Profil::whereIn('code', $choix['profils'] ?? [])->pluck('nom')->all())
                         ->orderBy('metier_configuration')->orderBy('nom')->get(),
-                    'metiersCourants' => !empty($choix['secteurs_personnalises_selection'])
-                        ? array_values($choix['secteurs_personnalises_selection'])
-                        : Profil::whereIn('code', $choix['profils'] ?? [])->orderBy('nom')->pluck('nom')->all(),
-                    'familles' => (!empty($choix['domaine_personnalise']) || !empty($choix['secteurs_personnalises_selection']))
+                    'metiersCourants' => array_values(array_unique(array_merge(
+                        Profil::whereIn('code', $choix['profils'] ?? [])->orderBy('nom')->pluck('nom')->all(),
+                        (array) ($choix['secteurs_personnalises_selection'] ?? [])
+                    ))),
+                    'familles' => !empty($choix['domaine_personnalise'])
                         ? collect()
                         : Famille::with(['typeArticle', 'profil'])
                             ->whereHas('profil', fn ($q) => $q->whereIn('code', $nouveaux !== [] ? $nouveaux : ($choix['profils'] ?? [])))
@@ -855,9 +858,10 @@ class SouscriptionControleur
                 $domaineCourant = !empty($choix['categorie_id'])
                     ? Categorie::whereKey($choix['categorie_id'])->value('nom')
                     : ($choix['domaine_personnalise'] ?? null);
-                $metiersCourants = !empty($choix['secteurs_personnalises_selection'])
-                    ? array_values($choix['secteurs_personnalises_selection'])
-                    : Profil::whereIn('code', $choix['profils'] ?? [])->pluck('nom')->all();
+                $metiersCourants = array_values(array_unique(array_merge(
+                    Profil::whereIn('code', $choix['profils'] ?? [])->pluck('nom')->all(),
+                    (array) ($choix['secteurs_personnalises_selection'] ?? [])
+                )));
                 $categories = \App\Modules\Admin\Modeles\Categorie::with('pointsDeVente')
                     ->where('entreprise_id', $entreprise->id)
                     ->where('domaine_configuration', $domaineCourant)
