@@ -378,7 +378,7 @@ class SouscriptionControleur
             $nom = trim((string) ($ligne['nom'] ?? ''));
             if ($nom === '') continue;
             $prefixe = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $nom) ?: 'CAT', 0, 8));
-            \App\Modules\Admin\Modeles\Categorie::firstOrCreate(
+            $categoriePersonnalisee = \\App\\Modules\\Admin\\Modeles\\Categorie::firstOrCreate(
                 ['entreprise_id' => $entreprise->id, 'nom' => $nom],
                 [
                     'prefixe' => $prefixe,
@@ -386,6 +386,19 @@ class SouscriptionControleur
                     'metier_configuration' => $metierCourant,
                 ]
             );
+
+            // Une catégorie historique récupère son contexte une fois ;
+            // un domaine déjà défini n'est jamais remplacé.
+            $contexteManquant = [];
+            if (!$categoriePersonnalisee->domaine_configuration && $domaineCourant) {
+                $contexteManquant['domaine_configuration'] = $domaineCourant;
+            }
+            if (!$categoriePersonnalisee->metier_configuration && $metierCourant) {
+                $contexteManquant['metier_configuration'] = $metierCourant;
+            }
+            if ($contexteManquant !== []) {
+                $categoriePersonnalisee->update($contexteManquant);
+            }
         }
 
         $ajoutes = Produit::where('entreprise_id', $entreprise->id)
