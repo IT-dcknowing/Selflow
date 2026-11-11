@@ -173,6 +173,18 @@ class SouscriptionProfilService
             ->first();
 
         if ($existante) {
+            $profil = $famille->profil;
+            $completer = [];
+            if (!$existante->domaine_configuration && $profil?->categorie?->nom) {
+                $completer['domaine_configuration'] = $profil->categorie->nom;
+            }
+            if (!$existante->metier_configuration && $profil?->nom) {
+                $completer['metier_configuration'] = $profil->nom;
+            }
+            if ($completer !== []) {
+                $existante->update($completer);
+            }
+
             return [$existante, false];
         }
 
