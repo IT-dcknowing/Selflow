@@ -664,7 +664,7 @@ class SouscriptionControleur
 
             2 => ['secteursPersonnalises' => (array) (($entreprise->secteurs_personnalises_par_domaine ?? [])[
                     !empty($choix['categorie_id']) ? 'referentiel:' . $choix['categorie_id'] : 'personnalise:' . (string) ($choix['domaine_personnalise'] ?? '')
-                ] ?? (!empty($choix['domaine_personnalise']) ? $entreprise->secteurs_personnalises : [])),
+                ] ?? []),
                   'profils' => !empty($choix['domaine_personnalise'])
                     ? collect()
                     : Profil::withCount(['familles', 'articles'])
