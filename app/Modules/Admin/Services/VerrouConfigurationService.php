@@ -149,9 +149,15 @@ class VerrouConfigurationService
      *
      * @return array<int, string>  codes de profil
      */
-    public static function profilsAcquis(Entreprise $entreprise): array
+    public static function profilsAcquis(Entreprise $entreprise, ?int $categorieId = null): array
     {
-        return $entreprise->profils()->pluck('code')->all();
+        if ($categorieId === null) {
+            return [];
+        }
+
+        return $entreprise->profils()
+            ->where('referentiel_profils.categorie_id', $categorieId)
+            ->pluck('code')->all();
     }
 
     /**
