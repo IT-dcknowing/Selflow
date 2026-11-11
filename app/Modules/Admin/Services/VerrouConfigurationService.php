@@ -180,6 +180,7 @@ class VerrouConfigurationService
         // personnalisé n'a pas de profil standard associé.
         return array_values(array_unique(array_filter(array_merge(
             (array) $entreprise->domaines_souscrits,
+            (array) $entreprise->secteur_activite,
             $nomsProfils
         ))));
     }
