@@ -178,7 +178,6 @@ class SouscriptionControleur
                     ? 'referentiel:' . $nouvelleCategorieId
                     : 'personnalise:' . ($domaine ?: ''),
             ]);
-            $entreprise->profils()->detach();
         }
         $this->memoriser($entreprise, $valeurs);
 
@@ -780,19 +779,12 @@ class SouscriptionControleur
                     ->where('entreprise_id', $entreprise->id)
                     ->whereIn('id', (array) session("souscription_articles.{$entreprise->id}", []))
                     ->orderBy('reference')->get(),
+                  // Les articles d'un parcours repris peuvent venir de plusieurs
+                  // domaines : toutes les catégories restent disponibles, avec
+                  // leur domaine indiqué, sans perdre les associations existantes.
                   'categoriesEntreprise' => \App\Modules\Admin\Modeles\Categorie::with('pointsDeVente')
                     ->where('entreprise_id', $entreprise->id)
-                    ->when(
-                        !empty($choix['categorie_id']) || !empty($choix['domaine_personnalise']),
-                        fn ($query) => $query->where(function ($sousQuery) use ($choix) {
-                            $domaine = !empty($choix['categorie_id'])
-                                ? Categorie::whereKey($choix['categorie_id'])->value('nom')
-                                : $choix['domaine_personnalise'];
-                            $sousQuery->whereNull('domaine_configuration')
-                                ->orWhere('domaine_configuration', $domaine);
-                        })
-                    )
-                    ->orderBy('nom')->get(),
+                    ->orderBy('domaine_configuration')->orderBy('nom')->get(),
                   'pointsDeVente' => PointDeVente::where('entreprise_id', $entreprise->id)->orderBy('nom')->get(),
                   'siteDuStock' => $this->siteDuStock($entreprise)],
 
