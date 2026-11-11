@@ -727,4 +727,72 @@ class ParcoursSouscriptionTest extends TestCase
         $this->assertContains('Agriculture-Élevage', $entreprise->domaines_souscrits);
     }
 
+
+    public function test_les_categories_et_produits_sont_isoles_par_domaine_et_secteur(): void
+    {
+        $this->actingAs($this->admin);
+
+        $commerce = $this->commerce();
+        $agriculture = Categorie::where('nom', 'Agriculture-Élevage')->firstOrFail();
+        $commerceProfil = \App\Modules\Admin\Modeles\Referentiel\Profil::where('code', 'boutique_quartier')->firstOrFail();
+        $agriProfil = \App\Modules\Admin\Modeles\Referentiel\Profil::where('categorie_id', $agriculture->id)->firstOrFail();
+
+        $categorieCommerce = \App\Modules\Admin\Modeles\Categorie::create([
+            'entreprise_id' => $this->entreprise->id, 'nom' => 'Divers', 'prefixe' => 'DIVCOM',
+            'domaine_configuration' => $commerce->nom, 'metier_configuration' => $commerceProfil->nom,
+        ]);
+        $categorieAgri = \App\Modules\Admin\Modeles\Categorie::create([
+            'entreprise_id' => $this->entreprise->id, 'nom' => 'Divers', 'prefixe' => 'DIVAGR',
+            'domaine_configuration' => $agriculture->nom, 'metier_configuration' => $agriProfil->nom,
+        ]);
+        $produitCommerce = Produit::create([
+            'entreprise_id' => $this->entreprise->id, 'reference' => 'DIV-COM', 'nom' => 'Article commerce',
+            'type' => 'marchandise', 'categorie_id' => $categorieCommerce->id,
+        ]);
+        $produitAgri = Produit::create([
+            'entreprise_id' => $this->entreprise->id, 'reference' => 'DIV-AGR', 'nom' => 'Article agriculture',
+            'type' => 'marchandise', 'categorie_id' => $categorieAgri->id,
+        ]);
+
+        $this->entreprise->update(['souscription_etape' => 5]);
+        $this->withSession(["souscription.{$this->entreprise->id}" => [
+            'categorie_id' => $commerce->id, 'profils' => [$commerceProfil->code],
+        ]]);
+
+        $pagePrix = $this->get(route('admin.souscription.index', ['etape' => 5]))
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString($produitCommerce->nom, $pagePrix);
+        $this->assertStringNotContainsString($produitAgri->nom, $pagePrix);
+        $this->assertStringContainsString($categorieCommerce->nom, $pagePrix);
+        $this->assertStringNotContainsString($agriProfil->nom, $pagePrix);
+    }
+
+    public function test_une_categorie_d_un_autre_domaine_ou_secteur_est_refusee_pour_un_produit(): void
+    {
+        $this->actingAs($this->admin);
+        $commerce = $this->commerce();
+        $profil = \App\Modules\Admin\Modeles\Referentiel\Profil::where('code', 'boutique_quartier')->firstOrFail();
+        $autreDomaine = Categorie::where('nom', 'Agriculture-Élevage')->firstOrFail();
+
+        $categorieHorsPerimetre = \App\Modules\Admin\Modeles\Categorie::create([
+            'entreprise_id' => $this->entreprise->id, 'nom' => 'Catégorie hors secteur', 'prefixe' => 'HORS',
+            'domaine_configuration' => $autreDomaine->nom, 'metier_configuration' => 'Autre métier',
+        ]);
+
+        $this->entreprise->update(['souscription_etape' => 5]);
+        $this->withSession(["souscription.{$this->entreprise->id}" => [
+            'categorie_id' => $commerce->id, 'profils' => [$profil->code],
+        ]]);
+
+        $this->post(route('admin.souscription.enregistrer', 5), [
+            'articles' => [[
+                'nouveau' => 1, 'nom' => 'Produit interdit', 'type' => 'marchandise',
+                'categorie_id' => $categorieHorsPerimetre->id,
+            ]],
+        ])->assertSessionHasErrors('articles.0.categorie_id');
+
+        $this->assertDatabaseMissing('produits', ['nom' => 'Produit interdit']);
+    }
+
 }
