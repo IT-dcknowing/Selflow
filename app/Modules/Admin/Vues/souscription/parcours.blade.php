@@ -366,14 +366,21 @@
         <div class="sous-tete">
             <h2>Vos prix{{ $avecStock ? ' et votre stock de départ' : '' }}</h2>
             <p>Le catalogue livré ne porte aucun prix : ils varient selon la zone et la
-               période. Renommez ce qui doit l'être et saisissez vos montants — vous pouvez
-               aussi passer et les compléter article par article plus tard.
+               période. Choisissez la catégorie de chaque article dans la liste, puis saisissez
+               vos montants. Une catégorie manquante se crée à l'étape précédente.
                @if($avecStock)
                    La dernière colonne reçoit les quantités comptées aujourd'hui
                    à « {{ $siteDuStock->nom }} » : c'est votre inventaire d'ouverture.
                @endif
             </p>
         </div>
+
+        @if($categoriesEntreprise->isEmpty())
+            <div class="alert alert-warning" style="margin-bottom:16px;">
+                Aucune catégorie n'est encore disponible pour ce domaine.
+                <a href="{{ $routeEtape(4) }}" style="font-weight:700;text-decoration:underline;">Retourner à l'étape 4 pour créer une catégorie</a>.
+            </div>
+        @endif
 
         <div class="cadre-defilant">
             <table class="tableau-prix">
@@ -392,7 +399,14 @@
                             <input type="hidden" name="articles[{{ $i }}][id]" value="{{ $article->id }}">
                             <input type="text" name="articles[{{ $i }}][nom]" value="{{ $article->nom }}" maxlength="255">
                         </td>
-                        <td><input type="text" name="articles[{{ $i }}][categorie_nom]" value="{{ $article->categorieRelation->nom ?? '' }}" maxlength="120"></td>
+                        <td>
+                            <select required name="articles[{{ $i }}][categorie_id]" class="form-control">
+                                <option value="">Choisir une catégorie</option>
+                                @foreach($categoriesEntreprise as $categorie)
+                                    <option value="{{ $categorie->id }}" {{ (int) $article->categorie_id === (int) $categorie->id ? 'selected' : '' }}>{{ $categorie->nom }}</option>
+                                @endforeach
+                            </select>
+                        </td>
                         <td><select name="articles[{{ $i }}][point_de_vente_id]" class="form-control"><option value="">Tous</option>@foreach($pointsDeVente as $site)<option value="{{ $site->id }}" {{ $article->stocks->contains('point_de_vente_id', $site->id) ? 'selected' : '' }}>{{ $site->nom }}</option>@endforeach</select></td>
                         <td><input type="number" name="articles[{{ $i }}][prix_achat]" min="0" step="1"
                                    value="{{ $article->prix_achat > 0 ? (int) $article->prix_achat : '' }}"></td>
@@ -419,7 +433,7 @@
                 </tbody>
             </table>
         </div>
-        <button type="button" class="btn btn-outline" id="ajouter-article"><i class="fas fa-plus"></i> Ajouter un article</button>
+        <button type="button" class="btn btn-outline" id="ajouter-article" {{ $categoriesEntreprise->isEmpty() ? 'disabled' : '' }}><i class="fas fa-plus"></i> Ajouter un article</button>
     @endif
 
     <div class="pieds">
@@ -542,17 +556,8 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
     var index=table.querySelectorAll('tr').length;
     var types=@json(\App\Modules\Admin\Modeles\Produit::TYPES);
     var sites=@json(isset($pointsDeVente) ? $pointsDeVente->map(fn($site)=>['id'=>$site->id,'nom'=>$site->nom])->values() : []);
+    var categories=@json(isset($categoriesEntreprise) ? $categoriesEntreprise->map(fn($categorie)=>['id'=>$categorie->id,'nom'=>$categorie->nom])->values() : []);
     var avecStock=@json(isset($avecStock) && (bool) $avecStock);
-    function prefixe(nom){return (nom||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^A-Za-z0-9]/g,'').toUpperCase().slice(0,8)||'CAT';}
-    function majReference(ligne){
-        var cat=ligne.querySelector('[name$="[categorie_nom]"]');
-        var ref=ligne.querySelector('[data-reference]');
-        if(!cat||!ref)return;
-        var numero=(ref.textContent.match(/(\\d{3,5})$/)||[])[1]||'00001';
-        ref.textContent=prefixe(cat.value)+'-'+numero.padStart(5,'0');
-    }
-    table.addEventListener('input',function(e){if(e.target.name&&e.target.name.endsWith('[categorie_nom]'))majReference(e.target.closest('tr'));});
-    table.addEventListener('change',function(e){if(e.target.name&&e.target.name.endsWith('[categorie_nom]'))majReference(e.target.closest('tr'));});
     table.addEventListener('click',function(e){
         var del=e.target.closest('[data-retirer-article]');if(!del)return;
         var row=del.closest('tr');var id=row.querySelector('input[name$="[id]"]');
@@ -566,9 +571,10 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
         var tr=document.createElement('tr');
         var siteOptions='<option value="">Tous</option>'+sites.map(s=>'<option value="'+s.id+'">'+String(s.nom).replace(/[&<>"']/g,'')+'</option>').join('');
         var typeOptions='<option value="">Type d’article</option>'+Object.entries(types).map(([k,label])=>'<option value="'+k+'">'+label+'</option>').join('');
-        tr.innerHTML='<td><span class="cpt" data-reference>CAT-00001</span></td>'+
+        var categorieOptions='<option value="">Choisir une catégorie</option>'+categories.map(c=>'<option value="'+c.id+'">'+String(c.nom).replace(/[&<>"']/g,'')+'</option>').join('');
+        tr.innerHTML='<td><span class="cpt" data-reference>ARTICLE</span></td>'+
           '<td><input required type="text" name="articles['+i+'][nom]" maxlength="255" placeholder="Nom de l’article"><input type="hidden" name="articles['+i+'][nouveau]" value="1"><select required class="form-control" name="articles['+i+'][type]">'+typeOptions+'</select></td>'+
-          '<td><input required type="text" name="articles['+i+'][categorie_nom]" maxlength="120" placeholder="Catégorie"></td>'+
+          '<td><select required class="form-control" name="articles['+i+'][categorie_id]">'+categorieOptions+'</select></td>'+
           '<td><select name="articles['+i+'][point_de_vente_id]" class="form-control">'+siteOptions+'</select></td>'+
           '<td><input type="number" name="articles['+i+'][prix_achat]" min="0" step="1"></td>'+
           '<td><input type="number" name="articles['+i+'][prix_vente]" min="0" step="1"></td>'+
