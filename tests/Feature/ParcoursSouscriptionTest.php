@@ -614,7 +614,7 @@ class ParcoursSouscriptionTest extends TestCase
         $this->assertContains('Commerce', $entreprise->domaines_souscrits);
         $this->assertSame(
             ['Commerce'],
-            \\App\\Modules\\Admin\\Services\\VerrouConfigurationService::domainesSouscrits($entreprise)
+            \App\Modules\Admin\Services\VerrouConfigurationService::domainesSouscrits($entreprise)
         );
     }
 
@@ -632,7 +632,7 @@ class ParcoursSouscriptionTest extends TestCase
         $this->assertContains('Artisanat', $entreprise->domaines_souscrits);
         $this->assertContains(
             'Artisanat',
-            \\App\\Modules\\Admin\\Services\\VerrouConfigurationService::domainesSouscrits($entreprise)
+            \App\Modules\Admin\Services\VerrouConfigurationService::domainesSouscrits($entreprise)
         );
     }
 
@@ -644,7 +644,7 @@ class ParcoursSouscriptionTest extends TestCase
         $this->post(route('admin.souscription.enregistrer', 3), []);
         $this->post(route('admin.souscription.enregistrer', 4), ['familles' => ['VIV']]);
 
-        $categorie = \\App\\Modules\\Admin\\Modeles\\Categorie::where('entreprise_id', $this->entreprise->id)->firstOrFail();
+        $categorie = \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $this->entreprise->id)->firstOrFail();
         $article = Produit::where('entreprise_id', $this->entreprise->id)->firstOrFail();
 
         $this->assertSame($categorie->id, $article->categorie_id);
@@ -658,7 +658,7 @@ class ParcoursSouscriptionTest extends TestCase
     public function test_une_categorie_d_une_autre_entreprise_est_refusee_a_l_etape_5(): void
     {
         $voisine = Entreprise::create(['nom' => 'Entreprise voisine']);
-        $categorieEtrangere = \\App\\Modules\\Admin\\Modeles\\Categorie::create([
+        $categorieEtrangere = \App\Modules\Admin\Modeles\Categorie::create([
             'entreprise_id' => $voisine->id,
             'nom' => 'Catégorie privée',
             'prefixe' => 'PRIV',
