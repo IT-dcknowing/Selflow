@@ -233,18 +233,21 @@
             <div id="secteurs-personnalises">
                 @foreach((array) $entreprise->secteurs_personnalises as $secteur)
                     <label class="ligne acquise" style="display:flex;gap:10px;align-items:center;">
-                        <input type="radio" name="secteurs_personnalises_selection[]" value="{{ $secteur }}"
+                        <input type="radio" name="secteurs_personnalises_selection[]" value="{{ $secteur }}" data-etape-suivante
                                {{ in_array($secteur, $choix['secteurs_personnalises_selection'] ?? [], true) ? 'checked' : '' }}>
                         <strong>{{ $secteur }}</strong><span class="badge-acquis">Créé</span>
                     </label>
                 @endforeach
                 <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
                     <input type="text" name="secteurs_personnalises[]" class="form-control" maxlength="150" placeholder="Nom du secteur précis" data-nouveau-secteur>
-                    <label style="display:flex;gap:5px;align-items:center;white-space:nowrap;"><input type="radio" name="secteurs_personnalises_selection[]" data-selection-nouveau-secteur> Sélectionner</label>
+                    <label style="display:flex;gap:5px;align-items:center;white-space:nowrap;"></label>
                     <button type="button" class="btn btn-outline-danger" data-retirer-saisie title="Retirer"><i class="fas fa-trash"></i></button>
                 </div>
             </div>
-            <button type="button" class="btn btn-outline" id="ajouter-secteur"><i class="fas fa-plus"></i> Ajouter un autre secteur</button>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button type="button" class="btn btn-outline" id="ajouter-secteur"><i class="fas fa-plus"></i> Ajouter un autre secteur</button>
+                <button type="submit" name="action_secteur" value="creer" class="btn btn-primary"><i class="fas fa-check"></i> Créer les secteurs</button>
+            </div>
         </div>
 
     {{-- ══ 3. Les modules ══ --}}
@@ -471,27 +474,11 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
     var zone=document.getElementById('secteurs-personnalises');
     var bouton=document.getElementById('ajouter-secteur');
     if(!zone||!bouton)return;
-    zone.addEventListener('input',function(e){
-        if(e.target.matches('[data-nouveau-secteur]')){
-            var cb=e.target.parentElement.querySelector('[data-selection-nouveau-secteur]');
-            if(cb)cb.value=e.target.value;
-        }
-    });
-    zone.addEventListener('change',function(e){
-        if(e.target.matches('[data-selection-nouveau-secteur]')){
-            var input=e.target.parentElement.querySelector('[data-nouveau-secteur]');
-            e.target.value=input?input.value:'';
-        }
-    });
     bouton.addEventListener('click',function(){
         var ligne=document.createElement('div');ligne.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px;';
         var input=document.createElement('input');input.type='text';input.name='secteurs_personnalises[]';input.maxLength=150;input.className='form-control';input.placeholder='Nom du secteur précis';
-        var label=document.createElement('label');label.style.cssText='display:flex;gap:5px;align-items:center;white-space:nowrap;';
-        var cb=document.createElement('input');cb.type='checkbox';cb.name='secteurs_personnalises_selection[]';
-        input.addEventListener('input',function(){cb.value=input.value;});cb.addEventListener('change',function(){cb.value=input.value;});
-        label.appendChild(cb);label.appendChild(document.createTextNode(' Sélectionner'));
         var del=document.createElement('button');del.type='button';del.className='btn btn-outline-danger';del.setAttribute('data-retirer-saisie','');del.innerHTML='<i class="fas fa-trash"></i>';
-        ligne.appendChild(input);ligne.appendChild(label);ligne.appendChild(del);zone.appendChild(ligne);
+        ligne.appendChild(input);ligne.appendChild(del);zone.appendChild(ligne);
     });
 })();
 
