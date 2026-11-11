@@ -378,7 +378,7 @@ class SouscriptionControleur
             $nom = trim((string) ($ligne['nom'] ?? ''));
             if ($nom === '') continue;
             $prefixe = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $nom) ?: 'CAT', 0, 8));
-            $categoriePersonnalisee = \\App\\Modules\\Admin\\Modeles\\Categorie::firstOrCreate(
+            $categoriePersonnalisee = \App\Modules\Admin\Modeles\Categorie::firstOrCreate(
                 ['entreprise_id' => $entreprise->id, 'nom' => $nom],
                 [
                     'prefixe' => $prefixe,
