@@ -179,14 +179,17 @@ class SouscriptionProfilService
         // Les quatre comptes de la famille suivent le rayon, et non chaque
         // article : c'est le rayon qui porte la regle, et un article cree a la
         // main apres la souscription en herite sans qu'on ait rien a redire.
+        $profil = $famille->profil;
         return [Categorie::create([
-            'entreprise_id'    => $entreprise->id,
-            'nom'              => $famille->nom,
-            'prefixe'          => self::prefixeLibre($entreprise, $famille->code),
-            'compte_vente'     => $famille->compte_vente,
-            'compte_achat'     => $famille->compte_achat,
-            'compte_stock'     => $famille->compte_stock,
-            'compte_variation' => $famille->compte_variation,
+            'entreprise_id'       => $entreprise->id,
+            'nom'                 => $famille->nom,
+            'prefixe'             => self::prefixeLibre($entreprise, $famille->code),
+            'domaine_configuration' => $profil?->categorie?->nom,
+            'metier_configuration'  => $profil?->nom,
+            'compte_vente'        => $famille->compte_vente,
+            'compte_achat'        => $famille->compte_achat,
+            'compte_stock'        => $famille->compte_stock,
+            'compte_variation'    => $famille->compte_variation,
         ]), true];
     }
 
