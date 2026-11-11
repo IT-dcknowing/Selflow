@@ -516,6 +516,26 @@ class Entreprise extends Model
      */
     public function etatConnexionFne(): array
     {
+        try {
+            return $this->calculerEtatConnexionFne();
+        } catch (\\Illuminate\\Contracts\\Encryption\\DecryptException $exception) {
+            \\Illuminate\\Support\\Facades\\Log::warning(
+                'Accès FNE illisible pour l’entreprise #' . $this->getKey(),
+                ['exception' => $exception::class]
+            );
+
+            return [
+                'code' => 'acces_a_verifier',
+                'libelle' => 'Accès FNE à vérifier',
+                'detail' => 'Une ancienne donnée chiffrée est illisible. Les accès doivent être renseignés à nouveau.',
+                'couleur' => 'orange',
+                'a_saisir' => true,
+            ];
+        }
+    }
+
+    private function calculerEtatConnexionFne(): array
+    {
         $acces = $this->fneCredential;
 
         $etat = function (string $code, string $libelle, string $detail, string $couleur, bool $aSaisir = false) {
