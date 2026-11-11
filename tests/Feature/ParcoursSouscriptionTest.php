@@ -603,4 +603,81 @@ class ParcoursSouscriptionTest extends TestCase
         }
         $this->assertStringNotContainsString('class="cpt"', $page, 'Pas de numéro de compte sans comptabilité.');
     }
+
+    public function test_le_domaine_choisi_est_conserve_meme_avant_la_souscription_d_un_metier(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('admin.souscription.enregistrer', 1), ['categorie_id' => $this->commerce()->id])
+            ->assertRedirect(route('admin.souscription.index', ['etape' => 2]));
+
+        $entreprise = $this->entreprise->fresh();
+        $this->assertContains('Commerce', $entreprise->domaines_souscrits);
+        $this->assertSame(
+            ['Commerce'],
+            \\App\\Modules\\Admin\\Services\\VerrouConfigurationService::domainesSouscrits($entreprise)
+        );
+    }
+
+    public function test_un_domaine_personnalise_selectionne_reste_visible_dans_la_configuration(): void
+    {
+        $this->actingAs($this->admin);
+
+        $this->post(route('admin.souscription.enregistrer', 1), ['nouveau_domaine' => 'Artisanat'])
+            ->assertRedirect(route('admin.souscription.index', ['etape' => 1]));
+
+        $this->post(route('admin.souscription.enregistrer', 1), ['domaine_personnalise' => 'Artisanat'])
+            ->assertRedirect(route('admin.souscription.index', ['etape' => 2]));
+
+        $entreprise = $this->entreprise->fresh();
+        $this->assertContains('Artisanat', $entreprise->domaines_souscrits);
+        $this->assertContains(
+            'Artisanat',
+            \\App\\Modules\\Admin\\Services\\VerrouConfigurationService::domainesSouscrits($entreprise)
+        );
+    }
+
+    public function test_les_produits_de_l_etape_5_ont_une_liste_de_categories_et_un_lien_obligatoire(): void
+    {
+        $this->actingAs($this->admin);
+        $this->post(route('admin.souscription.enregistrer', 1), ['categorie_id' => $this->commerce()->id]);
+        $this->post(route('admin.souscription.enregistrer', 2), ['profils' => ['boutique_quartier']]);
+        $this->post(route('admin.souscription.enregistrer', 3), []);
+        $this->post(route('admin.souscription.enregistrer', 4), ['familles' => ['VIV']]);
+
+        $categorie = \\App\\Modules\\Admin\\Modeles\\Categorie::where('entreprise_id', $this->entreprise->id)->firstOrFail();
+        $article = Produit::where('entreprise_id', $this->entreprise->id)->firstOrFail();
+
+        $this->assertSame($categorie->id, $article->categorie_id);
+        $this->get(route('admin.souscription.index', ['etape' => 5]))
+            ->assertOk()
+            ->assertSee('name="articles[0][categorie_id]"', false)
+            ->assertSee('Choisir une catégorie')
+            ->assertSee($categorie->nom);
+    }
+
+    public function test_une_categorie_d_une_autre_entreprise_est_refusee_a_l_etape_5(): void
+    {
+        $voisine = Entreprise::create(['nom' => 'Entreprise voisine']);
+        $categorieEtrangere = \\App\\Modules\\Admin\\Modeles\\Categorie::create([
+            'entreprise_id' => $voisine->id,
+            'nom' => 'Catégorie privée',
+            'prefixe' => 'PRIV',
+        ]);
+
+        $this->actingAs($this->admin);
+        $this->post(route('admin.souscription.enregistrer', 1), ['categorie_id' => $this->commerce()->id]);
+        $this->post(route('admin.souscription.enregistrer', 2), ['profils' => ['boutique_quartier']]);
+        $this->post(route('admin.souscription.enregistrer', 3), []);
+        $this->post(route('admin.souscription.enregistrer', 4), ['familles' => ['VIV']]);
+
+        $article = Produit::where('entreprise_id', $this->entreprise->id)->firstOrFail();
+        $this->post(route('admin.souscription.enregistrer', 5), [
+            'articles' => [[
+                'id' => $article->id,
+                'categorie_id' => $categorieEtrangere->id,
+                'nom' => $article->nom,
+            ]],
+        ])->assertSessionHasErrors('articles.0.categorie_id');
+    }
+
 }
