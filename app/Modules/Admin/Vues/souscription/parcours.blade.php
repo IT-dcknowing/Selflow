@@ -224,20 +224,18 @@
                 <input type="hidden" name="profils[]" value="{{ $profil->code }}">
             @endif
             @endforeach
+            @foreach($secteursPersonnalises ?? [] as $secteur)
+                <label class="ligne acquise">
+                    <input type="radio" name="secteurs_personnalises_selection[]" value="{{ $secteur }}" data-etape-suivante
+                           {{ in_array($secteur, $choix['secteurs_personnalises_selection'] ?? [], true) ? 'checked' : '' }}>
+                    <div class="nom">{{ $secteur }}</div>
+                    <div class="droite"><span class="badge-acquis">Créé</span></div>
+                </label>
+            @endforeach
         </div>
-
-
-
-        <div class="autre" style="background:#f0fdf4;border-color:#86efac;">
-            <label style="color:#166534;">Créer un ou plusieurs secteurs précis</label>
+        <div class="autre">
+            <label>Créer un secteur précis</label>
             <div id="secteurs-personnalises">
-                @foreach((array) $entreprise->secteurs_personnalises as $secteur)
-                    <label class="ligne acquise" style="display:flex;gap:10px;align-items:center;">
-                        <input type="radio" name="secteurs_personnalises_selection[]" value="{{ $secteur }}" data-etape-suivante
-                               {{ in_array($secteur, $choix['secteurs_personnalises_selection'] ?? [], true) ? 'checked' : '' }}>
-                        <strong>{{ $secteur }}</strong><span class="badge-acquis">Créé</span>
-                    </label>
-                @endforeach
                 <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
                     <input type="text" name="secteurs_personnalises[]" class="form-control" maxlength="150" placeholder="Nom du secteur précis" data-nouveau-secteur>
                     <button type="button" class="btn btn-outline-danger" data-retirer-saisie title="Retirer"><i class="fas fa-trash"></i></button>
