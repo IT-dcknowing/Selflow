@@ -280,6 +280,16 @@ class SouscriptionControleur
         $cleDomaineSelectionne = !empty($choixPourDomaine['categorie_id'])
             ? 'referentiel:' . $choixPourDomaine['categorie_id']
             : 'personnalise:' . (string) ($choixPourDomaine['domaine_personnalise'] ?? '');
+        $metiersSelectionnes = $secteurSelectionne !== []
+            ? $secteurSelectionne
+            : Profil::whereIn('code', $retenus)
+                ->when($categorieCouranteId, fn ($q) => $q->where('categorie_id', $categorieCouranteId))
+                ->orderBy('nom')->pluck('nom')->all();
+
+        $selectionsParDomaine = (array) $entreprise->secteurs_selectionnes_par_domaine;
+        $selectionsParDomaine[$cleDomaineSelectionne] = $metiersSelectionnes;
+        $entreprise->update(['secteurs_selectionnes_par_domaine' => $selectionsParDomaine]);
+
         $this->memoriser($entreprise, [
             'profils' => $retenus,
             'secteurs_personnalises_selection' => $secteurSelectionne,
@@ -730,6 +740,15 @@ class SouscriptionControleur
         } elseif ($dernierDomaine && in_array($dernierDomaine, (array) $entreprise->domaines_personnalises, true)) {
             $choix['domaine_personnalise'] = $dernierDomaine;
             $choix['profils'] = [];
+
+            // Un secteur personnalisé choisi doit lui aussi survivre à la
+            // disparition de session : ses catégories et produits restent
+            // alors rattachés au bon contexte au retour dans le parcours.
+            $cleDomaine = 'personnalise:' . $dernierDomaine;
+            $secteursChoisis = (array) (($entreprise->secteurs_selectionnes_par_domaine ?? [])[$cleDomaine] ?? []);
+            if ($secteursChoisis !== []) {
+                $choix['secteurs_personnalises_selection'] = $secteursChoisis;
+            }
         }
 
         if (!empty($entreprise->modules_actifs)) {
