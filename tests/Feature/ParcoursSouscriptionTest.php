@@ -648,6 +648,8 @@ class ParcoursSouscriptionTest extends TestCase
         $article = Produit::where('entreprise_id', $this->entreprise->id)->firstOrFail();
 
         $this->assertSame($categorie->id, $article->categorie_id);
+        $this->assertSame('Commerce', $categorie->domaine_configuration);
+        $this->assertNotEmpty($categorie->metier_configuration);
         $this->get(route('admin.souscription.index', ['etape' => 5]))
             ->assertOk()
             ->assertSee('name="articles[0][categorie_id]"', false)
@@ -678,6 +680,34 @@ class ParcoursSouscriptionTest extends TestCase
                 'nom' => $article->nom,
             ]],
         ])->assertSessionHasErrors('articles.0.categorie_id');
+    }
+
+
+    public function test_ajouter_un_domaine_ne_detache_pas_les_metiers_et_articles_deja_crees(): void
+    {
+        $this->actingAs($this->admin);
+
+        $this->post(route('admin.souscription.enregistrer', 1), ['categorie_id' => $this->commerce()->id]);
+        $this->post(route('admin.souscription.enregistrer', 2), ['profils' => ['boutique_quartier']]);
+        $this->post(route('admin.souscription.enregistrer', 3), []);
+        $this->post(route('admin.souscription.enregistrer', 4), ['familles' => ['VIV']]);
+
+        $articleAvant = Produit::where('entreprise_id', $this->entreprise->id)->firstOrFail();
+        $agriculture = Categorie::where('nom', 'Agriculture')->firstOrFail();
+
+        // Le parcours est repris depuis l'étape 1 pour ajouter un second domaine.
+        $this->post(route('admin.souscription.enregistrer', 1), ['categorie_id' => $agriculture->id])
+            ->assertRedirect(route('admin.souscription.index', ['etape' => 2]));
+
+        $entreprise = $this->entreprise->fresh();
+        $this->assertTrue($entreprise->profils()->where('code', 'boutique_quartier')->exists());
+        $this->assertDatabaseHas('produits', [
+            'id' => $articleAvant->id,
+            'entreprise_id' => $entreprise->id,
+            'categorie_id' => $articleAvant->categorie_id,
+        ]);
+        $this->assertContains('Commerce', $entreprise->domaines_souscrits);
+        $this->assertContains('Agriculture', $entreprise->domaines_souscrits);
     }
 
 }
