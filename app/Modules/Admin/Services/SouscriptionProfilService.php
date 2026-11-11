@@ -168,23 +168,21 @@ class SouscriptionProfilService
      */
     private static function categoriePour(Entreprise $entreprise, Famille $famille): array
     {
+        $profil = $famille->profil;
+        $domaine = $profil?->categorie?->nom;
+        $metier = $profil?->nom;
+
+        // Le nom d'un rayon n'est pas une identité : deux métiers peuvent
+        // employer le même libellé. Seul le triplet entreprise/domaine/métier
+        // autorise une réutilisation. Les anciennes catégories sans contexte
+        // restent intactes mais ne sont jamais absorbées par un nouveau secteur.
         $existante = Categorie::where('entreprise_id', $entreprise->id)
             ->where('nom', $famille->nom)
+            ->where('domaine_configuration', $domaine)
+            ->where('metier_configuration', $metier)
             ->first();
 
         if ($existante) {
-            $profil = $famille->profil;
-            $completer = [];
-            if (!$existante->domaine_configuration && $profil?->categorie?->nom) {
-                $completer['domaine_configuration'] = $profil->categorie->nom;
-            }
-            if (!$existante->metier_configuration && $profil?->nom) {
-                $completer['metier_configuration'] = $profil->nom;
-            }
-            if ($completer !== []) {
-                $existante->update($completer);
-            }
-
             return [$existante, false];
         }
 
