@@ -455,6 +455,21 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
     // déclenche pas `change`, et le clic resterait sans effet.
     radio.addEventListener('click', function () {
         var form = document.getElementById('form-souscription');
+
+        // Les deux types de domaines doivent se comporter comme un seul
+        // groupe radio. Sans cela, un ancien domaine personnalisé peut rester
+        // coché en même temps que le nouveau domaine du référentiel ; les deux
+        // valeurs partent au serveur et l'ancien domaine est repris.
+        if (radio.name === 'categorie_id') {
+            form.querySelectorAll('input[name="domaine_personnalise"]').forEach(function (autre) {
+                autre.checked = false;
+            });
+        } else if (radio.name === 'domaine_personnalise') {
+            form.querySelectorAll('input[name="categorie_id"]').forEach(function (autre) {
+                autre.checked = false;
+            });
+        }
+
         if (form.dataset.envoye) return;
         form.dataset.envoye = '1';
         form.submit();
