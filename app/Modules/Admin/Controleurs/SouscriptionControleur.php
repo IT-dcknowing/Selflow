@@ -683,6 +683,9 @@ class SouscriptionControleur
 
         // Le dernier domaine choisi sert de point de reprise, même sans profil.
         $domaines = (array) $entreprise->domaines_souscrits;
+        if ($domaines === []) {
+            $domaines = (array) $entreprise->secteur_activite;
+        }
         $dernierDomaine = $domaines !== [] ? end($domaines) : null;
         if ($dernierDomaine) {
             $categorieId = Categorie::where('nom', $dernierDomaine)->value('id');
