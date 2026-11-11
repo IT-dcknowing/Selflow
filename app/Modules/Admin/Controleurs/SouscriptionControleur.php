@@ -316,7 +316,29 @@ class SouscriptionControleur
             'familles.*' => ['string', 'max:32'],
             'categories_personnalisees' => ['nullable', 'array'],
             'categories_personnalisees.*.nom' => ['nullable', 'string', 'max:120'],
+            'supprimer_categorie_personnalisee' => ['nullable', 'integer'],
         ]);
+
+        // La corbeille ne peut supprimer qu'une catégorie personnalisée
+        // appartenant à cette entreprise et encore inutilisée.
+        if (!empty($donnees['supprimer_categorie_personnalisee'])) {
+            $categorie = \\App\\Modules\\Admin\\Modeles\\Categorie::where('entreprise_id', $entreprise->id)
+                ->whereKey($donnees['supprimer_categorie_personnalisee'])
+                ->first();
+
+            if (!$categorie) {
+                return back()->with('erreur', 'Cette catégorie est introuvable.');
+            }
+
+            if ($categorie->produits()->exists() || $categorie->sousCategories()->exists()) {
+                return back()->with('erreur', 'Cette catégorie contient déjà des produits ou des sous-catégories ; elle ne peut pas être supprimée ici.');
+            }
+
+            $categorie->delete();
+
+            return redirect()->to($this->adresseDeLEtape(4, $entreprise))
+                ->with('succes', 'Catégorie supprimée.');
+        }
 
         $choix = $this->choix($entreprise);
         $retenues = $donnees['familles'] ?? [];
