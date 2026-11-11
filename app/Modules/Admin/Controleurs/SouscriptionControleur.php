@@ -144,7 +144,10 @@ class SouscriptionControleur
             // Un changement de domaine démarre une sélection métier neuve.
             // Effacer explicitement la sélection précédente évite que le
             // secteur radio reste coché et que les anciens profils soient repris.
-            $valeurs += [
+            // Affectation avec remplacement : l'union PHP (+=) conserve
+            // les anciennes clés déjà présentes et laissait donc l'ancien
+            // secteur sélectionné dans la session après changement de domaine.
+            $valeurs = array_merge($valeurs, [
                 'profils' => [],
                 'familles' => [],
                 'modules' => [],
@@ -152,7 +155,7 @@ class SouscriptionControleur
                 'secteur_domaine_selectionne' => $nouvelleCategorieId
                     ? 'referentiel:' . $nouvelleCategorieId
                     : 'personnalise:' . ($domaine ?: ''),
-            ];
+            ]);
             session()->forget("souscription_articles.{$entreprise->id}");
             $entreprise->profils()->detach();
         }
