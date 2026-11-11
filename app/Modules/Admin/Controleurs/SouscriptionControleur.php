@@ -280,6 +280,7 @@ class SouscriptionControleur
                     ->orderBy('nom')->pluck('nom')->all(),
                 $secteursDejaCoches
             )));
+            $selectionsParDomaine = (array) $entreprise->secteurs_selectionnes_par_domaine;
             $selectionsParDomaine[$cleDomaine] = $metiersDejaChoisis;
             $entreprise->update(['secteurs_selectionnes_par_domaine' => $selectionsParDomaine]);
             $this->memoriser($entreprise, [
