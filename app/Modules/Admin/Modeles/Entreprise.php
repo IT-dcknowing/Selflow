@@ -50,6 +50,7 @@ class Entreprise extends Model
         'activite_autre',
         'domaines_personnalises',
         'secteurs_personnalises',
+        'secteurs_personnalises_par_domaine',
         'modules_personnalises',
         // La clé de liaison Comptaflow ne figure PAS ici, et c'est délibéré :
         // elle était un champ du formulaire des paramètres, et coller celle
@@ -104,6 +105,7 @@ class Entreprise extends Model
         'secteur_activite'   => 'array',
         'domaines_personnalises' => 'array',
         'secteurs_personnalises' => 'array',
+        'secteurs_personnalises_par_domaine' => 'array',
         'modules_personnalises' => 'array',
         'modules_actifs'     => 'array',
         'modules_autorises'  => 'array',
