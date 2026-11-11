@@ -748,6 +748,19 @@ class SouscriptionControleur
             }
         }
 
+        // Restaurer tous les secteurs personnalisés cochés pour le domaine,
+        // qu'il soit standard ou personnalisé. Ne jamais réduire la sélection
+        // à un seul secteur lors d'une reprise sans session.
+        $cleDomaineActif = $categorieId
+            ? 'referentiel:' . $categorieId
+            : ($dernierDomaine ? 'personnalise:' . $dernierDomaine : null);
+        if ($cleDomaineActif) {
+            $secteursChoisis = (array) (($entreprise->secteurs_selectionnes_par_domaine ?? [])[$cleDomaineActif] ?? []);
+            if ($secteursChoisis !== []) {
+                $choix['secteurs_personnalises_selection'] = $secteursChoisis;
+            }
+        }
+
         if (!empty($entreprise->modules_actifs)) {
             $choix['modules'] = $entreprise->modules_actifs;
         }
