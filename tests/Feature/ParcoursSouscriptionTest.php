@@ -693,7 +693,7 @@ class ParcoursSouscriptionTest extends TestCase
         $this->post(route('admin.souscription.enregistrer', 4), ['familles' => ['VIV']]);
 
         $articleAvant = Produit::where('entreprise_id', $this->entreprise->id)->firstOrFail();
-        $agriculture = Categorie::where('nom', 'Agriculture')->firstOrFail();
+        $agriculture = Categorie::where('nom', 'Agriculture-Élevage')->firstOrFail();
 
         // Le parcours est repris depuis l'étape 1 pour ajouter un second domaine.
         $this->post(route('admin.souscription.enregistrer', 1), ['categorie_id' => $agriculture->id])
@@ -707,7 +707,7 @@ class ParcoursSouscriptionTest extends TestCase
             'categorie_id' => $articleAvant->categorie_id,
         ]);
         $this->assertContains('Commerce', $entreprise->domaines_souscrits);
-        $this->assertContains('Agriculture', $entreprise->domaines_souscrits);
+        $this->assertContains('Agriculture-Élevage', $entreprise->domaines_souscrits);
     }
 
 }
