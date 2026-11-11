@@ -188,6 +188,13 @@ class SouscriptionControleur
             )))]);
         }
 
+        // Créer un secteur ne fait pas avancer le parcours : il revient dans
+        // la liste des cartes et l'utilisateur le choisit ensuite.
+        if ($request->input('action_secteur') === 'creer') {
+            return redirect()->to($this->adresseDeLEtape(2, $entreprise))
+                ->with('succes', 'Secteur(s) créé(s). Sélectionnez un seul secteur pour continuer.');
+        }
+
         $secteurSelectionne = array_slice(array_values(array_unique($donnees['secteurs_personnalises_selection'] ?? [])), 0, 1);
         $this->memoriser($entreprise, [
             'profils' => $retenus,
