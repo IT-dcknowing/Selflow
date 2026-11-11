@@ -800,4 +800,41 @@ class ParcoursSouscriptionTest extends TestCase
         $this->assertDatabaseMissing('produits', ['nom' => 'Produit interdit']);
     }
 
+
+    public function test_le_secteur_personnalise_et_ses_produits_sont_retrouves_apres_perte_de_session(): void
+    {
+        $this->entreprise->update([
+            'souscription_etape' => 5,
+            'domaines_personnalises' => ['Artisanat'],
+            'domaines_souscrits' => ['Artisanat'],
+            'secteurs_personnalises_par_domaine' => ['personnalise:Artisanat' => ['Couture', 'Menuiserie']],
+            'secteurs_selectionnes_par_domaine' => ['personnalise:Artisanat' => ['Couture']],
+        ]);
+
+        $categorie = \App\Modules\Admin\Modeles\Categorie::create([
+            'entreprise_id' => $this->entreprise->id,
+            'nom' => 'Tissus',
+            'prefixe' => 'TISSUS',
+            'domaine_configuration' => 'Artisanat',
+            'metier_configuration' => 'Couture',
+        ]);
+        $produit = Produit::create([
+            'entreprise_id' => $this->entreprise->id,
+            'reference' => 'TISSU-001',
+            'nom' => 'Tissu wax',
+            'type' => 'marchandise',
+            'categorie_id' => $categorie->id,
+        ]);
+
+        $this->flushSession();
+        $this->actingAs($this->admin->fresh());
+
+        $page = $this->get(route('admin.souscription.index', ['etape' => 5]))
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString($produit->nom, $page);
+        $this->assertStringContainsString($categorie->nom, $page);
+        $this->assertStringNotContainsString('Menuiserie', $page);
+    }
+
 }
