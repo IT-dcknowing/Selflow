@@ -184,7 +184,7 @@
     @elseif($etape === 2)
         <div class="sous-tete">
             <h2>Quel est votre secteur précis ?</h2>
-            <p>Créez un ou plusieurs secteurs précis. Ils seront conservés dans votre liste ; sélectionnez un seul secteur pour poursuivre.</p>
+            <p>Sélectionnez un ou plusieurs secteurs précis. Vous pouvez aussi créer vos propres secteurs : ils auront les mêmes cases à cocher et resteront disponibles dans ce domaine.</p>
         </div>
 
         @if(!empty($profilsAcquis))
@@ -225,18 +225,17 @@
             @endif
             @endforeach
             @if(!empty($secteursPersonnalises))
-                <div class="tuiles" style="padding:14px;">
-                    @foreach($secteursPersonnalises as $secteur)
-                        <label class="tuile">
-                            <input type="radio" name="secteurs_personnalises_selection[]" value="{{ $secteur }}" data-etape-suivante
-                                   {{ in_array($secteur, $choix['secteurs_personnalises_selection'] ?? [], true) ? 'checked' : '' }}>
-                            <div class="corps">
-                                <div class="titre">{{ $secteur }}</div>
-                                <div class="detail"><span class="badge-acquis">Créé</span></div>
-                            </div>
-                        </label>
-                    @endforeach
-                </div>
+                @foreach($secteursPersonnalises as $secteur)
+                    <label class="ligne">
+                        <input type="checkbox" name="secteurs_personnalises_selection[]" value="{{ $secteur }}"
+                               {{ in_array($secteur, $choix['secteurs_personnalises_selection'] ?? [], true) ? 'checked' : '' }}>
+                        <div style="flex:1;">
+                            <div class="nom">{{ $secteur }}</div>
+                            <div class="sous">Secteur personnalisé · disponible uniquement dans ce domaine</div>
+                        </div>
+                        <div class="droite"><span class="badge-acquis">Créé</span></div>
+                    </label>
+                @endforeach
             @endif
         </div>
         <div class="autre">
@@ -342,20 +341,23 @@
             @endforeach
         </div>
         <div class="autre" style="background:#f0fdf4;border-color:#86efac;">
-            <label style="color:#166534;">Créer une catégorie qui manque</label>
-            <div id="nouvelles-categories">
-                <div class="ligne-saisie" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
-                    <input type="text" name="categories_personnalisees[0][nom]" class="form-control" maxlength="120" placeholder="Nom de la catégorie">
-                    <select name="categories_personnalisees[0][metier_configuration]" class="form-control" required>
-                        <option value="">Secteur de rattachement</option>
-                        @foreach($metiersCourants ?? [] as $metier)
-                            <option value="{{ $metier }}">{{ $metier }}</option>
-                        @endforeach
-                    </select>
-                    <button type="button" class="btn btn-outline-danger" data-retirer-saisie title="Retirer"><i class="fas fa-trash"></i></button>
+            <label style="color:#166534;">Créer une catégorie dans un secteur sélectionné</label>
+            <p style="color:#166534;margin:0 0 12px;">Chaque secteur possède sa propre liste. Saisissez la catégorie directement sous le secteur concerné ; aucun rattachement supplémentaire n'est nécessaire.</p>
+            @forelse($metiersCourants ?? [] as $indexMetier => $metier)
+                <div class="bloc-categories-secteur" style="background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:12px;margin-bottom:10px;">
+                    <div style="font-weight:700;color:#166534;margin-bottom:8px;">{{ $metier }}</div>
+                    <div class="nouvelles-categories-secteur" data-metier="{{ $metier }}" data-index="{{ $indexMetier }}">
+                        <div class="ligne-saisie" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+                            <input type="text" name="categories_personnalisees[{{ $indexMetier }}][nom]" class="form-control" maxlength="120" placeholder="Nom de la catégorie">
+                            <input type="hidden" name="categories_personnalisees[{{ $indexMetier }}][metier_configuration]" value="{{ $metier }}">
+                            <button type="button" class="btn btn-outline-danger" data-retirer-saisie title="Retirer"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline" data-ajouter-categorie="{{ $metier }}"><i class="fas fa-plus"></i> Ajouter une catégorie à ce secteur</button>
                 </div>
-            </div>
-            <button type="button" class="btn btn-outline" id="ajouter-categorie-simple"><i class="fas fa-plus"></i> Créer une catégorie</button>
+            @empty
+                <p style="color:#92400e;margin:0;">Sélectionnez au moins un secteur à l'étape précédente pour créer ses catégories.</p>
+            @endforelse
         </div>
 
 {{-- ══ 5. Prix et stock ══ --}}
@@ -529,19 +531,20 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
 })();
 
 (function () {
-    var bouton=document.getElementById('ajouter-categorie-simple');
-    var zone=document.getElementById('nouvelles-categories');
-    if(bouton&&zone){
-        var index=1;
+    document.querySelectorAll('[data-ajouter-categorie]').forEach(function(bouton){
         bouton.addEventListener('click',function(){
-            var ligne=document.createElement('div');ligne.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px;';
-            var input=document.createElement('input');input.type='text';input.required=true;input.maxLength=120;input.name='categories_personnalisees['+index+'][nom]';input.className='form-control';input.placeholder='Nom de la catégorie';
-            var metier=document.createElement('select');metier.required=true;metier.name='categories_personnalisees['+index+'][metier_configuration]';metier.className='form-control';
-            metier.innerHTML='<option value="">Secteur de rattachement</option>'+@json($metiersCourants ?? []).map(function(n){var o=document.createElement('option');o.value=n;o.textContent=n;return o.outerHTML;}).join('');
+            var bloc=bouton.closest('.bloc-categories-secteur');
+            var zone=bloc.querySelector('.nouvelles-categories-secteur');
+            var index=Number(zone.dataset.index);
+            var metier=zone.dataset.metier;
+            var ligne=document.createElement('div');ligne.className='ligne-saisie';ligne.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px;';
+            var input=document.createElement('input');input.type='text';input.maxLength=120;input.name='categories_personnalisees['+index+'][nom]';input.className='form-control';input.placeholder='Nom de la catégorie';
+            var hidden=document.createElement('input');hidden.type='hidden';hidden.name='categories_personnalisees['+index+'][metier_configuration]';hidden.value=metier;
             var del=document.createElement('button');del.type='button';del.className='btn btn-outline-danger';del.setAttribute('data-retirer-saisie','');del.innerHTML='<i class="fas fa-trash"></i>';
-            ligne.appendChild(input);ligne.appendChild(metier);ligne.appendChild(del);zone.appendChild(ligne);index++;
+            ligne.appendChild(input);ligne.appendChild(hidden);ligne.appendChild(del);zone.appendChild(ligne);
+            zone.dataset.index=String(index+1);
         });
-    }
+    });
     document.addEventListener('click',function(e){
         var del=e.target.closest('[data-retirer-saisie]');
         if(del){del.parentElement.remove();return;}
