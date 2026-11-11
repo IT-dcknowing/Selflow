@@ -271,12 +271,26 @@ class SouscriptionProfilService
     {
         $reference = $article->code;
 
-        $existe = Produit::where('entreprise_id', $entreprise->id)
+        // Un même article du référentiel peut être proposé dans deux métiers.
+        // Il doit alors exister deux fiches, chacune dans son rayon : la
+        // référence reste unique dans l'entreprise, mais sa variante est
+        // suffixée par le préfixe de la catégorie lorsqu'elle est déjà prise.
+        $existeDansCetteCategorie = Produit::where('entreprise_id', $entreprise->id)
             ->where('reference', $reference)
+            ->where('categorie_id', $categorie?->id)
             ->exists();
 
-        if ($existe) {
+        if ($existeDansCetteCategorie) {
             return false;
+        }
+
+        if (Produit::where('entreprise_id', $entreprise->id)->where('reference', $reference)->exists()) {
+            $base = Str::substr($reference, 0, 70) . '-' . Str::substr($categorie?->prefixe ?? 'CAT', 0, 12);
+            $reference = $base;
+            $suffixe = 2;
+            while (Produit::where('entreprise_id', $entreprise->id)->where('reference', $reference)->exists()) {
+                $reference = $base . '-' . $suffixe++;
+            }
         }
 
         Produit::create([
