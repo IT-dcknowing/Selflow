@@ -403,7 +403,7 @@
                             <select required name="articles[{{ $i }}][categorie_id]" class="form-control">
                                 <option value="">Choisir une catégorie</option>
                                 @foreach($categoriesEntreprise as $categorie)
-                                    <option value="{{ $categorie->id }}" {{ (int) $article->categorie_id === (int) $categorie->id ? 'selected' : '' }}>{{ $categorie->nom }}</option>
+                                    <option value="{{ $categorie->id }}" {{ (int) $article->categorie_id === (int) $categorie->id ? 'selected' : '' }}>{{ $categorie->nom }}{{ $categorie->domaine_configuration ? ' — ' . $categorie->domaine_configuration : '' }}</option>
                                 @endforeach
                             </select>
                         </td>
@@ -556,7 +556,7 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
     var index=table.querySelectorAll('tr').length;
     var types=@json(\App\Modules\Admin\Modeles\Produit::TYPES);
     var sites=@json(isset($pointsDeVente) ? $pointsDeVente->map(fn($site)=>['id'=>$site->id,'nom'=>$site->nom])->values() : []);
-    var categories=@json(isset($categoriesEntreprise) ? $categoriesEntreprise->map(fn($categorie)=>['id'=>$categorie->id,'nom'=>$categorie->nom])->values() : []);
+    var categories=@json(isset($categoriesEntreprise) ? $categoriesEntreprise->map(fn($categorie)=>['id'=>$categorie->id,'nom'=>$categorie->nom,'domaine'=>$categorie->domaine_configuration])->values() : []);
     var avecStock=@json(isset($avecStock) && (bool) $avecStock);
     table.addEventListener('click',function(e){
         var del=e.target.closest('[data-retirer-article]');if(!del)return;
@@ -571,7 +571,7 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
         var tr=document.createElement('tr');
         var siteOptions='<option value="">Tous</option>'+sites.map(s=>'<option value="'+s.id+'">'+String(s.nom).replace(/[&<>"']/g,'')+'</option>').join('');
         var typeOptions='<option value="">Type d’article</option>'+Object.entries(types).map(([k,label])=>'<option value="'+k+'">'+label+'</option>').join('');
-        var categorieOptions='<option value="">Choisir une catégorie</option>'+categories.map(c=>'<option value="'+c.id+'">'+String(c.nom).replace(/[&<>"']/g,'')+'</option>').join('');
+        var categorieOptions='<option value="">Choisir une catégorie</option>'+categories.map(c=>'<option value="'+c.id+'">'+String(c.nom).replace(/[&<>"']/g,'')+(c.domaine?' — '+String(c.domaine).replace(/[&<>"']/g,''):'')+'</option>').join('');
         tr.innerHTML='<td><span class="cpt" data-reference>ARTICLE</span></td>'+
           '<td><input required type="text" name="articles['+i+'][nom]" maxlength="255" placeholder="Nom de l’article"><input type="hidden" name="articles['+i+'][nouveau]" value="1"><select required class="form-control" name="articles['+i+'][type]">'+typeOptions+'</select></td>'+
           '<td><select required class="form-control" name="articles['+i+'][categorie_id]">'+categorieOptions+'</select></td>'+
