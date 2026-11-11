@@ -322,7 +322,7 @@ class SouscriptionControleur
         // La corbeille ne peut supprimer qu'une catégorie personnalisée
         // appartenant à cette entreprise et encore inutilisée.
         if (!empty($donnees['supprimer_categorie_personnalisee'])) {
-            $categorie = \\App\\Modules\\Admin\\Modeles\\Categorie::where('entreprise_id', $entreprise->id)
+            $categorie = \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)
                 ->whereKey($donnees['supprimer_categorie_personnalisee'])
                 ->first();
 
