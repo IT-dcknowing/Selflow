@@ -177,19 +177,14 @@
             <input type="text" id="domaine_personnalise" name="nouveau_domaine" class="form-control"
                    value="{{ old('nouveau_domaine') }}" list="domaines-personnalises-existants" maxlength="120" placeholder="Ex. : Services aux entreprises">
             <datalist id="domaines-personnalises-existants">@foreach((array) $entreprise->domaines_personnalises as $domaine)<option value="{{ $domaine }}">@endforeach</datalist>
-            <span class="badge-acquis">Créé</span>
-            @foreach((array) $entreprise->domaines_personnalises as $domaine)
-                <span class="badge-acquis">{{ $domaine }}</span>
-            @endforeach
-            <button type="submit" class="btn btn-outline" style="margin-top:8px;"><i class="fas fa-plus"></i> Ajouter ce domaine et continuer</button>
+            <button type="submit" class="btn btn-outline" style="margin-top:8px;"><i class="fas fa-plus"></i> Créer</button>
         </div>
 
     {{-- ══ 2. Le métier ══ --}}
     @elseif($etape === 2)
         <div class="sous-tete">
             <h2>Quel est votre secteur précis ?</h2>
-            <p>Plusieurs réponses sont possibles : une quincaillerie qui livre des chantiers
-               coche les deux. Chaque secteur précis apporte les catégories et les articles correspondants.</p>
+            <p>Créez un ou plusieurs secteurs précis. Ils seront conservés dans votre liste ; sélectionnez un seul secteur pour poursuivre.</p>
         </div>
 
         @if(!empty($profilsAcquis))
@@ -238,26 +233,25 @@
             <div id="secteurs-personnalises">
                 @foreach((array) $entreprise->secteurs_personnalises as $secteur)
                     <label class="ligne acquise" style="display:flex;gap:10px;align-items:center;">
-                        <input type="checkbox" name="secteurs_personnalises_selection[]" value="{{ $secteur }}"
+                        <input type="radio" name="secteurs_personnalises_selection[]" value="{{ $secteur }}"
                                {{ in_array($secteur, $choix['secteurs_personnalises_selection'] ?? [], true) ? 'checked' : '' }}>
                         <strong>{{ $secteur }}</strong><span class="badge-acquis">Créé</span>
                     </label>
                 @endforeach
                 <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
                     <input type="text" name="secteurs_personnalises[]" class="form-control" maxlength="150" placeholder="Nom du secteur précis" data-nouveau-secteur>
-                    <label style="display:flex;gap:5px;align-items:center;white-space:nowrap;"><input type="checkbox" name="secteurs_personnalises_selection[]" data-selection-nouveau-secteur> Sélectionner</label>
+                    <label style="display:flex;gap:5px;align-items:center;white-space:nowrap;"><input type="radio" name="secteurs_personnalises_selection[]" data-selection-nouveau-secteur> Sélectionner</label>
                     <button type="button" class="btn btn-outline-danger" data-retirer-saisie title="Retirer"><i class="fas fa-trash"></i></button>
                 </div>
             </div>
-            <button type="button" class="btn btn-outline" id="ajouter-secteur"><i class="fas fa-plus"></i> Créer un secteur précis</button>
+            <button type="button" class="btn btn-outline" id="ajouter-secteur"><i class="fas fa-plus"></i> Ajouter un autre secteur</button>
         </div>
 
     {{-- ══ 3. Les modules ══ --}}
     @elseif($etape === 3)
         <div class="sous-tete">
             <h2>Ce que votre métier demande</h2>
-            <p>Voici les modules que vos choix ouvrent. Décochez ce dont vous n'avez pas
-               l'usage — vous pourrez les rouvrir à tout moment depuis vos paramètres.</p>
+            <p>Voici les modules correspondant à votre activité. Ils sont affichés à titre informatif et sont gérés automatiquement.</p>
         </div>
 
         @php
@@ -298,38 +292,14 @@
 
         <div class="liste">
             @foreach($modulesProposes as $module)
-            @php
-                $estStructurel = in_array($module, $structurels, true);
-                $verrou        = $modulesVerrouilles[$module] ?? null;
-                $dejaOuvert    = in_array($module, $dejaOuverts, true);
-                $fige          = $estStructurel || $verrou !== null || $dejaOuvert;
-            @endphp
-            <label class="ligne {{ $verrou || $dejaOuvert ? 'acquise' : '' }}">
-                <input type="checkbox" name="modules[]" value="{{ $module }}"
-                       {{ $fige || in_array($module, $choix['modules'] ?? $modulesProposes, true) ? 'checked' : '' }}
-                       {{ $fige ? 'disabled' : '' }}>
-                <div>
-                    {{-- Le nom de la barre latérale, pas le code : la case
-                         « Fne » commandait la section « Fiscalité & DGI », et
-                         rien ne le disait. --}}
-                    <div class="nom">{{ \App\Modules\Admin\Modeles\Entreprise::libelleModule($module) }}</div>
-                    @if($verrou)
-                        <div class="sous">{{ $verrou }}</div>
-                    @elseif(isset($raisons[$module]))
-                        <div class="sous">{{ $raisons[$module] }}</div>
+                <div class="ligne">
+                    <div>
+                        <div class="nom">{{ \App\Modules\Admin\Modeles\Entreprise::libelleModule($module) }}</div>
+                    </div>
+                    @if(in_array($module, $dejaOuverts, true))
+                        <div class="droite"><span class="badge-acquis">déjà ouvert</span></div>
                     @endif
                 </div>
-                @if($verrou)
-                    <div class="droite"><span class="badge-acquis">en service</span></div>
-                @elseif($dejaOuvert && !$estStructurel)
-                    <div class="droite"><span class="badge-acquis">déjà ouvert</span></div>
-                @endif
-            </label>
-            {{-- Une case désactivée n'est pas transmise : sans ce relais, valider
-                 l'étape retirerait le module qu'on vient de dire indéracinable. --}}
-            @if($fige)
-                <input type="hidden" name="modules[]" value="{{ $module }}">
-            @endif
             @endforeach
         </div>
     {{-- ══ 4. Les catégories ══ --}}
@@ -543,7 +513,7 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
     var table=document.querySelector('.tableau-prix tbody');
     var bouton=document.getElementById('ajouter-article');
     if(!table||!bouton)return;
-    var index=table.querySelectorAll('tr').length;
+    var index=0;
     var types=@json(\App\Modules\Admin\Modeles\Produit::TYPES);
     var sites=@json(isset($pointsDeVente) ? $pointsDeVente->map(fn($site)=>['id'=>$site->id,'nom'=>$site->nom])->values() : []);
     var avecStock=@json(isset($avecStock) && (bool) $avecStock);
@@ -569,7 +539,7 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
         var siteOptions='<option value="">Tous</option>'+sites.map(s=>'<option value="'+s.id+'">'+String(s.nom).replace(/[&<>"']/g,'')+'</option>').join('');
         var typeOptions='<option value="">Type d’article</option>'+Object.entries(types).map(([k,label])=>'<option value="'+k+'">'+label+'</option>').join('');
         tr.innerHTML='<td><span class="cpt" data-reference>CAT-00001</span></td>'+
-          '<td><input required type="text" name="articles['+i+'][nom]" maxlength="255" placeholder="Nom de l’article"><input type="hidden" name="articles['+i+'][nouveau]" value="1"></td>'+
+          '<td><input required type="text" name="articles['+i+'][nom]" maxlength="255" placeholder="Nom de l’article"><input type="hidden" name="articles['+i+'][nouveau]" value="1"><select required class="form-control" name="articles['+i+'][type]">'+typeOptions+'</select></td>'+
           '<td><input required type="text" name="articles['+i+'][categorie_nom]" maxlength="120" placeholder="Catégorie"></td>'+
           '<td><select name="articles['+i+'][point_de_vente_id]" class="form-control">'+siteOptions+'</select></td>'+
           '<td><input type="number" name="articles['+i+'][prix_achat]" min="0" step="1"></td>'+
