@@ -141,8 +141,20 @@ class SouscriptionControleur
             'domaine_personnalise' => $domaine ?: null,
         ];
         if ($domaineChange) {
-            $valeurs += ['profils' => [], 'familles' => [], 'modules' => [], 'secteurs_personnalises_selection' => []];
+            // Un changement de domaine démarre une sélection métier neuve.
+            // Effacer explicitement la sélection précédente évite que le
+            // secteur radio reste coché et que les anciens profils soient repris.
+            $valeurs += [
+                'profils' => [],
+                'familles' => [],
+                'modules' => [],
+                'secteurs_personnalises_selection' => [],
+                'secteur_domaine_selectionne' => $nouvelleCategorieId
+                    ? 'referentiel:' . $nouvelleCategorieId
+                    : 'personnalise:' . ($domaine ?: ''),
+            ];
             session()->forget("souscription_articles.{$entreprise->id}");
+            $entreprise->profils()->detach();
         }
         $this->memoriser($entreprise, $valeurs);
 
@@ -233,9 +245,14 @@ class SouscriptionControleur
         }
 
         $secteurSelectionne = array_slice(array_values(array_unique($donnees['secteurs_personnalises_selection'] ?? [])), 0, 1);
+        $choixPourDomaine = $this->choix($entreprise);
+        $cleDomaineSelectionne = !empty($choixPourDomaine['categorie_id'])
+            ? 'referentiel:' . $choixPourDomaine['categorie_id']
+            : 'personnalise:' . (string) ($choixPourDomaine['domaine_personnalise'] ?? '');
         $this->memoriser($entreprise, [
             'profils' => $retenus,
             'secteurs_personnalises_selection' => $secteurSelectionne,
+            'secteur_domaine_selectionne' => $cleDomaineSelectionne,
         ]);
 
         // Le référentiel ne couvre pas tous les métiers. Plutôt que de forcer
