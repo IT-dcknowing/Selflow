@@ -377,7 +377,7 @@
 
         @if($categoriesEntreprise->isEmpty())
             <div class="alert alert-warning" style="margin-bottom:16px;">
-                Aucune catégorie n'est encore disponible pour ce domaine.
+                Aucune catégorie n'est encore disponible dans votre entreprise.
                 <a href="{{ $routeEtape(4) }}" style="font-weight:700;text-decoration:underline;">Retourner à l'étape 4 pour créer une catégorie</a>.
             </div>
         @endif
