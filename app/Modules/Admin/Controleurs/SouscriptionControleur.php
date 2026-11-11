@@ -201,7 +201,9 @@ class SouscriptionControleur
 
     private function validerProfils(Request $request, Entreprise $entreprise): RedirectResponse
     {
-        $acquis = VerrouConfigurationService::profilsAcquis($entreprise);
+        $choixCourant = $this->choix($entreprise);
+        $categorieCouranteId = isset($choixCourant['categorie_id']) ? (int) $choixCourant['categorie_id'] : null;
+        $acquis = VerrouConfigurationService::profilsAcquis($entreprise, $categorieCouranteId);
 
         $donnees = $request->validate([
             // Exiger un métier n'a de sens que la première fois. Une entreprise
@@ -750,7 +752,10 @@ class SouscriptionControleur
                     : Profil::withCount(['familles', 'articles'])
                         ->when(isset($choix['categorie_id']), fn ($q) => $q->where('categorie_id', $choix['categorie_id']))
                         ->orderBy('nom')->get(),
-                  'profilsAcquis' => VerrouConfigurationService::profilsAcquis($entreprise)],
+                  'profilsAcquis' => VerrouConfigurationService::profilsAcquis(
+                      $entreprise,
+                      isset($choix['categorie_id']) ? (int) $choix['categorie_id'] : null
+                  )],
 
             // Un module verrouillé rejoint la liste affichée même si aucun des
             // métiers choisis ne l'ouvre : l'enregistrement le rétablira de
@@ -769,7 +774,9 @@ class SouscriptionControleur
             // Le numéro de compte, lui, suit la case « Comptabilité » de
             // l'étape 3.
             4 => (function () use ($choix, $entreprise) {
-                $nouveaux = array_values(array_diff($choix['profils'] ?? [], VerrouConfigurationService::profilsAcquis($entreprise)));
+                $categorieCouranteId = isset($choix['categorie_id']) ? (int) $choix['categorie_id'] : null;
+                $profilsAcquisDuDomaine = VerrouConfigurationService::profilsAcquis($entreprise, $categorieCouranteId);
+                $nouveaux = array_values(array_diff($choix['profils'] ?? [], $profilsAcquisDuDomaine));
                 $modules = $choix['modules'] ?? $entreprise->modules_actifs ?? [];
                 $domaineCourant = !empty($choix['categorie_id'])
                     ? Categorie::whereKey($choix['categorie_id'])->value('nom')
