@@ -167,16 +167,22 @@ class VerrouConfigurationService
      */
     public static function domainesSouscrits(Entreprise $entreprise): array
     {
-        $noms = $entreprise->profils()
+        $nomsProfils = $entreprise->profils()
             ->with('categorie')
             ->get()
             ->map(fn ($profil) => $profil->categorie?->nom)
             ->filter()
-            ->unique()
-            ->values()
             ->all();
 
-        return $noms;
+        // Les domaines personnalisés et les domaines sans métier du
+        // référentiel sont conservés séparément des profils souscrits.
+        // Sinon « Votre configuration » reste vide dès qu'un domaine
+        // personnalisé n'a pas de profil standard associé.
+        return array_values(array_unique(array_filter(array_merge(
+            (array) $entreprise->domaines_souscrits,
+            (array) $entreprise->secteur_activite,
+            $nomsProfils
+        ))));
     }
 
     /**

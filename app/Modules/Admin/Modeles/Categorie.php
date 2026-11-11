@@ -20,6 +20,8 @@ class Categorie extends Model
         'compte_variation',
         'nom',
         'prefixe',
+        'domaine_configuration',
+        'metier_configuration',
     ];
 
     /**
