@@ -115,7 +115,8 @@ class SouscriptionControleur
             // Comparaison volontairement stricte : seule une chaîne strictement
             // identique est refusée. Une variante réellement différente passe.
             $domaineDejaCree = in_array($nouveauDomaine, (array) $entreprise->domaines_personnalises, true);
-            $domaineDuReferentiel = Categorie::query()->where('nom', $nouveauDomaine)->exists();
+            $nomsDomainesReferentiel = Categorie::query()->pluck('nom')->all();
+            $domaineDuReferentiel = in_array($nouveauDomaine, $nomsDomainesReferentiel, true);
             if ($domaineDejaCree || $domaineDuReferentiel) {
                 return back()->withInput()->withErrors([
                     'nouveau_domaine' => 'Ce domaine existe déjà à l’identique. Sélectionnez-le dans la liste.',
