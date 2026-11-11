@@ -260,7 +260,7 @@ class SouscriptionControleur
         // Le référentiel n'est copié que si l'utilisateur a réellement choisi
         // des profils et des familles proposés.
         $bilan = ['familles' => 0, 'articles' => 0, 'modules' => []];
-        if (!empty($choix['profils'])) {
+        if (!empty($choix['profils']) && empty($choix['secteurs_personnalises_selection'])) {
             $bilan = SouscriptionProfilService::souscrire($entreprise, $choix['profils'], $retenues);
         }
 
