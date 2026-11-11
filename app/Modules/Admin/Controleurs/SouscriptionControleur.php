@@ -108,18 +108,33 @@ class SouscriptionControleur
             'domaine_personnalise.required_without' => 'Saisissez le nom de votre domaine.',
         ]);
 
-        $domaine = trim((string) (($donnees['nouveau_domaine'] ?? '') ?: ($donnees['domaine_personnalise'] ?? '')));
-        if ($domaine !== '') {
+        // La création d'un domaine est une action distincte : on l'enregistre,
+        // on revient à la liste, et l'utilisateur le sélectionne ensuite.
+        $nouveauDomaine = trim((string) ($donnees['nouveau_domaine'] ?? ''));
+        if ($nouveauDomaine !== '') {
             $personnalises = array_values(array_unique(array_filter(array_merge(
-                (array) $entreprise->domaines_personnalises, [$domaine]
+                (array) $entreprise->domaines_personnalises, [$nouveauDomaine]
             ))));
             $entreprise->update(['domaines_personnalises' => $personnalises]);
+            return redirect()->to($this->adresseDeLEtape(1, $entreprise))
+                ->with('succes', 'Domaine créé. Sélectionnez-le pour continuer.');
         }
 
-        $this->memoriser($entreprise, [
-            'categorie_id' => isset($donnees['categorie_id']) ? (int) $donnees['categorie_id'] : null,
+        $domaine = trim((string) ($donnees['domaine_personnalise'] ?? ''));
+        $nouvelleCategorieId = isset($donnees['categorie_id']) ? (int) $donnees['categorie_id'] : null;
+        $ancienChoix = $this->choix($entreprise);
+        $domaineChange = ($ancienChoix['categorie_id'] ?? null) != $nouvelleCategorieId
+            || ($ancienChoix['domaine_personnalise'] ?? null) !== ($domaine ?: null);
+
+        $valeurs = [
+            'categorie_id' => $nouvelleCategorieId,
             'domaine_personnalise' => $domaine ?: null,
-        ]);
+        ];
+        if ($domaineChange) {
+            $valeurs += ['profils' => [], 'familles' => [], 'modules' => [], 'secteurs_personnalises_selection' => []];
+            session()->forget("souscription_articles.{$entreprise->id}");
+        }
+        $this->memoriser($entreprise, $valeurs);
 
         // Le domaine choisi vaut secteur d'activité dès maintenant, sans
         // attendre la souscription de l'étape 4. Sans cela, une entreprise
@@ -173,9 +188,10 @@ class SouscriptionControleur
             )))]);
         }
 
+        $secteurSelectionne = array_slice(array_values(array_unique($donnees['secteurs_personnalises_selection'] ?? [])), 0, 1);
         $this->memoriser($entreprise, [
             'profils' => $retenus,
-            'secteurs_personnalises_selection' => array_values(array_unique($donnees['secteurs_personnalises_selection'] ?? [])),
+            'secteurs_personnalises_selection' => $secteurSelectionne,
         ]);
 
         // Le référentiel ne couvre pas tous les métiers. Plutôt que de forcer
@@ -190,10 +206,7 @@ class SouscriptionControleur
 
     private function validerModules(Request $request, Entreprise $entreprise): RedirectResponse
     {
-        $donnees = $request->validate([
-            'modules'   => ['array'],
-            'modules.*' => ['string', 'in:' . implode(',', Entreprise::TOUS_LES_MODULES)],
-        ]);
+        $donnees = $request->validate([]);
 
         // Un module qui n'est pas autorisé ne peut pas s'activer, même envoyé
         // par un formulaire : les droits appartiennent au superadmin.
@@ -208,9 +221,10 @@ class SouscriptionControleur
         // ferait disparaître de la barre latérale sans un mot d'avertissement.
         $retenus = array_values(array_intersect(
             array_unique(array_merge(
-                $donnees['modules'] ?? [],
+                $this->modulesProposes($this->choix($entreprise)['profils'] ?? []),
                 Entreprise::MODULES_STRUCTURELS,
-                array_keys(VerrouConfigurationService::modulesVerrouilles($entreprise))
+                array_keys(VerrouConfigurationService::modulesVerrouilles($entreprise)),
+                (array) $entreprise->modules_actifs
             )),
             $entreprise->modulesAutorises()
         ));
