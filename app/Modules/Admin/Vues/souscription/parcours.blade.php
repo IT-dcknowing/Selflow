@@ -531,11 +531,12 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
 })();
 
 (function () {
+    var prochainIndexCategorie=@json(count($metiersCourants ?? []));
     document.querySelectorAll('[data-ajouter-categorie]').forEach(function(bouton){
         bouton.addEventListener('click',function(){
             var bloc=bouton.closest('.bloc-categories-secteur');
             var zone=bloc.querySelector('.nouvelles-categories-secteur');
-            var index=Number(zone.dataset.index);
+            var index=prochainIndexCategorie++;
             var metier=zone.dataset.metier;
             var ligne=document.createElement('div');ligne.className='ligne-saisie';ligne.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px;';
             var input=document.createElement('input');input.type='text';input.maxLength=120;input.name='categories_personnalisees['+index+'][nom]';input.className='form-control';input.placeholder='Nom de la catégorie';
