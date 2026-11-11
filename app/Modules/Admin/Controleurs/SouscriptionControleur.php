@@ -100,7 +100,7 @@ class SouscriptionControleur
     private function validerCategorie(Request $request, Entreprise $entreprise): RedirectResponse
     {
         $donnees = $request->validate([
-            'categorie_id' => ['nullable', 'integer', 'exists:referentiel_categories,id', 'required_without:domaine_personnalise'],
+            'categorie_id' => ['nullable', 'integer', 'exists:referentiel_categories,id', 'required_without_all:domaine_personnalise,nouveau_domaine'],
             'domaine_personnalise' => ['nullable', 'string', 'max:120', 'required_without_all:categorie_id,nouveau_domaine'],
             'nouveau_domaine' => ['nullable', 'string', 'max:120', 'required_without_all:categorie_id,domaine_personnalise'],
         ], [
