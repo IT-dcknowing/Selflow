@@ -820,7 +820,6 @@ class SouscriptionControleur
                   'articles' => Produit::with(['categorieRelation', 'stocks'])
                     ->where('entreprise_id', $entreprise->id)
                     ->whereIn('categorie_id', $idsCategories)
-                    ->whereIn('id', (array) session("souscription_articles.{$entreprise->id}", []))
                     ->orderBy('reference')->get(),
                   'categoriesEntreprise' => $categories,
                   'pointsDeVente' => PointDeVente::where('entreprise_id', $entreprise->id)->orderBy('nom')->get(),
