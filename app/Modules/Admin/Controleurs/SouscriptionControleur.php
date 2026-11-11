@@ -269,8 +269,25 @@ class SouscriptionControleur
         }
 
         // Créer un secteur ne fait pas avancer le parcours : il revient dans
-        // la liste des cartes et l'utilisateur le choisit ensuite.
+        // la liste des cases à cocher. Les choix standards et les secteurs déjà
+        // cochés restent mémorisés pendant que l'utilisateur ajoute d'autres
+        // secteurs ; les nouveaux ne sont pas cochés automatiquement.
         if ($request->input('action_secteur') === 'creer') {
+            $secteursDejaCoches = array_values(array_unique($donnees['secteurs_personnalises_selection'] ?? []));
+            $metiersDejaChoisis = array_values(array_unique(array_merge(
+                Profil::whereIn('code', $retenus)
+                    ->when($categorieCouranteId, fn ($q) => $q->where('categorie_id', $categorieCouranteId))
+                    ->orderBy('nom')->pluck('nom')->all(),
+                $secteursDejaCoches
+            )));
+            $selectionsParDomaine[$cleDomaine] = $metiersDejaChoisis;
+            $entreprise->update(['secteurs_selectionnes_par_domaine' => $selectionsParDomaine]);
+            $this->memoriser($entreprise, [
+                'profils' => $retenus,
+                'secteurs_personnalises_selection' => $secteursDejaCoches,
+                'secteur_domaine_selectionne' => $cleDomaine,
+            ]);
+
             return redirect()->to($this->adresseDeLEtape(2, $entreprise))
                 ->with('succes', 'Secteur(s) créé(s). Cochez un ou plusieurs secteurs pour continuer.');
         }
