@@ -499,7 +499,7 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
     var table=document.querySelector('.tableau-prix tbody');
     var bouton=document.getElementById('ajouter-article');
     if(!table||!bouton)return;
-    var index=0;
+    var index=table.querySelectorAll('tr').length;
     var types=@json(\App\Modules\Admin\Modeles\Produit::TYPES);
     var sites=@json(isset($pointsDeVente) ? $pointsDeVente->map(fn($site)=>['id'=>$site->id,'nom'=>$site->nom])->values() : []);
     var avecStock=@json(isset($avecStock) && (bool) $avecStock);
