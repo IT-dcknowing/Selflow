@@ -269,22 +269,41 @@ class SouscriptionControleur
         }
 
         // Créer un secteur ne fait pas avancer le parcours : il revient dans
-        // la liste des cartes et l'utilisateur le choisit ensuite.
+        // la liste des cases à cocher. Les choix standards et les secteurs déjà
+        // cochés restent mémorisés pendant que l'utilisateur ajoute d'autres
+        // secteurs ; les nouveaux ne sont pas cochés automatiquement.
         if ($request->input('action_secteur') === 'creer') {
+            $secteursDejaCoches = array_values(array_unique($donnees['secteurs_personnalises_selection'] ?? []));
+            $metiersDejaChoisis = array_values(array_unique(array_merge(
+                Profil::whereIn('code', $retenus)
+                    ->when($categorieCouranteId, fn ($q) => $q->where('categorie_id', $categorieCouranteId))
+                    ->orderBy('nom')->pluck('nom')->all(),
+                $secteursDejaCoches
+            )));
+            $selectionsParDomaine = (array) $entreprise->secteurs_selectionnes_par_domaine;
+            $selectionsParDomaine[$cleDomaine] = $metiersDejaChoisis;
+            $entreprise->update(['secteurs_selectionnes_par_domaine' => $selectionsParDomaine]);
+            $this->memoriser($entreprise, [
+                'profils' => $retenus,
+                'secteurs_personnalises_selection' => $secteursDejaCoches,
+                'secteur_domaine_selectionne' => $cleDomaine,
+            ]);
+
             return redirect()->to($this->adresseDeLEtape(2, $entreprise))
-                ->with('succes', 'Secteur(s) créé(s). Sélectionnez un seul secteur pour continuer.');
+                ->with('succes', 'Secteur(s) créé(s). Cochez un ou plusieurs secteurs pour continuer.');
         }
 
-        $secteurSelectionne = array_slice(array_values(array_unique($donnees['secteurs_personnalises_selection'] ?? [])), 0, 1);
+        $secteurSelectionne = array_values(array_unique($donnees['secteurs_personnalises_selection'] ?? []));
         $choixPourDomaine = $this->choix($entreprise);
         $cleDomaineSelectionne = !empty($choixPourDomaine['categorie_id'])
             ? 'referentiel:' . $choixPourDomaine['categorie_id']
             : 'personnalise:' . (string) ($choixPourDomaine['domaine_personnalise'] ?? '');
-        $metiersSelectionnes = $secteurSelectionne !== []
-            ? $secteurSelectionne
-            : Profil::whereIn('code', $retenus)
+        $metiersSelectionnes = array_values(array_unique(array_merge(
+            Profil::whereIn('code', $retenus)
                 ->when($categorieCouranteId, fn ($q) => $q->where('categorie_id', $categorieCouranteId))
-                ->orderBy('nom')->pluck('nom')->all();
+                ->orderBy('nom')->pluck('nom')->all(),
+            $secteurSelectionne
+        )));
 
         $selectionsParDomaine = (array) $entreprise->secteurs_selectionnes_par_domaine;
         $selectionsParDomaine[$cleDomaineSelectionne] = $metiersSelectionnes;
@@ -378,7 +397,7 @@ class SouscriptionControleur
         // Le référentiel n'est copié que si l'utilisateur a réellement choisi
         // des profils et des familles proposés.
         $bilan = ['familles' => 0, 'articles' => 0, 'modules' => []];
-        if (!empty($choix['profils']) && empty($choix['secteurs_personnalises_selection'])) {
+        if (!empty($choix['profils'])) {
             $bilan = SouscriptionProfilService::souscrire($entreprise, $choix['profils'], $retenues);
         }
 
@@ -387,9 +406,10 @@ class SouscriptionControleur
         $domaineCourant = !empty($choix['categorie_id'])
             ? Categorie::whereKey($choix['categorie_id'])->value('nom')
             : ($choix['domaine_personnalise'] ?? null);
-        $metiersCourants = !empty($choix['secteurs_personnalises_selection'])
-            ? array_values($choix['secteurs_personnalises_selection'])
-            : Profil::whereIn('code', $choix['profils'] ?? [])->orderBy('nom')->pluck('nom')->all();
+        $metiersCourants = array_values(array_unique(array_merge(
+            Profil::whereIn('code', $choix['profils'] ?? [])->orderBy('nom')->pluck('nom')->all(),
+            (array) ($choix['secteurs_personnalises_selection'] ?? [])
+        )));
 
         // Une catégorie personnalisée appartient à un seul domaine et à un seul secteur.
         foreach ($donnees['categories_personnalisees'] ?? [] as $ligne) {
@@ -397,13 +417,10 @@ class SouscriptionControleur
             if ($nom === '') continue;
 
             $metierCategorie = trim((string) ($ligne['metier_configuration'] ?? ''));
-            if ($metierCategorie === '' && count($metiersCourants) === 1) {
-                $metierCategorie = $metiersCourants[0];
-            }
             if ($domaineCourant === null || $metierCategorie === ''
                 || !in_array($metierCategorie, $metiersCourants, true)) {
                 return back()->withInput()->withErrors([
-                    'categories_personnalisees' => 'Choisissez le secteur auquel rattacher chaque catégorie.',
+                    'categories_personnalisees' => 'Le secteur de cette catégorie ne correspond pas aux secteurs sélectionnés.',
                 ]);
             }
 
@@ -751,6 +768,19 @@ class SouscriptionControleur
             }
         }
 
+        // Restaurer tous les secteurs personnalisés cochés pour le domaine,
+        // qu'il soit standard ou personnalisé. Ne jamais réduire la sélection
+        // à un seul secteur lors d'une reprise sans session.
+        $cleDomaineActif = $categorieId
+            ? 'referentiel:' . $categorieId
+            : ($dernierDomaine ? 'personnalise:' . $dernierDomaine : null);
+        if ($cleDomaineActif) {
+            $secteursChoisis = (array) (($entreprise->secteurs_selectionnes_par_domaine ?? [])[$cleDomaineActif] ?? []);
+            if ($secteursChoisis !== []) {
+                $choix['secteurs_personnalises_selection'] = $secteursChoisis;
+            }
+        }
+
         if (!empty($entreprise->modules_actifs)) {
             $choix['modules'] = $entreprise->modules_actifs;
         }
@@ -818,14 +848,16 @@ class SouscriptionControleur
                     'pointsDeVente' => PointDeVente::where('entreprise_id', $entreprise->id)->orderBy('nom')->get(),
                     'categoriesPersonnalisees' => \App\Modules\Admin\Modeles\Categorie::where('entreprise_id', $entreprise->id)
                         ->where('domaine_configuration', $domaineCourant)
-                        ->whereIn('metier_configuration', !empty($choix['secteurs_personnalises_selection'])
-                            ? $choix['secteurs_personnalises_selection']
-                            : Profil::whereIn('code', $choix['profils'] ?? [])->pluck('nom')->all())
+                        ->whereIn('metier_configuration', array_values(array_unique(array_merge(
+                            Profil::whereIn('code', $choix['profils'] ?? [])->pluck('nom')->all(),
+                            (array) ($choix['secteurs_personnalises_selection'] ?? [])
+                        ))))
                         ->orderBy('metier_configuration')->orderBy('nom')->get(),
-                    'metiersCourants' => !empty($choix['secteurs_personnalises_selection'])
-                        ? array_values($choix['secteurs_personnalises_selection'])
-                        : Profil::whereIn('code', $choix['profils'] ?? [])->orderBy('nom')->pluck('nom')->all(),
-                    'familles' => (!empty($choix['domaine_personnalise']) || !empty($choix['secteurs_personnalises_selection']))
+                    'metiersCourants' => array_values(array_unique(array_merge(
+                        Profil::whereIn('code', $choix['profils'] ?? [])->orderBy('nom')->pluck('nom')->all(),
+                        (array) ($choix['secteurs_personnalises_selection'] ?? [])
+                    ))),
+                    'familles' => !empty($choix['domaine_personnalise'])
                         ? collect()
                         : Famille::with(['typeArticle', 'profil'])
                             ->whereHas('profil', fn ($q) => $q->whereIn('code', $nouveaux !== [] ? $nouveaux : ($choix['profils'] ?? [])))
@@ -845,9 +877,10 @@ class SouscriptionControleur
                 $domaineCourant = !empty($choix['categorie_id'])
                     ? Categorie::whereKey($choix['categorie_id'])->value('nom')
                     : ($choix['domaine_personnalise'] ?? null);
-                $metiersCourants = !empty($choix['secteurs_personnalises_selection'])
-                    ? array_values($choix['secteurs_personnalises_selection'])
-                    : Profil::whereIn('code', $choix['profils'] ?? [])->pluck('nom')->all();
+                $metiersCourants = array_values(array_unique(array_merge(
+                    Profil::whereIn('code', $choix['profils'] ?? [])->pluck('nom')->all(),
+                    (array) ($choix['secteurs_personnalises_selection'] ?? [])
+                )));
                 $categories = \App\Modules\Admin\Modeles\Categorie::with('pointsDeVente')
                     ->where('entreprise_id', $entreprise->id)
                     ->where('domaine_configuration', $domaineCourant)

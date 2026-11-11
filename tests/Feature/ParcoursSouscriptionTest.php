@@ -837,4 +837,95 @@ class ParcoursSouscriptionTest extends TestCase
         $this->assertStringNotContainsString('Menuiserie', $page);
     }
 
+
+    public function test_plusieurs_secteurs_personnalises_peuvent_etre_selectionnes_et_persistes(): void
+    {
+        $this->actingAs($this->admin);
+
+        $this->post(route('admin.souscription.enregistrer', 1), ['categorie_id' => $this->commerce()->id]);
+        $this->post(route('admin.souscription.enregistrer', 2), [
+            'secteurs_personnalises' => ['SECTEUR 5', 'SECTEUR 6'],
+            'action_secteur' => 'creer',
+        ])->assertRedirect(route('admin.souscription.index', ['etape' => 2]));
+
+        $this->post(route('admin.souscription.enregistrer', 2), [
+            'secteurs_personnalises_selection' => ['SECTEUR 5', 'SECTEUR 6'],
+        ])->assertRedirect(route('admin.souscription.index', ['etape' => 3]));
+
+        $this->assertSame(
+            ['SECTEUR 5', 'SECTEUR 6'],
+            $this->entreprise->fresh()->secteurs_selectionnes_par_domaine['referentiel:' . $this->commerce()->id]
+        );
+
+        $page = $this->get(route('admin.souscription.index', ['etape' => 2]))
+            ->assertOk()->getContent();
+        $this->assertStringContainsString('type="checkbox" name="secteurs_personnalises_selection[]"', $page);
+        $this->assertStringNotContainsString('type="radio" name="secteurs_personnalises_selection[]"', $page);
+    }
+
+    public function test_les_categories_sont_creees_sous_chaque_secteur_sans_select_de_rattachement(): void
+    {
+        $this->actingAs($this->admin);
+        $this->post(route('admin.souscription.enregistrer', 1), ['categorie_id' => $this->commerce()->id]);
+        $this->post(route('admin.souscription.enregistrer', 2), [
+            'secteurs_personnalises' => ['SECTEUR 5', 'SECTEUR 6'],
+            'action_secteur' => 'creer',
+        ]);
+        $this->post(route('admin.souscription.enregistrer', 2), [
+            'secteurs_personnalises_selection' => ['SECTEUR 5', 'SECTEUR 6'],
+        ]);
+        $this->post(route('admin.souscription.enregistrer', 3), []);
+
+        $page = $this->get(route('admin.souscription.index', ['etape' => 4]))
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('SECTEUR 5', $page);
+        $this->assertStringContainsString('SECTEUR 6', $page);
+        $this->assertStringNotContainsString('Secteur de rattachement', $page);
+
+        $this->post(route('admin.souscription.enregistrer', 4), [
+            'categories_personnalisees' => [
+                ['nom' => 'Catégorie cinq', 'metier_configuration' => 'SECTEUR 5'],
+                ['nom' => 'Catégorie six', 'metier_configuration' => 'SECTEUR 6'],
+            ],
+        ])->assertRedirect(route('admin.souscription.index', ['etape' => 5]));
+
+        $this->assertDatabaseHas('categories', [
+            'entreprise_id' => $this->entreprise->id,
+            'nom' => 'Catégorie cinq',
+            'domaine_configuration' => 'Commerce',
+            'metier_configuration' => 'SECTEUR 5',
+        ]);
+        $this->assertDatabaseHas('categories', [
+            'entreprise_id' => $this->entreprise->id,
+            'nom' => 'Catégorie six',
+            'domaine_configuration' => 'Commerce',
+            'metier_configuration' => 'SECTEUR 6',
+        ]);
+    }
+
+    public function test_profils_standard_et_secteurs_personnalises_sont_traites_ensemble(): void
+    {
+        $this->actingAs($this->admin);
+        $this->post(route('admin.souscription.enregistrer', 1), ['categorie_id' => $this->commerce()->id]);
+        $this->post(route('admin.souscription.enregistrer', 2), [
+            'profils' => ['boutique_quartier'],
+            'secteurs_personnalises' => ['SECTEUR 5'],
+            'action_secteur' => 'creer',
+        ]);
+        $this->post(route('admin.souscription.enregistrer', 2), [
+            'profils' => ['boutique_quartier'],
+            'secteurs_personnalises_selection' => ['SECTEUR 5'],
+        ]);
+        $this->post(route('admin.souscription.enregistrer', 3), []);
+        $this->post(route('admin.souscription.enregistrer', 4), ['familles' => ['VIV']]);
+
+        $this->assertDatabaseHas('categories', [
+            'entreprise_id' => $this->entreprise->id,
+            'nom' => 'Vivres et alimentation',
+            'domaine_configuration' => 'Commerce',
+            'metier_configuration' => 'Boutique de quartier / Alimentation générale',
+        ]);
+    }
+
 }
