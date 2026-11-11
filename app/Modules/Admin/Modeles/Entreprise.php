@@ -518,8 +518,8 @@ class Entreprise extends Model
     {
         try {
             return $this->calculerEtatConnexionFne();
-        } catch (\Illuminate\\Contracts\\Encryption\DecryptException $exception) {
-            \Illuminate\\Support\\Facades\Log::warning(
+        } catch (\Illuminate\Contracts\Encryption\DecryptException $exception) {
+            \Illuminate\Support\Facades\Log::warning(
                 'Accès FNE illisible pour l’entreprise #' . $this->getKey(),
                 ['exception' => $exception::class]
             );
