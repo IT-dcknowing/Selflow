@@ -240,7 +240,6 @@
                 @endforeach
                 <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
                     <input type="text" name="secteurs_personnalises[]" class="form-control" maxlength="150" placeholder="Nom du secteur précis" data-nouveau-secteur>
-                    <label style="display:flex;gap:5px;align-items:center;white-space:nowrap;"></label>
                     <button type="button" class="btn btn-outline-danger" data-retirer-saisie title="Retirer"><i class="fas fa-trash"></i></button>
                 </div>
             </div>
