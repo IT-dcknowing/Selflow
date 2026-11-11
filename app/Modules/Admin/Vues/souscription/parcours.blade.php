@@ -224,14 +224,20 @@
                 <input type="hidden" name="profils[]" value="{{ $profil->code }}">
             @endif
             @endforeach
-            @foreach($secteursPersonnalises ?? [] as $secteur)
-                <label class="ligne acquise">
-                    <input type="radio" name="secteurs_personnalises_selection[]" value="{{ $secteur }}" data-etape-suivante
-                           {{ in_array($secteur, $choix['secteurs_personnalises_selection'] ?? [], true) ? 'checked' : '' }}>
-                    <div class="nom">{{ $secteur }}</div>
-                    <div class="droite"><span class="badge-acquis">Créé</span></div>
-                </label>
-            @endforeach
+            @if(!empty($secteursPersonnalises))
+                <div class="tuiles" style="padding:14px;">
+                    @foreach($secteursPersonnalises as $secteur)
+                        <label class="tuile">
+                            <input type="radio" name="secteurs_personnalises_selection[]" value="{{ $secteur }}" data-etape-suivante
+                                   {{ in_array($secteur, $choix['secteurs_personnalises_selection'] ?? [], true) ? 'checked' : '' }}>
+                            <div class="corps">
+                                <div class="titre">{{ $secteur }}</div>
+                                <div class="detail"><span class="badge-acquis">Créé</span></div>
+                            </div>
+                        </label>
+                    @endforeach
+                </div>
+            @endif
         </div>
         <div class="autre">
             <label>Créer un secteur précis</label>
@@ -308,23 +314,31 @@
             <h2>Les catégories de votre activité</h2>
             <p>Sélectionnez uniquement les catégories dont vous avez besoin, ou créez les vôtres. Rien n'est ajouté automatiquement pour un domaine ou un secteur personnalisé.</p>
         </div>
-        <div class="liste" id="liste-categories-souscription">
+        <div class="tuiles" id="liste-categories-souscription">
             @foreach($familles as $famille)
-                <label class="ligne" style="display:flex;gap:12px;align-items:center;">
+                <label class="tuile">
                     <input type="checkbox" name="familles[]" value="{{ $famille->code }}"
                            {{ in_array($famille->code, $choix['familles'] ?? []) ? 'checked' : '' }}>
-                    <span><strong>{{ $famille->nom }}</strong>
-                        <span class="sous">{{ $famille->profil->nom }} · {{ $famille->articles_count }} produit(s)</span>
-                    </span>
+                    <div class="corps">
+                        <div class="titre">{{ $famille->nom }}</div>
+                        <div class="detail">{{ $famille->profil->nom }} · {{ $famille->articles_count }} produit(s)</div>
+                    </div>
                 </label>
             @endforeach
             @foreach($categoriesPersonnalisees ?? [] as $categoriePerso)
-                <label class="ligne acquise" style="display:flex;gap:12px;align-items:center;">
-                    <input type="checkbox" name="categories_personnalisees_selection[]" value="{{ $categoriePerso->id }}" checked>
-                    <span><strong>{{ $categoriePerso->nom }}</strong>
-                        <span class="badge-acquis">Créé</span>
-                    </span>
-                </label>
+                <div class="tuile" style="cursor:default;">
+                    <label style="display:block;cursor:pointer;margin:0;">
+                        <input type="checkbox" name="categories_personnalisees_selection[]" value="{{ $categoriePerso->id }}" checked>
+                        <div class="corps">
+                            <div class="titre">{{ $categoriePerso->nom }}</div>
+                            <div class="detail"><span class="badge-acquis">Créé</span></div>
+                        </div>
+                    </label>
+                    <button type="button" class="btn btn-outline-danger" data-supprimer-categorie="{{ $categoriePerso->id }}"
+                            title="Supprimer cette catégorie" style="position:absolute;right:12px;top:12px;z-index:2;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             @endforeach
         </div>
         <div class="autre" style="background:#f0fdf4;border-color:#86efac;">
@@ -398,8 +412,8 @@
                         <td><button type="button" class="btn btn-outline-danger" data-retirer-article title="Retirer cette ligne"><i class="fas fa-trash"></i></button></td>
                     </tr>
                     @empty
-                    <tr><td colspan="{{ $colonnes + 1 }}" style="text-align:center; padding:26px; color:var(--text-3);">
-                        Votre catalogue est vide — vous le remplirez depuis l'écran des produits.
+                    <tr data-catalogue-vide><td colspan="{{ $colonnes + 1 }}" style="text-align:center; padding:26px; color:var(--text-3);">
+                        Votre catalogue est vide — ajoutez votre premier article avec le bouton ci-dessous.
                     </td></tr>
                     @endforelse
                 </tbody>
@@ -506,7 +520,20 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
             ligne.appendChild(input);ligne.appendChild(del);zone.appendChild(ligne);index++;
         });
     }
-    document.addEventListener('click',function(e){var del=e.target.closest('[data-retirer-saisie]');if(del)del.parentElement.remove();});
+    document.addEventListener('click',function(e){
+        var del=e.target.closest('[data-retirer-saisie]');
+        if(del){del.parentElement.remove();return;}
+        var supprimerCategorie=e.target.closest('[data-supprimer-categorie]');
+        if(supprimerCategorie){
+            var form=document.getElementById('form-souscription');
+            var champ=document.createElement('input');
+            champ.type='hidden';
+            champ.name='supprimer_categorie_personnalisee';
+            champ.value=supprimerCategorie.getAttribute('data-supprimer-categorie');
+            form.appendChild(champ);
+            form.submit();
+        }
+    });
 })();
 (function () {
     var table=document.querySelector('.tableau-prix tbody');
@@ -533,6 +560,8 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
         row.remove();
     });
     bouton.addEventListener('click',function(){
+        var vide=table.querySelector('[data-catalogue-vide]');
+        if(vide) vide.remove();
         var i=index++;
         var tr=document.createElement('tr');
         var siteOptions='<option value="">Tous</option>'+sites.map(s=>'<option value="'+s.id+'">'+String(s.nom).replace(/[&<>"']/g,'')+'</option>').join('');
