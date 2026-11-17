@@ -732,13 +732,15 @@ class VenteControleur
             $facturesDispo = $facturesDispoQuery->latest()->get();
         }
 
+        $gestionApporteurs = $entreprise->aAttribution('apporteurs');
+        $apporteurs = $gestionApporteurs ? Client::where('entreprise_id', $entreprise->id)->where('est_apporteur', true)->orderBy('nom')->get() : collect();
         $banques = \App\Modules\Admin\Modeles\CodeJournal::banques()->where('entreprise_id', $entreprise->id)->orderBy('intitule')->get();
 
         $kpiFactures = ($etapeActive === 'Facture' && $type !== 'avoir')
             ? self::kpiDesFactures($entreprise->id, $pointDeVenteId, $voirArchives)
             : [];
 
-        return view('admin::ventes.factures', compact('ventes', 'etapeActive', 'nbDV', 'nbBC', 'nbBL', 'nbFacture', 'type', 'voirArchives', 'facturesDispo', 'banques', 'kpiFactures'));
+        return view('admin::ventes.factures', compact('ventes', 'etapeActive', 'nbDV', 'nbBC', 'nbBL', 'nbFacture', 'type', 'voirArchives', 'facturesDispo', 'banques', 'kpiFactures', 'gestionApporteurs', 'apporteurs'));
     }
 
 
