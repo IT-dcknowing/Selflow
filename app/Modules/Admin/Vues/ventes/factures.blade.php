@@ -143,6 +143,17 @@
                title="Appuyez sur Entrée pour lancer la recherche" onkeydown="if (event.key === 'Enter') { event.preventDefault(); document.getElementById('formFiltreVentes').submit(); }">
     </div>
     @if($etapeActive === 'Facture')
+    @if($gestionApporteurs ?? false)
+    <div class="form-group" style="margin-bottom:0;min-width:190px;">
+        <label class="form-label" style="font-size:11px;text-transform:uppercase;font-weight:700;color:var(--text-3);margin-bottom:4px;display:block;">Apporteur</label>
+        <select name="apporteur_filtre" class="form-control" onchange="document.getElementById('formFiltreVentes').submit();">
+            <option value="">— Tous les apporteurs —</option>
+            @foreach($apporteurs as $apporteur)
+            <option value="{{ $apporteur->id }}" {{ (string)request('apporteur_filtre') === (string)$apporteur->id ? 'selected' : '' }}>{{ $apporteur->nom }}</option>
+            @endforeach
+        </select>
+    </div>
+    @endif
     <div class="form-group" style="margin-bottom:0;">
         <label class="form-label" style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-3); margin-bottom:4px; display:block;">Statut</label>
         <select name="statut_filtre" class="form-control" onchange="document.getElementById('formFiltreVentes').submit();">
@@ -169,7 +180,7 @@
         <label class="form-label" style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-3); margin-bottom:4px; display:block;">Au</label>
         <input type="date" name="date_fin" value="{{ request('date_fin') }}" class="form-control" onchange="document.getElementById('formFiltreVentes').submit();">
     </div>
-    @if(request('recherche') || request('statut_filtre') || request('dgi_filtre') || request('date_debut') || request('date_fin'))
+    @if(request('recherche') || request('statut_filtre') || request('dgi_filtre') || request('apporteur_filtre') || request('date_debut') || request('date_fin'))
         <a href="{{ route($routeBase, array_filter(['etape' => $etapeActive, 'type' => $type, 'archives' => $voirArchives ? '1' : null])) }}" class="btn btn-outline" style="white-space:nowrap;"><i class="fas fa-times"></i> Effacer</a>
     @endif
 </form>
