@@ -944,6 +944,9 @@ class VenteControleur
 
         $entreprise = Auth::user()->entreprise;
         $clients = Client::obtenirClientsPrioritaires($entreprise->id, (int) $vente->point_de_vente_id ?: null);
+        $gestionApporteurs = $entreprise->aAttribution('apporteurs');
+        $apporteurs = $gestionApporteurs ? Client::where('entreprise_id', $entreprise->id)->where('est_apporteur', true)->duSite((int) $vente->point_de_vente_id ?: null)->orderBy('nom')->get() : collect();
+        if ($gestionApporteurs) { $clients = $clients->where('est_apporteur', false)->values(); }
         // Load details with products
         $vente->load(['details.produit', 'client']);
 
@@ -960,7 +963,7 @@ class VenteControleur
         $categories = $produits->pluck('categorie')->unique()->sort()->values();
         $banques = CodeJournal::banques()->where('entreprise_id', $entreprise->id)->orderBy('intitule')->get();
 
-        return view('admin::ventes.modifier', compact('vente', 'clients', 'produits', 'categories', 'banques'));
+        return view('admin::ventes.modifier', compact('vente', 'clients', 'apporteurs', 'gestionApporteurs', 'produits', 'categories', 'banques'));
     }
 
     /**
@@ -968,6 +971,7 @@ class VenteControleur
      */
     public function enregistrerModification(Vente $vente, Request $request): RedirectResponse
     {
+        $gestionApporteurs = Auth::user()->entreprise?->aAttribution('apporteurs') ?? false;
         abort_unless(
             $vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id,
             404
@@ -989,6 +993,7 @@ class VenteControleur
 
         $request->validate(array_merge([
             'client_id' => ['nullable', 'integer', Appartenance::a('clients', 'id')],
+            'apporteur_id' => ['nullable', 'integer', \\Illuminate\\Validation\\Rule::exists('clients', 'id')->where('entreprise_id', Auth::user()->entreprise_id)->where('est_apporteur', true)],
             'mode_paiement' => ['required', 'string'],
             'articles' => ['required', 'array', 'min:1'],
             'articles.*.produit_id' => ['nullable', 'integer', Appartenance::a('produits', 'id')],
@@ -1024,7 +1029,7 @@ class VenteControleur
             ]);
         }
 
-        DB::transaction(function () use ($vente, $request) {
+        DB::transaction(function () use ($vente, $request, $gestionApporteurs) {
             $pointDeVenteId = $vente->point_de_vente_id;
 
             $etaitFacturee = $vente->etape === 'Facture';
@@ -1124,7 +1129,9 @@ class VenteControleur
 
             // Mettre à jour la vente
             $vente->update([
-                'client_id' => $request->client_id ?: null,
+                'client_id' => $request->input('apporteur_id') ?: ($request->client_id ?: null),
+                'apporteur_id' => $gestionApporteurs && $request->filled('apporteur_id') ? (int) $request->input('apporteur_id') : null,
+                'beneficiaire_id' => $gestionApporteurs && $request->filled('apporteur_id') ? ($request->client_id ?: null) : null,
                 'mode_paiement' => $modePaiementFinal,
                 'moyen_bancaire' => $request->mode_paiement === 'Banque' ? $request->moyen_bancaire : null,
                 'reference_paiement' => $request->mode_paiement === 'Banque' ? $request->reference_paiement : null,
