@@ -37,6 +37,75 @@ class SuperadminPaiementControleur
         ]);
     }
 
+    /**
+     * Réactivation manuelle d'un abonnement échu par le superadministrateur.
+     * Les cases cochées représentent les mois effectivement réglés. On garde
+     * une trace dans le registre des paiements, sans référence mobile money
+     * inventée : le règlement a été contrôlé hors plateforme par le superadmin.
+     */
+    public function reactiver(Request $request, \App\Modules\Admin\Modeles\Entreprise $entreprise): RedirectResponse
+    {
+        $donnees = $request->validate([
+            'offre' => ['required', Rule::in([Abonnements::SOLO, Abonnements::BUSINESS, Abonnements::PREMIUM, Abonnements::SUR_MESURE])],
+            'mois_payes' => ['required', 'array', 'min:1', 'max:12'],
+            'mois_payes.*' => ['required', 'integer', 'between:1,12', 'distinct'],
+            'montant_total' => ['nullable', 'numeric', 'min:1'],
+        ], [
+            'mois_payes.required' => 'Cochez au moins un mois payé.',
+            'mois_payes.min' => 'Cochez au moins un mois payé.',
+            'mois_payes.max' => 'Vous ne pouvez pas sélectionner plus de douze mois.',
+        ]);
+
+        $mois = count($donnees['mois_payes']);
+        $offre = $donnees['offre'];
+        $tarifMensuel = Abonnements::offres()[$offre]['prix'] ?? null;
+        $montant = $tarifMensuel !== null
+            ? (int) $tarifMensuel * $mois
+            : (float) ($donnees['montant_total'] ?? 0);
+
+        if ($montant <= 0) {
+            return back()->withErrors(['montant_total' => 'Indiquez le montant total réglé pour cette offre sur mesure.'])->withInput();
+        }
+
+        DB::transaction(function () use ($entreprise, $offre, $mois, $montant) {
+            $entreprise = \App\Modules\Admin\Modeles\Entreprise::whereKey($entreprise->id)->lockForUpdate()->firstOrFail();
+            $depart = $entreprise->abonnement_expire_le?->isFuture()
+                ? $entreprise->abonnement_expire_le->copy()
+                : now();
+
+            if ($entreprise->plan_abonnement !== $offre) {
+                Abonnements::appliquer($entreprise, $offre);
+                $entreprise->refresh();
+            }
+
+            $entreprise->forceFill([
+                'abonnement_statut' => Abonnements::STATUT_ACTIF,
+                'abonnement_expire_le' => $depart->addMonthsNoOverflow($mois)->endOfDay(),
+                'abonnement_demande' => null,
+                'abonnement_demande_le' => null,
+            ])->save();
+
+            PaiementAbonnement::create([
+                'entreprise_id' => $entreprise->id,
+                'utilisateur_id' => null,
+                'offre' => $offre,
+                'nature' => 'renouvellement',
+                'mois' => $mois,
+                'montant' => $montant,
+                'operateur_paiement' => 'superadmin',
+                'reference_paiement' => 'REABONNEMENT-SUPERADMIN-' . $entreprise->id . '-' . now()->format('YmdHis'),
+                'statut' => 'active',
+                'active_le' => now(),
+                'traite_par' => Auth::id(),
+            ] + (PaiementAbonnement::colonnesEnPlace() ? [
+                'bloquant' => false,
+                'confirmation_vue_le' => now(),
+            ] : []));
+        });
+
+        return back()->with('succes', $entreprise->nom . ' : abonnement réactivé pour ' . $mois . ' mois.');
+    }
+
     public function traiter(Request $request, PaiementAbonnement $paiement): RedirectResponse
     {
         $donnees = $request->validate([
