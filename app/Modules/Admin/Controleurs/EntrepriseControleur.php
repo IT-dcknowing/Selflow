@@ -572,6 +572,31 @@ class EntrepriseControleur
     }
 
     /**
+     * Retourne la progression réelle du déversement, sans bloquer la page.
+     */
+    public function etatDuDeversementComptaflow(): \Illuminate\Http\JsonResponse
+    {
+        $entreprise = Auth::user()->entreprise;
+
+        return response()->json([
+            'success' => true,
+            'etat' => \App\Modules\Admin\Services\DeversementHistoriqueService::etat($entreprise),
+        ]);
+    }
+
+    /**
+     * Remet en file uniquement les opérations en échec, sans changer leurs clés
+     * cle_selflow : Comptaflow reste responsable de l'idempotence.
+     */
+    public function relancerEchecsComptaflow(): \Illuminate\Http\JsonResponse
+    {
+        $entreprise = Auth::user()->entreprise;
+        $resultat = \App\Modules\Admin\Services\DeversementHistoriqueService::relancerEchecs($entreprise);
+
+        return response()->json($resultat, $resultat['success'] ? 200 : 422);
+    }
+
+    /**
      * Demander la comptabilité d'exercices antérieurs (propriétaire,
      * 08/10/2026). Seules les années qui portent encore des opérations à
      * déverser se demandent ; l'administrateur de la plateforme accorde.
