@@ -232,8 +232,8 @@
                     </thead>
                     <tbody>
                         @foreach($clientsComptaflow as $c)
-                        <tr>
-                            <td style="font-weight:600; color:var(--text);">{{ $c->nom }}</td>
+                        <tr style="{{ $c->est_apporteur ? 'background:#f1f5f9;color:#64748b;' : '' }}">
+                            <td style="font-weight:600; color:{{ $c->est_apporteur ? '#64748b' : 'var(--text)' }};">{{ $c->nom }} @if($c->est_apporteur)<span style="display:inline-block;margin-left:6px;padding:2px 7px;border-radius:12px;background:#e2e8f0;color:#475569;font-size:10px;font-weight:800;">APPORTEUR</span>@endif</td>
                             <td style="font-family: monospace; font-weight: 700; color: var(--primary);">
                                 {{ $c->numero_tiers ?? '—' }}
                                 @if(!empty($c->numero_original))
@@ -273,6 +273,7 @@
      (Not Found — introuvable). --}}
                                 data-action="{{ route('admin.clients.modifier', $c) }}"
                                     data-nom="{{ $c->nom }}"
+                                    data-est-apporteur="{{ $c->est_apporteur ? 1 : 0 }}"
                                     data-telephone="{{ $c->telephone }}"
                                     data-email="{{ $c->email }}"
                                     data-adresse="{{ $c->adresse }}"
