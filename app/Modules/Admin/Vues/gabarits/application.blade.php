@@ -1449,7 +1449,36 @@
 
     <div style="display:flex; align-items:center; gap:16px;">
         <div class="topbar-clock" id="horloge">--:--:--</div>
-        
+
+        @php
+            $__utilisateurAlerteAbonnement = auth()->user();
+            $__entrepriseAlerteAbonnement = $__utilisateurAlerteAbonnement?->entreprise;
+            $__joursAlerteAbonnement = null;
+            if ($__entrepriseAlerteAbonnement
+                && in_array($__utilisateurAlerteAbonnement->role, ['admin', 'caissier'], true)
+                && in_array($__entrepriseAlerteAbonnement->plan_abonnement, ['SOLO', 'BUSINESS', 'PREMIUM', 'SUR_MESURE'], true)
+                && $__entrepriseAlerteAbonnement->abonnement_expire_le) {
+                $__joursAlerteAbonnement = \App\Modules\Admin\Regles\Abonnements::joursRestants($__entrepriseAlerteAbonnement);
+            }
+        @endphp
+        @if($__joursAlerteAbonnement !== null && $__joursAlerteAbonnement >= 1 && $__joursAlerteAbonnement <= 10)
+            <details style="position:relative;">
+                <summary style="list-style:none;display:flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid #fbbf24;background:#fffbeb;color:#92400e;border-radius:10px;cursor:pointer;font-size:12px;font-weight:700;">
+                    <i class="fas fa-bell"></i>
+                    <span>Abonnement · {{ $__joursAlerteAbonnement }} j</span>
+                    <i class="fas fa-chevron-down" style="font-size:9px;"></i>
+                </summary>
+                <div style="position:absolute;right:0;top:calc(100% + 9px);width:min(340px,85vw);padding:16px;background:#fff;border:1px solid #fcd34d;border-radius:12px;box-shadow:0 12px 32px rgba(15,23,42,.16);z-index:1100;">
+                    <div style="font-weight:800;color:#92400e;margin-bottom:7px;"><i class="fas fa-hourglass-half"></i> Votre abonnement arrive à échéance</div>
+                    <p style="font-size:13px;line-height:1.6;color:#475569;">
+                        Votre abonnement prendra fin le <strong>{{ $__entrepriseAlerteAbonnement->abonnement_expire_le->format('d/m/Y') }}</strong>.
+                        Réabonnez-vous pour profiter de votre service sans interruption.
+                    </p>
+                    <a href="{{ route('admin.abonnement.choisir') }}" class="btn btn-primary btn-sm" style="display:inline-flex;margin-top:12px;">Réabonnez-vous</a>
+                </div>
+            </details>
+        @endif
+
         {{-- Bouton Profil et Menu Déroulant (Images 2 et 3) --}}
         <div class="user-dropdown" style="position:relative; display:inline-block;">
             <button class="user-dropdown-btn" onclick="toggleUserDropdown()" style="display:flex; align-items:center; gap:8px; background:#ffffff; border:1px solid var(--border); border-radius:30px; padding:4px 14px 4px 4px; cursor:pointer; font-family:inherit; transition: all 0.15s; outline:none;">
