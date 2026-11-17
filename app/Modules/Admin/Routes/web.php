@@ -549,6 +549,8 @@ Route::prefix('admin')
         // un ecran -- une entreprise reliee apres six mois d'activite gardait
         // ses six mois.
         Route::post('/entreprise/comptaflow/deverser', [EntrepriseControleur::class, 'lancerLeDeversement'])->middleware('throttle:plateforme')->name('entreprise.comptaflow.deverser');
+        Route::get('/entreprise/comptaflow/deversement/etat', [EntrepriseControleur::class, 'etatDuDeversementComptaflow'])->name('entreprise.comptaflow.deversement.etat');
+        Route::post('/entreprise/comptaflow/deversement/reessayer', [EntrepriseControleur::class, 'relancerEchecsComptaflow'])->middleware('throttle:plateforme')->name('entreprise.comptaflow.deversement.reessayer');
         // Les exercices antérieurs se demandent ; le superadministrateur les accorde (08/10/2026).
         Route::post('/entreprise/comptaflow/exercices-anterieurs', [EntrepriseControleur::class, 'demanderExercicesAnterieurs'])->name('entreprise.comptaflow.exercices_anterieurs');
         Route::post('/entreprise/onboarding/entreprise-nom', [EntrepriseControleur::class, 'enregistrerNomOnboarding'])->name('onboarding.entreprise_nom');
