@@ -479,6 +479,30 @@
                             @endforeach
                         </select>
                     </div>
+                    @if($gestionApporteurs ?? false)
+                    <div class="form-group" data-pas="2">
+                        <label class="form-label">Apporteur / tiers payant (facultatif)</label>
+                        <select name="apporteur_id" id="apporteurVente" class="form-control">
+                            <option value="">— Aucun apporteur : le client reste payeur —</option>
+                            @foreach($apporteurs as $apporteur)
+                            <option value="{{ $apporteur->id }}">{{ $apporteur->nom }}{{ $apporteur->telephone ? ' — '.$apporteur->telephone : '' }}</option>
+                            @endforeach
+                            @if($apporteurs->isEmpty())
+                            <option value="__ajouter__">＋ Ajouter un apporteur</option>
+                            @endif
+                        </select>
+                        <small style="display:block;margin-top:5px;color:var(--text-3);font-size:11px;">Si un apporteur est choisi, il devient le tiers payeur de la facture ; le client sélectionné reste le bénéficiaire des soins.</small>
+                        <a href="{{ route('admin.clients.index') }}" style="display:inline-block;margin-top:6px;font-size:12px;color:var(--primary);font-weight:700;">＋ Ajouter / gérer les apporteurs</a>
+                    </div>
+                    <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const select = document.getElementById('apporteurVente');
+                        if (select) select.addEventListener('change', function () {
+                            if (this.value === '__ajouter__') window.location.href = @json(route('admin.clients.index'));
+                        });
+                    });
+                    </script>
+                    @endif
                     <div class="form-group" data-pas="2">
                         <label class="form-label" for="dateVente">Date d'établissement de la facture <span style="color:var(--danger)">*</span></label>
                         <input type="date" name="date_vente" id="dateVente" class="form-control"
