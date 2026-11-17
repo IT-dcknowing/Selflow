@@ -1230,11 +1230,11 @@ function model1(d) {
         <div style="height:0.5px;background:var(--border);margin-bottom:18px;"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px">
             <div style="background:var(--white);border-radius:8px;padding:12px 14px;border:0.5px solid var(--border)">
-                <div style="font-size:10px;font-weight:700;color:${theme.color};text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px"">${d.aApporteur ? 'Tiers payant / Apporteur' : 'Client'}</div>
+                <div style="font-size:10px;font-weight:700;color:${theme.color};text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">${d.aApporteur ? 'Tiers payant / Apporteur' : 'Client'}</div>
                 <div style="font-size:13px;font-weight:700;color:var(--tx)">${d.client.nom}</div>
                 <div style="font-size:11px;color:var(--mu);margin-top:4px;line-height:1.7">${fiscalLinesClient(d.client, '<br>')}</div>
-                ${d.beneficiaire ? `<div style="margin-top:7px;padding-top:6px;border-top:1px solid var(--border);font-size:11px;color:var(--mu)"><strong style="color:var(--tx)">Bénéficiaire des soins :</strong> ${d.beneficiaire.nom}${d.beneficiaire.telephone ? ' · Tél : '+d.beneficiaire.telephone : ''}${d.beneficiaire.adresse ? ' · '+d.beneficiaire.adresse : ''}</div>` : ''}
-                ${d.beneficiaire ? `<div style="margin-top:7px;padding-top:6px;border-top:1px solid var(--border);font-size:11px;color:var(--mu)"><strong style="color:var(--tx)">Bénéficiaire des soins :</strong> ${d.beneficiaire.nom}${d.beneficiaire.telephone ? ' · Tél : '+d.beneficiaire.telephone : ''}${d.beneficiaire.adresse ? ' · '+d.beneficiaire.adresse : ''}</div>` : ''}
+                ${d.beneficiaire ? `<div style="margin-top:7px;padding-top:6px;border-top:1px solid var(--border);font-size:11px;color:var(--mu)"><strong style="color:var(--tx)">Bénéficiaire des soins :</strong> ${d.beneficiaire.nom}${d.beneficiaire.tel ? ' · Tél : '+d.beneficiaire.tel : ''}${d.beneficiaire.adresse ? ' · '+d.beneficiaire.adresse : ''}</div>` : ''}
+                ${d.beneficiaire ? `<div style="margin-top:7px;padding-top:6px;border-top:1px solid var(--border);font-size:11px;color:var(--mu)"><strong style="color:var(--tx)">Bénéficiaire des soins :</strong> ${d.beneficiaire.nom}${d.beneficiaire.tel ? ' · Tél : '+d.beneficiaire.tel : ''}${d.beneficiaire.adresse ? ' · '+d.beneficiaire.adresse : ''}</div>` : ''}
             </div>
             <div style="background:var(--white);border-radius:8px;padding:12px 14px;border:0.5px solid var(--border)">
                 <div style="font-size:10px;font-weight:700;color:${theme.color};text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Informations</div>
@@ -1377,7 +1377,7 @@ function model2(d) {
                 <div style="font-size:10px;color:${theme.color};text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;font-weight:700;"">${d.aApporteur ? 'Tiers payant / Apporteur' : 'Client'}</div>
                 <div style="font-size:13px;font-weight:700;color:var(--tx)">${d.client.nom}</div>
                 <div style="font-size:11px;color:var(--mu);margin-top:4px;line-height:1.7;">${fiscalLinesClient(d.client, '<br>')}</div>
-                ${d.beneficiaire ? `<div style="margin-top:7px;padding-top:6px;border-top:1px solid var(--border);font-size:11px;color:var(--mu)"><strong style="color:var(--tx)">Bénéficiaire des soins :</strong> ${d.beneficiaire.nom}${d.beneficiaire.telephone ? ' · Tél : '+d.beneficiaire.telephone : ''}${d.beneficiaire.adresse ? ' · '+d.beneficiaire.adresse : ''}</div>` : ''}
+                ${d.beneficiaire ? `<div style="margin-top:7px;padding-top:6px;border-top:1px solid var(--border);font-size:11px;color:var(--mu)"><strong style="color:var(--tx)">Bénéficiaire des soins :</strong> ${d.beneficiaire.nom}${d.beneficiaire.tel ? ' · Tél : '+d.beneficiaire.tel : ''}${d.beneficiaire.adresse ? ' · '+d.beneficiaire.adresse : ''}</div>` : ''}
                 <div style="display:flex;gap:14px;margin-top:10px;flex-wrap:wrap;">
                     <div style="font-size:11px"><span style="color:var(--mu)">Date : </span><span style="color:var(--tx);font-weight:600;">${d.date}</span></div>
                     ${isDeliveryMode ? '' : `
@@ -1500,7 +1500,7 @@ function model3(d) {
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
             <div style="padding:12px 14px;background:var(--white);border-radius:8px;border:0.5px solid var(--border)">
-                <div style="font-size:10px;color:${theme.color};font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px"">${d.aApporteur ? 'Tiers payant / Apporteur' : 'Client'}</div>
+                <div style="font-size:10px;color:${theme.color};font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">${d.aApporteur ? 'Tiers payant / Apporteur' : 'Client'}</div>
                 <div style="font-size:13px;font-weight:700;color:var(--tx)">${d.client.nom}</div>
                 <div style="font-size:11px;color:var(--mu);margin-top:4px;line-height:1.7">${fiscalLinesClient(d.client, '<br>')}</div>
             </div>
