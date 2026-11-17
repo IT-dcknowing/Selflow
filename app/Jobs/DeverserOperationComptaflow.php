@@ -7,6 +7,7 @@ use App\Modules\Admin\Modeles\Entreprise;
 use App\Modules\Admin\Modeles\Operation;
 use App\Modules\Admin\Modeles\Periode;
 use App\Modules\Admin\Services\LiaisonComptaflowService;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -48,13 +49,19 @@ use Illuminate\Support\Facades\Log;
  * Comptaflow ignore celles qu'il détient déjà. Rejouer est donc sans danger,
  * y compris après un envoi partiellement accepté.
  */
-class DeverserOperationComptaflow implements ShouldQueue
+class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
 {
     use Queueable, InteractsWithQueue, SerializesModels;
 
     public int $tries = 3;
     public int $backoff = 60;
     public int $timeout = 30;
+    public int $uniqueFor = 3600;
+
+    public function uniqueId(): string
+    {
+        return 'comptaflow-operation-' . $this->operationId;
+    }
 
     public function __construct(public readonly int $operationId)
     {
@@ -80,6 +87,8 @@ class DeverserOperationComptaflow implements ShouldQueue
         if (!$entreprise
             || $entreprise->comptaflow_sync_status !== 'active'
             || !$entreprise->comptaflow_sync_key) {
+            EcritureComptable::withoutGlobalScopes()->where('operation_id', $operation->id)->where('comptaflow_sync_status', '!=', 'synced')
+                ->update(['comptaflow_sync_status' => 'failed', 'comptaflow_sync_error' => 'Liaison Comptaflow inactive ou clé de liaison absente.']);
             return;
         }
 
@@ -94,6 +103,9 @@ class DeverserOperationComptaflow implements ShouldQueue
         $solde = round((float) $operation->ecritures->sum('debit') - (float) $operation->ecritures->sum('credit'), 2);
 
         if (!$operation->est_equilibree || $solde != 0.0) {
+            $motif = 'Opération déséquilibrée : écart débit/crédit de ' . number_format($solde, 2, ',', ' ') . '.';
+            EcritureComptable::withoutGlobalScopes()->where('operation_id', $operation->id)->where('comptaflow_sync_status', '!=', 'synced')
+                ->update(['comptaflow_sync_status' => 'failed', 'comptaflow_sync_error' => $motif]);
             Log::warning('Opération déséquilibrée non déversée', [
                 'operation_id' => $operation->id,
                 'solde'        => $solde,
@@ -107,6 +119,8 @@ class DeverserOperationComptaflow implements ShouldQueue
         // porterait deux en perdrait un sans bruit, et l'équilibre recompté
         // ci-dessus n'y verrait rien.
         if ($anomalie = self::anomalie($operation->ecritures)) {
+            EcritureComptable::withoutGlobalScopes()->where('operation_id', $operation->id)->where('comptaflow_sync_status', '!=', 'synced')
+                ->update(['comptaflow_sync_status' => 'failed', 'comptaflow_sync_error' => $anomalie]);
             Log::warning('Opération non déversée : contrôle avant envoi', [
                 'operation_id' => $operation->id,
                 'anomalie'     => $anomalie,
@@ -128,6 +142,11 @@ class DeverserOperationComptaflow implements ShouldQueue
             ->first();
 
         $charge = $lignes->map(fn (EcritureComptable $e) => self::ligne($e, $entreprise, $operation))->all();
+        $ids = $lignes->pluck('id')->all();
+
+        EcritureComptable::withoutGlobalScope(\App\Modules\Admin\Scopes\PeriodeScope::class)
+            ->whereIn('id', $ids)
+            ->update(['comptaflow_sync_status' => 'sending', 'comptaflow_sync_error' => null]);
 
         try {
             $reponse = Http::timeout(15)
@@ -152,8 +171,6 @@ class DeverserOperationComptaflow implements ShouldQueue
             // Les mises à jour de statut, elles aussi, hors filtre de période :
             // sous ce filtre, une ligne d'un exercice antérieur partait chez
             // Comptaflow mais restait « à déverser », et repartait sans fin.
-            $ids = $lignes->pluck('id')->all();
-
             if ($reponse->successful() && ($reponse->json('success') ?? false)) {
                 // Un refus partiel reste un refus : la moitié d'une opération
                 // chez Comptaflow est pire qu'aucune. On laisse les lignes en
@@ -162,6 +179,7 @@ class DeverserOperationComptaflow implements ShouldQueue
 
                 EcritureComptable::withoutGlobalScope(\App\Modules\Admin\Scopes\PeriodeScope::class)->whereIn('id', $ids)->update([
                     'comptaflow_sync_status' => empty($refus) ? 'synced' : 'failed',
+                    'comptaflow_sync_error' => empty($refus) ? null : mb_substr(json_encode($refus, JSON_UNESCAPED_UNICODE), 0, 4000),
                 ]);
 
                 if (!empty($refus)) {
@@ -174,7 +192,11 @@ class DeverserOperationComptaflow implements ShouldQueue
                 return;
             }
 
-            EcritureComptable::withoutGlobalScope(\App\Modules\Admin\Scopes\PeriodeScope::class)->whereIn('id', $ids)->update(['comptaflow_sync_status' => 'failed']);
+            $motif = 'Comptaflow HTTP ' . $reponse->status() . ' : ' . mb_substr($reponse->body(), 0, 3500);
+            EcritureComptable::withoutGlobalScope(\App\Modules\Admin\Scopes\PeriodeScope::class)->whereIn('id', $ids)->update([
+                'comptaflow_sync_status' => 'failed',
+                'comptaflow_sync_error' => $motif,
+            ]);
 
             Log::warning('Opération refusée par Comptaflow', [
                 'operation_id' => $operation->id,
@@ -182,13 +204,14 @@ class DeverserOperationComptaflow implements ShouldQueue
                 'corps'        => mb_substr($reponse->body(), 0, 500),
             ]);
         } catch (\Throwable $e) {
-            EcritureComptable::withoutGlobalScope(\App\Modules\Admin\Scopes\PeriodeScope::class)->whereIn('id', $lignes->pluck('id')->all())
-                ->update(['comptaflow_sync_status' => 'failed']);
+            EcritureComptable::withoutGlobalScope(\App\Modules\Admin\Scopes\PeriodeScope::class)->whereIn('id', $ids)
+                ->update(['comptaflow_sync_status' => 'failed', 'comptaflow_sync_error' => mb_substr($e->getMessage(), 0, 4000)]);
 
             Log::error('Déversement de l\'opération impossible', [
                 'operation_id' => $operation->id,
                 'erreur'       => $e->getMessage(),
             ]);
+            throw $e;
         }
     }
 
