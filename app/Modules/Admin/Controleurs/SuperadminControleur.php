@@ -104,8 +104,41 @@ class SuperadminControleur
      */
     public function entreprises(): View
     {
-        $entreprises = Entreprise::horsCorbeille()->with('fneCredential')->orderBy('nom', 'asc')->paginate(10);
-        return view('admin::superadmin.entreprises.index', compact('entreprises'));
+        $base = Entreprise::horsCorbeille()->whereNotNull('abonnement_expire_le');
+
+        // Vue globale des échéances : ces listes ne dépendent pas de la page
+        // courante de la pagination des entreprises.
+        $abonnementsEchusTotal = (clone $base)->where('abonnement_expire_le', '<', now())->count();
+        $abonnementsEchus = (clone $base)
+            ->where('abonnement_expire_le', '<', now())
+            ->orderBy('abonnement_expire_le')
+            ->limit(20)
+            ->get();
+
+        $limiteAlerte = now()->copy()->addDays(10);
+        $abonnementsProchesTotal = (clone $base)
+            ->where('abonnement_expire_le', '>=', now())
+            ->where('abonnement_expire_le', '<=', $limiteAlerte)
+            ->count();
+        $abonnementsProches = (clone $base)
+            ->where('abonnement_expire_le', '>=', now())
+            ->where('abonnement_expire_le', '<=', $limiteAlerte)
+            ->orderBy('abonnement_expire_le')
+            ->limit(20)
+            ->get();
+
+        $entreprises = Entreprise::horsCorbeille()
+            ->with('fneCredential')
+            ->orderBy('nom', 'asc')
+            ->paginate(10);
+
+        return view('admin::superadmin.entreprises.index', compact(
+            'entreprises',
+            'abonnementsEchus',
+            'abonnementsEchusTotal',
+            'abonnementsProches',
+            'abonnementsProchesTotal'
+        ));
     }
 
     /**
