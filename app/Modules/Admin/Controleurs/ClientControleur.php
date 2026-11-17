@@ -187,7 +187,9 @@ class ClientControleur
         $entreprise = Auth::user()->entreprise;
         abort_unless($client->entreprise_id === $entreprise->id, 404);
 
-        if ($client->ventes_count > 0 || $client->ventes()->exists()) {
+        if ($client->ventes_count > 0 || $client->ventes()->exists()
+            || \App\Modules\Admin\Modeles\Vente::where('beneficiaire_id', $client->id)->exists()
+            || \App\Modules\Admin\Modeles\Vente::where('apporteur_id', $client->id)->exists()) {
             return back()->with('erreur', 'Impossible de supprimer ce client : il est lié à des ventes enregistrées.');
         }
 
