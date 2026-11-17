@@ -834,7 +834,7 @@ class VenteControleur
         $vendeur = $vente->utilisateur;
 
         // Le document affiche les taxes de chaque ligne et celles de la pièce
-        $vente->load(['details.produit', 'details.taxes', 'taxesPersonnalisees', 'client', 'pointDeVente.entreprise']);
+        $vente->load(['details.produit', 'details.taxes', 'taxesPersonnalisees', 'client', 'apporteur', 'beneficiaire', 'pointDeVente.entreprise']);
 
         // Calculer ce qui a été effectivement payé
         $dejaPaye = TresorerieJournal::where('reference_document', $vente->numero_facture)->sum('montant_entree');
@@ -860,7 +860,7 @@ class VenteControleur
     {
         self::verifierLAccesALaPiece($vente);
 
-        $vente->load(['details.produit', 'details.taxes', 'taxesPersonnalisees', 'client', 'pointDeVente.entreprise', 'parent']);
+        $vente->load(['details.produit', 'details.taxes', 'taxesPersonnalisees', 'client', 'apporteur', 'beneficiaire', 'pointDeVente.entreprise', 'parent']);
         $dejaPaye = TresorerieJournal::where('reference_document', $vente->numero_facture)->sum('montant_entree');
 
         // Le modele choisi a l'ecran suit la piece : on telechargeait
