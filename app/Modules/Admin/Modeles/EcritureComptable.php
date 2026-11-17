@@ -74,6 +74,7 @@ class EcritureComptable extends Model
         'lettrage_id',
         'description',
         'comptaflow_sync_status',
+        'comptaflow_sync_error',
     ];
 
     protected function casts(): array
