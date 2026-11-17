@@ -51,6 +51,10 @@ class VenteControleur
                 ?? Auth::user()->pointDeVenteDOuverture()
                 ?? PointDeVente::where('entreprise_id', $entreprise->id)->orderBy('nom')->value('id'));
         $clients = Client::obtenirClientsPrioritaires($entreprise->id, (int) $pointDeVenteId ?: null);
+        $gestionApporteurs = $entreprise->aAttribution('apporteurs');
+        $apporteurs = $gestionApporteurs
+            ? Client::where('entreprise_id', $entreprise->id)->where('est_apporteur', true)->duSite((int) $pointDeVenteId ?: null)->orderBy('nom')->get()
+            : collect();
         // Archiver un article, c'est dire qu'on ne le vend plus. La caisse le
         // proposait quand même : le filtre ne vivait que sur l'écran du
         // catalogue.
@@ -68,7 +72,7 @@ class VenteControleur
         $categories = $produits->pluck('categorie')->unique()->sort()->values();
         $banques = CodeJournal::banques()->where('entreprise_id', $entreprise->id)->orderBy('intitule')->get();
 
-        return view('admin::ventes.nouvelle', compact('clients', 'produits', 'categories', 'pointDeVenteId', 'banques'));
+        return view('admin::ventes.nouvelle', compact('clients', 'apporteurs', 'gestionApporteurs', 'produits', 'categories', 'pointDeVenteId', 'banques'));
     }
 
     public function enregistrer(Request $request): RedirectResponse
@@ -89,6 +93,7 @@ class VenteControleur
 
         $request->validate(array_merge([
             'client_id' => ['nullable', 'integer', Appartenance::a('clients', 'id')],
+            'apporteur_id' => ['nullable', 'integer', \\Illuminate\\Validation\\Rule::exists('clients', 'id')->where('entreprise_id', $entreprise->id)->where('est_apporteur', true)],
             'mode_paiement' => ['required', 'string'],
             'articles' => ['required', 'array', 'min:1'],
             'articles.*.produit_id' => ['nullable', 'integer', Appartenance::a('produits', 'id')],
@@ -202,7 +207,7 @@ class VenteControleur
 
         $normalisationEcartee = false;
         try {
-        DB::transaction(function () use ($request, $pointDeVenteId, &$venteId, $entreprise, &$normalisationEcartee, $produitDe) {
+        DB::transaction(function () use ($request, $pointDeVenteId, &$venteId, $entreprise, &$normalisationEcartee, $produitDe, $gestionApporteurs) {
             $montantHt = 0;
             $remiseTaux = self::tauxBorne($request->input('remise_taux', 0));
             $etape = $request->input('etape', 'Facture');
@@ -319,7 +324,9 @@ class VenteControleur
 
             $vente = Vente::create([
                 'point_de_vente_id' => $pointDeVenteId,
-                'client_id' => $request->client_id ?: null,
+                'client_id' => $request->input('apporteur_id') ?: ($request->client_id ?: null), // le tiers payeur
+                'apporteur_id' => $gestionApporteurs && $request->filled('apporteur_id') ? (int) $request->input('apporteur_id') : null,
+                'beneficiaire_id' => $gestionApporteurs && $request->filled('apporteur_id') ? ($request->client_id ?: null) : null,
                 'numero_facture' => $numero,
                 'date_vente' => $request->date('date_vente')->toDateString(),
                 // Un devis sans terme engage indéfiniment celui qui l'a fait :
