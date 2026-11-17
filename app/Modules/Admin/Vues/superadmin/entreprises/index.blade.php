@@ -83,6 +83,18 @@
                         <div style="font-size: 11px; color: var(--text-3);">
                             Points de vente max : <strong>{{ $ent->quota_points_de_vente }}</strong>
                         </div>
+                        @if($ent->abonnement_expire_le)
+                            @php $abonnementEchu = \App\Modules\Admin\Regles\Abonnements::estATerme($ent); @endphp
+                            <div style="font-size:11px;margin-top:5px;color:{{ $abonnementEchu ? '#b91c1c' : '#64748b' }};font-weight:700;">
+                                {{ $abonnementEchu ? 'Échu depuis le ' : 'Expire le ' }}{{ $ent->abonnement_expire_le->format('d/m/Y') }}
+                            </div>
+                            @if($abonnementEchu && in_array($ent->plan_abonnement, ['SOLO','BUSINESS','PREMIUM','SUR_MESURE'], true))
+                                <button type="button" class="btn btn-sm" style="margin-top:7px;background:#dc2626;color:#fff;border:0;"
+                                    onclick="ouvrirModalReabonnement({{ $ent->id }}, @js($ent->nom), @js($ent->plan_abonnement), @js($ent->abonnement_expire_le->format('d/m/Y')))">
+                                    <i class="fas fa-rotate"></i> Réabonner
+                                </button>
+                            @endif
+                        @endif
                     </td>
                     <td>
                         @php
@@ -179,6 +191,74 @@
         @endif
     </div>
 </div>
+
+<!-- Réabonnement manuel par le superadministrateur -->
+<div id="modalReabonnement" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.58);z-index:12000;align-items:center;justify-content:center;padding:18px;">
+    <div style="width:min(560px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:16px;padding:24px;box-shadow:0 24px 70px rgba(0,0,0,.25);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px;">
+            <div>
+                <h2 style="font-size:19px;font-weight:800;color:#002B5C;">Réabonnement de l'entreprise</h2>
+                <p id="reabonnementEntreprise" style="margin-top:5px;color:#475569;font-weight:700;"></p>
+                <p id="reabonnementEcheance" style="margin-top:3px;color:#b91c1c;font-size:12px;"></p>
+            </div>
+            <button type="button" onclick="fermerModalReabonnement()" aria-label="Fermer" style="border:0;background:#f1f5f9;border-radius:8px;width:34px;height:34px;cursor:pointer;"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="formReabonnement" method="POST">
+            @csrf
+            <div style="padding:13px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;margin-bottom:16px;">
+                <div style="font-size:12px;color:#1e40af;">Offre actuelle</div>
+                <strong id="reabonnementOffre" style="font-size:16px;color:#1e3a8a;"></strong>
+                <p style="font-size:12px;color:#1e40af;margin-top:4px;">L'offre et ses quotas sont conservés. Seule la période d'abonnement est prolongée.</p>
+            </div>
+            <label style="display:block;font-weight:700;margin-bottom:9px;">Cochez les mois effectivement payés</label>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:16px;">
+                @for($m=1;$m<=12;$m++)
+                    <label style="display:flex;align-items:center;gap:7px;padding:9px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;cursor:pointer;">
+                        <input type="checkbox" name="mois_payes[]" value="{{ $m }}" class="mois-reabonnement" onchange="calculerMoisReabonnement()">
+                        {{ $m }} {{ $m === 1 ? 'mois' : 'mois' }}
+                    </label>
+                @endfor
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:#f8fafc;border-radius:9px;margin-bottom:16px;">
+                <span style="font-size:13px;color:#475569;">Durée sélectionnée</span>
+                <strong id="totalMoisReabonnement" style="font-size:16px;color:#002B5C;">0 mois</strong>
+            </div>
+            <div id="montantSurMesure" style="display:none;margin-bottom:16px;">
+                <label for="montant_total_reabonnement" style="display:block;font-weight:700;margin-bottom:6px;">Montant total réglé (F CFA)</label>
+                <input id="montant_total_reabonnement" name="montant_total" type="number" min="1" step="1" class="form-control">
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;">
+                <button type="button" class="btn btn-outline" onclick="fermerModalReabonnement()">Annuler</button>
+                <button type="submit" class="btn btn-primary" style="background:#16a34a;border-color:#16a34a;" onclick="return confirmerReabonnement()">Confirmer le réabonnement</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+function ouvrirModalReabonnement(id, nom, offre, echeance) {
+    document.getElementById('formReabonnement').action = '/superadmin/entreprises/' + id + '/reactiver-abonnement';
+    document.getElementById('reabonnementEntreprise').textContent = nom;
+    document.getElementById('reabonnementOffre').textContent = offre;
+    document.getElementById('reabonnementEcheance').textContent = 'Abonnement échu depuis le ' + echeance;
+    document.getElementById('montantSurMesure').style.display = offre === 'SUR_MESURE' ? 'block' : 'none';
+    document.getElementById('modalReabonnement').style.display = 'flex';
+}
+function fermerModalReabonnement() {
+    document.getElementById('modalReabonnement').style.display = 'none';
+}
+function calculerMoisReabonnement() {
+    var n = document.querySelectorAll('.mois-reabonnement:checked').length;
+    document.getElementById('totalMoisReabonnement').textContent = n + (n > 1 ? ' mois' : ' mois');
+}
+function confirmerReabonnement() {
+    var n = document.querySelectorAll('.mois-reabonnement:checked').length;
+    if (!n) { alert('Cochez au moins un mois payé.'); return false; }
+    return confirm('Confirmer la réactivation pour ' + n + ' mois payés ?');
+}
+document.getElementById('modalReabonnement')?.addEventListener('click', function(e) {
+    if (e.target === this) fermerModalReabonnement();
+});
+</script>
 
 <!-- Modal de Détails -->
 <div id="modalDetailsEntreprise" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; backdrop-filter: blur(4px); animation: fadeIn 0.2s ease;">
