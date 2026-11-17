@@ -573,6 +573,7 @@ var DATA = {
             rccm: {!! json_encode($vente->client?->rccm ?? '') !!}
         },
         beneficiaire: {!! json_encode($vente->beneficiaire ? ['nom' => $vente->beneficiaire->nom, 'adresse' => $vente->beneficiaire->adresse, 'tel' => $vente->beneficiaire->telephone] : null) !!},
+        aApporteur: {!! json_encode((bool) $vente->apporteur_id) !!},
         items: [
             @foreach($vente->details as $detail)
             @php
@@ -1229,7 +1230,7 @@ function model1(d) {
         <div style="height:0.5px;background:var(--border);margin-bottom:18px;"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px">
             <div style="background:var(--white);border-radius:8px;padding:12px 14px;border:0.5px solid var(--border)">
-                <div style="font-size:10px;font-weight:700;color:${theme.color};text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Client</div>
+                <div style="font-size:10px;font-weight:700;color:${theme.color};text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px"">${d.aApporteur ? 'Tiers payant / Apporteur' : 'Client'}</div>
                 <div style="font-size:13px;font-weight:700;color:var(--tx)">${d.client.nom}</div>
                 <div style="font-size:11px;color:var(--mu);margin-top:4px;line-height:1.7">${fiscalLinesClient(d.client, '<br>')}</div>
                 ${d.beneficiaire ? `<div style="margin-top:7px;padding-top:6px;border-top:1px solid var(--border);font-size:11px;color:var(--mu)"><strong style="color:var(--tx)">Bénéficiaire des soins :</strong> ${d.beneficiaire.nom}${d.beneficiaire.telephone ? ' · Tél : '+d.beneficiaire.telephone : ''}${d.beneficiaire.adresse ? ' · '+d.beneficiaire.adresse : ''}</div>` : ''}
@@ -1373,7 +1374,7 @@ function model2(d) {
                 <div style="padding:5px 14px;border-radius:20px;font-size:11px;font-weight:600;background:${theme.bg};color:${theme.tx}">${badge}</div>
             </div>
             <div style="margin-bottom:16px;padding:12px 14px;background:var(--white);border-radius:8px;border:0.5px solid var(--border)">
-                <div style="font-size:10px;color:${theme.color};text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;font-weight:700;">Client</div>
+                <div style="font-size:10px;color:${theme.color};text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;font-weight:700;"">${d.aApporteur ? 'Tiers payant / Apporteur' : 'Client'}</div>
                 <div style="font-size:13px;font-weight:700;color:var(--tx)">${d.client.nom}</div>
                 <div style="font-size:11px;color:var(--mu);margin-top:4px;line-height:1.7;">${fiscalLinesClient(d.client, '<br>')}</div>
                 ${d.beneficiaire ? `<div style="margin-top:7px;padding-top:6px;border-top:1px solid var(--border);font-size:11px;color:var(--mu)"><strong style="color:var(--tx)">Bénéficiaire des soins :</strong> ${d.beneficiaire.nom}${d.beneficiaire.telephone ? ' · Tél : '+d.beneficiaire.telephone : ''}${d.beneficiaire.adresse ? ' · '+d.beneficiaire.adresse : ''}</div>` : ''}
@@ -1499,7 +1500,7 @@ function model3(d) {
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
             <div style="padding:12px 14px;background:var(--white);border-radius:8px;border:0.5px solid var(--border)">
-                <div style="font-size:10px;color:${theme.color};font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Client</div>
+                <div style="font-size:10px;color:${theme.color};font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px"">${d.aApporteur ? 'Tiers payant / Apporteur' : 'Client'}</div>
                 <div style="font-size:13px;font-weight:700;color:var(--tx)">${d.client.nom}</div>
                 <div style="font-size:11px;color:var(--mu);margin-top:4px;line-height:1.7">${fiscalLinesClient(d.client, '<br>')}</div>
             </div>
