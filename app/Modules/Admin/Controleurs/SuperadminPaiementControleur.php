@@ -46,9 +46,10 @@ class SuperadminPaiementControleur
     public function reactiver(Request $request, \App\Modules\Admin\Modeles\Entreprise $entreprise): RedirectResponse
     {
         $donnees = $request->validate([
+            'offre' => ['required', Rule::in([Abonnements::SOLO, Abonnements::BUSINESS, Abonnements::PREMIUM, Abonnements::SUR_MESURE])],
             'mois_payes' => ['required', 'array', 'min:1', 'max:12'],
             'mois_payes.*' => ['required', 'integer', 'between:1,12', 'distinct'],
-            'montant_total' => ['nullable', 'numeric', 'min:0'],
+            'montant_total' => ['nullable', 'numeric', 'min:1'],
         ], [
             'mois_payes.required' => 'Cochez au moins un mois payé.',
             'mois_payes.min' => 'Cochez au moins un mois payé.',
@@ -56,10 +57,7 @@ class SuperadminPaiementControleur
         ]);
 
         $mois = count($donnees['mois_payes']);
-        $offre = $entreprise->plan_abonnement;
-        abort_unless(in_array($offre, [Abonnements::SOLO, Abonnements::BUSINESS, Abonnements::PREMIUM, Abonnements::SUR_MESURE], true), 422,
-            'Cette entreprise doit d’abord disposer d’une offre renouvelable.');
-
+        $offre = $donnees['offre'];
         $tarifMensuel = Abonnements::offres()[$offre]['prix'] ?? null;
         $montant = $tarifMensuel !== null
             ? (int) $tarifMensuel * $mois
@@ -74,6 +72,11 @@ class SuperadminPaiementControleur
             $depart = $entreprise->abonnement_expire_le?->isFuture()
                 ? $entreprise->abonnement_expire_le->copy()
                 : now();
+
+            if ($entreprise->plan_abonnement !== $offre) {
+                Abonnements::appliquer($entreprise, $offre);
+                $entreprise->refresh();
+            }
 
             $entreprise->forceFill([
                 'abonnement_statut' => Abonnements::STATUT_ACTIF,
