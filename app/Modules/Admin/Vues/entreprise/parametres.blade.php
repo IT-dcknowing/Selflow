@@ -1603,22 +1603,31 @@
                          Rien ne le permettait depuis un écran : une entreprise
                          reliée après six mois d'activité gardait ses six mois,
                          et seules les écritures créées ensuite partaient. --}}
-                    @php $resteADeverser = \App\Modules\Admin\Services\DeversementHistoriqueService::reste($entreprise); @endphp
-                    <div style="margin-top:14px;padding:12px 14px;background:#fff;border:1px solid var(--border);border-radius:8px;font-size:12.5px;line-height:1.7;">
-                        <strong>Déverser tout l'historique</strong><br>
-                        @if($resteADeverser['operations'] > 0)
-                            <span style="color:#c2410c;">
-                                {{ $resteADeverser['operations'] }} opération(s) ne sont pas encore chez Comptaflow{{ $resteADeverser['en_echec'] > 0 ? ', dont ' . $resteADeverser['en_echec'] . ' en échec' : '' }}.
-                                {{-- Une directive collée à un mot n'est pas lue par Blade : « Comptaflow@if(…)…@endif » s'affichait tel quel (recette du 08/10/2026). --}}
-                            </span>
-                        @else
-                            <span style="color:var(--text-3);">Tout est déversé.</span>
-                        @endif
-                        <div style="margin-top:10px;">
-                            <button type="button" id="btn-deverser-tout" onclick="lancerLeDeversementComptaflow()"
-                                    class="btn btn-outline btn-sm" style="padding:7px 14px;">
-                                <i class="fas fa-cloud-arrow-up"></i> Lancer le déversement
+                    @php $etatDeversement = \\App\\Modules\\Admin\\Services\\DeversementHistoriqueService::etat($entreprise); @endphp
+                    <div id="bloc-deversement-comptaflow" data-etat-initial='@json($etatDeversement)' style="margin-top:14px;padding:12px 14px;background:#fff;border:1px solid var(--border);border-radius:8px;font-size:12.5px;line-height:1.7;">
+                        <strong>Déverser tout l'historique</strong>
+                        <div id="deversement-message" role="status" aria-live="polite" style="margin-top:5px;color:var(--text-2);">Chargement de l'état du transfert…</div>
+                        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px;">
+                            <div style="padding:8px;background:#f8fafc;border-radius:7px;"><small style="display:block;color:#64748b;">Total autorisé</small><strong id="devers-total">—</strong></div>
+                            <div style="padding:8px;background:#f0fdf4;border-radius:7px;"><small style="display:block;color:#15803d;">Reçues</small><strong id="devers-recues">—</strong></div>
+                            <div style="padding:8px;background:#fff7ed;border-radius:7px;"><small style="display:block;color:#c2410c;">Restantes</small><strong id="devers-restantes">—</strong></div>
+                            <div style="padding:8px;background:#fef2f2;border-radius:7px;"><small style="display:block;color:#b91c1c;">En échec</small><strong id="devers-echecs">—</strong></div>
+                        </div>
+                        <div style="height:10px;background:#e2e8f0;border-radius:99px;overflow:hidden;margin-top:12px;">
+                            <div id="devers-barre" style="height:100%;width:0%;background:#059669;border-radius:99px;transition:width .35s ease;"></div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-top:3px;color:var(--text-3);font-size:11px;">
+                            <span id="devers-pourcentage">0 %</span><span id="devers-encours">0 opération en cours</span>
+                        </div>
+                        <div id="devers-erreurs" style="display:none;margin-top:10px;padding:9px 10px;background:#fff7f7;border:1px solid #fecaca;border-radius:6px;color:#991b1b;"></div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+                            <button type="button" id="btn-deverser-tout" onclick="lancerLeDeversementComptaflow()" class="btn btn-outline btn-sm" style="padding:7px 14px;">
+                                <i class="fas fa-cloud-arrow-up"></i> Lancer / reprendre le déversement
                             </button>
+                            <button type="button" id="btn-reessayer-deversement" onclick="relancerEchecsComptaflow()" class="btn btn-outline btn-sm" style="padding:7px 14px;display:none;">
+                                <i class="fas fa-rotate-right"></i> Relancer les échecs
+                            </button>
+                            <span style="align-self:center;color:var(--text-3);font-size:11px;">Le transfert continue en arrière-plan. Vous pouvez quitter cette page.</span>
                         </div>
                         <div id="retour-deversement" style="display:none;margin-top:10px;padding:10px 12px;border-radius:6px;font-size:12px;line-height:1.5;"></div>
                     </div>
@@ -1836,51 +1845,138 @@
  * s'applique**, et c'est celle qui est en place au moment du deversement. La
  * verifier apres coup ne rattraperait rien -- les numeros seront deja poses.
  */
+var deversementPolling = null;
+var deversementEnCoursDeLecture = false;
+
+function afficherEtatDeversement(etat) {
+    if (!etat) return;
+    document.getElementById('devers-total').textContent = etat.total ?? 0;
+    document.getElementById('devers-recues').textContent = etat.recues ?? 0;
+    document.getElementById('devers-restantes').textContent = etat.restantes ?? 0;
+    document.getElementById('devers-echecs').textContent = etat.en_echec ?? 0;
+    document.getElementById('devers-pourcentage').textContent = (etat.progression ?? 0) + ' %';
+    document.getElementById('devers-barre').style.width = Math.max(0, Math.min(100, etat.progression ?? 0)) + '%';
+    document.getElementById('devers-encours').textContent = (etat.en_cours ?? 0) + ' opération(s) en cours';
+
+    var message = document.getElementById('deversement-message');
+    if ((etat.total ?? 0) === 0) {
+        message.textContent = 'Aucune opération autorisée à déverser pour le moment.';
+        message.style.color = '#64748b';
+    } else if ((etat.restantes ?? 0) === 0) {
+        message.textContent = '✓ Déversement terminé : toutes les opérations autorisées sont reçues par Comptaflow.';
+        message.style.color = '#047857';
+    } else if ((etat.en_cours ?? 0) > 0) {
+        message.textContent = 'Déversement en arrière-plan : ' + etat.recues + ' opération(s) reçue(s), ' + etat.restantes + ' restante(s).';
+        message.style.color = '#1d4ed8';
+    } else if ((etat.en_echec ?? 0) > 0) {
+        message.textContent = 'Le transfert est partiellement bloqué : consultez les motifs des opérations en échec.';
+        message.style.color = '#b91c1c';
+    } else {
+        message.textContent = etat.restantes + ' opération(s) restent à traiter. La file les prendra dès que le worker sera disponible.';
+        message.style.color = '#c2410c';
+    }
+
+    var erreurs = document.getElementById('devers-erreurs');
+    var retry = document.getElementById('btn-reessayer-deversement');
+    if (etat.erreurs && etat.erreurs.length) {
+        erreurs.style.display = 'block';
+        erreurs.innerHTML = '<strong>Opérations en échec :</strong><ul style="margin:5px 0 0;padding-left:18px;">'
+            + etat.erreurs.map(function (e) {
+                return '<li>Opération #' + Number(e.operation_id) + ' — '
+                    + String(e.motif || 'Motif non communiqué').replace(/[&<>"']/g, function (c) {
+                        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+                    }) + '</li>';
+            }).join('') + '</ul>';
+        retry.style.display = 'inline-flex';
+    } else {
+        erreurs.style.display = 'none';
+        erreurs.textContent = '';
+        retry.style.display = 'none';
+    }
+}
+
+function actualiserEtatDeversementComptaflow() {
+    if (deversementEnCoursDeLecture) return;
+    deversementEnCoursDeLecture = true;
+    fetch(@json(route('admin.entreprise.comptaflow.deversement.etat')), {
+        headers: {'Accept': 'application/json'},
+        cache: 'no-store'
+    })
+    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function (d) { if (d.success) afficherEtatDeversement(d.etat); })
+    .catch(function () {
+        document.getElementById('deversement-message').textContent = 'Impossible d’actualiser le suivi. Le traitement en arrière-plan continue.';
+    })
+    .finally(function () { deversementEnCoursDeLecture = false; });
+}
+
+function afficherRetourDeversement(message, success) {
+    var retour = document.getElementById('retour-deversement');
+    retour.style.display = 'block';
+    retour.style.background = success ? '#f0fdf4' : '#fef2f2';
+    retour.style.border = '1px solid ' + (success ? '#86efac' : '#fca5a5');
+    retour.style.color = success ? '#15803d' : '#991b1b';
+    retour.textContent = message;
+}
+
 function lancerLeDeversementComptaflow() {
     var avertissement =
-        "Avant de lancer le déversement, vérifiez la configuration de votre dossier Comptaflow :\n\n"
-        + "  \u2022 le modèle de plan comptable ;\n"
-        + "  \u2022 le modèle de tiers ;\n"
-        + "  \u2022 le modèle de journaux.\n\n"
-        + "C'est cette configuration qui sera utilisée pour numéroter vos comptes, "
-        + "vos journaux et vos tiers. La changer après coup ne renumérotera pas "
-        + "ce qui aura déjà été déposé.\n\n"
+        "Avant de lancer le déversement, vérifiez la configuration de votre dossier Comptaflow :\\n\\n"
+        + "  • le modèle de plan comptable ;\\n"
+        + "  • le modèle de tiers ;\\n"
+        + "  • le modèle de journaux.\\n\\n"
+        + "Cette configuration sera utilisée pour numéroter les comptes, journaux et tiers.\\n"
+        + "Le transfert se poursuit en arrière-plan : vous pouvez continuer à travailler.\\n\\n"
         + "Lancer le déversement maintenant ?";
-
     if (!window.confirm(avertissement)) return;
 
     var bouton = document.getElementById('btn-deverser-tout');
-    var retour = document.getElementById('retour-deversement');
     bouton.disabled = true;
-    bouton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deversement en cours...';
+    bouton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mise en file…';
 
     fetch(@json(route('admin.entreprise.comptaflow.deverser')), {
         method: 'POST',
         headers: {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-            'Accept': 'application/json',
-        },
+            'Accept': 'application/json'
+        }
     })
-    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+    .then(function (r) { return r.json().then(function (d) { return {ok:r.ok,d:d}; }); })
     .then(function (res) {
-        retour.style.display = 'block';
-        retour.style.background = res.d.success ? '#f0fdf4' : '#fef2f2';
-        retour.style.border = '1px solid ' + (res.d.success ? '#86efac' : '#fca5a5');
-        retour.style.color = res.d.success ? '#15803d' : '#991b1b';
-        retour.textContent = res.d.message || 'Réponse illisible du serveur.';
+        afficherRetourDeversement(res.d.message || 'Demande traitée.', res.ok && res.d.success);
+        actualiserEtatDeversementComptaflow();
     })
-    .catch(function () {
-        retour.style.display = 'block';
-        retour.style.background = '#fef2f2';
-        retour.style.border = '1px solid #fca5a5';
-        retour.style.color = '#991b1b';
-        retour.textContent = 'Le serveur n\'a pas répondu. Réessayez.';
-    })
+    .catch(function () { afficherRetourDeversement('Impossible de joindre le serveur. Vérifiez la connexion puis réessayez.', false); })
     .finally(function () {
         bouton.disabled = false;
-        bouton.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Lancer le déversement';
+        bouton.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Lancer / reprendre le déversement';
     });
 }
+
+function relancerEchecsComptaflow() {
+    var bouton = document.getElementById('btn-reessayer-deversement');
+    bouton.disabled = true;
+    fetch(@json(route('admin.entreprise.comptaflow.deversement.reessayer')), {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json'
+        }
+    })
+    .then(function (r) { return r.json().then(function (d) { return {ok:r.ok,d:d}; }); })
+    .then(function (res) {
+        afficherRetourDeversement(res.d.message || 'Demande traitée.', res.ok && res.d.success);
+        actualiserEtatDeversementComptaflow();
+    })
+    .catch(function () { afficherRetourDeversement('Impossible de joindre le serveur. Réessayez.', false); })
+    .finally(function () { bouton.disabled = false; });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    if (!document.getElementById('bloc-deversement-comptaflow')) return;
+    actualiserEtatDeversementComptaflow();
+    deversementPolling = window.setInterval(actualiserEtatDeversementComptaflow, 3000);
+});
 </script>
 
 
