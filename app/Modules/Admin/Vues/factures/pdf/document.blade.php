@@ -154,6 +154,18 @@
         </td>
     </tr>
 </table>
+@if(!empty($beneficiaire))
+<table style="margin-top:5pt;">
+    <tr><td class="cadre" style="padding:5pt 8pt;">
+        <div class="intitule">Bénéficiaire des soins</div>
+        <strong>{{ $beneficiaire['nom'] }}</strong>
+        <span class="discret">
+            @if($beneficiaire['adresse']) · {{ $beneficiaire['adresse'] }}@endif
+            @if($beneficiaire['tel']) · Tél : {{ $beneficiaire['tel'] }}@endif
+        </span>
+    </td></tr>
+</table>
+@endif
 
 {{-- ── Les articles ── --}}
 <table class="articles">
