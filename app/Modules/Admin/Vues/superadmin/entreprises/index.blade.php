@@ -21,6 +21,54 @@
 </div>
 @endif
 
+{{-- Synthèse globale des échéances, indépendante de la pagination. --}}
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:20px;">
+    <div style="background:#fff7f7;border:1px solid #fecaca;border-left:5px solid #dc2626;border-radius:12px;padding:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;">
+            <strong style="color:#991b1b;"><i class="fas fa-circle-exclamation"></i> Abonnements échus</strong>
+            <span style="background:#dc2626;color:#fff;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:800;">{{ $abonnementsEchusTotal }}</span>
+        </div>
+        @forelse($abonnementsEchus as $entEchu)
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #fee2e2;">
+                <div style="min-width:0;">
+                    <div style="font-size:13px;font-weight:700;color:#7f1d1d;">{{ $entEchu->nom }}</div>
+                    <div style="font-size:11px;color:#991b1b;">Échu depuis le {{ $entEchu->abonnement_expire_le->format('d/m/Y') }}</div>
+                </div>
+                <button type="button" class="btn btn-sm" style="background:#dc2626;color:#fff;border:0;white-space:nowrap;"
+                    onclick="ouvrirModalReabonnement(@js($entEchu->getRouteKey()), @js($entEchu->nom), @js($entEchu->plan_abonnement), @js($entEchu->abonnement_expire_le->format('d/m/Y')))">
+                    <i class="fas fa-rotate"></i> Réabonner
+                </button>
+            </div>
+        @empty
+            <p style="font-size:12px;color:#64748b;">Aucun abonnement échu.</p>
+        @endforelse
+        @if($abonnementsEchusTotal > $abonnementsEchus->count())
+            <p style="font-size:11px;color:#991b1b;margin-top:8px;">Les 20 premières échéances sont affichées ({{ $abonnementsEchusTotal }} au total).</p>
+        @endif
+    </div>
+
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-left:5px solid #d97706;border-radius:12px;padding:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;">
+            <strong style="color:#92400e;"><i class="fas fa-bell"></i> Échéances dans les 10 jours</strong>
+            <span style="background:#d97706;color:#fff;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:800;">{{ $abonnementsProchesTotal }}</span>
+        </div>
+        @forelse($abonnementsProches as $entProche)
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #fde68a;">
+                <div style="min-width:0;">
+                    <div style="font-size:13px;font-weight:700;color:#78350f;">{{ $entProche->nom }}</div>
+                    <div style="font-size:11px;color:#92400e;">Expire le {{ $entProche->abonnement_expire_le->format('d/m/Y') }}</div>
+                </div>
+                <span style="font-size:11px;color:#92400e;font-weight:700;white-space:nowrap;">{{ \App\Modules\Admin\Regles\Abonnements::joursRestants($entProche) }} j</span>
+            </div>
+        @empty
+            <p style="font-size:12px;color:#64748b;">Aucune échéance dans les 10 prochains jours.</p>
+        @endforelse
+        @if($abonnementsProchesTotal > $abonnementsProches->count())
+            <p style="font-size:11px;color:#92400e;margin-top:8px;">Les 20 premières échéances sont affichées ({{ $abonnementsProchesTotal }} au total).</p>
+        @endif
+    </div>
+</div>
+
 <div class="card">
     <div class="table-wrap">
         <table>
