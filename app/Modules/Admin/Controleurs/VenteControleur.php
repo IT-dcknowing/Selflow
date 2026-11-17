@@ -707,6 +707,9 @@ class VenteControleur
             if (request()->filled('statut_filtre')) {
                 $baseQuery->where('statut', request('statut_filtre'));
             }
+            if (request()->filled('apporteur_filtre') && Auth::user()->entreprise?->aAttribution('apporteurs')) {
+                $baseQuery->where('apporteur_id', (int) request('apporteur_filtre'));
+            }
             if (request()->filled('dgi_filtre')) {
                 $dgiFiltre = request('dgi_filtre');
                 $baseQuery->where('normalise', $dgiFiltre === 'oui');
