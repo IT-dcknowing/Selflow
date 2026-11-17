@@ -1603,7 +1603,7 @@
                          Rien ne le permettait depuis un écran : une entreprise
                          reliée après six mois d'activité gardait ses six mois,
                          et seules les écritures créées ensuite partaient. --}}
-                    @php $etatDeversement = \\App\\Modules\\Admin\\Services\\DeversementHistoriqueService::etat($entreprise); @endphp
+                    @php $etatDeversement = \App\Modules\Admin\Services\DeversementHistoriqueService::etat($entreprise); @endphp
                     <div id="bloc-deversement-comptaflow" data-etat-initial='@json($etatDeversement)' style="margin-top:14px;padding:12px 14px;background:#fff;border:1px solid var(--border);border-radius:8px;font-size:12.5px;line-height:1.7;">
                         <strong>Déverser tout l'historique</strong>
                         <div id="deversement-message" role="status" aria-live="polite" style="margin-top:5px;color:var(--text-2);">Chargement de l'état du transfert…</div>
