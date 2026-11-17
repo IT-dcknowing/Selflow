@@ -328,7 +328,7 @@ class VenteControleur
 
             $vente = Vente::create([
                 'point_de_vente_id' => $pointDeVenteId,
-                'client_id' => $request->input('apporteur_id') ?: ($request->client_id ?: null), // le tiers payeur
+                'client_id' => $gestionApporteurs && $request->filled('apporteur_id') ? (int) $request->input('apporteur_id') : ($request->client_id ?: null), // le tiers payeur
                 'apporteur_id' => $gestionApporteurs && $request->filled('apporteur_id') ? (int) $request->input('apporteur_id') : null,
                 'beneficiaire_id' => $gestionApporteurs && $request->filled('apporteur_id') ? ($request->client_id ?: null) : null,
                 'numero_facture' => $numero,
@@ -993,7 +993,7 @@ class VenteControleur
 
         $request->validate(array_merge([
             'client_id' => ['nullable', 'integer', Appartenance::a('clients', 'id')],
-            'apporteur_id' => ['nullable', 'integer', \Illuminate\\Validation\\Rule::exists('clients', 'id')->where('entreprise_id', Auth::user()->entreprise_id)->where('est_apporteur', true)],
+            'apporteur_id' => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('clients', 'id')->where('entreprise_id', Auth::user()->entreprise_id)->where('est_apporteur', true)],
             'mode_paiement' => ['required', 'string'],
             'articles' => ['required', 'array', 'min:1'],
             'articles.*.produit_id' => ['nullable', 'integer', Appartenance::a('produits', 'id')],
@@ -1129,9 +1129,9 @@ class VenteControleur
 
             // Mettre à jour la vente
             $vente->update([
-                'client_id' => $request->input('apporteur_id') ?: ($request->client_id ?: null),
-                'apporteur_id' => $gestionApporteurs && $request->filled('apporteur_id') ? (int) $request->input('apporteur_id') : null,
-                'beneficiaire_id' => $gestionApporteurs && $request->filled('apporteur_id') ? ($request->client_id ?: null) : null,
+                'client_id' => $gestionApporteurs ? ($request->input('apporteur_id') ?: ($request->client_id ?: null)) : $vente->client_id,
+                'apporteur_id' => $gestionApporteurs ? ($request->filled('apporteur_id') ? (int) $request->input('apporteur_id') : null) : $vente->apporteur_id,
+                'beneficiaire_id' => $gestionApporteurs ? ($request->filled('apporteur_id') ? ($request->client_id ?: null) : null) : $vente->beneficiaire_id,
                 'mode_paiement' => $modePaiementFinal,
                 'moyen_bancaire' => $request->mode_paiement === 'Banque' ? $request->moyen_bancaire : null,
                 'reference_paiement' => $request->mode_paiement === 'Banque' ? $request->reference_paiement : null,
