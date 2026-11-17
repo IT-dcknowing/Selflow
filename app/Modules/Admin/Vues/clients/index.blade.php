@@ -85,8 +85,8 @@
                 </thead>
                 <tbody>
                     @forelse($clients as $c)
-                    <tr>
-                        <td style="font-weight:600; color:var(--text);">{{ $c->nom }}</td>
+                    <tr style="{{ $c->est_apporteur ? 'background:#f1f5f9;color:#64748b;' : '' }}">
+                        <td style="font-weight:600; color:{{ $c->est_apporteur ? '#64748b' : 'var(--text)' }};">{{ $c->nom }} @if($c->est_apporteur)<span style="display:inline-block;margin-left:6px;padding:2px 7px;border-radius:12px;background:#e2e8f0;color:#475569;font-size:10px;font-weight:800;">APPORTEUR</span>@endif</td>
                         <td>
                             @if($c->type_facturation)
                                 @php $tf = $c->type_facturation; @endphp
@@ -137,6 +137,7 @@
      (Not Found — introuvable). --}}
                                 data-action="{{ route('admin.clients.modifier', $c) }}"
                                 data-nom="{{ $c->nom }}"
+                                data-est-apporteur="{{ $c->est_apporteur ? 1 : 0 }}"
                                 data-type="{{ $c->type_facturation }}"
                                 data-telephone="{{ $c->telephone }}"
                                 data-email="{{ $c->email }}"
@@ -314,6 +315,14 @@
                     <label class="form-label">Nom &amp; Prénom <span style="color:var(--danger)">*</span></label>
                     <input type="text" name="nom" class="form-control" placeholder="Agnimel" required>
                 </div>
+                @if(auth()->user()->entreprise?->aAttribution('apporteurs'))
+                <div class="form-group" style="grid-column:1/-1;margin-top:-6px;">
+                    <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;color:#475569;font-size:13px;font-weight:700;">
+                        <input type="checkbox" name="est_apporteur" value="1"> Identifier ce client comme apporteur
+                        <span style="padding:2px 7px;border-radius:12px;background:#e2e8f0;font-size:10px;">APPORTEUR</span>
+                    </label>
+                </div>
+                @endif
                 {{-- Type de facturation --}}
                 <div class="form-group" style="grid-column:1/-1;">
                     <label class="form-label">Type de facturation <span style="color:#E53E3E">*</span></label>
@@ -425,6 +434,14 @@
                     <label class="form-label">Nom &amp; Prénom <span style="color:var(--danger)">*</span></label>
                     <input type="text" name="nom" id="edit_nom" class="form-control" placeholder="Agnimel" required>
                 </div>
+                @if(auth()->user()->entreprise?->aAttribution('apporteurs'))
+                <div class="form-group" style="grid-column:1/-1;margin-top:-6px;">
+                    <label style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;color:#475569;font-size:13px;font-weight:700;">
+                        <input type="checkbox" name="est_apporteur" id="edit_est_apporteur" value="1"> Identifier ce client comme apporteur
+                        <span style="padding:2px 7px;border-radius:12px;background:#e2e8f0;font-size:10px;">APPORTEUR</span>
+                    </label>
+                </div>
+                @endif
                 {{-- Type de facturation --}}
                 <div class="form-group" style="grid-column:1/-1;">
                     <label class="form-label">Type de facturation <span style="color:#E53E3E">*</span></label>
@@ -616,6 +633,8 @@ document.querySelectorAll('.btn-modifier-client').forEach(function(btn) {
 
         const selectType = document.getElementById('edit_type_facturation');
         if (selectType) { selectType.value = data.type || ''; toggleNccClient('edit'); }
+        const apporteur = document.getElementById('edit_est_apporteur');
+        if (apporteur) apporteur.checked = data.estApporteur === '1';
 
         const selectRegime = document.getElementById('edit_regime_imposition');
         if (selectRegime) {
