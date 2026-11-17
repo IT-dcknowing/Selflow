@@ -4,6 +4,7 @@ namespace App\Modules\Admin\Services;
 
 use App\Jobs\MettreEnFileDeversementComptaflow;
 use App\Modules\Admin\Modeles\DemandeExercicesAnterieurs;
+use App\Modules\Admin\Modeles\EcritureComptable;
 use App\Modules\Admin\Modeles\Entreprise;
 use App\Modules\Admin\Modeles\Operation;
 
