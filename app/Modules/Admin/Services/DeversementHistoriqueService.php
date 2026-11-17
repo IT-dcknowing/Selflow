@@ -48,6 +48,17 @@ class DeversementHistoriqueService
             ->pluck('id');
 
         foreach ($aEnvoyer as $operationId) {
+            EcritureComptable::withoutGlobalScopes()
+                ->where('operation_id', $operationId)
+                ->where(function ($q) {
+                    $q->whereNull('comptaflow_sync_status')
+                      ->orWhere('comptaflow_sync_status', '!=', 'synced');
+                })
+                ->update([
+                    'comptaflow_sync_status' => 'pending',
+                    'comptaflow_sync_error' => null,
+                ]);
+
             DeverserOperationComptaflow::dispatch($operationId);
         }
 
@@ -59,9 +70,9 @@ class DeversementHistoriqueService
             ->count();
 
         $message = $aEnvoyer->isEmpty()
-            ? "Toutes les opérations étaient déjà déversées."
+            ? "Aucune nouvelle opération à mettre en file."
             : sprintf(
-                "%d opération(s) sont en cours de déversement ; le planificateur les envoie dans la minute.",
+                "%d opération(s) ont été mises en file. Le traitement continue en arrière-plan ; vous pouvez poursuivre votre travail.",
                 $aEnvoyer->count()
             );
 
@@ -83,6 +94,7 @@ class DeversementHistoriqueService
             'success'    => true,
             'message'    => $message,
             'operations' => $aEnvoyer->count(),
+            'etat' => self::etat($entreprise),
         ];
     }
 
@@ -131,6 +143,61 @@ class DeversementHistoriqueService
     }
 
     /**
+     * État réel du transfert, calculé depuis les statuts des écritures.
+     * Une opération est reçue uniquement lorsque toutes ses lignes sont synced.
+     *
+     * @return array{total:int, recues:int, restantes:int, en_cours:int, en_echec:int, progression:int, erreurs:array}
+     */
+    public static function etat(Entreprise $entreprise): array
+    {
+        $operations = Operation::where('entreprise_id', $entreprise->id)
+            ->where('est_equilibree', true)
+            ->where(fn ($q) => self::exercicesPermis($q, $entreprise))
+            ->whereHas('ecritures', fn ($q) => $q->withoutGlobalScopes());
+
+        $total = (clone $operations)->count();
+
+        $recues = (clone $operations)->whereDoesntHave('ecritures', function ($q) {
+            $q->withoutGlobalScopes()->where(function ($qs) {
+                $qs->whereNull('comptaflow_sync_status')
+                   ->orWhere('comptaflow_sync_status', '!=', 'synced');
+            });
+        })->count();
+
+        $enEchec = (clone $operations)->whereHas('ecritures', fn ($q) =>
+            $q->withoutGlobalScopes()->where('comptaflow_sync_status', 'failed')
+        )->count();
+
+        $enCours = (clone $operations)->whereHas('ecritures', fn ($q) =>
+            $q->withoutGlobalScopes()->whereIn('comptaflow_sync_status', ['pending', 'sending'])
+        )->count();
+
+        $restantes = max(0, $total - $recues);
+        $erreurs = EcritureComptable::withoutGlobalScopes()
+            ->where('entreprise_id', $entreprise->id)
+            ->where('comptaflow_sync_status', 'failed')
+            ->orderByDesc('updated_at')
+            ->get(['operation_id', 'comptaflow_sync_error'])
+            ->groupBy('operation_id')
+            ->take(10)
+            ->map(fn ($lignes, $operationId) => [
+                'operation_id' => (int) $operationId,
+                'motif' => $lignes->pluck('comptaflow_sync_error')->filter()->unique()->implode(' ; ')
+                    ?: 'Échec signalé sans détail par Comptaflow.',
+            ])->values()->all();
+
+        return [
+            'total' => $total,
+            'recues' => $recues,
+            'restantes' => $restantes,
+            'en_cours' => $enCours,
+            'en_echec' => $enEchec,
+            'progression' => $total > 0 ? (int) floor(($recues / $total) * 100) : 100,
+            'erreurs' => $erreurs,
+        ];
+    }
+
+    /**
      * Ce qui reste à déverser, pour l'écran.
      *
      * @return array{operations: int, lignes: int, en_echec: int}
@@ -144,10 +211,9 @@ class DeversementHistoriqueService
             });
 
         return [
-            'operations' => (clone $lignes)->distinct('operation_id')->count('operation_id'),
+            'operations' => self::etat($entreprise)['restantes'],
             'lignes'     => (clone $lignes)->count(),
-            'en_echec'   => EcritureComptable::withoutGlobalScopes()->where('entreprise_id', $entreprise->id)
-                ->where('comptaflow_sync_status', 'failed')->count(),
+            'en_echec'   => self::etat($entreprise)['en_echec'],
         ];
     }
 }
