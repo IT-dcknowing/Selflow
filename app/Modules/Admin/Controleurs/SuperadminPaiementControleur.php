@@ -94,8 +94,7 @@ class SuperadminPaiementControleur
                 'statut' => 'active',
                 'active_le' => now(),
                 'traite_par' => Auth::id(),
-                'bloquant' => false,
-            ]);
+            ] + (PaiementAbonnement::colonnesEnPlace() ? ['bloquant' => false] : []));
         });
 
         return back()->with('succes', $entreprise->nom . ' : abonnement réactivé pour ' . $mois . ' mois.');
