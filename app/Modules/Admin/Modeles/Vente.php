@@ -19,7 +19,9 @@ class Vente extends Model
         'b2b_negotiation_id',
         'point_de_vente_id',
         'utilisateur_id',
-        'client_id',
+        'client_id', // Tiers payeur comptable (apporteur si sélectionné)
+        'apporteur_id',
+        'beneficiaire_id',
         'numero_facture',
         'numero_fne',
         'date_vente',
@@ -109,6 +111,16 @@ class Vente extends Model
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class, 'client_id');
+    }
+
+    public function apporteur(): BelongsTo
+    {
+        return $this->belongsTo(Client::class, 'apporteur_id');
+    }
+
+    public function beneficiaire(): BelongsTo
+    {
+        return $this->belongsTo(Client::class, 'beneficiaire_id');
     }
 
     public function utilisateur(): BelongsTo
