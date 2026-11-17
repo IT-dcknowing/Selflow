@@ -572,6 +572,7 @@ var DATA = {
             template: {!! json_encode($vente->client?->type_facturation ?? ($vente->client?->ncc ? 'B2B' : 'B2C')) !!},
             rccm: {!! json_encode($vente->client?->rccm ?? '') !!}
         },
+        beneficiaire: {!! json_encode($vente->beneficiaire ? ['nom' => $vente->beneficiaire->nom, 'adresse' => $vente->beneficiaire->adresse, 'tel' => $vente->beneficiaire->telephone] : null) !!},
         items: [
             @foreach($vente->details as $detail)
             @php
@@ -1231,6 +1232,7 @@ function model1(d) {
                 <div style="font-size:10px;font-weight:700;color:${theme.color};text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">Client</div>
                 <div style="font-size:13px;font-weight:700;color:var(--tx)">${d.client.nom}</div>
                 <div style="font-size:11px;color:var(--mu);margin-top:4px;line-height:1.7">${fiscalLinesClient(d.client, '<br>')}</div>
+                ${d.beneficiaire ? `<div style="margin-top:7px;padding-top:6px;border-top:1px solid var(--border);font-size:11px;color:var(--mu)"><strong style="color:var(--tx)">Bénéficiaire des soins :</strong> ${d.beneficiaire.nom}${d.beneficiaire.telephone ? ' · Tél : '+d.beneficiaire.telephone : ''}${d.beneficiaire.adresse ? ' · '+d.beneficiaire.adresse : ''}</div>` : ''}
             </div>
             <div style="background:var(--white);border-radius:8px;padding:12px 14px;border:0.5px solid var(--border)">
                 <div style="font-size:10px;font-weight:700;color:${theme.color};text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Informations</div>
@@ -1373,6 +1375,7 @@ function model2(d) {
                 <div style="font-size:10px;color:${theme.color};text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;font-weight:700;">Client</div>
                 <div style="font-size:13px;font-weight:700;color:var(--tx)">${d.client.nom}</div>
                 <div style="font-size:11px;color:var(--mu);margin-top:4px;line-height:1.7;">${fiscalLinesClient(d.client, '<br>')}</div>
+                ${d.beneficiaire ? `<div style="margin-top:7px;padding-top:6px;border-top:1px solid var(--border);font-size:11px;color:var(--mu)"><strong style="color:var(--tx)">Bénéficiaire des soins :</strong> ${d.beneficiaire.nom}${d.beneficiaire.telephone ? ' · Tél : '+d.beneficiaire.telephone : ''}${d.beneficiaire.adresse ? ' · '+d.beneficiaire.adresse : ''}</div>` : ''}
                 <div style="display:flex;gap:14px;margin-top:10px;flex-wrap:wrap;">
                     <div style="font-size:11px"><span style="color:var(--mu)">Date : </span><span style="color:var(--tx);font-weight:600;">${d.date}</span></div>
                     ${isDeliveryMode ? '' : `
