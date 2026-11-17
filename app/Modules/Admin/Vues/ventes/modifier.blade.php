@@ -324,10 +324,22 @@
                         <select name="client_id" class="form-control">
                             <option value="">— Client de passage —</option>
                             @foreach($clients as $client)
-                            <option value="{{ $client->id }}" {{ $vente->client_id === $client->id ? 'selected' : '' }}>{{ $client->nom }}</option>
+                            <option value="{{ $client->id }}" {{ (int)($vente->beneficiaire_id ?: $vente->client_id) === (int)$client->id ? 'selected' : '' }}>{{ $client->nom }}</option>
                             @endforeach
                         </select>
                     </div>
+                    @if($gestionApporteurs ?? false)
+                    <div class="form-group" data-pas="2">
+                        <label class="form-label">Apporteur / tiers payant</label>
+                        <select name="apporteur_id" class="form-control">
+                            <option value="">— Aucun apporteur —</option>
+                            @foreach($apporteurs as $apporteur)
+                            <option value="{{ $apporteur->id }}" {{ (int)$vente->apporteur_id === (int)$apporteur->id ? 'selected' : '' }}>{{ $apporteur->nom }}</option>
+                            @endforeach
+                        </select>
+                        <small style="color:var(--text-3);font-size:11px;">L'apporteur devient le payeur ; le client reste le bénéficiaire des soins.</small>
+                    </div>
+                    @endif
                     <div class="form-group">
                         <label class="form-label" for="dateVente">Date d'établissement de la facture <span style="color:var(--danger)">*</span></label>
                         <input type="date" name="date_vente" id="dateVente" class="form-control"
