@@ -61,7 +61,7 @@ class DeversementHistoriqueService
         $message = $nombreAEnvoyer === 0
             ? "Aucune nouvelle opération à mettre en file."
             : sprintf(
-                "%d opération(s) ont été mises en file. Le traitement continue en arrière-plan ; vous pouvez poursuivre votre travail.",
+                "%d opération(s) sont à transférer. Leur mise en file et leur transfert se font en arrière-plan ; vous pouvez poursuivre votre travail.",
                 $nombreAEnvoyer
             );
 
@@ -101,24 +101,23 @@ class DeversementHistoriqueService
             ];
         }
 
-        $ids = Operation::where('entreprise_id', $entreprise->id)
+        $echecs = Operation::where('entreprise_id', $entreprise->id)
             ->where('est_equilibree', true)
             ->where(fn ($q) => self::exercicesPermis($q, $entreprise))
             ->whereHas('ecritures', fn ($q) => $q->withoutGlobalScopes()
-                ->where('comptaflow_sync_status', 'failed'))
-            ->orderBy('id')
-            ->pluck('id');
+                ->where('comptaflow_sync_status', 'failed'));
+        $nombreEchecs = (clone $echecs)->count();
 
-        if ($ids->isNotEmpty()) {
+        if ($nombreEchecs > 0) {
             MettreEnFileDeversementComptaflow::dispatch($entreprise->id, 0, true);
         }
 
         return [
             'success' => true,
-            'message' => $ids->isEmpty()
+            'message' => $nombreEchecs === 0
                 ? 'Aucune opération en échec à relancer.'
-                : $ids->count() . ' opération(s) en échec remises en file. Le traitement continue en arrière-plan.',
-            'operations' => $ids->count(),
+                : $nombreEchecs . ' opération(s) en échec identifiées. Leur relance est mise en file en arrière-plan.',
+            'operations' => $nombreEchecs,
             'etat' => self::etat($entreprise),
         ];
     }
