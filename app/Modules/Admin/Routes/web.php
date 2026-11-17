@@ -639,6 +639,7 @@ Route::prefix('superadmin')
             ->whereNumber('etape')->name('entreprises.parcours.enregistrer');
         Route::post('/entreprises/{entreprise}/valider-inscription', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'validerInscription'])->name('entreprises.valider_inscription');
         Route::post('/entreprises/{entreprise}/refuser-inscription', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'refuserInscription'])->name('entreprises.refuser_inscription');
+        Route::post('/entreprises/{entreprise}/reactiver-abonnement', [\App\Modules\Admin\Controleurs\SuperadminPaiementControleur::class, 'reactiver'])->name('entreprises.reactiver_abonnement');
         Route::post('/entreprises/{entreprise}/toggle-status', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'toggleStatus'])->name('entreprises.toggle_status');
         Route::delete('/entreprises/{entreprise}', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'supprimer'])->name('entreprises.supprimer');
         // ── Maintenance & traçabilité (16/10/2026) ──
