@@ -90,7 +90,7 @@
                             </div>
                             @if($abonnementEchu)
                                 <button type="button" class="btn btn-sm" style="margin-top:7px;background:#dc2626;color:#fff;border:0;"
-                                    onclick="ouvrirModalReabonnement({{ $ent->id }}, @js($ent->nom), @js($ent->plan_abonnement), @js($ent->abonnement_expire_le->format('d/m/Y')))">
+                                    onclick="ouvrirModalReabonnement(@js($ent->getRouteKey()), @js($ent->nom), @js($ent->plan_abonnement), @js($ent->abonnement_expire_le->format('d/m/Y')))">
                                     <i class="fas fa-rotate"></i> Réabonner
                                 </button>
                             @endif
