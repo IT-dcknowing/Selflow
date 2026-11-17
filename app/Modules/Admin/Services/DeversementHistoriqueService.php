@@ -52,7 +52,7 @@ class DeversementHistoriqueService
                 ->where('operation_id', $operationId)
                 ->where(function ($q) {
                     $q->whereNull('comptaflow_sync_status')
-                      ->orWhere('comptaflow_sync_status', '!=', 'synced');
+                      ->orWhereIn('comptaflow_sync_status', ['failed', 'pending']);
                 })
                 ->update([
                     'comptaflow_sync_status' => 'pending',
@@ -104,6 +104,14 @@ class DeversementHistoriqueService
      */
     public static function relancerEchecs(Entreprise $entreprise): array
     {
+        if ($entreprise->comptaflow_sync_status !== 'active' || !$entreprise->comptaflow_sync_key) {
+            return [
+                'success' => false,
+                'message' => "La liaison Comptaflow n'est pas active. Réactivez-la avant de relancer les opérations.",
+                'operations' => 0,
+            ];
+        }
+
         $ids = Operation::where('entreprise_id', $entreprise->id)
             ->where('est_equilibree', true)
             ->where(fn ($q) => self::exercicesPermis($q, $entreprise))
@@ -212,6 +220,7 @@ class DeversementHistoriqueService
         $erreurs = EcritureComptable::withoutGlobalScopes()
             ->where('entreprise_id', $entreprise->id)
             ->where('comptaflow_sync_status', 'failed')
+            ->whereIn('operation_id', (clone $operations)->select('id'))
             ->orderByDesc('updated_at')
             ->get(['operation_id', 'comptaflow_sync_error'])
             ->groupBy('operation_id')
@@ -246,10 +255,12 @@ class DeversementHistoriqueService
                   ->orWhere('comptaflow_sync_status', '!=', 'synced');
             });
 
+        $etat = self::etat($entreprise);
+
         return [
-            'operations' => self::etat($entreprise)['restantes'],
+            'operations' => $etat['restantes'],
             'lignes'     => (clone $lignes)->count(),
-            'en_echec'   => self::etat($entreprise)['en_echec'],
+            'en_echec'   => $etat['en_echec'],
         ];
     }
 }
