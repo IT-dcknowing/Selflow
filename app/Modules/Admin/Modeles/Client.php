@@ -14,6 +14,8 @@ class Client extends Model
     protected $table = 'clients';
     protected $fillable = ['entreprise_id', 'type_facturation', 'nom', 'telephone', 'email', 'adresse', 'ncc', 'regime_imposition', 'rccm', 'compte_comptable', 'numero_tiers', 'source', 'numero_original', 'est_apporteur'];
 
+    protected $casts = ['est_apporteur' => 'boolean'];
+
     /**
      * Les types de clients dont la fiche garde un NCC : l'entreprise (B2B),
      * qui l'exige, et l'administration (B2G), qui en a un.
