@@ -12,7 +12,7 @@ class Client extends Model
     use IdentifiantOpaque;
 
     protected $table = 'clients';
-    protected $fillable = ['entreprise_id', 'type_facturation', 'nom', 'telephone', 'email', 'adresse', 'ncc', 'regime_imposition', 'rccm', 'compte_comptable', 'numero_tiers', 'source', 'numero_original'];
+    protected $fillable = ['entreprise_id', 'type_facturation', 'nom', 'telephone', 'email', 'adresse', 'ncc', 'regime_imposition', 'rccm', 'compte_comptable', 'numero_tiers', 'source', 'numero_original', 'est_apporteur'];
 
     /**
      * Les types de clients dont la fiche garde un NCC : l'entreprise (B2B),
