@@ -98,6 +98,42 @@ class DeversementHistoriqueService
         ];
     }
 
+    /**
+     * Relance les opérations en échec. Les clés SELFLOW-* restent inchangées :
+     * une écriture déjà reçue est reconnue par Comptaflow et n'est pas dupliquée.
+     */
+    public static function relancerEchecs(Entreprise $entreprise): array
+    {
+        $ids = Operation::where('entreprise_id', $entreprise->id)
+            ->where('est_equilibree', true)
+            ->where(fn ($q) => self::exercicesPermis($q, $entreprise))
+            ->whereHas('ecritures', fn ($q) => $q->withoutGlobalScopes()
+                ->where('comptaflow_sync_status', 'failed'))
+            ->orderBy('id')
+            ->pluck('id');
+
+        foreach ($ids as $operationId) {
+            EcritureComptable::withoutGlobalScopes()
+                ->where('operation_id', $operationId)
+                ->where('comptaflow_sync_status', '!=', 'synced')
+                ->update([
+                    'comptaflow_sync_status' => 'pending',
+                    'comptaflow_sync_error' => null,
+                ]);
+
+            DeverserOperationComptaflow::dispatch($operationId);
+        }
+
+        return [
+            'success' => true,
+            'message' => $ids->isEmpty()
+                ? 'Aucune opération en échec à relancer.'
+                : $ids->count() . ' opération(s) en échec remises en file. Le traitement continue en arrière-plan.',
+            'operations' => $ids->count(),
+            'etat' => self::etat($entreprise),
+        ];
+    }
+
     /** Les opérations équilibrées dont une ligne n'est pas encore passée. */
     private static function nonDeversees(Entreprise $entreprise)
     {
