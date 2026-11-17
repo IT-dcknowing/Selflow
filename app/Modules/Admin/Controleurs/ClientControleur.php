@@ -62,6 +62,7 @@ class ClientControleur
 
         $request->validate([
             'nom'               => ['required', 'string', 'max:150'],
+            'est_apporteur'     => ['nullable', 'boolean'],
             'type_facturation'  => ['nullable', 'in:B2B,B2C,B2G,B2F'],
             'telephone'         => ['nullable', 'string', 'max:30'],
             'email'             => ['nullable', 'email', 'max:150'],
@@ -107,6 +108,7 @@ class ClientControleur
                 'numero_tiers'  => $numeroTiers,
                 // Le NCC d'une entreprise ou d'une administration se garde.
                 'ncc'           => Client::nccRetenu($request->input('type_facturation'), $request->input('ncc')),
+                'est_apporteur' => $entreprise->aAttribution('apporteurs') && $request->boolean('est_apporteur'),
             ]
         ));
 
@@ -149,6 +151,7 @@ class ClientControleur
             $request->merge(['regime_imposition' => Entreprise::normaliserRegime($request->input('regime_imposition'))]);
             $request->validate([
                 'nom'               => ['required', 'string', 'max:150'],
+                'est_apporteur'     => ['nullable', 'boolean'],
                 'type_facturation'  => ['nullable', 'in:B2B,B2C,B2G,B2F'],
                 'telephone'         => ['nullable', 'string', 'max:30'],
                 'email'             => ['nullable', 'email', 'max:150'],
@@ -172,7 +175,7 @@ class ClientControleur
 
             $client->update(array_merge(
                 $request->only(array_merge(['nom', 'type_facturation', 'telephone', 'email', 'adresse', 'rccm', 'regime_imposition'], $entreprise->comptabiliteOuverte() ? ['compte_comptable'] : [])),
-                ['ncc' => Client::nccRetenu($request->input('type_facturation'), $request->input('ncc'))]
+                ['ncc' => Client::nccRetenu($request->input('type_facturation'), $request->input('ncc')), 'est_apporteur' => $entreprise->aAttribution('apporteurs') && $request->boolean('est_apporteur')]
             ));
         }
 
