@@ -88,7 +88,7 @@
                             <div style="font-size:11px;margin-top:5px;color:{{ $abonnementEchu ? '#b91c1c' : '#64748b' }};font-weight:700;">
                                 {{ $abonnementEchu ? 'Échu depuis le ' : 'Expire le ' }}{{ $ent->abonnement_expire_le->format('d/m/Y') }}
                             </div>
-                            @if($abonnementEchu && in_array($ent->plan_abonnement, ['SOLO','BUSINESS','PREMIUM','SUR_MESURE'], true))
+                            @if($abonnementEchu)
                                 <button type="button" class="btn btn-sm" style="margin-top:7px;background:#dc2626;color:#fff;border:0;"
                                     onclick="ouvrirModalReabonnement({{ $ent->id }}, @js($ent->nom), @js($ent->plan_abonnement), @js($ent->abonnement_expire_le->format('d/m/Y')))">
                                     <i class="fas fa-rotate"></i> Réabonner
@@ -206,16 +206,21 @@
         <form id="formReabonnement" method="POST">
             @csrf
             <div style="padding:13px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;margin-bottom:16px;">
-                <div style="font-size:12px;color:#1e40af;">Offre actuelle</div>
-                <strong id="reabonnementOffre" style="font-size:16px;color:#1e3a8a;"></strong>
-                <p style="font-size:12px;color:#1e40af;margin-top:4px;">L'offre et ses quotas sont conservés. Seule la période d'abonnement est prolongée.</p>
+                <label for="offreReabonnement" style="display:block;font-size:12px;color:#1e40af;margin-bottom:6px;">Offre à activer</label>
+                <select id="offreReabonnement" name="offre" class="form-control" onchange="gererOffreReabonnement()">
+                    <option value="SOLO">Solo</option>
+                    <option value="BUSINESS">Business</option>
+                    <option value="PREMIUM">Premium</option>
+                    <option value="SUR_MESURE">Sur mesure</option>
+                </select>
+                <p style="font-size:12px;color:#1e40af;margin-top:6px;">Les quotas de l'offre choisie seront appliqués lors de la réactivation.</p>
             </div>
             <label style="display:block;font-weight:700;margin-bottom:9px;">Cochez les mois effectivement payés</label>
             <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:16px;">
                 @for($m=1;$m<=12;$m++)
                     <label style="display:flex;align-items:center;gap:7px;padding:9px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;cursor:pointer;">
                         <input type="checkbox" name="mois_payes[]" value="{{ $m }}" class="mois-reabonnement" onchange="calculerMoisReabonnement()">
-                        {{ $m }} {{ $m === 1 ? 'mois' : 'mois' }}
+                        Mois payé {{ $m }}
                     </label>
                 @endfor
             </div>
@@ -236,12 +241,20 @@
 </div>
 <script>
 function ouvrirModalReabonnement(id, nom, offre, echeance) {
-    document.getElementById('formReabonnement').action = '/superadmin/entreprises/' + id + '/reactiver-abonnement';
+    document.getElementById('formReabonnement').action = @js(route('superadmin.entreprises.reactiver_abonnement', ['entreprise' => '__ID__'])).replace('__ID__', id);
     document.getElementById('reabonnementEntreprise').textContent = nom;
-    document.getElementById('reabonnementOffre').textContent = offre;
+    var selectOffre = document.getElementById('offreReabonnement');
+    selectOffre.value = ['SOLO','BUSINESS','PREMIUM','SUR_MESURE'].includes(offre) ? offre : 'BUSINESS';
     document.getElementById('reabonnementEcheance').textContent = 'Abonnement échu depuis le ' + echeance;
-    document.getElementById('montantSurMesure').style.display = offre === 'SUR_MESURE' ? 'block' : 'none';
+    document.getElementById('montant_total_reabonnement').value = '';
+    document.querySelectorAll('.mois-reabonnement').forEach(function(c){ c.checked = false; });
+    calculerMoisReabonnement();
+    gererOffreReabonnement();
     document.getElementById('modalReabonnement').style.display = 'flex';
+}
+function gererOffreReabonnement() {
+    document.getElementById('montantSurMesure').style.display =
+        document.getElementById('offreReabonnement').value === 'SUR_MESURE' ? 'block' : 'none';
 }
 function fermerModalReabonnement() {
     document.getElementById('modalReabonnement').style.display = 'none';
