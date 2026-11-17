@@ -55,6 +55,9 @@ class VenteControleur
         $apporteurs = $gestionApporteurs
             ? Client::where('entreprise_id', $entreprise->id)->where('est_apporteur', true)->duSite((int) $pointDeVenteId ?: null)->orderBy('nom')->get()
             : collect();
+        if ($gestionApporteurs) {
+            $clients = $clients->where('est_apporteur', false)->values();
+        }
         // Archiver un article, c'est dire qu'on ne le vend plus. La caisse le
         // proposait quand même : le filtre ne vivait que sur l'écran du
         // catalogue.
@@ -94,7 +97,7 @@ class VenteControleur
 
         $request->validate(array_merge([
             'client_id' => ['nullable', 'integer', Appartenance::a('clients', 'id')],
-            'apporteur_id' => ['nullable', 'integer', \\Illuminate\\Validation\\Rule::exists('clients', 'id')->where('entreprise_id', $entreprise->id)->where('est_apporteur', true)],
+            'apporteur_id' => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('clients', 'id')->where('entreprise_id', $entreprise->id)->where('est_apporteur', true)],
             'mode_paiement' => ['required', 'string'],
             'articles' => ['required', 'array', 'min:1'],
             'articles.*.produit_id' => ['nullable', 'integer', Appartenance::a('produits', 'id')],
