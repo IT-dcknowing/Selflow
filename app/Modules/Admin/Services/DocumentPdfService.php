@@ -259,13 +259,18 @@ class DocumentPdfService
             'date'       => \Carbon\Carbon::parse($vente->date_vente)->isoFormat('D MMMM YYYY'),
             'entreprise' => $this->entreprise($entreprise, $vente->pointDeVente->nom),
             'tiers'      => [
-                'intitule' => 'Client',
+                'intitule' => $vente->apporteur_id ? 'Tiers payant / Apporteur' : 'Client',
                 'nom'      => $vente->client?->nom ?? 'Client de passage',
                 'adresse'  => $vente->client?->adresse,
                 'tel'      => $vente->client?->telephone,
                 'ncc'      => $vente->client?->ncc,
                 'rccm'     => $vente->client?->rccm,
             ],
+            'beneficiaire' => $vente->beneficiaire_id ? [
+                'nom' => $vente->beneficiaire?->nom,
+                'adresse' => $vente->beneficiaire?->adresse,
+                'tel' => $vente->beneficiaire?->telephone,
+            ] : null,
             'lignes'        => $lignes,
             'totaux'        => $this->totaux($vente, $timbre, $dejaPaye),
             'reglement'     => [
