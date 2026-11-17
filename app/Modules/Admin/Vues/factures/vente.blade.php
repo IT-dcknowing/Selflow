@@ -1374,7 +1374,7 @@ function model2(d) {
                 <div style="padding:5px 14px;border-radius:20px;font-size:11px;font-weight:600;background:${theme.bg};color:${theme.tx}">${badge}</div>
             </div>
             <div style="margin-bottom:16px;padding:12px 14px;background:var(--white);border-radius:8px;border:0.5px solid var(--border)">
-                <div style="font-size:10px;color:${theme.color};text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;font-weight:700;"">${d.aApporteur ? 'Tiers payant / Apporteur' : 'Client'}</div>
+                <div style="font-size:10px;color:${theme.color};text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;font-weight:700;">${d.aApporteur ? 'Tiers payant / Apporteur' : 'Client'}</div>
                 <div style="font-size:13px;font-weight:700;color:var(--tx)">${d.client.nom}</div>
                 <div style="font-size:11px;color:var(--mu);margin-top:4px;line-height:1.7;">${fiscalLinesClient(d.client, '<br>')}</div>
                 ${d.beneficiaire ? `<div style="margin-top:7px;padding-top:6px;border-top:1px solid var(--border);font-size:11px;color:var(--mu)"><strong style="color:var(--tx)">Bénéficiaire des soins :</strong> ${d.beneficiaire.nom}${d.beneficiaire.tel ? ' · Tél : '+d.beneficiaire.tel : ''}${d.beneficiaire.adresse ? ' · '+d.beneficiaire.adresse : ''}</div>` : ''}
