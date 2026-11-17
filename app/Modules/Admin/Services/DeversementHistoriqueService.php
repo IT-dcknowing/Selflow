@@ -43,23 +43,13 @@ class DeversementHistoriqueService
         // L'exercice en cours part sans rien demander ; un exercice antérieur
         // seulement s'il a été accordé (propriétaire, 08/10/2026).
         $aEnvoyer = self::nonDeversees($entreprise)
-            ->where(fn ($q) => self::exercicesPermis($q, $entreprise))
-            ->orderBy('id')
-            ->pluck('id');
+            ->where(fn ($q) => self::exercicesPermis($q, $entreprise));
+        $nombreAEnvoyer = (clone $aEnvoyer)->count();
 
-        foreach ($aEnvoyer as $operationId) {
-            EcritureComptable::withoutGlobalScopes()
-                ->where('operation_id', $operationId)
-                ->where(function ($q) {
-                    $q->whereNull('comptaflow_sync_status')
-                      ->orWhereIn('comptaflow_sync_status', ['failed', 'pending']);
-                })
-                ->update([
-                    'comptaflow_sync_status' => 'pending',
-                    'comptaflow_sync_error' => null,
-                ]);
-
-            DeverserOperationComptaflow::dispatch($operationId);
+        // Un seul travail part de la requête HTTP. La préparation est elle-même
+        // asynchrone et met les opérations en file par lots de 100.
+        if ($nombreAEnvoyer > 0) {
+            MettreEnFileDeversementComptaflow::dispatch($entreprise->id);
         }
 
         // Ce qui ne partira pas, et pourquoi : une opération déséquilibrée
@@ -69,11 +59,11 @@ class DeversementHistoriqueService
             ->where('est_equilibree', false)
             ->count();
 
-        $message = $aEnvoyer->isEmpty()
+        $message = $nombreAEnvoyer === 0
             ? "Aucune nouvelle opération à mettre en file."
             : sprintf(
                 "%d opération(s) ont été mises en file. Le traitement continue en arrière-plan ; vous pouvez poursuivre votre travail.",
-                $aEnvoyer->count()
+                $nombreAEnvoyer
             );
 
         $retenues = self::anneesAnterieuresNonDeversees($entreprise);
@@ -120,16 +110,8 @@ class DeversementHistoriqueService
             ->orderBy('id')
             ->pluck('id');
 
-        foreach ($ids as $operationId) {
-            EcritureComptable::withoutGlobalScopes()
-                ->where('operation_id', $operationId)
-                ->where('comptaflow_sync_status', '!=', 'synced')
-                ->update([
-                    'comptaflow_sync_status' => 'pending',
-                    'comptaflow_sync_error' => null,
-                ]);
-
-            DeverserOperationComptaflow::dispatch($operationId);
+        if ($ids->isNotEmpty()) {
+            MettreEnFileDeversementComptaflow::dispatch($entreprise->id, 0, true);
         }
 
         return [
