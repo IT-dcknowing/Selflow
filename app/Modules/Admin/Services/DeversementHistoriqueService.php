@@ -2,9 +2,8 @@
 
 namespace App\Modules\Admin\Services;
 
-use App\Jobs\DeverserOperationComptaflow;
+use App\Jobs\MettreEnFileDeversementComptaflow;
 use App\Modules\Admin\Modeles\DemandeExercicesAnterieurs;
-use App\Modules\Admin\Modeles\EcritureComptable;
 use App\Modules\Admin\Modeles\Entreprise;
 use App\Modules\Admin\Modeles\Operation;
 
@@ -83,7 +82,7 @@ class DeversementHistoriqueService
         return [
             'success'    => true,
             'message'    => $message,
-            'operations' => $aEnvoyer->count(),
+            'operations' => $nombreAEnvoyer,
             'etat' => self::etat($entreprise),
         ];
     }
