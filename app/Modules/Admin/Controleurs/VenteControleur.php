@@ -78,6 +78,7 @@ class VenteControleur
     public function enregistrer(Request $request): RedirectResponse
     {
         $entreprise = Auth::user()->entreprise;
+        $gestionApporteurs = $entreprise->aAttribution('apporteurs');
         $pointDeVenteId = Auth::user()->estCaissier()
             ? Auth::user()->point_de_vente_id
             // La caisse creait un point de vente « Siege » a Abidjan, commune
