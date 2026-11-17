@@ -143,4 +143,52 @@ class PaiementAbonnementParReferenceTest extends TestCase
             ->assertDontSee('En attente de confirmation de l\'abonnement')
             ->assertSee('Abonnement confirmé');
     }
+
+    public function test_le_superadmin_reactive_un_abonnement_echu_selon_les_mois_cochees(): void
+    {
+        $this->actingAs($this->superadmin)
+            ->get(route('superadmin.entreprises'))
+            ->assertOk()
+            ->assertSee('Échu depuis le')
+            ->assertSee('Réabonner');
+
+        $this->actingAs($this->superadmin)
+            ->post(route('superadmin.entreprises.reactiver_abonnement', $this->entreprise), [
+                'offre' => Abonnements::BUSINESS,
+                'mois_payes' => [1, 2, 3],
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('succes');
+
+        $entreprise = $this->entreprise->fresh();
+        $this->assertSame(Abonnements::STATUT_ACTIF, $entreprise->abonnement_statut);
+        $this->assertFalse(Abonnements::estATerme($entreprise));
+        $this->assertTrue($entreprise->abonnement_expire_le->between(now()->addMonths(2)->subDay(), now()->addMonths(3)->addDay()));
+
+        $paiement = PaiementAbonnement::where('entreprise_id', $entreprise->id)->latest('id')->firstOrFail();
+        $this->assertSame('active', $paiement->statut);
+        $this->assertSame('renouvellement', $paiement->nature);
+        $this->assertSame(3, (int) $paiement->mois);
+        $this->assertSame(75000.0, (float) $paiement->montant);
+        $this->assertSame('superadmin', $paiement->operateur_paiement);
+    }
+
+    public function test_l_alerte_de_dix_jours_disparait_apres_renouvellement_confirme(): void
+    {
+        $this->entreprise->forceFill(['abonnement_expire_le' => now()->addDays(5)])->save();
+
+        $this->actingAs($this->admin)->get(route('admin.tableau_de_bord'))
+            ->assertOk()
+            ->assertSee('Votre abonnement prendra fin le');
+
+        $this->actingAs($this->superadmin)->post(route('superadmin.entreprises.reactiver_abonnement', $this->entreprise), [
+            'offre' => Abonnements::BUSINESS,
+            'mois_payes' => [1],
+        ])->assertSessionHasNoErrors();
+
+        $this->actingAs($this->admin)->get(route('admin.tableau_de_bord'))
+            ->assertOk()
+            ->assertDontSee('Votre abonnement prendra fin le');
+    }
+
 }
