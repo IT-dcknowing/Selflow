@@ -142,7 +142,7 @@ class ClientControleur
 
             $client->update(array_merge(
                 $request->only(['type_facturation', 'telephone', 'email', 'adresse', 'rccm', 'regime_imposition']),
-                ['ncc' => Client::nccRetenu($request->input('type_facturation'), $request->input('ncc'))]
+                ['ncc' => Client::nccRetenu($request->input('type_facturation'), $request->input('ncc')), 'est_apporteur' => $entreprise->aAttribution('apporteurs') && $request->boolean('est_apporteur')]
             ));
         } else {
             // Tous les champs
