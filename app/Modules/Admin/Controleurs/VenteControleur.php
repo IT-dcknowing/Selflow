@@ -993,7 +993,7 @@ class VenteControleur
 
         $request->validate(array_merge([
             'client_id' => ['nullable', 'integer', Appartenance::a('clients', 'id')],
-            'apporteur_id' => ['nullable', 'integer', \\Illuminate\\Validation\\Rule::exists('clients', 'id')->where('entreprise_id', Auth::user()->entreprise_id)->where('est_apporteur', true)],
+            'apporteur_id' => ['nullable', 'integer', \Illuminate\\Validation\\Rule::exists('clients', 'id')->where('entreprise_id', Auth::user()->entreprise_id)->where('est_apporteur', true)],
             'mode_paiement' => ['required', 'string'],
             'articles' => ['required', 'array', 'min:1'],
             'articles.*.produit_id' => ['nullable', 'integer', Appartenance::a('produits', 'id')],
