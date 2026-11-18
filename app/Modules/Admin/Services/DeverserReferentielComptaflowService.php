@@ -1,14 +1,14 @@
 <?php
 
-namespace App\\Modules\\Admin\\Services;
+namespace App\Modules\Admin\Services;
 
-use App\\Modules\\Admin\\Modeles\\Client;
-use App\\Modules\\Admin\\Modeles\\CodeJournal;
-use App\\Modules\\Admin\\Modeles\\Entreprise;
-use App\\Modules\\Admin\\Modeles\\Fournisseur;
-use App\\Modules\\Admin\\Modeles\\PlanComptable;
-use Illuminate\\Support\\Facades\\Http;
-use Illuminate\\Support\\Facades\\Log;
+use App\Modules\Admin\Modeles\Client;
+use App\Modules\Admin\Modeles\CodeJournal;
+use App\Modules\Admin\Modeles\Entreprise;
+use App\Modules\Admin\Modeles\Fournisseur;
+use App\Modules\Admin\Modeles\PlanComptable;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Envoie le référentiel propre à Selflow vers le dossier Comptaflow lié.
@@ -118,7 +118,7 @@ class DeverserReferentielComptaflowService
                     'codes_journaux' => $journaux,
                     'tiers' => $tiers,
                 ]);
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             Log::warning('Déversement du référentiel vers Comptaflow impossible', [
                 'entreprise_id' => $entreprise->id,
                 'comptaflow_company_id' => $entreprise->comptaflow_company_id,
