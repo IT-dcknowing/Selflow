@@ -243,6 +243,18 @@ class AchatControleur
             // ce qui sort de la caisse est borné au dû, et la différence est
             // la monnaie rendue, imprimée sur la pièce.
             $montantTendu = $request->filled('montant_paye') ? (float) $request->input('montant_paye') : 0.0;
+            $plafondReglement = $montantTtc + ($isBapa
+                ? \App\Modules\Admin\Services\TimbreQuittanceService::pourAchat(new Achat([
+                    'type_facture' => 'bapa',
+                    'montant_ttc' => $montantTtc,
+                ]))
+                : 0.0);
+            if ($montantTendu > $plafondReglement + 0.001) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'montant_paye' => 'Le montant payé ne peut pas dépasser le montant total à payer de '
+                        . number_format($plafondReglement, 0, ',', ' ') . ' F CFA.',
+                ]);
+            }
 
             $achat = Achat::create([
                 'point_de_vente_id'          => $pointDeVenteId,
