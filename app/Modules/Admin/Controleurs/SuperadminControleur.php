@@ -171,6 +171,17 @@ class SuperadminControleur
      */
     public function creer(Request $request): RedirectResponse
     {
+        // Même règle que l'inscription publique : un nom d'entreprise ne peut
+        // être réutilisé, même avec une casse ou des espaces extérieurs différents.
+        $nomEntreprise = preg_replace('/\s+/u', ' ', trim((string) $request->input('nom')));
+        $request->merge(['nom' => $nomEntreprise]);
+        $nomNormalise = mb_strtolower($nomEntreprise, 'UTF-8');
+        if (Entreprise::query()->whereRaw('LOWER(TRIM(nom)) = ?', [$nomNormalise])->exists()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'nom' => 'Une entreprise portant ce nom existe déjà. Choisissez un nom distinct.',
+            ]);
+        }
+
         // Normaliser le NCC : suppression des espaces et mise en majuscule
         foreach (['ncc', 'fne_ncc'] as $champNcc) {
             if ($request->filled($champNcc)) {
