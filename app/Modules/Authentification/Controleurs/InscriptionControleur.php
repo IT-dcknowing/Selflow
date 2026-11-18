@@ -57,7 +57,7 @@ class InscriptionControleur
             ->exists();
 
         if ($nomDejaUtilise) {
-            throw \\Illuminate\\Validation\\ValidationException::withMessages([
+            throw \Illuminate\\Validation\\ValidationException::withMessages([
                 'nom_entreprise' => 'Une entreprise portant ce nom existe déjà. Vérifiez le nom saisi avant de créer un nouvel espace.',
             ]);
         }
@@ -142,7 +142,7 @@ class InscriptionControleur
                 ->exists();
 
             if ($doublonConcurrent) {
-                throw \\Illuminate\\Validation\\ValidationException::withMessages([
+                throw \Illuminate\\Validation\\ValidationException::withMessages([
                     'nom_entreprise' => 'Une entreprise portant ce nom existe déjà. Aucun nouvel espace n’a été créé.',
                 ]);
             }
