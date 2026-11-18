@@ -298,6 +298,13 @@ class VenteControleur
                 $statutVente = 'Crédit';
             } else {
                 $netAPayer = $montantTtc + $montantAutresTaxes;
+                if ($request->filled('montant_paye')
+                    && (float) $request->input('montant_paye') > $netAPayer + 0.001) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'montant_paye' => 'Le montant payé ne peut pas dépasser le montant total à payer de '
+                            . number_format($netAPayer, 0, ',', ' ') . ' F CFA.',
+                    ]);
+                }
                 // Ce que le client tend, et qui n'est pas ce qu'on encaisse :
                 // une caisse qui reçoit 10 000 F pour une pièce de 6 500 F doit
                 // rendre 3 500 F, et n'a encaissé que 6 500 F. Le plafonnement
