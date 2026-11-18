@@ -208,10 +208,10 @@ class LiaisonComptaflowService
             );
         }
 
-        // Comptaflow détient le référentiel : Selflow le reçoit après
-        // l'ouverture de la liaison. Aucun compte, journal ou tiers Selflow
-        // n'est envoyé à Comptaflow.
-        $reception = RecevoirReferentielComptaflowService::synchroniser($entreprise->fresh());
+        // Selflow transmet son référentiel à Comptaflow : les codes, comptes
+        // et tiers manquants sont créés par l'import natif de Comptaflow.
+        // Les données déjà présentes dans Comptaflow restent prioritaires.
+        $reception = DeverserReferentielComptaflowService::synchroniser($entreprise->fresh());
 
         // Cette option ne concerne que les écritures historiques.
         $historique = !empty($options['deverser'])
@@ -225,7 +225,7 @@ class LiaisonComptaflowService
         $message = ($cible !== null ? 'Liaison ouverte sur le dossier existant. ' : 'Liaison ouverte. ')
             . ($reception['success']
                 ? $reception['message']
-                : 'La réception du référentiel Comptaflow reste à effectuer : ' . $reception['message']);
+                : 'Le référentiel n’a pas été transmis à Comptaflow : ' . $reception['message']);
 
         if ($historique !== null) {
             $message .= ' ' . $historique['message'];
