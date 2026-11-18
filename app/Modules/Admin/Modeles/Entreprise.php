@@ -145,6 +145,21 @@ class Entreprise extends Model
         'comptaflow_last_sync_at' => 'datetime',
     ];
 
+    /**
+     * Le nom normalisé sert de clé d'unicité, indépendamment de la casse
+     * et des espaces répétés. La contrainte SQL protège aussi les créations
+     * simultanées qui passeraient entre deux validations HTTP.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (self $entreprise): void {
+            $nom = preg_replace('/\s+/u', ' ', trim((string) $entreprise->nom));
+            $entreprise->nom_normalise = $nom !== ''
+                ? mb_strtolower($nom, 'UTF-8')
+                : null;
+        });
+    }
+
     // ── La liaison Comptaflow ────────────────────────────────────────
 
     /** L'entreprise a demandé un dossier comptable ; le superadmin n'a pas tranché. */
