@@ -195,11 +195,12 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
             $payload = $reponse->json();
             $refus = is_array($payload) ? ($payload['refus'] ?? []) : [];
             if (is_array($refus) && $refus !== []) {
-                $motif = 'Comptaflow HTTP ' . $reponse->status() . ' : ' . $this->formaterRefusComptaflow($refus);
+                $motif = $this->formaterRefusComptaflow($refus);
             } else {
                 $messageApi = is_array($payload) ? ($payload['message'] ?? null) : null;
-                $motif = 'Comptaflow HTTP ' . $reponse->status() . ' : '
-                    . mb_substr((string) ($messageApi ?: $reponse->body()), 0, 3500);
+                $motif = filled($messageApi)
+                    ? mb_substr((string) $messageApi, 0, 3500)
+                    : 'Comptaflow n’a pas accepté cette opération. Vérifiez la liaison et le référentiel comptable.';
             }
             EcritureComptable::withoutGlobalScope(\App\Modules\Admin\Scopes\PeriodeScope::class)->whereIn('id', $ids)->update([
                 'comptaflow_sync_status' => 'failed',
