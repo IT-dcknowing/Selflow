@@ -26,7 +26,7 @@ class MettreEnFileDeversementComptaflow implements ShouldQueue, ShouldBeUnique
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
-    public int $timeout = 60;
+    public int $timeout = 80;
     public int $uniqueFor = 3600;
 
     public function __construct(
