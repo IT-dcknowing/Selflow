@@ -179,7 +179,7 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
 
                 EcritureComptable::withoutGlobalScope(\App\Modules\Admin\Scopes\PeriodeScope::class)->whereIn('id', $ids)->update([
                     'comptaflow_sync_status' => empty($refus) ? 'synced' : 'failed',
-                    'comptaflow_sync_error' => empty($refus) ? null : mb_substr(json_encode($refus, JSON_UNESCAPED_UNICODE), 0, 4000),
+                    'comptaflow_sync_error' => empty($refus) ? null : mb_substr($this->formaterRefusComptaflow($refus), 0, 4000),
                 ]);
 
                 if (!empty($refus)) {
@@ -192,7 +192,15 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
                 return;
             }
 
-            $motif = 'Comptaflow HTTP ' . $reponse->status() . ' : ' . mb_substr($reponse->body(), 0, 3500);
+            $payload = $reponse->json();
+            $refus = is_array($payload) ? ($payload['refus'] ?? []) : [];
+            if (is_array($refus) && $refus !== []) {
+                $motif = 'Comptaflow HTTP ' . $reponse->status() . ' : ' . $this->formaterRefusComptaflow($refus);
+            } else {
+                $messageApi = is_array($payload) ? ($payload['message'] ?? null) : null;
+                $motif = 'Comptaflow HTTP ' . $reponse->status() . ' : '
+                    . mb_substr((string) ($messageApi ?: $reponse->body()), 0, 3500);
+            }
             EcritureComptable::withoutGlobalScope(\App\Modules\Admin\Scopes\PeriodeScope::class)->whereIn('id', $ids)->update([
                 'comptaflow_sync_status' => 'failed',
                 'comptaflow_sync_error' => $motif,
@@ -213,6 +221,28 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
             ]);
             throw $e;
         }
+    }
+
+    /**
+     * Rend les refus de l'API lisibles sans exposer le JSON brut ni ses échappements.
+     */
+    private function formaterRefusComptaflow(array $refus): string
+    {
+        $messages = array_values(array_unique(array_filter(array_map(
+            static fn ($motif) => is_scalar($motif) ? trim((string) $motif) : '',
+            $refus
+        ))));
+
+        if ($messages === []) {
+            return 'Comptaflow a refusé les écritures sans préciser le motif.';
+        }
+
+        $texte = implode(' ; ', $messages);
+        if (preg_match('/journal.{0,20}inconnu/i', $texte)) {
+            $texte .= '. Vérifiez que les codes journaux concernés existent et sont actifs dans Comptaflow.';
+        }
+
+        return $texte;
     }
 
     /**
