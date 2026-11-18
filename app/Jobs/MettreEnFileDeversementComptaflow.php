@@ -49,6 +49,31 @@ class MettreEnFileDeversementComptaflow implements ShouldQueue, ShouldBeUnique
             return;
         }
 
+        // Le référentiel est transmis une seule fois, au début du traitement,
+        // dans le worker. L'utilisateur n'attend pas l'import des comptes,
+        // journaux et tiers dans sa requête HTTP.
+        if ($this->apresId === 0) {
+            $referentiel = \App\Modules\Admin\Services\DeverserReferentielComptaflowService::synchroniser($entreprise);
+            if (!$referentiel['success']) {
+                EcritureComptable::withoutGlobalScopes()
+                    ->where('entreprise_id', $entreprise->id)
+                    ->where(function ($q) {
+                        $q->whereNull('comptaflow_sync_status')
+                            ->orWhere('comptaflow_sync_status', '!=', 'synced');
+                    })
+                    ->update([
+                        'comptaflow_sync_status' => 'failed',
+                        'comptaflow_sync_error' => 'Référentiel non synchronisé : ' . $referentiel['message'],
+                    ]);
+
+                Log::warning('Déversement des écritures suspendu : référentiel Comptaflow incomplet', [
+                    'entreprise_id' => $entreprise->id,
+                    'motif' => $referentiel['message'],
+                ]);
+                return;
+            }
+        }
+
         $annees = DemandeExercicesAnterieurs::anneesAccordees($entreprise->id);
         $operations = Operation::where('entreprise_id', $entreprise->id)
             ->where('est_equilibree', true)
