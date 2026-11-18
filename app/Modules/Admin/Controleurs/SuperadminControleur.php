@@ -176,7 +176,7 @@ class SuperadminControleur
         $nomEntreprise = preg_replace('/\s+/u', ' ', trim((string) $request->input('nom')));
         $request->merge(['nom' => $nomEntreprise]);
         $nomNormalise = mb_strtolower($nomEntreprise, 'UTF-8');
-        if (Entreprise::query()->whereRaw('LOWER(TRIM(nom)) = ?', [$nomNormalise])->exists()) {
+        if (Entreprise::query()->where('nom_normalise', $nomNormalise)->exists()) {
             throw \Illuminate\Validation\ValidationException::withMessages([
                 'nom' => 'Une entreprise portant ce nom existe déjà. Choisissez un nom distinct.',
             ]);
