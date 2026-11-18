@@ -49,7 +49,7 @@ class InscriptionControleur
         // Un nom d'entreprise doit identifier une seule entité sur la plateforme.
         // Normaliser les espaces extérieurs et comparer sans tenir compte de la casse
         // évite de contourner la règle avec « ACME », « Acme » ou « ACME  ».
-        $nomEntreprise = preg_replace('/\\s+/u', ' ', trim((string) $request->input('nom_entreprise')));
+        $nomEntreprise = preg_replace('/\s+/u', ' ', trim((string) $request->input('nom_entreprise')));
         $request->merge(['nom_entreprise' => $nomEntreprise]);
         $nomNormalise = mb_strtolower($nomEntreprise, 'UTF-8');
         $nomDejaUtilise = Entreprise::query()
@@ -57,7 +57,7 @@ class InscriptionControleur
             ->exists();
 
         if ($nomDejaUtilise) {
-            throw \Illuminate\\Validation\\ValidationException::withMessages([
+            throw \Illuminate\Validation\ValidationException::withMessages([
                 'nom_entreprise' => 'Une entreprise portant ce nom existe déjà. Vérifiez le nom saisi avant de créer un nouvel espace.',
             ]);
         }
@@ -142,7 +142,7 @@ class InscriptionControleur
                 ->exists();
 
             if ($doublonConcurrent) {
-                throw \Illuminate\\Validation\\ValidationException::withMessages([
+                throw \Illuminate\Validation\ValidationException::withMessages([
                     'nom_entreprise' => 'Une entreprise portant ce nom existe déjà. Aucun nouvel espace n’a été créé.',
                 ]);
             }
