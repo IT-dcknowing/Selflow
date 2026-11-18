@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Log;
  */
 class DeverserReferentielComptaflowService
 {
-    private const DELAI = 90;
+    private const DELAI = 60;
 
     public static function synchroniser(Entreprise $entreprise): array
     {
