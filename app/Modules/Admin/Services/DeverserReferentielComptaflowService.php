@@ -42,7 +42,7 @@ class DeverserReferentielComptaflowService
             ->map(fn ($c) => [
                 'numero_de_compte' => (string) $c->numero,
                 'intitule' => (string) $c->libelle,
-                'numero_original' => $c->numero_original ?: $c->numero,
+                'numero_original' => $c->numero,
             ])->filter(fn ($c) => $c['numero_de_compte'] !== '' && $c['intitule'] !== '')
             ->values()->all();
 
@@ -65,7 +65,7 @@ class DeverserReferentielComptaflowService
                     'intitule' => trim((string) $j->intitule),
                     'type' => $type,
                     'compte_numero' => $j->compte ?: null,
-                    'numero_original' => $j->numero_original ?: $j->code,
+                    'numero_original' => $j->code,
                 ];
             })->filter(fn ($j) => $j['code_journal'] !== '' && $j['intitule'] !== '')
             ->values()->all();
@@ -103,7 +103,7 @@ class DeverserReferentielComptaflowService
                         'type_de_tiers' => $definition['type'],
                         'compte_general' => $t->compte_comptable,
                         'informations' => $informations,
-                        'numero_original' => $t->numero_original ?: (string) $t->id,
+                        'numero_original' => $t->numero_tiers,
                     ];
                 });
         }
