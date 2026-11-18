@@ -1632,6 +1632,26 @@
                         <div id="retour-deversement" style="display:none;margin-top:10px;padding:10px 12px;border-radius:6px;font-size:12px;line-height:1.5;"></div>
                     </div>
 
+                    <div id="modal-confirmation-deversement" aria-hidden="true" style="display:none;position:fixed;inset:0;z-index:10050;background:rgba(15,23,42,.58);align-items:center;justify-content:center;padding:20px;">
+                        <div role="dialog" aria-modal="true" aria-labelledby="titre-modal-deversement" style="width:min(520px,100%);background:#fff;border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.28);padding:22px;color:#1e293b;">
+                            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                                <i class="fas fa-cloud-arrow-up" style="font-size:22px;color:#0f766e;"></i>
+                                <strong id="titre-modal-deversement" style="font-size:17px;">Confirmer le déversement</strong>
+                            </div>
+                            <p style="margin:0 0 12px;color:#475569;">Avant de lancer le déversement, vérifiez la configuration de votre dossier Comptaflow :</p>
+                            <ul style="margin:0 0 14px;padding-left:22px;color:#475569;">
+                                <li>le modèle de plan comptable ;</li>
+                                <li>le modèle de tiers ;</li>
+                                <li>le modèle de journaux.</li>
+                            </ul>
+                            <p style="margin:0 0 20px;color:#475569;">Cette configuration sert à numéroter les comptes, journaux et tiers. Le transfert continue en arrière-plan : vous pouvez poursuivre votre travail.</p>
+                            <div style="display:flex;justify-content:flex-end;gap:9px;">
+                                <button type="button" class="btn btn-outline btn-sm" onclick="fermerConfirmationDeversement()">Annuler</button>
+                                <button type="button" class="btn btn-primary btn-sm" onclick="confirmerLancementDeversement()"><i class="fas fa-cloud-arrow-up"></i> Lancer le déversement</button>
+                            </div>
+                        </div>
+                    </div>
+
                     {{-- Les exercices antérieurs (propriétaire, 08/10/2026) : ils
                          se demandent, exercice par exercice, et ne partent
                          qu'une fois accordés par l'administrateur de la
@@ -1862,15 +1882,15 @@ function afficherEtatDeversement(etat) {
     if ((etat.total ?? 0) === 0) {
         message.textContent = 'Aucune opération autorisée à déverser pour le moment.';
         message.style.color = '#64748b';
+    } else if ((etat.en_echec ?? 0) > 0) {
+        message.textContent = (etat.en_echec) + ' opération(s) en échec. Consultez les motifs ci-dessous ; le transfert n’est pas terminé.';
+        message.style.color = '#b91c1c';
     } else if ((etat.restantes ?? 0) === 0) {
         message.textContent = '✓ Déversement terminé : toutes les opérations autorisées sont reçues par Comptaflow.';
         message.style.color = '#047857';
     } else if ((etat.en_cours ?? 0) > 0) {
         message.textContent = 'Déversement en arrière-plan : ' + etat.recues + ' opération(s) reçue(s), ' + etat.restantes + ' restante(s).';
         message.style.color = '#1d4ed8';
-    } else if ((etat.en_echec ?? 0) > 0) {
-        message.textContent = 'Le transfert est partiellement bloqué : consultez les motifs des opérations en échec.';
-        message.style.color = '#b91c1c';
     } else {
         message.textContent = etat.restantes + ' opération(s) restent à traiter. La file les prendra dès que le worker sera disponible.';
         message.style.color = '#c2410c';
@@ -1913,26 +1933,32 @@ function actualiserEtatDeversementComptaflow() {
 function afficherRetourDeversement(message, success) {
     var retour = document.getElementById('retour-deversement');
     retour.style.display = 'block';
-    retour.style.background = success ? '#f0fdf4' : '#fef2f2';
-    retour.style.border = '1px solid ' + (success ? '#86efac' : '#fca5a5');
-    retour.style.color = success ? '#15803d' : '#991b1b';
+    var couleur = success === true ? ['#f0fdf4','#86efac','#15803d'] : (success === 'info' ? ['#eff6ff','#bfdbfe','#1d4ed8'] : ['#fef2f2','#fca5a5','#991b1b']);
+    retour.style.background = couleur[0];
+    retour.style.border = '1px solid ' + couleur[1];
+    retour.style.color = couleur[2];
     retour.textContent = message;
 }
 
+function ouvrirConfirmationDeversement() {
+    var modal = document.getElementById('modal-confirmation-deversement');
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
+}
+function fermerConfirmationDeversement() {
+    var modal = document.getElementById('modal-confirmation-deversement');
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+}
 function lancerLeDeversementComptaflow() {
-    var avertissement =
-        "Avant de lancer le déversement, vérifiez la configuration de votre dossier Comptaflow :\\n\\n"
-        + "  • le modèle de plan comptable ;\\n"
-        + "  • le modèle de tiers ;\\n"
-        + "  • le modèle de journaux.\\n\\n"
-        + "Cette configuration sera utilisée pour numéroter les comptes, journaux et tiers.\\n"
-        + "Le transfert se poursuit en arrière-plan : vous pouvez continuer à travailler.\\n\\n"
-        + "Lancer le déversement maintenant ?";
-    if (!window.confirm(avertissement)) return;
-
+    ouvrirConfirmationDeversement();
+}
+function confirmerLancementDeversement() {
+    fermerConfirmationDeversement();
     var bouton = document.getElementById('btn-deverser-tout');
     bouton.disabled = true;
     bouton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mise en file…';
+    afficherRetourDeversement('Demande envoyée au serveur. Préparation du transfert en arrière-plan…', null);
 
     fetch(@json(route('admin.entreprise.comptaflow.deverser')), {
         method: 'POST',
@@ -1943,7 +1969,11 @@ function lancerLeDeversementComptaflow() {
     })
     .then(function (r) { return r.json().then(function (d) { return {ok:r.ok,d:d}; }); })
     .then(function (res) {
-        afficherRetourDeversement(res.d.message || 'Demande traitée.', res.ok && res.d.success);
+        var ok = res.ok && res.d.success;
+        afficherRetourDeversement(
+            res.d.message || (ok ? 'La demande de déversement a été mise en file.' : 'Le serveur a refusé la demande de déversement.'),
+            ok ? 'info' : false
+        );
         actualiserEtatDeversementComptaflow();
     })
     .catch(function () { afficherRetourDeversement('Impossible de joindre le serveur. Vérifiez la connexion puis réessayez.', false); })
