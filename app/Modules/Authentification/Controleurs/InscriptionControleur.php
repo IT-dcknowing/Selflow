@@ -46,6 +46,22 @@ class InscriptionControleur
             }
         }
 
+        // Un nom d'entreprise doit identifier une seule entité sur la plateforme.
+        // Normaliser les espaces extérieurs et comparer sans tenir compte de la casse
+        // évite de contourner la règle avec « ACME », « Acme » ou « ACME  ».
+        $nomEntreprise = preg_replace('/\\s+/u', ' ', trim((string) $request->input('nom_entreprise')));
+        $request->merge(['nom_entreprise' => $nomEntreprise]);
+        $nomNormalise = mb_strtolower($nomEntreprise, 'UTF-8');
+        $nomDejaUtilise = Entreprise::query()
+            ->whereRaw('LOWER(TRIM(nom)) = ?', [$nomNormalise])
+            ->exists();
+
+        if ($nomDejaUtilise) {
+            throw \\Illuminate\\Validation\\ValidationException::withMessages([
+                'nom_entreprise' => 'Une entreprise portant ce nom existe déjà. Vérifiez le nom saisi avant de créer un nouvel espace.',
+            ]);
+        }
+
         // ── L'étape 3 est facultative : elle ne bloque jamais la création ──
         //
         // Qui cochait « J'ai déjà un compte FNE », tapait un bout de NCC puis
@@ -118,6 +134,19 @@ class InscriptionControleur
 
         DB::beginTransaction();
         try {
+            // Recontrôle dans la transaction pour réduire le risque de deux
+            // inscriptions simultanées portant le même nom.
+            $doublonConcurrent = Entreprise::query()
+                ->whereRaw('LOWER(TRIM(nom)) = ?', [$nomNormalise])
+                ->lockForUpdate()
+                ->exists();
+
+            if ($doublonConcurrent) {
+                throw \\Illuminate\\Validation\\ValidationException::withMessages([
+                    'nom_entreprise' => 'Une entreprise portant ce nom existe déjà. Aucun nouvel espace n’a été créé.',
+                ]);
+            }
+
             // 1. Créer l'entreprise avec tous les champs
             $entreprise = Entreprise::create([
                 // Normalisation automatique décochée par défaut (16/10/2026).
