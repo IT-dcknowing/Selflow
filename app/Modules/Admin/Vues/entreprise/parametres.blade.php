@@ -1868,6 +1868,29 @@
 var deversementPolling = null;
 var deversementEnCoursDeLecture = false;
 
+function formaterMotifDeversement(motif) {
+    var texte = String(motif || 'Motif non communiqué par Comptaflow.');
+    var debut = texte.indexOf('{');
+    if (debut >= 0) {
+        try {
+            var donnees = JSON.parse(texte.slice(debut));
+            if (Array.isArray(donnees.refus) && donnees.refus.length) {
+                texte = Array.from(new Set(donnees.refus.map(String))).join(' ; ');
+                if (/journal.{0,20}inconnu/i.test(texte)) {
+                    texte += '. Vérifiez que les codes journaux concernés existent et sont actifs dans Comptaflow.';
+                }
+                return texte;
+            }
+            if (donnees.message) return String(donnees.message);
+        } catch (e) {
+            // Les anciens motifs non JSON restent affichés tels quels.
+        }
+    }
+    return texte.replace(/\\u([0-9a-fA-F]{4})/g, function (_, code) {
+        return String.fromCharCode(parseInt(code, 16));
+    });
+}
+
 function afficherEtatDeversement(etat) {
     if (!etat) return;
     document.getElementById('devers-total').textContent = etat.total ?? 0;
@@ -1903,7 +1926,7 @@ function afficherEtatDeversement(etat) {
         erreurs.innerHTML = '<strong>Opérations en échec :</strong><ul style="margin:5px 0 0;padding-left:18px;">'
             + etat.erreurs.map(function (e) {
                 return '<li>Opération #' + Number(e.operation_id) + ' — '
-                    + String(e.motif || 'Motif non communiqué').replace(/[&<>"']/g, function (c) {
+                    + formaterMotifDeversement(e.motif).replace(/[&<>"']/g, function (c) {
                         return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
                     }) + '</li>';
             }).join('') + '</ul>';
@@ -1995,7 +2018,7 @@ function relancerEchecsComptaflow() {
     })
     .then(function (r) { return r.json().then(function (d) { return {ok:r.ok,d:d}; }); })
     .then(function (res) {
-        afficherRetourDeversement(res.d.message || 'Demande traitée.', res.ok && res.d.success);
+        afficherRetourDeversement(res.d.message || 'Demande traitée.', res.ok && res.d.success ? 'info' : false);
         actualiserEtatDeversementComptaflow();
     })
     .catch(function () { afficherRetourDeversement('Impossible de joindre le serveur. Réessayez.', false); })
