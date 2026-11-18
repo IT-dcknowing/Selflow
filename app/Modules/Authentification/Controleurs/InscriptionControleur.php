@@ -53,7 +53,8 @@ class InscriptionControleur
         $request->merge(['nom_entreprise' => $nomEntreprise]);
         $nomNormalise = mb_strtolower($nomEntreprise, 'UTF-8');
         $nomDejaUtilise = Entreprise::query()
-            ->where('nom_normalise', $nomNormalise)
+            ->where(fn ($q) => $q->where('nom_normalise', $nomNormalise)
+                ->orWhereRaw('LOWER(TRIM(nom)) = ?', [$nomNormalise]))
             ->exists();
 
         if ($nomDejaUtilise) {
@@ -137,7 +138,8 @@ class InscriptionControleur
             // Recontrôle dans la transaction pour réduire le risque de deux
             // inscriptions simultanées portant le même nom.
             $doublonConcurrent = Entreprise::query()
-                ->where('nom_normalise', $nomNormalise)
+                ->where(fn ($q) => $q->where('nom_normalise', $nomNormalise)
+                ->orWhereRaw('LOWER(TRIM(nom)) = ?', [$nomNormalise]))
                 ->lockForUpdate()
                 ->exists();
 
