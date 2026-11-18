@@ -38,6 +38,19 @@ class DeversementHistoriqueService
         // Le référentiel appartient à Comptaflow et est reçu dans
         // Selflow par RecevoirReferentielComptaflowService. Cette commande
         // n'envoie que les opérations comptables.
+        // Le référentiel doit être présent avant la première écriture.
+        // L'import est idempotent : les comptes, journaux et tiers déjà créés
+        // dans Comptaflow ne sont pas dupliqués.
+        $referentiel = DeverserReferentielComptaflowService::synchroniser($entreprise);
+        if (!$referentiel['success']) {
+            return [
+                'success' => false,
+                'message' => 'Déversement suspendu : ' . $referentiel['message'],
+                'operations' => 0,
+                'etat' => self::etat($entreprise),
+            ];
+        }
+
         // ── Les opérations qui n'ont pas encore abouti ──
 
         // L'exercice en cours part sans rien demander ; un exercice antérieur
@@ -99,6 +112,17 @@ class DeversementHistoriqueService
                 'success' => false,
                 'message' => "La liaison Comptaflow n'est pas active. Réactivez-la avant de relancer les opérations.",
                 'operations' => 0,
+            ];
+        }
+
+        // Réparer ou compléter le référentiel avant de rejouer les écritures.
+        $referentiel = DeverserReferentielComptaflowService::synchroniser($entreprise);
+        if (!$referentiel['success']) {
+            return [
+                'success' => false,
+                'message' => 'Relance suspendue : ' . $referentiel['message'],
+                'operations' => 0,
+                'etat' => self::etat($entreprise),
             ];
         }
 
