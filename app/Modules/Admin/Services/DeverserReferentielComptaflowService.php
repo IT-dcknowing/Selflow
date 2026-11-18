@@ -75,7 +75,8 @@ class DeverserReferentielComptaflowService
             ['modele' => Client::class, 'type' => 'client'],
             ['modele' => Fournisseur::class, 'type' => 'fournisseur'],
         ] as $definition) {
-            $definition['modele']::query()
+            $modele = $definition['modele'];
+            $modele::query()
                 ->where('entreprise_id', $entreprise->id)
                 ->where(fn ($q) => $q->whereNull('source')->orWhere('source', '!=', 'comptaflow'))
                 ->orderBy('id')
