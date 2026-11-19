@@ -272,6 +272,11 @@ class EntrepriseControleur
             // revient pas — le défaut exact de la clé de liaison Comptaflow,
             // corrigé au lot 15.
             'comptabilite_activee'   => ['nullable', 'in:0,1'],
+            'comptabilite_stock_active' => ['required', 'in:0,1'],
+            'comptabilite_stock_quotidienne' => ['required', 'in:0,1'],
+            'comptabilite_stock_periode_mois' => ['required', 'in:1,2,3,6,12'],
+            'comptabilite_stock_date_debut' => ['required_if:comptabilite_stock_active,1', 'nullable', 'date'],
+            'comptabilite_stock_date_fin' => ['required_if:comptabilite_stock_active,1', 'nullable', 'date', 'after_or_equal:comptabilite_stock_date_debut'],
             'comptaflow_mode_deversement' => ['required', 'in:manuel,automatique'],
         ], [
             'pied_de_page_facture.max'    => 'Le pied de page ne peut pas dépasser 248 caractères.',
@@ -282,6 +287,11 @@ class EntrepriseControleur
 
         $data = $request->only([
             'comptaflow_mode_deversement',
+            'comptabilite_stock_active',
+            'comptabilite_stock_quotidienne',
+            'comptabilite_stock_periode_mois',
+            'comptabilite_stock_date_debut',
+            'comptabilite_stock_date_fin',
             'nom', 'gerant_nom', 'gerant_prenom', 'gerant_fonction',
             'adresse', 'telephone', 'email', 'ref_bancaire',
             'rccm', 'ncc', 'regime_imposition', 'centre_impots', 'compte_contribuable',
@@ -355,6 +365,14 @@ class EntrepriseControleur
         if ($request->has('comptabilite_activee')) {
             $data['comptabilite_activee'] = $request->input('comptabilite_activee') === '1';
         }
+
+        // Les écritures de stock sont désactivées par défaut. Activées,
+        // elles sont traitées quotidiennement ou par périodes de N mois.
+        $data['comptabilite_stock_active'] = $request->boolean('comptabilite_stock_active');
+        $data['comptabilite_stock_quotidienne'] = $request->boolean('comptabilite_stock_quotidienne');
+        $data['comptabilite_stock_periode_mois'] = (int) $request->input('comptabilite_stock_periode_mois', 1);
+        $data['comptabilite_stock_date_debut'] = $request->input('comptabilite_stock_date_debut') ?: null;
+        $data['comptabilite_stock_date_fin'] = $request->input('comptabilite_stock_date_fin') ?: null;
 
         // Le statut de la liaison Comptaflow se déduisait de la présence du
         // champ dans la requête : enregistrer les paramètres sans y toucher
