@@ -450,7 +450,11 @@ class ScraperPortailFneService
         $script = (string) config('selflow.portail_fne.scraper.script_ventes', base_path('SCRAPER-PORTAIL-FNE/ventes.js'));
 
         try {
-            self::detacher([$node, $script, $login ?: '--tous'], self::sorties());
+            // La fenêtre est imposée ici : une variable d'environnement
+            // VENTES_DEPUIS ne doit jamais réduire le relevé demandé à l'année
+            // civile en cours.
+            $depuis = now()->startOfYear()->toDateString();
+            self::detacher([$node, $script, $login ?: '--tous', '--depuis=' . $depuis], self::sorties());
             self::tracer('info', "ventes[{$cible}] : relevé FNE lancé en arrière-plan.", [
                 'node' => $node,
                 'script' => $script,
