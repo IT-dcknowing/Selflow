@@ -285,7 +285,7 @@ class SuperadminControleur
             'ncc'                    => $request->ncc,
             'compte_contribuable'    => $request->compte_contribuable,
             'centre_impots'          => $request->centre_impots,
-            'regime_imposition'      => $request->regime_imposition,
+            'regime_imposition'      => $request->input('regime_imposition') ?: 'TEE',
             'quota_points_de_vente'  => $request->quota_points_de_vente,
             'plan_abonnement'        => $request->plan_abonnement,
             'secteur_activite'       => $request->secteur_activite ?? [],
