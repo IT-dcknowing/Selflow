@@ -1004,7 +1004,7 @@ async function actualiserFacturesFneAchats() {
         }
 
         statut.textContent = resultat.message || 'Récupération en cours…';
-        const limite = Date.now() + 180000;
+        const limite = Date.now() + 360000;
         while (Date.now() < limite) {
             await new Promise(resolve => setTimeout(resolve, 3000));
             const reponse = await fetch(urlStatut, { headers: { 'Accept': 'application/json' } });
@@ -1053,7 +1053,7 @@ async function actualiserAvoirsFournisseursFne() {
             throw new Error(resultat.message || 'Le relevé des avoirs fournisseurs n’a pas pu démarrer.');
         }
 
-        const limite = Date.now() + 180000;
+        const limite = Date.now() + 360000;
         while (Date.now() < limite) {
             await new Promise(resolve => setTimeout(resolve, 3000));
             const reponse = await fetch(urlStatut, { headers: { 'Accept': 'application/json' } });
