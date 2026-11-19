@@ -120,6 +120,44 @@ class FacturesDuPortailAuxEcransAchatsTest extends TestCase
         $this->assertSame(0, \App\Modules\Admin\Modeles\EcritureComptable::where('reference_document', $avoir->reference)->count());
     }
 
+    public function test_le_registre_fne_separe_les_avoirs_fournisseurs_des_factures_recues(): void
+    {
+        [$utilisateur, $entreprise] = $this->uneEntrepriseAvecUtilisateur();
+
+        $this->uneFactureRecue($entreprise, [
+            'reference' => 'FNE-ACHAT-REGISTRE-001',
+            'subtype' => 'normal',
+            'liste_portail' => 'received',
+        ]);
+        $this->uneFactureRecue($entreprise, [
+            'reference' => 'FNE-AVOIR-REGISTRE-001',
+            'subtype' => 'refund',
+            'liste_portail' => 'received',
+        ]);
+
+        $factures = $this->actingAs($utilisateur)
+            ->getJson(route('admin.fne.factures.donnees', [
+                'flux' => 'achats',
+                'categorie' => 'recu',
+                'pdv_id' => 'tous',
+            ]))
+            ->assertOk();
+        $factures->assertJsonPath('pagination.total', 1);
+        $factures->assertJsonFragment(['num_fne' => 'FNE-ACHAT-REGISTRE-001']);
+        $factures->assertJsonMissing(['num_fne' => 'FNE-AVOIR-REGISTRE-001']);
+
+        $avoirs = $this->actingAs($utilisateur)
+            ->getJson(route('admin.fne.factures.donnees', [
+                'flux' => 'achats',
+                'categorie' => 'avoir_fournisseur',
+                'pdv_id' => 'tous',
+            ]))
+            ->assertOk();
+        $avoirs->assertJsonPath('pagination.total', 1);
+        $avoirs->assertJsonPath('documents.0.type_doc', 'Avoir fournisseur');
+        $avoirs->assertJsonFragment(['num_fne' => 'FNE-AVOIR-REGISTRE-001']);
+    }
+
     /* ------------------------ L'adresse de vérification -------------------- */
 
     public function test_l_adresse_de_verification_se_reconstruit_a_partir_du_token(): void
