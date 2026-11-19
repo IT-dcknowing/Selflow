@@ -791,7 +791,7 @@ class FneDashboardControleur
              * |---|---|
              * | Factures reçues | **uniquement ce que le relèvement rapporte** : des pièces certifiées par un fournisseur |
              * | BAPA | nos bordereaux, **normalisés seulement** — ce sont les seules pièces d'achat que nous déclarons |
-             * | Avoirs fournisseurs | les avoirs **normalisés** |
+             * | Avoirs fournisseurs | les avoirs **reçus et déjà certifiés par la FNE** |
              *
              * « Factures reçues » listait aussi les factures d'achat saisies
              * dans Selflow, qui ne partent jamais à la DGI : elles s'y
