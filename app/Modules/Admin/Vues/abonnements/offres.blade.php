@@ -9,6 +9,7 @@
     use App\Modules\Admin\Regles\Abonnements;
     $passDejaPris = $entreprise?->pass_cadeau_utilise_le !== null;
     $actuelle = $entreprise?->plan_abonnement;
+    $offreDemandee = $entreprise?->abonnement_demande;
 @endphp
 <!DOCTYPE html>
 <html lang="fr">
@@ -63,10 +64,16 @@
         <div class="alerte" style="margin-top:-50px; position:relative;">{{ session('erreur') ?? $errors->first() }}</div>
     @endif
 
+    @if($entreprise && $offreDemandee && $actuelle === Abonnements::A_CHOISIR)
+        <div style="max-width:1240px;margin:-48px auto 60px;padding:12px 18px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;color:#1e40af;font-size:13px;">
+            Vous avez demandé le pack <strong>{{ Abonnements::libelle($offreDemandee) }}</strong> lors de votre inscription. Vous pouvez le confirmer ici.
+        </div>
+    @endif
+
     <main class="cartes">
         @foreach([Abonnements::PASS_CADEAU, Abonnements::SOLO, Abonnements::BUSINESS, Abonnements::PREMIUM, Abonnements::SUR_MESURE] as $code)
             @php $offre = $offres[$code]; @endphp
-            <section class="carte {{ $code === Abonnements::BUSINESS ? 'vedette' : '' }} {{ $code === Abonnements::PASS_CADEAU ? 'cadeau' : '' }} {{ $actuelle === $code ? 'actuelle' : '' }}" data-offre="{{ $code }}">
+            <section class="carte {{ $code === Abonnements::BUSINESS ? 'vedette' : '' }} {{ $code === Abonnements::PASS_CADEAU ? 'cadeau' : '' }} {{ $actuelle === $code ? 'actuelle' : '' }} {{ $offreDemandee === $code && $actuelle === Abonnements::A_CHOISIR ? 'demandee' : '' }}" data-offre="{{ $code }}">
                 @if($code === Abonnements::BUSINESS)<span class="ruban">Le plus choisi</span>@endif
                 @if($code === Abonnements::PASS_CADEAU)<span class="ruban">{{ Abonnements::DUREE_PASS_CADEAU_JOURS }} jours offerts</span>@endif
                 <h2>{{ $offre['nom'] }}</h2>
