@@ -454,7 +454,7 @@
                                 <form method="POST" action="{{ route('admin.achats.factures_recues.detacher', $recue) }}" style="display:inline; margin:0;">
                                     @csrf
                                     <button type="submit" class="btn btn-outline btn-sm" style="font-size:11px; padding:4px 8px;"
-                                            onclick="return confirm('Détacher cet avoir de son achat ?');">
+                                            onclick="return confirm('Détacher cette pièce de son achat ?');">
                                         <i class="fas fa-link-slash"></i> Détacher
                                     </button>
                                 </form>
