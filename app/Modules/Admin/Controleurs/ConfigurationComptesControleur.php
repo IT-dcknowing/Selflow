@@ -6,6 +6,7 @@ use App\Modules\Admin\Modeles\Categorie;
 use App\Modules\Admin\Modeles\ConfigurationCompte;
 use App\Modules\Admin\Modeles\PlanComptable;
 use App\Modules\Admin\Modeles\Produit;
+use App\Modules\Admin\Services\PropagationComptesService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -100,8 +101,10 @@ class ConfigurationComptesControleur
         $types = array_keys(Produit::TYPES);
 
         $variationEnPlace = ConfigurationCompte::porteLaVariation();
+        $avant = PropagationComptesService::capturer($entreprise->id);
+        $ecrituresHistoriquesMaj = 0;
 
-        DB::transaction(function () use ($request, $entreprise, $categories, $types, $variationEnPlace) {
+        DB::transaction(function () use ($request, $entreprise, $categories, $types, $variationEnPlace, $avant, &$ecrituresHistoriquesMaj) {
             foreach ((array) $request->input('config', []) as $cleComplete => $valeurs) {
                 [$portee, $cle] = array_pad(explode(':', (string) $cleComplete, 2), 2, '');
 
@@ -167,6 +170,12 @@ class ConfigurationComptesControleur
                 }
             }
 
+            // Les fiches produits héritent maintenant de la configuration mise à jour.
+            // Les champs article envoyés ci-dessous restent les seules exceptions
+            // explicitement resaisies pendant cette sauvegarde.
+            ConfigurationCompte::oublier();
+            PropagationComptesService::synchroniserProduits($entreprise->id);
+
             // L'exception d'un article : le compte saisi devient le sien, et
             // passe devant tout. Vide, l'article retourne à ce qui s'hérite.
             // Seuls les champs modifiés arrivent (la page désactive les autres
@@ -194,10 +203,17 @@ class ConfigurationComptesControleur
                     $produit->save();
                 }
             }
+
+            // Répercuter les numéros sur toutes les écritures historiques.
+            // La mise à jour SQL ne touche qu'aux comptes, jamais aux montants.
+            $ecrituresHistoriquesMaj = PropagationComptesService::propagerEcritures($entreprise->id, $avant);
         });
 
         ConfigurationCompte::oublier();
 
-        return back()->with('succes', 'Configuration des comptes enregistrée.');
+        return back()->with(
+            'succes',
+            'Configuration enregistrée. ' . $ecrituresHistoriquesMaj . ' ligne(s) historique(s) mise(s) à jour ; les montants sont inchangés.'
+        );
     }
 }
