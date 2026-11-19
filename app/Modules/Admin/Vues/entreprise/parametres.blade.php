@@ -369,6 +369,7 @@
 
                     @if($etatFne['a_saisir'])
                     <div data-bloc-compte-fne>
+                        @if($aCompteFne === null)
                         <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
                             <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);cursor:pointer;font-size:13px;font-weight:600;">
                                 <input type="radio" name="possede_compte_fne" value="1" data-choix-fne="oui" {{ $aCompteFne === true ? 'checked' : '' }}>
@@ -379,6 +380,7 @@
                                 Je n'en ai pas encore
                             </label>
                         </div>
+                        @endif
 
                         {{-- « J'ai déjà un compte » : les deux champs, comme à l'inscription. --}}
                         <div data-volet-fne="oui" style="display:{{ $aCompteFne === true ? 'block' : 'none' }};">
