@@ -123,9 +123,9 @@ class PropagationComptesService
             foreach (['compte_vente', 'compte_achat', 'compte_variation', 'compte_stock'] as $champ) {
                 $ancien = self::compteEffectifAvant($ancienProduit, $ancienneCategorie, $avant['configurations'], $champ);
                 $nouveau = match ($champ) {
-                    'compte_vente' => ImputationService::compteHerite($nouveauProduit, 'compte_vente'),
-                    'compte_achat' => ImputationService::compteHerite($nouveauProduit, 'compte_achat'),
-                    'compte_variation' => ImputationService::variationHeritee($nouveauProduit),
+                    'compte_vente' => ImputationService::compteVente($nouveauProduit, $entrepriseId),
+                    'compte_achat' => ImputationService::compteAchat($nouveauProduit, $entrepriseId),
+                    'compte_variation' => ImputationService::compteVariation($nouveauProduit),
                     'compte_stock' => ImputationService::compteStock($nouveauProduit),
                     default => null,
                 };
