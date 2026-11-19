@@ -76,18 +76,58 @@ class IdentifiantsScraperService
     }
 
     /**
+     * Retirer un login du magasin local lorsque le superadmin suspend le scraping.
+     * L'écriture atomique évite de tronquer les identifiants des autres entreprises.
+     */
+    public static function retirer(string $login): bool
+    {
+        $login = strtoupper(trim($login));
+        if ($login === '') return false;
+
+        $fichier = self::fichier();
+        if (!is_file($fichier)) return true;
+
+        try {
+            $contenu = json_decode((string) file_get_contents($fichier), true);
+            if (!is_array($contenu)) {
+                Log::error('[FNE] identifiants.json illisible : impossible de retirer un accès', ['login' => $login]);
+                return false;
+            }
+
+            unset($contenu[$login]);
+            $temporaire = $fichier . '.' . bin2hex(random_bytes(4)) . '.tmp';
+            file_put_contents($temporaire, json_encode($contenu, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+            @chmod($temporaire, 0600);
+            if (!rename($temporaire, $fichier)) {
+                @unlink($temporaire);
+                return false;
+            }
+
+            Log::notice('[FNE] Accès retiré du magasin du scraper', ['login' => $login]);
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('[FNE] Retrait d’accès du scraper impossible : ' . $e->getMessage(), ['login' => $login]);
+            return false;
+        }
+    }
+
+    /**
      * Les accès reçus : on les remet au scraper, on demande un relevé et on le
      * lance — ses champs se reprennent ensuite d'eux-mêmes à l'import
      * (SynchronisationPortailFneService).
      */
-    public static function apresAccesFourni(Entreprise $entreprise, string $login, string $motDePasse): void
+    public static function apresAccesFourni(Entreprise $entreprise, string $login, string $motDePasse): bool
     {
-        self::inscrire($login, $motDePasse, $entreprise->nom);
+        if (!self::inscrire($login, $motDePasse, $entreprise->nom)) {
+            return false;
+        }
 
         \App\Modules\Admin\Modeles\PortailFneDemande::pour(
             strtoupper(trim($login)), 'Accès FNE fournis : relever le paramétrage', $entreprise->id
         );
 
         ScraperPortailFneService::lancerPourLogin(strtoupper(trim($login)));
+
+        return true;
     }
 }
