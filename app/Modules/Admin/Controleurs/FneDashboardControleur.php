@@ -585,6 +585,27 @@ class FneDashboardControleur
         ]);
     }
 
+    /** Déclenche uniquement le relevé des avoirs fournisseurs reçus. */
+    public function actualiserAvoirsFournisseurs(): JsonResponse
+    {
+        $entreprise = Auth::user()?->entreprise;
+        $login = trim((string) ($entreprise?->ncc ?? ''));
+
+        if ($login === '') {
+            return response()->json(['status' => 'error', 'message' => 'NCC de l’entreprise introuvable.'], 422);
+        }
+
+        if (Cache::has(ScraperPortailFneService::verrouAvoirs($login))) {
+            return response()->json(['status' => 'success', 'en_cours' => true, 'message' => 'Un relevé des avoirs est déjà en cours.']);
+        }
+
+        if (!ScraperPortailFneService::lancerAvoirs($login, 'received')) {
+            return response()->json(['status' => 'error', 'message' => 'Le relevé des avoirs fournisseurs n’a pas pu être lancé. Vérifiez la configuration du scraper FNE.'], 503);
+        }
+
+        return response()->json(['status' => 'success', 'en_cours' => true, 'message' => 'Récupération des avoirs fournisseurs FNE lancée.']);
+    }
+
     /**
      * Déclenche le relevé des avoirs du portail pour l'entreprise connectée.
      */
