@@ -163,7 +163,7 @@ function optionListing() {
  * (issued pour les ventes clients/ventes, received pour les ventes fournisseurs/achats)
  * et on ne garde que subtype=normal.
  */
-async async function interrogerLesVentes(page, autorisation, depuis, jusquA, listing = 'issued') {
+async function interrogerLesVentes(page, autorisation, depuis, jusquA, listing = 'issued') {
   const base = String(process.env.FNE_URL || '').replace(/\/fr\/login\/?$/, '').replace(/\/$/, '');
   const ventes = [];
   let totalBrut  = 0;
