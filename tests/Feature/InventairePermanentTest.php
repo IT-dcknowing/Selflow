@@ -312,18 +312,19 @@ class ComptabilisationStockPeriodiqueTest extends TestCase
 
     public function test_la_comptabilisation_quotidienne_est_agregee_et_idempotente(): void
     {
-        $aujourdhui = now()->toDateString();
-        $this->travelTo(now()->setTime(23, 56));
+        $journee = now()->subDay()->toDateString();
 
         $this->entreprise->update([
             'comptabilite_stock_active' => true,
             'comptabilite_stock_quotidienne' => true,
             'comptabilite_stock_periode_mois' => 1,
-            'comptabilite_stock_date_debut' => $aujourdhui,
-            'comptabilite_stock_date_fin' => $aujourdhui,
+            'comptabilite_stock_date_debut' => $journee,
+            'comptabilite_stock_date_fin' => $journee,
         ]);
 
+        $this->travelTo(\Illuminate\Support\Carbon::parse($journee . ' 23:50'));
         $this->entree(10, 12000);
+        $this->travelTo(\Illuminate\Support\Carbon::parse($journee)->addDay()->setTime(0, 10));
 
         $premier = InventairePeriodiqueService::traiterEntreprise($this->entreprise->fresh());
         $second = InventairePeriodiqueService::traiterEntreprise($this->entreprise->fresh());
@@ -340,8 +341,6 @@ class ComptabilisationStockPeriodiqueTest extends TestCase
 
     public function test_la_comptabilisation_mensuelle_attend_la_fin_des_trois_mois(): void
     {
-        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-03-31 23:56'));
-
         $this->entreprise->update([
             'comptabilite_stock_active' => true,
             'comptabilite_stock_quotidienne' => false,
@@ -350,7 +349,9 @@ class ComptabilisationStockPeriodiqueTest extends TestCase
             'comptabilite_stock_date_fin' => '2026-03-31',
         ]);
 
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-03-31 23:50'));
         $this->entree(10, 12000);
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-04-01 00:10'));
 
         $bilan = InventairePeriodiqueService::traiterEntreprise($this->entreprise->fresh());
 
