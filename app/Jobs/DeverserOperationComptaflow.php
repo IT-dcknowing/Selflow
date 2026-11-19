@@ -248,6 +248,7 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
         if ($type === 'FactureAchatRecue') {
             $facture = PortailFneFactureRecue::withoutGlobalScopes()
                 ->where('entreprise_id', $entreprise->id)
+                ->where('point_de_vente_id', $operation->point_de_vente_id)
                 ->where('reference', $reference)
                 ->first();
 
@@ -262,6 +263,7 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
             $vente = Vente::withoutGlobalScopes()
                 ->with(['pointDeVente.entreprise', 'client', 'beneficiaire', 'apporteur', 'details.produit', 'parent'])
                 ->where('numero_facture', $reference)
+                ->where('point_de_vente_id', $operation->point_de_vente_id)
                 ->whereHas('pointDeVente', fn ($q) => $q->where('entreprise_id', $entreprise->id))
                 ->first();
 
@@ -278,6 +280,7 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
             $achat = Achat::withoutGlobalScopes()
                 ->with(['pointDeVente.entreprise', 'fournisseur', 'details.produit', 'parent'])
                 ->where('numero_facture', $reference)
+                ->where('point_de_vente_id', $operation->point_de_vente_id)
                 ->whereHas('pointDeVente', fn ($q) => $q->where('entreprise_id', $entreprise->id))
                 ->first();
 
