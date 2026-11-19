@@ -495,7 +495,7 @@ class AchatControleur
                 // Deux chemins mènent au bordereau, et un seul se lit dans
                 // `type_facture` — voir `Achat::scopeBordereaux()`.
                 $baseQuery->bordereaux();
-            } elseif ($section === 'dgi') {
+            } elseif (in_array($section, ['dgi', 'avoirs_fournisseur'], true)) {
                 // Aucune pièce de Selflow ici : cette section ne montre que ce
                 // que le portail a rapporté.
                 $baseQuery->whereRaw('1 = 0');
@@ -562,6 +562,12 @@ class AchatControleur
             ->where('liste_portail', 'received')
             ->where('subtype', 'refund')
             ->where('statut_rapprochement', '!=', PortailFneFactureRecue::ECARTEE)
+            ->count();
+        $nbAvoirsFournisseursEcartees = PortailFneFactureRecue::query()
+            ->where('entreprise_id', $entreprise->id)
+            ->where('liste_portail', 'received')
+            ->where('subtype', 'refund')
+            ->where('statut_rapprochement', PortailFneFactureRecue::ECARTEE)
             ->count();
         $nbEcartees = PortailFneFactureRecue::recues()->where('entreprise_id', $entreprise->id)
             ->where('statut_rapprochement', PortailFneFactureRecue::ECARTEE)
@@ -683,7 +689,7 @@ class AchatControleur
         return view('admin::achats.factures', compact(
             'kpiFactures',
             'achats', 'etapeActive', 'section', 'nbDP', 'nbBC', 'nbFacture',
-            'nbBapa', 'nbEnregistrees', 'nbDgi', 'nbAvoirsFournisseurs', 'nbEcartees',
+            'nbBapa', 'nbEnregistrees', 'nbDgi', 'nbAvoirsFournisseurs', 'nbAvoirsFournisseursEcartees', 'nbEcartees',
             'facturesPortail', 'sitesDisponibles', 'entreprise'
         ));
     }
