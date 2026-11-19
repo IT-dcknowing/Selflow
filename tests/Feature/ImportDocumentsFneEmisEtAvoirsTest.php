@@ -35,11 +35,12 @@ class ImportDocumentsFneEmisEtAvoirsTest extends TestCase
 
     protected function tearDown(): void
     {
-        foreach (glob($this->dossier . '/*') ?: [] as $fichier) {
-            if (is_file($fichier)) unlink($fichier);
+        foreach (['ventes', 'avoirs'] as $sousDossier) {
+            foreach (glob($this->dossier . '/' . $sousDossier . '/*') ?: [] as $fichier) {
+                if (is_file($fichier)) unlink($fichier);
+            }
+            @rmdir($this->dossier . '/' . $sousDossier);
         }
-        @rmdir($this->dossier . '/ventes');
-        @rmdir($this->dossier . '/avoirs');
         @rmdir($this->dossier);
 
         parent::tearDown();
