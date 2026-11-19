@@ -131,9 +131,10 @@ class ImportFacturesRecuesService
      *
      * @return array{dossier: string, importes: int, ignores: int, inchanges: int, erreurs: int, details: array<int, array<string, mixed>>}
      */
-    public function importerDossier(?string $dossier = null): array
+    public function importerDossier(?string $dossier = null, ?string $login = null): array
     {
         $dossier = $dossier ?: $this->dossierParDefaut();
+        $login = trim((string) $login);
 
         $rapport = [
             'dossier'   => $dossier,
@@ -156,7 +157,10 @@ class ImportFacturesRecuesService
             return $rapport;
         }
 
-        $fichiers = glob(rtrim($dossier, '/\\') . DIRECTORY_SEPARATOR . '*.json') ?: [];
+        $motif = $login !== ''
+            ? rtrim($dossier, '/\\') . DIRECTORY_SEPARATOR . $login . '_*.json'
+            : rtrim($dossier, '/\\') . DIRECTORY_SEPARATOR . '*.json';
+        $fichiers = glob($motif) ?: [];
 
         // Les plus anciens d'abord : le dernier relevé lu doit être le plus
         // récent, sinon l'ordre des lignes en base ment sur l'ordre des faits.

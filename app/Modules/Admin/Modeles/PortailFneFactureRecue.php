@@ -307,12 +307,33 @@ class PortailFneFactureRecue extends Model
     {
         $fournisseur = $this->fournisseurProbable();
 
-        $achat = $fournisseur
-            ? Achat::query()
+        $achat = null;
+
+        if ($fournisseur && $this->subtype === 'refund') {
+            // Un avoir fournisseur corrige une facture antérieure : sa date
+            // n'est pas celle de la facture d'origine. parentReference prime.
+            $contenu = is_array($this->contenu_brut) ? $this->contenu_brut : [];
+            $referenceOrigine = trim((string) (
+                $contenu['parentReference']
+                ?? $contenu['numero_facture_initiale']
+                ?? ($contenu['invoice']['parentReference'] ?? '')
+            ));
+
+            if ($referenceOrigine !== '') {
+                $achat = Achat::query()
+                    ->where('fournisseur_id', $fournisseur->id)
+                    ->where(function ($q) use ($referenceOrigine) {
+                        $q->where('numero_fne', $referenceOrigine)
+                          ->orWhere('numero_facture', $referenceOrigine);
+                    })
+                    ->first();
+            }
+        } elseif ($fournisseur) {
+            $achat = Achat::query()
                 ->where('fournisseur_id', $fournisseur->id)
                 ->whereDate('date_achat', $this->date_facture?->toDateString() ?? '1970-01-01')
-                ->first()
-            : null;
+                ->first();
+        }
 
         return [
             'fournisseur' => $fournisseur,

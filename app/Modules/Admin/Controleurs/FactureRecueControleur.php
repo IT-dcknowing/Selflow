@@ -92,9 +92,14 @@ class FactureRecueControleur
                 : null,
         ]);
 
-        EcritureFactureRecueService::synchroniser($facture->refresh());
+        // Un avoir fournisseur est déjà certifié : son rapprochement reste
+        // documentaire et ne doit jamais créer/synchroniser une écriture.
+        if ($facture->subtype !== 'refund') {
+            EcritureFactureRecueService::synchroniser($facture->refresh());
+        }
 
-        return back()->with('succes', "Facture {$facture->reference} rattachée à l'achat {$achat->numero_facture}.");
+        $libelle = $facture->subtype === 'refund' ? 'Avoir fournisseur' : 'Facture';
+        return back()->with('succes', "{$libelle} {$facture->reference} rapproché(e) de l'achat {$achat->numero_facture}.");
     }
 
     /** Détache, sans rien perdre : la pièce du portail retourne à rapprocher. */
@@ -110,9 +115,11 @@ class FactureRecueControleur
                 : PortailFneFactureRecue::ORPHELINE,
         ]);
 
-        EcritureFactureRecueService::synchroniser($facture->refresh());
+        if ($facture->subtype !== 'refund') {
+            EcritureFactureRecueService::synchroniser($facture->refresh());
+        }
 
-        return back()->with('succes', "Facture {$facture->reference} détachée.");
+        return back()->with('succes', "Pièce {$facture->reference} détachée.");
     }
 
     /**

@@ -100,6 +100,12 @@
         <strong>Ces factures viennent du portail de la DGI.</strong>
         Vos fournisseurs les ont établies et certifiées ; le relevé les rapporte.
         Il n'y a rien à leur faire — seulement à les rapprocher de vos achats.
+        <div style="margin-top:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <button type="button" id="btn-actualiser-fne-achats" class="btn btn-primary btn-sm" onclick="actualiserFacturesFneAchats()">
+                <i class="fas fa-rotate"></i> Actualiser les factures FNE
+            </button>
+            <span id="statut-actualiser-fne-achats" style="font-size:12px; color:var(--text-2);" aria-live="polite"></span>
+        </div>
         {{-- Écarter n'est pas supprimer : la pièce reste, et le portail la
              redéposera. Ce qu'on a mis de côté doit pouvoir revenir, sinon
              l'écartement serait une suppression déguisée. --}}
@@ -961,4 +967,54 @@ document.addEventListener('DOMContentLoaded', () => {
 }
 </style>
 @endif
+
+<script>
+async function actualiserFacturesFneAchats() {
+    const bouton = document.getElementById('btn-actualiser-fne-achats');
+    const statut = document.getElementById('statut-actualiser-fne-achats');
+    if (!bouton || bouton.disabled) return;
+
+    const urlLancement = @json(route('admin.achats.factures.fne.actualiser'));
+    const urlStatut = @json(route('admin.achats.factures.fne.actualiser.statut'));
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    bouton.disabled = true;
+    statut.textContent = 'Connexion au portail FNE…';
+
+    try {
+        const lancement = await fetch(urlLancement, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf }
+        });
+        const resultat = await lancement.json();
+        if (!lancement.ok || resultat.status !== 'success') {
+            throw new Error(resultat.message || 'Le relevé FNE n’a pas pu démarrer.');
+        }
+
+        statut.textContent = resultat.message || 'Récupération en cours…';
+        const limite = Date.now() + 180000;
+        while (Date.now() < limite) {
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            const reponse = await fetch(urlStatut, { headers: { 'Accept': 'application/json' } });
+            const etat = await reponse.json();
+            if (!reponse.ok || etat.status !== 'success') {
+                throw new Error(etat.message || 'Impossible de vérifier le relevé.');
+            }
+            if (etat.termine) {
+                const n = etat.import || {};
+                statut.textContent = (n.importes || 0) + ' nouvelle(s) facture(s), '
+                    + (n.modifies || 0) + ' mise(s) à jour, '
+                    + (n.erreurs || 0) + ' erreur(s).';
+                window.location.reload();
+                return;
+            }
+            statut.textContent = 'Récupération des factures FNE en cours…';
+        }
+        throw new Error('Le relevé prend plus de temps que prévu. Rechargez cette page dans quelques instants.');
+    } catch (erreur) {
+        statut.textContent = erreur.message;
+        bouton.disabled = false;
+    }
+}
+</script>
+
 @endsection
