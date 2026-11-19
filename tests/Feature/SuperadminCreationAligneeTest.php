@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Modules\Admin\Modeles\Entreprise;
+use App\Modules\Admin\Modeles\Produit;
 use App\Modules\Authentification\Modeles\Utilisateur;
 use App\Modules\Authentification\Regles\Habilitations;
 use Database\Seeders\ReferentielSeeder;
@@ -90,6 +91,17 @@ class SuperadminCreationAligneeTest extends TestCase
 
         $this->assertSame(1, (int) $entreprise->fresh()->souscription_etape);
         $this->assertSame([$categorie->nom], $entreprise->fresh()->secteur_activite);
+    }
+
+    public function test_une_nouvelle_entreprise_demarre_en_tee_et_le_taux_zero_est_tvads(): void
+    {
+        $this->creer()->assertSessionHasNoErrors();
+
+        $entreprise = Entreprise::where('nom', 'Quincaillerie du Plateau')->firstOrFail();
+
+        $this->assertSame('TEE', $entreprise->regime_imposition);
+        $this->assertSame('TVAD', Produit::deduireCodeTva(0.0, $entreprise->regime_imposition));
+        $this->assertSame(0.0, (float) Produit::CODES_TVA['TVAD']['taux']);
     }
 
     public function test_les_modules_s_ouvrent_par_defaut(): void
