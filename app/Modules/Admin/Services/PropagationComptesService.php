@@ -164,6 +164,7 @@ class PropagationComptesService
         }
 
         $total = 0;
+        $remplacements = [];
 
         foreach ($correspondances as $ancien => $nouveaux) {
             if (count($nouveaux) > 1) {
@@ -192,7 +193,16 @@ class PropagationComptesService
                 continue;
             }
 
-            if ($nouveau === $ancien || $nombreAnciennes === 0) {
+            if ($nouveau === $ancien) {
+                continue;
+            }
+
+            $remplacements[] = [
+                'ancien_numero' => $ancien,
+                'nouveau_numero' => $nouveau,
+            ];
+
+            if ($nombreAnciennes === 0) {
                 continue;
             }
 
@@ -217,7 +227,7 @@ class PropagationComptesService
             ]);
         }
 
-        return $total;
+        return ['lignes' => $total, 'remplacements' => $remplacements];
     }
 
     private static function ajouterCorrespondance(array &$map, $ancien, $nouveau): void
