@@ -133,6 +133,15 @@
             </button>
             <span id="statut-actualiser-fne-avoirs-fournisseurs" style="font-size:12px; color:var(--text-2);" aria-live="polite"></span>
         </div>
+        @if($nbAvoirsFournisseursEcartees > 0 || request('statut') === 'ecartees')
+            <div style="margin-top:6px;">
+                @if(request('statut') === 'ecartees')
+                    <a href="{{ route('admin.achats.factures', ['etape' => 'Facture', 'section' => $section]) }}" style="font-weight:700;">&larr; Revenir aux avoirs fournisseurs à rapprocher</a>
+                @else
+                    <a href="{{ route('admin.achats.factures', ['etape' => 'Facture', 'section' => $section, 'statut' => 'ecartees']) }}" style="font-weight:700;">Voir les {{ $nbAvoirsFournisseursEcartees }} avoir(s) fournisseur écarté(s)</a>
+                @endif
+            </div>
+        @endif
     @else
         <i class="fas fa-circle-info" style="color:var(--text-3);"></i>
         <strong>Ces factures ne partent pas à la DGI.</strong>
