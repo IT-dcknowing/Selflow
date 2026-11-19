@@ -36,7 +36,9 @@ class PortailFneNotificationService
                 continue;
             }
 
+            $nomEntreprise = Entreprise::whereKey($entrepriseId)->value('nom') ?? ('Entreprise #' . $entrepriseId);
             $rapportNotification = [
+                'entreprise' => $nomEntreprise,
                 'type_recuperation' => $type,
                 'fichiers' => $detailsEntreprise->count(),
                 'documents' => (int) $detailsEntreprise->sum(fn ($ligne) => (int) ($ligne['lignes'] ?? 0)),
@@ -48,10 +50,12 @@ class PortailFneNotificationService
             ];
 
             Utilisateur::query()
-                ->where('entreprise_id', $entrepriseId)
-                ->where('role', 'admin')
+                ->where(function ($q) use ($entrepriseId) {
+                    $q->where(fn ($admin) => $admin->where('entreprise_id', $entrepriseId)->where('role', 'admin'))
+                        ->orWhere('role', 'superadmin');
+                })
                 ->get()
-                ->each(fn ($admin) => $admin->notify(new PortailFneRecuperationNotification($rapportNotification)));
+                ->each(fn ($destinataire) => $destinataire->notify(new PortailFneRecuperationNotification($rapportNotification)));
         }
     }
 }
