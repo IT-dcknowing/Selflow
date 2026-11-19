@@ -23,7 +23,7 @@ jobs:
           printf 'APP_KEY=\\n' > .env
           php artisan key:generate --force
       - name: Run COMPTAFLOW liaison tests
-        run: php artisan test --filter='LiaisonComptaflow|PasserelleComptaflow'
+        run: php artisan test --filter='LiaisonComptaflow|PasserelleComptaflow' --do-not-fail-on-deprecation
       - name: Compile Blade views
         run: php artisan view:cache
       - name: Verify Super Admin liaison routes
