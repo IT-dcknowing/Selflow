@@ -107,9 +107,10 @@ class ImportAvoirsService
      *
      * @return array{dossier: string, importes: int, ignores: int, inchanges: int, erreurs: int, details: array<int, array<string, mixed>>}
      */
-    public function importerDossier(?string $dossier = null): array
+    public function importerDossier(?string $dossier = null, ?string $login = null): array
     {
         $dossier = $dossier ?: $this->dossierParDefaut();
+        $login = trim((string) $login);
 
         $rapport = [
             'dossier'  => $dossier,
@@ -125,7 +126,10 @@ class ImportAvoirsService
             return $rapport;
         }
 
-        $fichiers = glob(rtrim($dossier, '/\\') . DIRECTORY_SEPARATOR . '*.json') ?: [];
+        $motif = $login !== ''
+            ? rtrim($dossier, '/\\') . DIRECTORY_SEPARATOR . $login . '_*.json'
+            : rtrim($dossier, '/\\') . DIRECTORY_SEPARATOR . '*.json';
+        $fichiers = glob($motif) ?: [];
         sort($fichiers);
 
         $this->tracer('debug', sprintf(
