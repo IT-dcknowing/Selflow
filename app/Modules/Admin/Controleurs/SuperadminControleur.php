@@ -121,7 +121,7 @@ class SuperadminControleur
         $entrepriseId = $request->query('entreprise_id');
         $ncc = trim((string) $request->query('ncc', ''));
 
-        $requete = Entreprise::horsCorbeille()->with('fneCredential');
+        $requete = Entreprise::horsCorbeille()->with('fneCredential')->withCount(['pointsDeVente', 'utilisateurs', 'produits']);
         if ($etat === 'confirme') {
             $requete->where('statut', 'actif');
         } elseif ($etat === 'cree') {
