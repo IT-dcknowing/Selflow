@@ -103,7 +103,7 @@ class PropagationComptesService
      * source et les répartir serait une supposition. Le propriétaire doit alors
      * lever l'ambiguïté dans les configurations de type/catégorie/article.
      *
-     * @return int Nombre de lignes historiques mises à jour.
+     * @return array{lignes:int,remplacements:array<int,array{ancien_numero:string,nouveau_numero:string}>}
      */
     public static function propagerEcritures(int $entrepriseId, array $avant): int
     {
