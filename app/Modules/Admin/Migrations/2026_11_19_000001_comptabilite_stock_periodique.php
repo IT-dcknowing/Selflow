@@ -9,20 +9,28 @@ return new class extends Migration
     public function up(): void
     {
         if (Schema::hasTable('entreprises')) {
-            Schema::table('entreprises', function (Blueprint $table) {
-                if (!Schema::hasColumn('entreprises', 'comptabilite_stock_active')) {
+            $colonnes = [
+                'comptabilite_stock_active' => !Schema::hasColumn('entreprises', 'comptabilite_stock_active'),
+                'comptabilite_stock_quotidienne' => !Schema::hasColumn('entreprises', 'comptabilite_stock_quotidienne'),
+                'comptabilite_stock_periode_mois' => !Schema::hasColumn('entreprises', 'comptabilite_stock_periode_mois'),
+                'comptabilite_stock_date_debut' => !Schema::hasColumn('entreprises', 'comptabilite_stock_date_debut'),
+                'comptabilite_stock_date_fin' => !Schema::hasColumn('entreprises', 'comptabilite_stock_date_fin'),
+            ];
+
+            Schema::table('entreprises', function (Blueprint $table) use ($colonnes) {
+                if ($colonnes['comptabilite_stock_active']) {
                     $table->boolean('comptabilite_stock_active')->default(false);
                 }
-                if (!Schema::hasColumn('entreprises', 'comptabilite_stock_quotidienne')) {
+                if ($colonnes['comptabilite_stock_quotidienne']) {
                     $table->boolean('comptabilite_stock_quotidienne')->default(false);
                 }
-                if (!Schema::hasColumn('entreprises', 'comptabilite_stock_periode_mois')) {
+                if ($colonnes['comptabilite_stock_periode_mois']) {
                     $table->unsignedSmallInteger('comptabilite_stock_periode_mois')->default(1);
                 }
-                if (!Schema::hasColumn('entreprises', 'comptabilite_stock_date_debut')) {
+                if ($colonnes['comptabilite_stock_date_debut']) {
                     $table->date('comptabilite_stock_date_debut')->nullable();
                 }
-                if (!Schema::hasColumn('entreprises', 'comptabilite_stock_date_fin')) {
+                if ($colonnes['comptabilite_stock_date_fin']) {
                     $table->date('comptabilite_stock_date_fin')->nullable();
                 }
             });
