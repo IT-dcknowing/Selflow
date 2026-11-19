@@ -122,7 +122,10 @@ class PasserelleComptaflowTest extends TestCase
         // En mode manuel, le bouton « Déverser » lance explicitement le job.
         // Les tests de payload l'exécutent ici ; le test d'automatisme ci-dessous
         // vérifie séparément la mise en file à la clôture.
-        if (($this->entreprise->fresh()->comptaflow_mode_deversement ?? 'manuel') === 'manuel') {
+        $entrepriseLiaison = $this->entreprise->fresh();
+        if (($entrepriseLiaison->comptaflow_mode_deversement ?? 'manuel') === 'manuel'
+            && $entrepriseLiaison->comptaflow_sync_status === 'active'
+            && filled($entrepriseLiaison->comptaflow_sync_key)) {
             DeverserOperationComptaflow::dispatchSync($operation->id);
         }
 
@@ -259,7 +262,7 @@ class PasserelleComptaflowTest extends TestCase
 
         Http::recorded(function ($requete) use (&$vu) {
             if (str_contains($requete->url(), '/api/external/ecritures/deverser')
-                && $requete->header('X-Company-Key') === 'cle-de-liaison'
+                && $requete->hasHeader('X-Company-Key', 'cle-de-liaison')
                 && !array_key_exists('secret', $requete->data())) {
                 $vu = true;
             }
