@@ -121,6 +121,31 @@ class ConfigurationGlobaleDesComptesTest extends TestCase
         $this->assertEquals(125000, (float) $ligne->credit);
     }
 
+    public function test_un_compte_article_personnalise_est_aligne_sur_le_nouveau_compte_global(): void
+    {
+        $article = $this->article(['compte_vente' => '707100']);
+        $ecriture = EcritureComptable::create([
+            'entreprise_id' => $this->entreprise->id,
+            'point_de_vente_id' => $this->admin->point_de_vente_id,
+            'date_ecriture' => now()->toDateString(),
+            'libelle' => 'Vente avec ancien compte article',
+            'reference_document' => 'VTE-ANT-002',
+            'code_journal' => 'VTE',
+            'compte_debit' => '411000',
+            'compte_credit' => '707100',
+            'debit' => 85000,
+            'credit' => 85000,
+        ]);
+
+        $this->configurer([
+            'general:' => ['compte_vente' => '702000'],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('702000', $article->fresh()->compte_vente);
+        $this->assertSame('702000', DB::table('ecritures_comptables')
+            ->where('id', $ecriture->id)->value('compte_credit'));
+    }
+
     public function test_une_categorie_d_une_autre_entreprise_est_ignoree(): void
     {
         $autre = Entreprise::create(['nom' => 'Autre']);
