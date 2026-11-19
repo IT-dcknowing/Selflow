@@ -529,7 +529,7 @@ class FneDashboardControleur
             return response()->json(['status' => 'success', 'termine' => false]);
         }
 
-        $rapport = app(ImportAvoirsService::class)->importerDossier();
+        $rapport = app(ImportAvoirsService::class)->importerDossier(null, $login);
         $dernier = PortailFneImport::query()
             ->where('login', $login)
             ->where('type', ImportAvoirsService::TYPE)
