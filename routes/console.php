@@ -132,6 +132,18 @@ Schedule::command('portail-fne:importer-avoirs')
     ->appendOutputTo($sortiesPortail);
 
 /*
+ * Les factures de vente émises : leur import ne dépend pas du navigateur qui
+ * a lancé le relevé. Si l'utilisateur ferme la page, le ramassage planifié
+ * range quand même le JSON dès qu'il est déposé par ventes.js.
+ */
+$pasVentes = max(1, min(60, (int) config('selflow.portail_fne.scraper.ventes_minutes', 5)));
+
+Schedule::command('portail-fne:importer-ventes')
+    ->cron("*/{$pasVentes} * * * *")
+    ->withoutOverlapping()
+    ->appendOutputTo($sortiesPortail);
+
+/*
  * Rapprochement des rejets FNE avec les relevés du portail.
  *
  * Juste après le ramassage, et non avant : un rejet ne se diagnostique qu'avec
