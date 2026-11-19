@@ -3,6 +3,7 @@
 namespace App\Modules\Admin\Services;
 
 use App\Modules\Admin\Modeles\PortailFneImport;
+use App\Modules\Admin\Modeles\Entreprise;
 use App\Modules\Authentification\Modeles\Utilisateur;
 use App\Notifications\PortailFneRecuperationNotification;
 
