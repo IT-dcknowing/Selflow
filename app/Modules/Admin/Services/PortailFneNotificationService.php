@@ -50,6 +50,16 @@ class PortailFneNotificationService
                 'recuperee_le' => now()->toIso8601String(),
             ];
 
+            if (str_starts_with($type, 'Avoirs')) {
+                $avoirs = \App\Modules\Admin\Modeles\PortailFneFactureRecue::query()
+                    ->whereIn('import_id', $idsEntreprise)
+                    ->selectRaw('liste_portail, COUNT(*) as total')
+                    ->groupBy('liste_portail')
+                    ->pluck('total', 'liste_portail');
+                $rapportNotification['avoirs_clients'] = (int) ($avoirs['issued'] ?? 0);
+                $rapportNotification['avoirs_fournisseurs'] = (int) ($avoirs['received'] ?? 0);
+            }
+
             Utilisateur::query()
                 ->where(function ($q) use ($entrepriseId) {
                     $q->where(fn ($admin) => $admin->where('entreprise_id', $entrepriseId)->where('role', 'admin'))
