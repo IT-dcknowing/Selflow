@@ -3,6 +3,7 @@
 namespace App\Modules\Admin\Services;
 
 use App\Modules\Admin\Modeles\Entreprise;
+use App\Modules\Admin\Modeles\FneCredential;
 use App\Modules\Admin\Modeles\PortailFneImport;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
@@ -145,12 +146,17 @@ class ScraperPortailFneService
      * Les deux fichiers portent le même format de ligne — `[date] canal.NIVEAU:
      * message` —, de sorte qu'un `sort` les remette dans l'ordre.
      */
-    public static function sorties(): string
+    public static function sorties(?string $type = null): string
     {
-        return (string) config(
-            'selflow.portail_fne.sorties',
-            storage_path('logs/portail-fne-sorties.log')
-        );
+        $fichiers = [
+            'achats' => storage_path('logs/portail-fne-achat.log'),
+            'ventes' => storage_path('logs/portail-fne-vente.log'),
+            'avoirs' => storage_path('logs/portail-fne-avoir.log'),
+        ];
+
+        return $type !== null
+            ? ($fichiers[$type] ?? storage_path('logs/portail-fne-sorties.log'))
+            : (string) config('selflow.portail_fne.sorties', storage_path('logs/portail-fne-sorties.log'));
     }
 
     /**
@@ -174,12 +180,44 @@ class ScraperPortailFneService
      */
     private static function tracer(string $niveau, string $message, array $contexte = []): void
     {
+        $canal = match (true) {
+            str_starts_with($message, 'achats[') => 'portail_fne_achat',
+            str_starts_with($message, 'ventes[') => 'portail_fne_vente',
+            str_starts_with($message, 'avoirs[') => 'portail_fne_avoir',
+            default => 'single',
+        };
+
         try {
-            Log::channel('portail_fne')->{$niveau}($message, $contexte);
+            Log::channel($canal)->{$niveau}($message, $contexte);
         } catch (\Throwable) {
-            // Volontairement muet : signaler ici demanderait d'écrire quelque
-            // part, et c'est précisément ce qui vient d'échouer.
+            // Une panne de journal ne doit jamais interrompre le traitement.
         }
+    }
+
+    /** NCC autorisés par le superadministrateur et disposant d'un mot de passe. */
+    private static function loginsAutorises(): array
+    {
+        return FneCredential::query()
+            ->where('telechargement_actif', true)
+            ->whereNotNull('ncc_associe')
+            ->whereNotNull('acces_mot_de_passe')
+            ->pluck('ncc_associe')
+            ->map(fn ($login) => strtoupper(trim((string) $login)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private static function loginAutorise(?string $login): bool
+    {
+        $login = strtoupper(trim((string) $login));
+
+        return $login !== '' && FneCredential::query()
+            ->where('telechargement_actif', true)
+            ->whereRaw('UPPER(ncc_associe) = ?', [$login])
+            ->whereNotNull('acces_mot_de_passe')
+            ->exists();
     }
 
     /**
@@ -195,6 +233,11 @@ class ScraperPortailFneService
         if ($login === '') {
             self::tracer('notice', 'fne[?] : rien lancé — aucun login fourni.');
 
+            return false;
+        }
+
+        if (!self::loginAutorise($login)) {
+            self::tracer('notice', "fne[{$login}] : rien lancé — téléchargement non autorisé par le superadministrateur.");
             return false;
         }
 
@@ -264,7 +307,7 @@ class ScraperPortailFneService
 
         $login = trim((string) $entreprise->ncc);
 
-        if ($login === '' || !config('selflow.portail_fne.scraper.actif')) {
+        if ($login === '' || !self::loginAutorise($login) || !config('selflow.portail_fne.scraper.actif')) {
             return false;
         }
 
@@ -304,7 +347,7 @@ class ScraperPortailFneService
     {
         $login = trim((string) $login);
 
-        if ($login === '' || !config('selflow.portail_fne.scraper.actif')) {
+        if ($login === '' || !self::loginAutorise($login) || !config('selflow.portail_fne.scraper.actif')) {
             return false;
         }
 
@@ -349,7 +392,16 @@ class ScraperPortailFneService
     public static function lancerAchats(?string $login = null): bool
     {
         $login = trim((string) $login);
-        $cible = $login ?: 'tous les logins';
+        if ($login === '') {
+            $logins = self::loginsAutorises();
+            foreach ($logins as $loginAutorise) self::lancerAchats($loginAutorise);
+            return $logins !== [];
+        }
+        $cible = $login;
+        if (!self::loginAutorise($login)) {
+            self::tracer('notice', "achats[{$cible}] : rien lancé — téléchargement non autorisé par le superadministrateur.");
+            return false;
+        }
 
         // Les renoncements se journalisent au même titre que les lancements.
         // « Rien ne s'est passé » est la panne la plus difficile à diagnostiquer
@@ -387,7 +439,7 @@ class ScraperPortailFneService
         $script = (string) config('selflow.portail_fne.scraper.script_achats');
 
         try {
-            self::detacher([$node, $script, $login ?: '--tous', '--status-file=' . $fichierEtat], self::sorties());
+            self::detacher([$node, $script, $login, '--status-file=' . $fichierEtat], self::sorties('achats'));
 
             // Le chemin de Node et celui du script sont dans le message, et non
             // seulement dans la configuration : les deux pannes les plus
@@ -428,7 +480,16 @@ class ScraperPortailFneService
     public static function lancerAvoirs(?string $login = null, string $listing = 'tous'): bool
     {
         $login = trim((string) $login);
-        $cible = $login ?: 'tous les logins';
+        if ($login === '') {
+            $logins = self::loginsAutorises();
+            foreach ($logins as $loginAutorise) self::lancerAvoirs($loginAutorise, $listing);
+            return $logins !== [];
+        }
+        $cible = $login;
+        if (!self::loginAutorise($login)) {
+            self::tracer('notice', "avoirs[{$cible}] : rien lancé — téléchargement non autorisé par le superadministrateur.");
+            return false;
+        }
 
         if (!in_array($listing, ['issued', 'received', 'tous'], true)) {
             self::tracer('warning', "avoirs[{$cible}] : listing invalide — {$listing}.");
@@ -470,7 +531,7 @@ class ScraperPortailFneService
                 $arguments[] = '--listing=' . $listing;
             }
             $arguments[] = '--status-file=' . $fichierEtat;
-            self::detacher($arguments, self::sorties());
+            self::detacher($arguments, self::sorties('avoirs'));
 
             self::tracer('info', "avoirs[{$cible}] : relevé lancé en arrière-plan.", [
                 'node'           => $node,
@@ -498,7 +559,16 @@ class ScraperPortailFneService
     public static function lancerVentes(?string $login = null): bool
     {
         $login = trim((string) $login);
-        $cible = $login ?: 'tous les logins';
+        if ($login === '') {
+            $logins = self::loginsAutorises();
+            foreach ($logins as $loginAutorise) self::lancerVentes($loginAutorise);
+            return $logins !== [];
+        }
+        $cible = $login;
+        if (!self::loginAutorise($login)) {
+            self::tracer('notice', "ventes[{$cible}] : rien lancé — téléchargement non autorisé par le superadministrateur.");
+            return false;
+        }
 
         if (!config('selflow.portail_fne.scraper.actif')) {
             self::tracer('notice', "ventes[{$cible}] : rien lancé — le scraper FNE est éteint.");
@@ -531,7 +601,7 @@ class ScraperPortailFneService
             // VENTES_DEPUIS ne doit jamais réduire le relevé demandé à l'année
             // civile en cours.
             $depuis = now()->startOfYear()->toDateString();
-            self::detacher([$node, $script, $login ?: '--tous', '--depuis=' . $depuis, '--status-file=' . $fichierEtat], self::sorties());
+            self::detacher([$node, $script, $login, '--depuis=' . $depuis, '--status-file=' . $fichierEtat], self::sorties('ventes'));
             self::tracer('info', "ventes[{$cible}] : relevé FNE lancé en arrière-plan.", [
                 'node' => $node,
                 'script' => $script,
@@ -587,7 +657,9 @@ class ScraperPortailFneService
          * `forgetChannel` détruit l'instance, Monolog referme son flux, et le
          * prochain appel le rouvre. L'enfant n'hérite donc de rien.
          */
-        Log::forgetChannel('portail_fne');
+        foreach (['portail_fne', 'portail_fne_achat', 'portail_fne_vente', 'portail_fne_avoir', 'single'] as $canal) {
+            Log::forgetChannel($canal);
+        }
 
         if (\PHP_OS_FAMILY === 'Windows') {
 
