@@ -951,14 +951,30 @@ class FneDashboardControleur
         string $recherche,
         Request $request
     ): ?Collection {
-        if (in_array($categorie, ['emis', 'avoir_fournisseur'], true)) {
+        if ($categorie === 'emis') {
             return null;
         }
 
-        $query = PortailFneFactureRecue::where('entreprise_id', $entrepriseId)
-            ->whereNull('achat_id')
-            ->where('statut_rapprochement', '!=', PortailFneFactureRecue::ECARTEE)
-            ->with('pointDeVente');
+        if ($categorie === 'avoir_fournisseur') {
+            // Les avoirs reçus restent dans le registre même après leur
+            // rapprochement : achat_id désigne la facture d'origine, pas un
+            // document à retirer de l'onglet des avoirs fournisseurs.
+            $query = PortailFneFactureRecue::query()
+                ->where('entreprise_id', $entrepriseId)
+                ->where('liste_portail', 'received')
+                ->where('subtype', 'refund')
+                ->where('statut_rapprochement', '!=', PortailFneFactureRecue::ECARTEE)
+                ->with('pointDeVente');
+        } else {
+            // Les factures reçues ordinaires, sans les avoirs fournisseurs ni
+            // les pièces émises par l'entreprise.
+            $query = PortailFneFactureRecue::recues()
+                ->where('entreprise_id', $entrepriseId)
+                ->whereNull('achat_id')
+                ->where('subtype', '!=', 'refund')
+                ->where('statut_rapprochement', '!=', PortailFneFactureRecue::ECARTEE)
+                ->with('pointDeVente');
+        }
 
         // Un site précis ne montre que ce qui lui est affecté. Une facture que
         // personne n'a encore rangée n'appartient à aucun site : la verser dans
@@ -981,7 +997,7 @@ class FneDashboardControleur
 
         return $query->orderByDesc('date_facture')->get()->map(fn (PortailFneFactureRecue $f) => [
             'id' => $f->id,
-            'type_doc' => $f->libelleDuSousType(),
+            'type_doc' => $f->subtype === 'refund' ? 'Avoir fournisseur' : $f->libelleDuSousType(),
             'is_recu' => (bool) $f->est_rne,
             // Aucun numéro de pièce interne : Selflow ne l'a pas saisie. Mettre
             // le numéro FNE dans les deux colonnes le ferait lire comme une
@@ -999,7 +1015,9 @@ class FneDashboardControleur
             // Le site que l'entreprise a affecté, et non un site déduit du
             // relevé : le portail n'en donne aucun qui nous concerne.
             'pdv' => $f->pointDeVente?->nom,
-            'facture_origine' => null,
+            'facture_origine' => $f->subtype === 'refund'
+                ? ($f->contenu_brut['parentReference'] ?? $f->contenu_brut['numero_facture_initiale'] ?? null)
+                : null,
             'recu_lie' => null,
             'recu_lie_url' => null,
             'fichier_recu_url' => null,
@@ -1016,7 +1034,7 @@ class FneDashboardControleur
             'normaliser_url' => null,
             'origine' => 'portail',
             'statut_rapprochement' => $f->statut_rapprochement,
-            'rapprocher_url' => route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']),
+            'rapprocher_url' => route('admin.achats.factures', ['etape' => 'Facture', 'section' => $f->subtype === 'refund' ? 'avoirs_fournisseur' : 'dgi']),
         ]);
     }
 
