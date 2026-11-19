@@ -87,7 +87,8 @@ class FactureRecueControleur
                     ->whereKey((int) request('achat_id'))
                     ->where('fournisseur_id', $fournisseur->id)
                     ->where('etape', 'Facture')
-                    ->where(fn ($q) => $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir'))
+                    ->where(fn ($q) => $q->whereNull('type_facture')->orWhereNotIn('type_facture', ['avoir', 'bapa']))
+                    ->where(fn ($q) => $q->whereNull('statut')->orWhereNotIn('statut', ['Annulée', 'Annulé']))
                     ->whereHas('pointDeVente', fn ($q) => $q->where('entreprise_id', Auth::user()->entreprise_id))
                     ->first()
                 : null;
