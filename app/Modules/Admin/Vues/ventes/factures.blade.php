@@ -61,6 +61,7 @@
         </div>
         <span style="font-size:12px; font-weight:700; color:#1e40af;">{{ $nbFacturesFneDansSelflow }} déjà dans Selflow · {{ $facturesFneExternes->count() }} hors Selflow</span>
     </div>
+    @if($facturesFneExternes->isNotEmpty())
     <div style="overflow-x:auto;">
         <table style="width:100%; background:#fff;">
             <thead>
@@ -97,6 +98,7 @@
             </tbody>
         </table>
     </div>
+    @endif
     @if($facturesFneExternes->isEmpty())
         <div style="padding:10px 12px; background:#fff; border-radius:8px; color:#047857; font-size:12px; font-weight:600;">
             Toutes les factures FNE récupérées correspondent déjà à des ventes présentes dans Selflow.
