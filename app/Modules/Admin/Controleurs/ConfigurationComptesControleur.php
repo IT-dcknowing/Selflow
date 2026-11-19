@@ -117,7 +117,7 @@ class ConfigurationComptesControleur
         ])->filter(fn ($v) => filled($v))->map(fn ($v) => trim((string) $v))->unique()->values();
 
         if ($comptesSaisis->isNotEmpty()) {
-            $comptesDisponibles = PlanComptable::where('entreprise_id', $entreprise->id)
+            $comptesDisponibles = PlanComptable::obtenirComptesPrioritaires($entreprise->id)
                 ->whereIn('numero', $comptesSaisis)
                 ->pluck('numero')
                 ->map(fn ($numero) => (string) $numero);
