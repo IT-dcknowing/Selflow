@@ -526,6 +526,13 @@ class FneDashboardControleur
 
         $rapport = app(ImportFacturesRecuesService::class)->importerDossier(null, $login);
 
+        if (empty($rapport['details'])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "Le scraper n'a déposé aucun relevé de factures d'achat pour le NCC {$login}. Vérifiez les identifiants FNE et le journal du scraper.",
+            ], 502);
+        }
+
         return response()->json([
             'status' => 'success',
             'termine' => true,
@@ -573,6 +580,13 @@ class FneDashboardControleur
         }
 
         $rapport = app(ImportFacturesEmisesService::class)->importerDossier(null, $login);
+
+        if (empty($rapport['details'])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "Le scraper n'a déposé aucun relevé de ventes FNE pour le NCC {$login}. Vérifiez les identifiants FNE et le journal du scraper.",
+            ], 502);
+        }
 
         return response()->json([
             'status' => 'success',
@@ -649,6 +663,14 @@ class FneDashboardControleur
         }
 
         $rapport = app(ImportAvoirsService::class)->importerDossier(null, $login);
+
+        if (empty($rapport['details'])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "Le scraper n'a déposé aucun relevé d'avoirs FNE pour le NCC {$login}. Vérifiez les identifiants FNE et le journal du scraper.",
+            ], 502);
+        }
+
         $dernier = PortailFneImport::query()
             ->where('login', $login)
             ->where('type', ImportAvoirsService::TYPE)
