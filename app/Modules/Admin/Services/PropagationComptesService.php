@@ -52,6 +52,15 @@ class PropagationComptesService
             ->orderBy('id')
             ->chunkById(100, function ($produits) use (&$nombre) {
                 foreach ($produits as $produit) {
+                    // Neutraliser les anciennes valeurs article pendant le calcul :
+                    // la sauvegarde de configuration doit recalculer l'héritage,
+                    // puis le contrôleur réappliquera les exceptions explicitement
+                    // saisies dans le formulaire article de cette même sauvegarde.
+                    $produit->compte_vente = null;
+                    $produit->compte_achat = null;
+                    $produit->compte_variation = null;
+                    $produit->compte_stock = null;
+
                     $nouveaux = [
                         'compte_vente' => ImputationService::compteHerite($produit, 'compte_vente') ?: null,
                         'compte_achat' => ImputationService::compteHerite($produit, 'compte_achat') ?: null,
