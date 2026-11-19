@@ -103,10 +103,10 @@
                 <th style="text-align:left; padding:12px 14px; font-size:12px; text-transform:uppercase; color:var(--text-3);">Clé réelle</th>
                 {{-- Ce que l'entreprise a fourni de son côté : c'est tout ce
                      qu'on lui demande, la configuration se fait ici. --}}
-                <th style="text-align:left; padding:12px 14px; font-size:12px; text-transform:uppercase; color:var(--text-3);">Compte FNE</th>
+                <th style="text-align:left; padding:12px 14px; font-size:12px; text-transform:uppercase; color:var(--text-3);">Déclaration du compte</th>
                 <th style="text-align:left; padding:12px 14px; font-size:12px; text-transform:uppercase; color:var(--text-3);">Timbre</th>
-                {{-- Collée à droite : on fait défiler pour lire les clés sans perdre les boutons. --}}
-                <th style="text-align:right; padding:12px 14px; font-size:12px; text-transform:uppercase; color:var(--text-3); position:sticky; right:0; background:#f8fafc; box-shadow:-6px 0 8px -6px rgba(0,0,0,.15);">Actions</th>
+                {{-- La dernière colonne ouvre les accès du compte FNE et les clés API. --}}
+                <th style="text-align:right; padding:12px 14px; font-size:12px; text-transform:uppercase; color:var(--text-3); position:sticky; right:0; background:#f8fafc; box-shadow:-6px 0 8px -6px rgba(0,0,0,.15);">COMPTE FNE</th>
             </tr>
         </thead>
         <tbody>
@@ -184,7 +184,7 @@
                          prenait pour une coupure réseau. --}}
                     <button class="btn btn-outline" style="font-size:12px; padding:6px 10px;"
                             onclick="ouvrirModalGestion(@js($row['entreprise']->getRouteKey()), @js($row['entreprise']->nom))">
-                        <i class="fas fa-gear"></i> Gérer
+                        <i class="fas fa-gear"></i> Gérer le compte
                     </button>
                 </td>
             </tr>
