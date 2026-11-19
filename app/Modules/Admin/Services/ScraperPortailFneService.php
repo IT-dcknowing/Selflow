@@ -62,7 +62,7 @@ class ScraperPortailFneService
         $dossier = storage_path('app/portail-fne/etat-processus');
 
         if (!is_dir($dossier) && !mkdir($dossier, 0775, true) && !is_dir($dossier)) {
-            throw new \\RuntimeException("Impossible de créer le dossier de suivi FNE : {$dossier}");
+            throw new \RuntimeException("Impossible de créer le dossier de suivi FNE : {$dossier}");
         }
 
         $identifiant = preg_replace('/[^A-Za-z0-9_-]/', '_', trim((string) $login) ?: 'tous');
@@ -374,7 +374,7 @@ class ScraperPortailFneService
         $verrou = self::verrouAchats($login);
         try {
             $fichierEtat = self::preparerSuivi($verrou, 'achats', $login, $minutes);
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             self::tracer('error', "achats[{$cible}] : impossible de préparer le suivi — " . $e->getMessage());
             return false;
         }
@@ -452,7 +452,7 @@ class ScraperPortailFneService
         $verrou = self::verrouAvoirs($login);
         try {
             $fichierEtat = self::preparerSuivi($verrou, 'avoirs', $login, $minutes);
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             self::tracer('error', "avoirs[{$cible}] : impossible de préparer le suivi — " . $e->getMessage());
             return false;
         }
@@ -514,7 +514,7 @@ class ScraperPortailFneService
         $verrou = self::verrouVentes($login);
         try {
             $fichierEtat = self::preparerSuivi($verrou, 'ventes', $login, $minutes);
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             self::tracer('error', "ventes[{$cible}] : impossible de préparer le suivi — " . $e->getMessage());
             return false;
         }
