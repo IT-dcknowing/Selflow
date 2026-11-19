@@ -6,14 +6,13 @@ use App\Modules\Admin\Modeles\Entreprise;
 use App\Modules\Admin\Modeles\PortailFneFactureRecue;
 use App\Modules\Admin\Modeles\PortailFneFactureRecueLigne;
 use App\Modules\Admin\Modeles\PortailFneImport;
-use App\Modules\Admin\Modeles\Vente;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Recueille les factures avoir relevées au portail FNE, et les range en base.
+ * Recueille les factures de vente émises relevées au portail FNE, dans un registre documentaire.
  *
  * ## Ce qu'il lit
  *
@@ -32,15 +31,13 @@ use Throwable;
  *
  * ## Ce qu'il ne fait pas
  *
- * **Il ne crée aucune vente, aucune écriture, aucun client.** Un avoir relevé
- * est un constat : il dit que la DGI détient cette pièce. La transformer en
- * vente produirait des écritures parce qu'un fichier est arrivé, et
- * doublonnerait probablement une saisie déjà faite. Comme pour les achats, le
- * rapprochement se regarde avant de s'appliquer.
+ * **Il ne crée aucune vente, aucune écriture, aucun client et ne normalise rien.**
+ * Il conserve seulement les pièces déjà certifiées par la DGI, pour les
+ * consulter et distinguer celles qui correspondent à une vente Selflow.
  *
  * ## Différence avec ImportFacturesRecuesService
  *
- * Le `TYPE` est `'ventes'`, le dossier est `ventes/`, et les enregistrements
+ * Le `TYPE` est `'ventes_fne'`, le dossier est `ventes/`, et les enregistrements
  * portent `listing_source = issued` et `subtype = normal`.
  */
 class ImportFacturesEmisesService
@@ -103,7 +100,7 @@ class ImportFacturesEmisesService
     ];
 
     /**
-     * Lit tous les relevés d'ventes d'un dossier.
+     * Lit tous les relevés de factures de vente d'un dossier.
      *
      * @return array{dossier: string, importes: int, ignores: int, inchanges: int, erreurs: int, details: array<int, array<string, mixed>>}
      */
@@ -217,13 +214,13 @@ class ImportFacturesEmisesService
                     $this->confirmerLeReleve($precedent, $date, $entreprise?->id);
                     // Même un relevé identique peut réparer un rattachement local
                     // qui n'existait pas lors du premier passage.
-                    $this->rapprocherFacturesEmisesEmis($factures);
+                    
 
                     return $this->resultat(
                         $nom,
                         'inchange',
                         sprintf(
-                            'Identique au relevé du %s : %d avoir(s) déjà connu(s).',
+                            'Identique au relevé du %s : %d facture(s) FNE déjà connue(s).',
                             $precedent->date_scraping?->format('d/m/Y') ?? '?',
                             $precedent->lignes_importees
                         ),
@@ -248,11 +245,11 @@ class ImportFacturesEmisesService
                 ]);
 
                 $compte = $this->rangerLesFacturesEmises($import, $factures);
-                $this->rapprocherFacturesEmisesEmis($factures);
+                
                 $import->update(['lignes_importees' => $compte['total']]);
 
                 $message = sprintf(
-                    '%d avoir(s) : %d nouveau(x), %d mis à jour.%s',
+                    '%d facture(s) FNE : %d nouvelle(s), %d mise(s) à jour.%s',
                     $compte['total'],
                     $compte['crees'],
                     $compte['modifies'],
@@ -317,7 +314,7 @@ class ImportFacturesEmisesService
     /* ----------------------------- Le rangement ------------------------------- */
 
     /**
-     * Range les ventes en base.
+     * Range les factures FNE émises dans le registre documentaire.
      *
      * @param  array<int, array<string, mixed>>  $factures
      * @return array{total: int, crees: int, modifies: int}
@@ -368,66 +365,6 @@ class ImportFacturesEmisesService
         }
 
         return $compte;
-    }
-
-    /**
-     * Rattache un avoir client déjà saisi à sa vente d'origine.
-     *
-     * La référence de l'avoir identifie la pièce locale ; le numéro de facture
-     * initiale (ou parentReference rendu par l'API FNE) identifie la vente.
-     * Aucun document ni aucune écriture n'est créé ici.
-     *
-     * @param array<int, array<string, mixed>> $factures
-     */
-    private function rapprocherFacturesEmisesEmis(array $factures): void
-    {
-        foreach ($factures as $donnees) {
-            if (!is_array($donnees)
-                || ($donnees['listing_source'] ?? null) !== 'issued'
-                || ($donnees['subtype'] ?? null) !== 'refund') {
-                continue;
-            }
-
-            $referenceAvoir = trim((string) ($donnees['reference'] ?? ''));
-            $referenceOrigine = trim((string) (
-                $donnees['numero_facture_initiale']
-                ?? $donnees['parentReference']
-                ?? ($donnees['invoice']['parentReference'] ?? '')
-            ));
-
-            if ($referenceAvoir === '' || $referenceOrigine === '') {
-                continue;
-            }
-
-            // Les scopes de période sont volontairement levés : l'avoir et sa
-            // facture peuvent appartenir à des périodes comptables différentes.
-            $ventesLocaux = Vente::withoutGlobalScopes()
-                ->where('type_facture', 'avoir')
-                ->where('numero_fne', $referenceAvoir)
-                ->get();
-
-            $ventesOrigine = Vente::withoutGlobalScopes()
-                ->where('numero_fne', $referenceOrigine)
-                ->where(function ($q) {
-                    $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir');
-                })
-                ->get();
-
-            // La référence FNE est unique. En cas de données locales ambiguës,
-            // on s'abstient plutôt que de rattacher la mauvaise pièce.
-            if ($ventesLocaux->count() !== 1 || $ventesOrigine->count() !== 1) {
-                continue;
-            }
-
-            $avoirLocal = $ventesLocaux->first();
-            $venteOrigine = $ventesOrigine->first();
-
-            // Ne jamais écraser un parent déjà défini par un utilisateur.
-            if ($avoirLocal->parent_id === null) {
-                $avoirLocal->parent_id = $venteOrigine->id;
-                $avoirLocal->save();
-            }
-        }
     }
 
     /**
