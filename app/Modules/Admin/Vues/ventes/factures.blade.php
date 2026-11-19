@@ -29,14 +29,79 @@
             <i class="fas fa-plus"></i> Créer une facture d'avoir
         </button>
     @else
-        @php $routeNouvelle = $isCaissier ? route('caissier.ventes.nouvelle') : route('admin.ventes.nouvelle'); @endphp
-        <a href="{{ $routeNouvelle }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Nouvelle vente
-        </a>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            @if($etapeActive === 'Facture' && !$voirArchives)
+                <button type="button" id="btn-actualiser-fne-ventes" class="btn btn-outline" onclick="actualiserFacturesFneVentes()">
+                    <i class="fas fa-rotate"></i> Actualiser les factures FNE
+                </button>
+                <span id="statut-actualiser-fne-ventes" style="font-size:12px; color:var(--text-2);" aria-live="polite"></span>
+            @endif
+            @php $routeNouvelle = $isCaissier ? route('caissier.ventes.nouvelle') : route('admin.ventes.nouvelle'); @endphp
+            <a href="{{ $routeNouvelle }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Nouvelle vente
+            </a>
+        </div>
     @endif
 </div>
 
 @include('admin::partials.kpi-factures', ['kpiFactures' => $kpiFactures ?? []])
+
+@if($etapeActive === 'Facture' && $type !== 'avoir' && ($facturesFnePortail ?? collect())->isNotEmpty())
+<div style="margin:16px 0; padding:14px 16px; border:1px solid #bfdbfe; border-radius:10px; background:#eff6ff;">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+        <div>
+            <strong style="color:#1e40af;">Factures de vente récupérées sur le portail FNE — {{ now()->year }}</strong>
+            <div style="font-size:12px; color:#475569; margin-top:3px;">
+                Registre documentaire : aucune facture n'est créée dans Selflow et aucune normalisation n'est déclenchée.
+            </div>
+        </div>
+        <span style="font-size:12px; font-weight:700; color:#1e40af;">{{ $facturesFnePortail->count() }} pièce(s)</span>
+    </div>
+    <div style="overflow-x:auto;">
+        <table style="width:100%; background:#fff;">
+            <thead>
+                <tr>
+                    <th>Date</th><th>Référence FNE</th><th>Client indiqué par la FNE</th>
+                    <th style="text-align:right;">HT</th><th style="text-align:right;">TVA</th><th style="text-align:right;">TTC</th>
+                    <th>Origine</th><th>Document</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($facturesFnePortail as $documentFne)
+                    @php
+                        $brutFne = is_array($documentFne->contenu_brut) ? $documentFne->contenu_brut : [];
+                        $clientFne = $brutFne['clientCompany']['name'] ?? $brutFne['customer']['name'] ?? $brutFne['client']['name'] ?? '—';
+                        $urlFne = $documentFne->urlDeVerification();
+                    @endphp
+                    <tr>
+                        <td>{{ $documentFne->date_facture?->format('d/m/Y') ?? '—' }}</td>
+                        <td style="font-weight:700;">{{ $documentFne->reference }}</td>
+                        <td>{{ $clientFne }}</td>
+                        <td style="text-align:right;">{{ number_format((float) $documentFne->montant_ht, 0, ',', ' ') }} F</td>
+                        <td style="text-align:right;">{{ number_format((float) $documentFne->montant_tva, 0, ',', ' ') }} F</td>
+                        <td style="text-align:right; font-weight:700;">{{ number_format((float) $documentFne->montant_ttc, 0, ',', ' ') }} F</td>
+                        <td>
+                            @if($documentFne->vente_locale)
+                                <span style="color:#047857; font-weight:700;">Déjà dans Selflow</span>
+                            @else
+                                <span style="color:#1d4ed8; font-weight:700;">Émise hors Selflow</span>
+                            @endif
+                        </td>
+                        <td>
+                            @if($urlFne)
+                                <a href="{{ $urlFne }}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Consulter FNE</a>
+                            @else
+                                <span style="color:var(--text-3);">Non disponible</span>
+                            @endif
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+</div>
+@endif
+
 
 {{-- Onglets du workflow vente --}}
 @if($type !== 'avoir')
@@ -1817,4 +1882,53 @@ function confirmerAnnulation() {
 }
 document.getElementById('modal-annulation').addEventListener('click', function (e) { if (e.target === this) fermerAnnulation(); });
 </script>
+
+<script>
+async function actualiserFacturesFneVentes() {
+    const bouton = document.getElementById('btn-actualiser-fne-ventes');
+    const statut = document.getElementById('statut-actualiser-fne-ventes');
+    if (!bouton || bouton.disabled) return;
+
+    const urlLancement = @json(route('admin.ventes.factures.fne.actualiser'));
+    const urlStatut = @json(route('admin.ventes.factures.fne.actualiser.statut'));
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    bouton.disabled = true;
+    statut.textContent = 'Connexion au portail FNE…';
+
+    try {
+        const lancement = await fetch(urlLancement, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf }
+        });
+        const resultat = await lancement.json();
+        if (!lancement.ok || resultat.status !== 'success') {
+            throw new Error(resultat.message || 'Le relevé FNE n’a pas pu démarrer.');
+        }
+
+        const limite = Date.now() + 180000;
+        while (Date.now() < limite) {
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            const reponse = await fetch(urlStatut, { headers: { 'Accept': 'application/json' } });
+            const etat = await reponse.json();
+            if (!reponse.ok || etat.status !== 'success') {
+                throw new Error(etat.message || 'Impossible de vérifier le relevé FNE.');
+            }
+            if (etat.termine) {
+                const n = etat.import || {};
+                statut.textContent = (n.importes || 0) + ' nouvelle(s) facture(s), '
+                    + (n.modifies || 0) + ' mise(s) à jour, '
+                    + (n.erreurs || 0) + ' erreur(s).';
+                window.location.reload();
+                return;
+            }
+            statut.textContent = 'Récupération des factures de vente FNE en cours…';
+        }
+        throw new Error('Le relevé prend plus de temps que prévu. Rechargez cette page dans quelques instants.');
+    } catch (erreur) {
+        statut.textContent = erreur.message;
+        bouton.disabled = false;
+    }
+}
+</script>
+
 @endsection
