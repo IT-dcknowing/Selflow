@@ -70,7 +70,7 @@ class PropagationComptesService
                     $nouveaux = [
                         'compte_vente' => ImputationService::compteHerite($produit, 'compte_vente') ?: null,
                         'compte_achat' => ImputationService::compteHerite($produit, 'compte_achat') ?: null,
-                        'compte_variation' => ImputationService::variationHeritee($produit),
+                        'compte_variation' => $produit->estStockable() ? ImputationService::variationHeritee($produit) : null,
                         'compte_stock' => $produit->estStockable()
                             ? (trim((string) ($produit->categorieRelation?->compte_stock ?? '')) ?: null)
                             : null,
@@ -120,7 +120,12 @@ class PropagationComptesService
             }
 
             $ancienneCategorie = $avant['categories'][$ancienProduit->categorie_id ?? 0] ?? null;
-            foreach (['compte_vente', 'compte_achat', 'compte_variation', 'compte_stock'] as $champ) {
+            $champsProduit = ['compte_vente', 'compte_achat'];
+            if ($nouveauProduit->estStockable()) {
+                $champsProduit[] = 'compte_variation';
+                $champsProduit[] = 'compte_stock';
+            }
+            foreach ($champsProduit as $champ) {
                 $ancien = self::compteEffectifAvant($ancienProduit, $ancienneCategorie, $avant['configurations'], $champ);
                 $nouveau = match ($champ) {
                     'compte_vente' => ImputationService::compteVente($nouveauProduit, $entrepriseId),
