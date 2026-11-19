@@ -107,7 +107,9 @@ class InventairePeriodiqueService
             }
 
             // Une période n'est comptabilisée qu'une fois qu'elle est terminée.
-            if ($fin->gt(now()->startOfDay())) {
+            // Une date de fin égale à aujourd'hui n'est complète qu'à
+            // partir du lendemain : le planificateur tourne après minuit.
+            if ($fin->gte(now()->startOfDay())) {
                 break;
             }
 
