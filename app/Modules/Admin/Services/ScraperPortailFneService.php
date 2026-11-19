@@ -400,7 +400,7 @@ class ScraperPortailFneService
                 'node'    => $node,
                 'script'  => $script,
                 'argument' => $login ?: '--tous',
-                'verrou_minutes' => $minutes,
+                'verrou_minutes' => max(self::DUREE_MAX_PROCESSUS_MINUTES, $minutes),
             ]);
 
             return true;
@@ -476,7 +476,7 @@ class ScraperPortailFneService
                 'node'           => $node,
                 'script'         => $script,
                 'argument'       => $login ?: '--tous',
-                'verrou_minutes' => $minutes,
+                'verrou_minutes' => max(self::DUREE_MAX_PROCESSUS_MINUTES, $minutes),
             ]);
 
             return true;
