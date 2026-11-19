@@ -291,6 +291,14 @@ return [
             'script_avoirs' => env('PORTAIL_FNE_SCRAPER_SCRIPT_AVOIRS', base_path('SCRAPER-PORTAIL-FNE/avoirs.js')),
 
             /*
+            | Relevé des factures de vente émises et certifiées par la DGI.
+            | Le script lit uniquement listing=issued et subtype=normal.
+            */
+            'ventes_actif' => filter_var(env('PORTAIL_FNE_SCRAPER_VENTES_ACTIF', true), FILTER_VALIDATE_BOOL),
+            'ventes_minutes' => (int) env('PORTAIL_FNE_SCRAPER_VENTES_MINUTES', 5),
+            'script_ventes' => env('PORTAIL_FNE_SCRAPER_SCRIPT_VENTES', base_path('SCRAPER-PORTAIL-FNE/ventes.js')),
+
+            /*
             | Le relevé à l'ouverture de Selflow.
             |
             | Le passage horaire ne va au portail que si une pièce a été
