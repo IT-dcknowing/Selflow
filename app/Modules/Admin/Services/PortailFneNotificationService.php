@@ -43,9 +43,9 @@ class PortailFneNotificationService
                 'type_recuperation' => $type,
                 'fichiers' => $detailsEntreprise->count(),
                 'documents' => (int) $detailsEntreprise->sum(fn ($ligne) => (int) ($ligne['lignes'] ?? 0)),
-                'importes' => $detailsEntreprise->where('statut', 'importe')->count(),
-                'inchanges' => $detailsEntreprise->where('statut', 'inchange')->count(),
-                'ignores' => $detailsEntreprise->where('statut', 'ignore')->count(),
+                'importes' => (int) $detailsEntreprise->where('statut', 'importe')->sum(fn ($ligne) => (int) ($ligne['lignes'] ?? 0)),
+                'inchanges' => (int) $detailsEntreprise->where('statut', 'inchange')->sum(fn ($ligne) => (int) ($ligne['lignes'] ?? 0)),
+                'ignores' => (int) $detailsEntreprise->where('statut', 'ignore')->sum(fn ($ligne) => (int) ($ligne['lignes'] ?? 0)),
                 'erreurs' => $detailsEntreprise->where('statut', 'erreur')->count(),
                 'recuperee_le' => now()->toIso8601String(),
             ];
