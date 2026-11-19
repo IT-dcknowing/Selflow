@@ -47,6 +47,10 @@
 @include('admin::partials.kpi-factures', ['kpiFactures' => $kpiFactures ?? []])
 
 @if($etapeActive === 'Facture' && $type !== 'avoir' && ($facturesFnePortail ?? collect())->isNotEmpty())
+@php
+    $facturesFneExternes = $facturesFnePortail->filter(fn ($document) => !$document->vente_locale)->values();
+    $nbFacturesFneDansSelflow = $facturesFnePortail->count() - $facturesFneExternes->count();
+@endphp
 <div style="margin:16px 0; padding:14px 16px; border:1px solid #bfdbfe; border-radius:10px; background:#eff6ff;">
     <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
         <div>
@@ -55,7 +59,7 @@
                 Registre documentaire : aucune facture n'est créée dans Selflow et aucune normalisation n'est déclenchée.
             </div>
         </div>
-        <span style="font-size:12px; font-weight:700; color:#1e40af;">{{ $facturesFnePortail->count() }} pièce(s)</span>
+        <span style="font-size:12px; font-weight:700; color:#1e40af;">{{ $nbFacturesFneDansSelflow }} déjà dans Selflow · {{ $facturesFneExternes->count() }} hors Selflow</span>
     </div>
     <div style="overflow-x:auto;">
         <table style="width:100%; background:#fff;">
@@ -67,7 +71,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($facturesFnePortail as $documentFne)
+                @foreach($facturesFneExternes as $documentFne)
                     @php
                         $brutFne = is_array($documentFne->contenu_brut) ? $documentFne->contenu_brut : [];
                         $clientFne = $brutFne['clientCompany']['name'] ?? $brutFne['customer']['name'] ?? $brutFne['client']['name'] ?? '—';
@@ -80,13 +84,7 @@
                         <td style="text-align:right;">{{ number_format((float) $documentFne->montant_ht, 0, ',', ' ') }} F</td>
                         <td style="text-align:right;">{{ number_format((float) $documentFne->montant_tva, 0, ',', ' ') }} F</td>
                         <td style="text-align:right; font-weight:700;">{{ number_format((float) $documentFne->montant_ttc, 0, ',', ' ') }} F</td>
-                        <td>
-                            @if($documentFne->vente_locale)
-                                <span style="color:#047857; font-weight:700;">Déjà dans Selflow</span>
-                            @else
-                                <span style="color:#1d4ed8; font-weight:700;">Émise hors Selflow</span>
-                            @endif
-                        </td>
+                        <td><span style="color:#1d4ed8; font-weight:700;">Émise hors Selflow</span></td>
                         <td>
                             @if($urlFne)
                                 <a href="{{ $urlFne }}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Consulter FNE</a>
@@ -99,9 +97,13 @@
             </tbody>
         </table>
     </div>
+    @if($facturesFneExternes->isEmpty())
+        <div style="padding:10px 12px; background:#fff; border-radius:8px; color:#047857; font-size:12px; font-weight:600;">
+            Toutes les factures FNE récupérées correspondent déjà à des ventes présentes dans Selflow.
+        </div>
+    @endif
 </div>
 @endif
-
 
 {{-- Onglets du workflow vente --}}
 @if($type !== 'avoir')
