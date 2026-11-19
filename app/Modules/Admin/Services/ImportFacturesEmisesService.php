@@ -322,7 +322,12 @@ class ImportFacturesEmisesService
         $compte = ['total' => 0, 'crees' => 0, 'modifies' => 0];
 
         foreach ($factures as $donnees) {
-            if (!is_array($donnees)) {
+            if (!is_array($donnees)
+                || ($donnees['listing_source'] ?? null) !== 'issued'
+                || ($donnees['subtype'] ?? null) !== 'normal') {
+                // Ce registre est réservé aux factures de vente normales
+                // émises. Les avoirs ont leur propre relevé ; les reçus sont
+                // traités par ImportFacturesRecuesService.
                 continue;
             }
 
