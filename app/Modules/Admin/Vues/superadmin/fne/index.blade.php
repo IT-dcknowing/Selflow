@@ -222,6 +222,24 @@
             {{-- Étape 2 : gestion effective (affichée après mot de passe validé) --}}
             <div id="etapeGestion" style="display:none;">
 
+                <div style="margin-bottom:18px; padding:14px; border:1px solid var(--border); border-radius:10px; background:#f8fafc;">
+                    <h4 style="font-size:14px; margin:0 0 10px;"><i class="fas fa-user-lock" style="color:#2563eb;"></i> Accès au compte FNE de l'entreprise</h4>
+                    <div style="font-size:12px; color:var(--text-3); margin-bottom:10px;">Identifiants communiqués par l'entreprise pour accéder à son espace FNE (distincts des clés API ci-dessous).</div>
+                    <div style="margin-bottom:8px;">
+                        <label class="form-label" style="font-size:12px;">NCC du compte FNE</label>
+                        <input type="text" id="accesFneNcc" class="form-control" readonly value="" placeholder="Non renseigné">
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size:12px;">Mot de passe du compte FNE</label>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <input type="password" id="accesFneMotDePasse" class="form-control" readonly value="" placeholder="Non renseigné" style="flex:1;">
+                            <button type="button" class="btn btn-outline" id="btnAfficherAccesFne" onclick="basculerAffichageAccesFne()" style="font-size:12px; white-space:nowrap;" disabled><i class="fas fa-eye"></i> Afficher</button>
+                        </div>
+                    </div>
+                    <div id="accesFneFourniLe" style="font-size:11px; color:var(--text-3); margin-top:8px;"></div>
+                    <div id="accesFneMessage" style="font-size:12px; color:var(--text-3); margin-top:8px;">Chargement des accès…</div>
+                </div>
+
                 <div style="margin-bottom:18px; padding-bottom:18px; border-bottom:1px solid var(--border);">
                     <h4 style="font-size:14px; margin:0 0 8px;"><i class="fas fa-flask" style="color:#d97706;"></i> Clé de test</h4>
                     <div id="cleTestAffichage" style="margin-bottom:8px; font-family:monospace; font-size:13px; word-break:break-all;"></div>
@@ -258,6 +276,7 @@ let motDePasseValide = null;
 // évite tout problème si l'application est un jour servie depuis un sous-chemin.
 const URLS_FNE = {
     voirCle: "{{ route('superadmin.fne.voir_cle', ':id') }}",
+    voirAcces: "{{ route('superadmin.fne.voir_acces', ':id') }}",
     cleTest: "{{ route('superadmin.fne.cle_test', ':id') }}",
     cleReelle: "{{ route('superadmin.fne.cle_reelle', ':id') }}",
     supprimerCle: "{{ route('superadmin.fne.supprimer_cle', ':id') }}",
@@ -293,6 +312,13 @@ function ouvrirModalGestion(entrepriseId, nom) {
     document.getElementById('erreurMdp').style.display = 'none';
     document.getElementById('cleTestAffichage').textContent = '';
     document.getElementById('cleReelleAffichage').textContent = '';
+    document.getElementById('accesFneNcc').value = '';
+    document.getElementById('accesFneMotDePasse').value = '';
+    document.getElementById('accesFneMotDePasse').type = 'password';
+    document.getElementById('btnAfficherAccesFne').disabled = true;
+    document.getElementById('btnAfficherAccesFne').innerHTML = '<i class="fas fa-eye"></i> Afficher';
+    document.getElementById('accesFneFourniLe').textContent = '';
+    document.getElementById('accesFneMessage').textContent = 'Chargement des accès…';
     document.getElementById('modalGestionFne').style.display = 'flex';
 }
 
@@ -346,9 +372,36 @@ async function verifierMotDePasseEtOuvrirGestion() {
             ? `<span class="cle-chip"><i class="fas fa-lock-open"></i> ${data2.cle}</span>`
             : '<span style="color:var(--text-3); font-size:12px;">Non renseignée</span>';
 
+        // Les accès au compte FNE sont distincts des clés API. Ils sont
+        // récupérés uniquement après revalidation du mot de passe superadmin.
+        const resAcces = await fetch(urlFne('voirAcces', entrepriseCourante), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+            body: JSON.stringify({ mot_de_passe: mdp })
+        });
+        const acces = await lireJson(resAcces);
+        const messageAcces = document.getElementById('accesFneMessage');
+        if (acces.success) {
+            document.getElementById('accesFneNcc').value = acces.ncc || '';
+            document.getElementById('accesFneMotDePasse').value = acces.mot_de_passe || '';
+            document.getElementById('btnAfficherAccesFne').disabled = !acces.mot_de_passe;
+            document.getElementById('accesFneFourniLe').textContent = acces.fourni_le ? 'Informations fournies le ' + acces.fourni_le : '';
+            messageAcces.textContent = 'Accès récupérés. Le mot de passe reste masqué jusqu’à ce que vous choisissiez de l’afficher.';
+        } else {
+            messageAcces.textContent = acces.message || 'Aucun accès FNE enregistré pour cette entreprise.';
+        }
+
     } catch (e) {
         afficherErreurMdp('Erreur réseau. Réessayez.');
     }
+}
+
+function basculerAffichageAccesFne() {
+    const champ = document.getElementById('accesFneMotDePasse');
+    const bouton = document.getElementById('btnAfficherAccesFne');
+    const visible = champ.type === 'text';
+    champ.type = visible ? 'password' : 'text';
+    bouton.innerHTML = visible ? '<i class="fas fa-eye"></i> Afficher' : '<i class="fas fa-eye-slash"></i> Masquer';
 }
 
 function soumettreCle(type) {
