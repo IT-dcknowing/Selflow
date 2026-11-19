@@ -69,6 +69,7 @@
         $sections['bapa'] = ['BAPA (archives)', 'fa-box-archive', $nbBapa];
     }
     $sections['dgi'] = ['Factures achat DGI', 'fa-cloud-arrow-down', $nbDgi];
+    $sections['avoirs_fournisseur'] = ['Avoirs fournisseurs FNE', 'fa-file-circle-minus', $nbAvoirsFournisseurs];
 @endphp
 
 
@@ -106,6 +107,12 @@
             </button>
             <span id="statut-actualiser-fne-achats" style="font-size:12px; color:var(--text-2);" aria-live="polite"></span>
         </div>
+        <div style="margin-top:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <button type="button" id="btn-actualiser-fne-achats" class="btn btn-primary btn-sm" onclick="actualiserFacturesFneAchats()">
+                <i class="fas fa-rotate"></i> Actualiser les factures FNE
+            </button>
+            <span id="statut-actualiser-fne-achats" style="font-size:12px; color:var(--text-2);" aria-live="polite"></span>
+        </div>
         {{-- Écarter n'est pas supprimer : la pièce reste, et le portail la
              redéposera. Ce qu'on a mis de côté doit pouvoir revenir, sinon
              l'écartement serait une suppression déguisée. --}}
@@ -122,6 +129,16 @@
                 @endif
             </div>
         @endif
+    @elseif($section === 'avoirs_fournisseur')
+        <i class="fas fa-circle-info" style="color:#1d4ed8;"></i>
+        <strong>Ces avoirs ont été émis et certifiés par vos fournisseurs sur la FNE.</strong>
+        Ils sont déjà normalisés par la DGI : Selflow les récupère, les affiche et permet de les rapprocher de la facture d'achat d'origine. Aucun avoir n'est normalisé ni aucune écriture créée par ce relevé.
+        <div style="margin-top:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <button type="button" id="btn-actualiser-fne-avoirs-fournisseurs" class="btn btn-primary btn-sm" onclick="actualiserAvoirsFournisseursFne()">
+                <i class="fas fa-rotate"></i> Actualiser les avoirs fournisseurs
+            </button>
+            <span id="statut-actualiser-fne-avoirs-fournisseurs" style="font-size:12px; color:var(--text-2);" aria-live="polite"></span>
+        </div>
     @else
         <i class="fas fa-circle-info" style="color:var(--text-3);"></i>
         <strong>Ces factures ne partent pas à la DGI.</strong>
@@ -257,6 +274,8 @@
             @elseif($section === 'bapa')
                 Aucun bordereau d'achat. Vous en établirez un depuis
                 « Nouvel achat », en choisissant <strong>BAPA (DGI)</strong>.
+            @elseif($section === 'avoirs_fournisseur')
+                Aucun avoir fournisseur FNE récupéré pour le moment.
             @elseif($section === 'dgi')
                 {{-- Le message disait « lancer node achats.js <NCC> ». C'est la
                      commande du relevé, qui n'a rien à faire sous les yeux d'un
@@ -1008,6 +1027,55 @@ async function actualiserFacturesFneAchats() {
                 return;
             }
             statut.textContent = 'Récupération des factures FNE en cours…';
+        }
+        throw new Error('Le relevé prend plus de temps que prévu. Rechargez cette page dans quelques instants.');
+    } catch (erreur) {
+        statut.textContent = erreur.message;
+        bouton.disabled = false;
+    }
+}
+</script>
+
+
+<script>
+async function actualiserAvoirsFournisseursFne() {
+    const bouton = document.getElementById('btn-actualiser-fne-avoirs-fournisseurs');
+    const statut = document.getElementById('statut-actualiser-fne-avoirs-fournisseurs');
+    if (!bouton || bouton.disabled) return;
+
+    const urlLancement = @json(route('admin.achats.avoirs_fournisseurs.fne.actualiser'));
+    const urlStatut = @json(route('admin.achats.avoirs_fournisseurs.fne.actualiser.statut'));
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    bouton.disabled = true;
+    statut.textContent = 'Connexion au portail FNE…';
+
+    try {
+        const lancement = await fetch(urlLancement, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf }
+        });
+        const resultat = await lancement.json();
+        if (!lancement.ok || resultat.status !== 'success') {
+            throw new Error(resultat.message || 'Le relevé des avoirs fournisseurs n’a pas pu démarrer.');
+        }
+
+        const limite = Date.now() + 180000;
+        while (Date.now() < limite) {
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            const reponse = await fetch(urlStatut, { headers: { 'Accept': 'application/json' } });
+            const etat = await reponse.json();
+            if (!reponse.ok || etat.status !== 'success') {
+                throw new Error(etat.message || 'Impossible de vérifier le relevé des avoirs.');
+            }
+            if (etat.termine) {
+                const n = etat.import || {};
+                statut.textContent = (n.importes || 0) + ' nouvel(aux) avoir(s), '
+                    + (n.modifies || 0) + ' mise(s) à jour, '
+                    + (n.erreurs || 0) + ' erreur(s).';
+                window.location.reload();
+                return;
+            }
+            statut.textContent = 'Récupération des avoirs fournisseurs en cours…';
         }
         throw new Error('Le relevé prend plus de temps que prévu. Rechargez cette page dans quelques instants.');
     } catch (erreur) {
