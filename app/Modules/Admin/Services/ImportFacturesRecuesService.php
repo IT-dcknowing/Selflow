@@ -898,7 +898,7 @@ class ImportFacturesRecuesService
     private function tracer(string $niveau, string $message, array $contexte = []): void
     {
         try {
-            Log::channel('portail_fne')->{$niveau}($message, $contexte);
+            Log::channel('portail_fne_achat')->{$niveau}($message, $contexte);
         } catch (\Throwable) {
             // Volontairement muet : signaler ici demanderait d'écrire quelque
             // part, et c'est précisément ce qui vient d'échouer.
