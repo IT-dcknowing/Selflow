@@ -186,6 +186,27 @@ class ImportFacturesRecuesTest extends TestCase
         $this->assertSame(1, PortailFneFactureRecue::count());
     }
 
+    public function test_un_avoir_recu_ne_rentre_jamais_dans_le_releve_des_factures_d_achat(): void
+    {
+        $this->uneEntreprise(['ncc' => '1864699A']);
+
+        // Le listing received de la DGI peut aussi contenir des notes de
+        // crédit. Elles appartiennent exclusivement à avoirs.js / ImportAvoirsService.
+        $this->poser('1864699A_20260827.json', $this->enveloppe([
+            $this->uneFacture([
+                'reference' => 'FNE-AVOIR-RECU-001',
+                'subtype' => 'refund',
+                'listing_source' => 'received',
+            ]),
+        ]));
+
+        $rapport = app(ImportFacturesRecuesService::class)->importerDossier($this->dossier);
+
+        $this->assertSame(0, $rapport['erreurs']);
+        $this->assertSame(0, PortailFneFactureRecue::count());
+        $this->assertSame(0, PortailFneFactureRecueLigne::count());
+    }
+
     public function test_le_bordereau_d_achat_ne_porte_pas_de_tva_deductible(): void
     {
         $this->uneEntreprise(['ncc' => '1864699A']);
