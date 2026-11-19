@@ -183,14 +183,40 @@ class FactureRecuePasseEnEcritureTest extends TestCase
         $this->assertSame(['debit' => 11900.0, 'credit' => 11900.0], $this->soldes($facture->reference));
     }
 
-    public function test_un_avoir_recu_inverse_les_sens(): void
+    public function test_un_avoir_fournisseur_recu_ne_cree_aucune_ecriture(): void
     {
-        $facture = $this->uneFactureRecue(['subtype' => 'refund', 'reference' => 'A0000001X26000000007']);
+        $facture = $this->uneFactureRecue([
+            'subtype' => 'refund',
+            'liste_portail' => 'received',
+            'reference' => 'A0000001X26000000007',
+        ]);
 
-        EcritureFactureRecueService::synchroniser($facture);
+        EcritureFactureRecueService::pourEntreprise($this->entreprise->id);
 
-        $this->assertSame(11900.0, $this->montantSur($facture->reference, '401000', 'debit'));
-        $this->assertSame(10000.0, $this->montantSur($facture->reference, '601000', 'credit'));
+        $this->assertNull($facture->fresh()->operation_id);
+        $this->assertSame(0, EcritureComptable::where('reference_document', $facture->reference)->count());
+        $this->assertStringContainsString(
+            'aucun traitement comptable ni normalisation',
+            EcritureFactureRecueService::motifDeNePasPorter($facture)
+        );
+    }
+
+    public function test_une_facture_de_vente_emise_relevee_ne_passe_pas_au_journal_des_achats(): void
+    {
+        $facture = $this->uneFactureRecue([
+            'liste_portail' => 'issued',
+            'subtype' => 'normal',
+            'reference' => 'FNE-VENTE-EXTERNE-001',
+        ]);
+
+        EcritureFactureRecueService::pourEntreprise($this->entreprise->id);
+
+        $this->assertNull($facture->fresh()->operation_id);
+        $this->assertSame(0, EcritureComptable::where('reference_document', $facture->reference)->count());
+        $this->assertSame(
+            'facture émise par l’entreprise : elle ne relève pas du journal des achats',
+            EcritureFactureRecueService::motifDeNePasPorter($facture)
+        );
     }
 
     public function test_une_proforma_et_une_facture_ecartee_ne_passent_pas(): void
