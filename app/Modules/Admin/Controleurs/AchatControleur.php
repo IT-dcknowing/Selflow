@@ -471,7 +471,7 @@ class AchatControleur
          * deux tiers d'entre elles.
          */
         $section = request('section', 'enregistrees');
-        if (!in_array($section, ['enregistrees', 'bapa', 'dgi'], true)) {
+        if (!in_array($section, ['enregistrees', 'bapa', 'dgi', 'avoirs_fournisseur'], true)) {
             $section = 'enregistrees';
         }
 
@@ -554,6 +554,13 @@ class AchatControleur
         // Le compteur de l'onglet dit ce qu'il y a à regarder, donc sans les
         // écartées : les compter ferait un nombre qui ne baisse jamais.
         $nbDgi = PortailFneFactureRecue::recues()->where('entreprise_id', $entreprise->id)
+            ->where('subtype', '!=', 'refund')
+            ->where('statut_rapprochement', '!=', PortailFneFactureRecue::ECARTEE)
+            ->count();
+        $nbAvoirsFournisseurs = PortailFneFactureRecue::query()
+            ->where('entreprise_id', $entreprise->id)
+            ->where('liste_portail', 'received')
+            ->where('subtype', 'refund')
             ->where('statut_rapprochement', '!=', PortailFneFactureRecue::ECARTEE)
             ->count();
         $nbEcartees = PortailFneFactureRecue::recues()->where('entreprise_id', $entreprise->id)
@@ -586,7 +593,7 @@ class AchatControleur
         // donc aucun cumul, contrairement à l'écran FNE qui, lui, les écarte
         // dès qu'un site précis est demandé.
         $facturesPortail = collect();
-        if ($etapeActive === 'Facture' && $section === 'dgi') {
+        if ($etapeActive === 'Facture' && in_array($section, ['dgi', 'avoirs_fournisseur'], true)) {
             // **Toutes**, et non les seules non rattachées. L'écran séparé
             // `/admin/achats/factures-recues` était jusqu'ici le seul endroit
             // où revoir une facture déjà rapprochée ou écartée, et donc le seul
@@ -604,6 +611,11 @@ class AchatControleur
             $ecarteesSeules = request('statut') === 'ecartees';
 
             $facturesPortail = PortailFneFactureRecue::recues()->where('entreprise_id', $entreprise->id)
+                ->when(
+                    $section === 'avoirs_fournisseur',
+                    fn ($q) => $q->where('liste_portail', 'received')->where('subtype', 'refund'),
+                    fn ($q) => $q->where('subtype', '!=', 'refund')
+                )
                 ->when(
                     $ecarteesSeules,
                     fn ($q) => $q->where('statut_rapprochement', PortailFneFactureRecue::ECARTEE),
@@ -671,7 +683,7 @@ class AchatControleur
         return view('admin::achats.factures', compact(
             'kpiFactures',
             'achats', 'etapeActive', 'section', 'nbDP', 'nbBC', 'nbFacture',
-            'nbBapa', 'nbEnregistrees', 'nbDgi', 'nbEcartees',
+            'nbBapa', 'nbEnregistrees', 'nbDgi', 'nbAvoirsFournisseurs', 'nbEcartees',
             'facturesPortail', 'sitesDisponibles', 'entreprise'
         ));
     }
