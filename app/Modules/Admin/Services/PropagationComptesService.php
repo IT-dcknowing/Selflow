@@ -221,7 +221,7 @@ class PropagationComptesService
                 ->where('compte_credit', $ancien)
                 ->update(['compte_credit' => $nouveau]);
 
-            $total += $debits + $credits;
+            $total += $nombreAnciennes;
         }
 
         if ($total > 0) {
