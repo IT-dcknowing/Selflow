@@ -161,6 +161,8 @@ class ImportFacturesEmisesService
                 : $this->tracer('info', $bilan);
         }
 
+        PortailFneNotificationService::notifier($rapport, 'Factures clients (ventes)');
+
         return $rapport;
     }
 
