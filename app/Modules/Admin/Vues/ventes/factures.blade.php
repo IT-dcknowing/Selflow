@@ -1905,7 +1905,7 @@ async function actualiserFacturesFneVentes() {
             throw new Error(resultat.message || 'Le relevé FNE n’a pas pu démarrer.');
         }
 
-        const limite = Date.now() + 180000;
+        const limite = Date.now() + 360000;
         while (Date.now() < limite) {
             await new Promise(resolve => setTimeout(resolve, 3000));
             const reponse = await fetch(urlStatut, { headers: { 'Accept': 'application/json' } });
