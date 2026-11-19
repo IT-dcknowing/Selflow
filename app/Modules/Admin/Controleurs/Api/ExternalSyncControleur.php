@@ -90,7 +90,7 @@ class ExternalSyncControleur
                 'ncc' => $request->ncc,
                 'rccm' => $request->rccm,
                 'compte_contribuable' => $request->compte_contribuable,
-                'regime_imposition' => $request->regime_imposition,
+                'regime_imposition' => $request->input('regime_imposition') ?: 'TEE',
                 'quota_points_de_vente' => 5,
                 'plan_abonnement' => 'Pro',
                 // Comptaflow ne connaît pas le domaine d'activité : le poser au
