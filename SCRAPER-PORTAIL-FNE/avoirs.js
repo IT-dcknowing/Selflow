@@ -326,7 +326,7 @@ async function releverDansLaSession(page, autorisation, login, dossier) {
   };
 
   if (!fs.existsSync(dossier)) fs.mkdirSync(dossier, { recursive: true });
-  const chemin = path.join(dossier, `${nomDeBase(login)}_${jusquA.replace(/-/g, '')}.json`);
+  const chemin = path.join(dossier, `${nomDeBase(login)}.json`);
   fs.writeFileSync(chemin, JSON.stringify(contenu, null, 2), 'utf-8');
 
   dire('INFO', `   ${avoirs.length} avoir(s) -> ${path.basename(chemin)}`);
