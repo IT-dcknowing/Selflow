@@ -322,6 +322,10 @@ class PortailFneFactureRecue extends Model
             if ($referenceOrigine !== '') {
                 $achat = Achat::query()
                     ->where('fournisseur_id', $fournisseur->id)
+                    ->where(function ($q) {
+                        $q->whereNull('type_facture')
+                          ->orWhereNotIn('type_facture', ['avoir', 'bapa']);
+                    })
                     ->where(function ($q) use ($referenceOrigine) {
                         $q->where('numero_fne', $referenceOrigine)
                           ->orWhere('numero_facture', $referenceOrigine);
