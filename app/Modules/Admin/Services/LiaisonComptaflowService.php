@@ -567,6 +567,55 @@ class LiaisonComptaflowService
      *
      * @return array<string, string>
      */
+    /**
+     * Réaffecter dans COMPTAFLOW les écritures déjà déversées lorsqu'un
+     * numéro de compte change dans la configuration de l'entreprise.
+     *
+     * Le nouveau référentiel doit être transmis avant cet appel afin que
+     * COMPTAFLOW connaisse déjà le compte destinataire.
+     *
+     * @param array<int, array{ancien_numero:string,nouveau_numero:string}> $remplacements
+     * @return array{success:bool,message:string,ecritures_mises_a_jour?:int}
+     */
+    public static function propagerComptes(Entreprise $entreprise, array $remplacements): array
+    {
+        if (!$entreprise->liaisonComptaflowActive() || blank($entreprise->comptaflow_sync_key)) {
+            return ['success' => false, 'message' => 'Aucune liaison COMPTAFLOW active pour cette entreprise.'];
+        }
+
+        if ($remplacements === []) {
+            return ['success' => true, 'message' => 'Aucun changement de compte à propager.', 'ecritures_mises_a_jour' => 0];
+        }
+
+        try {
+            $reponse = Http::timeout(self::DELAI)
+                ->withHeaders(self::enTete($entreprise))
+                ->post(self::url('/api/external/ecritures/comptes/propager'), [
+                    'remplacements' => array_values($remplacements),
+                ]);
+        } catch (\Throwable $e) {
+            Log::error('Propagation des comptes vers Comptaflow : ' . $e->getMessage(), [
+                'entreprise_id' => $entreprise->id,
+            ]);
+
+            return ['success' => false, 'message' => 'Comptaflow est injoignable : ' . $e->getMessage()];
+        }
+
+        if (!$reponse->successful() || !$reponse->json('success')) {
+            return [
+                'success' => false,
+                'message' => $reponse->json('message')
+                    ?? 'Comptaflow a refusé la propagation des comptes (HTTP ' . $reponse->status() . ').',
+            ];
+        }
+
+        return [
+            'success' => true,
+            'message' => $reponse->json('message') ?? 'Comptes historiques propagés dans Comptaflow.',
+            'ecritures_mises_a_jour' => (int) $reponse->json('ecritures_mises_a_jour', 0),
+        ];
+    }
+
     public static function enTete(Entreprise $entreprise): array
     {
         $cle = $entreprise->comptaflow_sync_key;
