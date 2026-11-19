@@ -191,8 +191,11 @@ class InventairePeriodiqueService
                 $groupes[$cle]['produits'][$produit->id] = $produit->nom;
             }
 
+            // Dans Selflow, le journal OD est le journal de type « Général ».
+            // Son code peut être personnalisé ; ne pas forcer littéralement « OD ».
             $journal = CodeJournal::where('entreprise_id', $entreprise->id)
-                ->where('type', 'OD')
+                ->where('type', 'Général')
+                ->whereNull('archive_le')
                 ->value('code') ?? 'OD';
 
             $operationsCreees = 0;
