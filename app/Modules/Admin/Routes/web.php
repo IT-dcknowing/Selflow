@@ -86,6 +86,8 @@ Route::prefix('admin')
             Route::get('/factures', [AchatControleur::class, 'factures'])->name('factures');
             Route::post('/factures/fne/actualiser', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'actualiserAchats'])->name('factures.fne.actualiser');
             Route::get('/factures/fne/actualiser/statut', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'statutActualisationAchats'])->name('factures.fne.actualiser.statut');
+            Route::post('/avoirs-fournisseurs/fne/actualiser', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'actualiserAvoirsFournisseurs'])->name('avoirs_fournisseurs.fne.actualiser');
+            Route::get('/avoirs-fournisseurs/fne/actualiser/statut', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'statutActualisationAvoirs'])->name('avoirs_fournisseurs.fne.actualiser.statut');
             // Les trois adresses de l'avoir fournisseur ont été retirées le
             // 25/09/2026 : la DGI ne prévoit pas qu'un acheteur établisse
             // l'avoir de son fournisseur, et la plateforme ne certifie l'avoir
