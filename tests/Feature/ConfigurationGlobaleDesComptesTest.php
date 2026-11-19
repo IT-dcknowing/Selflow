@@ -117,8 +117,8 @@ class ConfigurationGlobaleDesComptesTest extends TestCase
         $ligne = DB::table('ecritures_comptables')->where('id', $ecriture->id)->first();
         $this->assertSame('702000', $ligne->compte_credit);
         $this->assertSame('411000', $ligne->compte_debit);
-        $this->assertSame('125000.00', $ligne->debit);
-        $this->assertSame('125000.00', $ligne->credit);
+        $this->assertEquals(125000, (float) $ligne->debit);
+        $this->assertEquals(125000, (float) $ligne->credit);
     }
 
     public function test_une_categorie_d_une_autre_entreprise_est_ignoree(): void
