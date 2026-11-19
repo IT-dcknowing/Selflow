@@ -362,6 +362,7 @@ class PortailFneFactureRecue extends Model
 
     public function estUnAvoirEmis(): bool
     {
-        return $this->liste_portail === self::LISTE_EMISES;
+        return $this->liste_portail === self::LISTE_EMISES
+            && $this->subtype === 'refund';
     }
 }
