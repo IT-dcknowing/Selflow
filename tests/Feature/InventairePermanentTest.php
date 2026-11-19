@@ -185,12 +185,45 @@ class ComptabilisationStockPeriodiqueTest extends TestCase
 
     // ══════════════ La comptabilisation différée du stock ══════════════
 
-    public function test_une_entree_de_stock_ne_genere_pas_d_ecriture_par_defaut(): void
+    public function test_une_entree_de_stock_ne_genere_pas_d_ecriture_immediate(): void
     {
-        // Le stock physique bouge, mais les écritures sont désactivées par défaut.
+        // Le stock est actif par défaut, mais l'écriture attend l'échéance périodique.
         $this->entree(10, 12000);
 
         $this->assertSame(0, EcritureComptable::withoutGlobalScopes()->count());
+    }
+
+    public function test_la_configuration_par_defaut_active_le_stock_tous_les_trois_mois(): void
+    {
+        $this->assertTrue((bool) $this->entreprise->comptabilite_stock_active);
+        $this->assertFalse((bool) $this->entreprise->comptabilite_stock_quotidienne);
+        $this->assertSame(3, (int) $this->entreprise->comptabilite_stock_periode_mois);
+        $this->assertNotNull($this->entreprise->comptabilite_stock_date_debut);
+        $this->assertNull($this->entreprise->comptabilite_stock_date_fin);
+    }
+
+    public function test_une_periode_trimestrielle_sans_date_de_fin_est_comptabilisee(): void
+    {
+        $this->entreprise->update([
+            'comptabilite_stock_active' => true,
+            'comptabilite_stock_quotidienne' => false,
+            'comptabilite_stock_periode_mois' => 3,
+            'comptabilite_stock_date_debut' => '2026-01-01',
+            'comptabilite_stock_date_fin' => null,
+        ]);
+
+        $this->travelTo(\\Illuminate\\Support\\Carbon::parse('2026-01-01 10:00'));
+        $this->entree(10, 12000);
+        $this->travelTo(\\Illuminate\\Support\\Carbon::parse('2026-04-01 00:10'));
+
+        $bilan = InventairePeriodiqueService::traiterEntreprise($this->entreprise->fresh());
+
+        $this->assertSame(1, $bilan['periodes']);
+        $this->assertSame(1, $bilan['operations']);
+        $this->assertSame('2026-03-31', \\Illuminate\\Support\\Facades\\DB::table('stock_comptabilites_periodiques')
+            ->where('entreprise_id', $this->entreprise->id)->value('date_fin'));
+
+        $this->travelBack();
     }
 
     public function test_une_sortie_de_stock_ne_genere_pas_d_ecriture_par_defaut(): void
