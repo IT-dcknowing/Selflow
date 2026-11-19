@@ -880,3 +880,7 @@ Route::prefix('caissier')
 Route::post('/assistance/quitter', [\App\Modules\Admin\Controleurs\SuperadminSwitchControleur::class, 'quitter'])
     ->middleware('auth')
     ->name('assistance.quitter');
+
+Route::post('/notifications/{notification}/lire', [\App\Modules\Admin\Controleurs\NotificationControleur::class, 'marquerLue'])
+    ->middleware('auth')
+    ->name('notifications.lire');
