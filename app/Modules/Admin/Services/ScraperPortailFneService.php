@@ -46,6 +46,7 @@ class ScraperPortailFneService
      * Le préfixe du verrou du relevé des avoirs.
      */
     public const VERROU_AVOIRS = 'portail_fne_releve_avoirs_';
+    public const VERROU_VENTES = 'portail_fne_releve_ventes_';
 
     /** La clé du verrou pour ce login, ou pour le passage complet. */
     public static function verrouAchats(?string $login = null): string
@@ -57,6 +58,12 @@ class ScraperPortailFneService
     public static function verrouAvoirs(?string $login = null): string
     {
         return self::VERROU_AVOIRS . (trim((string) $login) ?: 'tous');
+    }
+
+    /** Le verrou du relevé des factures de vente. */
+    public static function verrouVentes(?string $login = null): string
+    {
+        return self::VERROU_VENTES . (trim((string) $login) ?: 'tous');
     }
 
     /**
@@ -401,6 +408,52 @@ class ScraperPortailFneService
                 'script' => $script,
             ]);
 
+            return false;
+        }
+    }
+
+    /**
+     * Relever les factures de vente déjà émises et certifiées par la DGI.
+     * Le scraper est distinct de celui des avoirs et ne normalise aucun document.
+     */
+    public static function lancerVentes(?string $login = null): bool
+    {
+        $login = trim((string) $login);
+        $cible = $login ?: 'tous les logins';
+
+        if (!config('selflow.portail_fne.scraper.actif')) {
+            self::tracer('notice', "ventes[{$cible}] : rien lancé — le scraper FNE est éteint.");
+            return false;
+        }
+
+        if (!config('selflow.portail_fne.scraper.ventes_actif', true)) {
+            self::tracer('notice', "ventes[{$cible}] : rien lancé — le relevé des ventes est éteint.");
+            return false;
+        }
+
+        $minutes = max(1, (int) config('selflow.portail_fne.scraper.ventes_minutes', 5));
+        if (!Cache::add(self::verrouVentes($login), true, now()->addMinutes($minutes))) {
+            self::tracer('info', "ventes[{$cible}] : rien lancé — un relevé est déjà en route.");
+            return false;
+        }
+
+        $node = (string) config('selflow.portail_fne.scraper.node');
+        $script = (string) config('selflow.portail_fne.scraper.script_ventes', base_path('SCRAPER-PORTAIL-FNE/ventes.js'));
+
+        try {
+            self::detacher([$node, $script, $login ?: '--tous'], self::sorties());
+            self::tracer('info', "ventes[{$cible}] : relevé FNE lancé en arrière-plan.", [
+                'node' => $node,
+                'script' => $script,
+                'argument' => $login ?: '--tous',
+                'periode_depuis' => now()->startOfYear()->toDateString(),
+            ]);
+            return true;
+        } catch (\Throwable $e) {
+            self::tracer('error', "ventes[{$cible}] : lancement impossible — " . $e->getMessage(), [
+                'node' => $node,
+                'script' => $script,
+            ]);
             return false;
         }
     }
