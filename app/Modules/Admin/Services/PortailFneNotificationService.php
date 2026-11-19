@@ -33,7 +33,7 @@ class PortailFneNotificationService
 
             // Les fichiers déjà connus ne génèrent pas de notification répétitive
             // à chaque passage du planificateur.
-            if (!$detailsEntreprise->contains(fn ($ligne) => in_array($ligne['statut'] ?? '', ['importe', 'inchange', 'erreur'], true))) {
+            if (!$detailsEntreprise->contains(fn ($ligne) => in_array($ligne['statut'] ?? '', ['importe', 'erreur'], true))) {
                 continue;
             }
 
