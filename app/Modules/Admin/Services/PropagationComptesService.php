@@ -56,6 +56,12 @@ class PropagationComptesService
                     // la sauvegarde de configuration doit recalculer l'héritage,
                     // puis le contrôleur réappliquera les exceptions explicitement
                     // saisies dans le formulaire article de cette même sauvegarde.
+                    $anciensProduit = [
+                        'compte_vente' => $produit->compte_vente,
+                        'compte_achat' => $produit->compte_achat,
+                        'compte_variation' => $produit->compte_variation,
+                        'compte_stock' => $produit->compte_stock,
+                    ];
                     $produit->compte_vente = null;
                     $produit->compte_achat = null;
                     $produit->compte_variation = null;
@@ -72,10 +78,10 @@ class PropagationComptesService
 
                     $aChanger = false;
                     foreach ($nouveaux as $champ => $valeur) {
-                        if (trim((string) ($produit->$champ ?? '')) !== trim((string) ($valeur ?? ''))) {
-                            $produit->$champ = $valeur;
+                        if (trim((string) ($anciensProduit[$champ] ?? '')) !== trim((string) ($valeur ?? ''))) {
                             $aChanger = true;
                         }
+                        $produit->$champ = $valeur;
                     }
 
                     if ($aChanger) {
