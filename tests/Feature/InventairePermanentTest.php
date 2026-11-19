@@ -212,15 +212,15 @@ class ComptabilisationStockPeriodiqueTest extends TestCase
             'comptabilite_stock_date_fin' => null,
         ]);
 
-        $this->travelTo(\\Illuminate\\Support\\Carbon::parse('2026-01-01 10:00'));
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-01-01 10:00'));
         $this->entree(10, 12000);
-        $this->travelTo(\\Illuminate\\Support\\Carbon::parse('2026-04-01 00:10'));
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-04-01 00:10'));
 
         $bilan = InventairePeriodiqueService::traiterEntreprise($this->entreprise->fresh());
 
         $this->assertSame(1, $bilan['periodes']);
         $this->assertSame(1, $bilan['operations']);
-        $this->assertSame('2026-03-31', \\Illuminate\\Support\\Facades\\DB::table('stock_comptabilites_periodiques')
+        $this->assertSame('2026-03-31', \Illuminate\Support\Facades\DB::table('stock_comptabilites_periodiques')
             ->where('entreprise_id', $this->entreprise->id)->value('date_fin'));
 
         $this->travelBack();
