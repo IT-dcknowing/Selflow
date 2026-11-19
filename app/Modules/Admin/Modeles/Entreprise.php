@@ -62,6 +62,13 @@ class Entreprise extends Model
         // `liaison_comptaflow_delivree_et_non_saisie`.
         'comptaflow_sync_status',
         'comptaflow_mode_deversement',
+        // Comptabilisation du stock : inactive par défaut, puis quotidienne
+        // ou agrégée sur une période de plusieurs mois.
+        'comptabilite_stock_active',
+        'comptabilite_stock_quotidienne',
+        'comptabilite_stock_periode_mois',
+        'comptabilite_stock_date_debut',
+        'comptabilite_stock_date_fin',
         'comptaflow_last_sync_at',
         'comptaflow_company_id',
         'comptaflow_demande_statut',
@@ -114,6 +121,11 @@ class Entreprise extends Model
         'modules_actifs'     => 'array',
         'modules_autorises'  => 'array',
         'comptabilite_activee' => 'boolean',
+        'comptabilite_stock_active' => 'boolean',
+        'comptabilite_stock_quotidienne' => 'boolean',
+        'comptabilite_stock_periode_mois' => 'integer',
+        'comptabilite_stock_date_debut' => 'date',
+        'comptabilite_stock_date_fin' => 'date',
         'masquer_ruptures_vente' => 'boolean',
         'afficher_solde_client_facture' => 'boolean',
         'attributions'       => 'array',
