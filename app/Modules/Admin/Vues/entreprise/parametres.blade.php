@@ -107,6 +107,7 @@
             'Comptabilité' => array_merge(
                 [
                     'comptabilite' => ['Activer la comptabilité', 'fa-toggle-on'],
+                    'stock-comptabilite' => ['Écritures de stock', 'fa-boxes-stacked'],
                     'comptaflow'   => ['Liaison Comptaflow', 'fa-link'],
                 ],
                 // Comptabilité fermée, la numérotation ne se règle pas : le
@@ -1387,6 +1388,71 @@
                     </div>{{-- /corps sur deux colonnes --}}
                 </div>
         </div>{{-- /grille --}}
+
+        {{-- Comptabilisation du stock : indépendante du simple suivi physique. --}}
+        @php
+            $stockComptaActive = (bool) old('comptabilite_stock_active', $entreprise->comptabilite_stock_active ?? false);
+            $stockComptaQuotidienne = (bool) old('comptabilite_stock_quotidienne', $entreprise->comptabilite_stock_quotidienne ?? false);
+        @endphp
+        <div class="card pleine-largeur" style="margin-top:22px;padding:22px;border:1px solid var(--border);">
+            <span id="stock-comptabilite" style="scroll-margin-top:90px;"></span>
+            <div style="font-size:14px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:9px;margin-bottom:10px;">
+                <i class="fas fa-boxes-stacked" style="color:var(--primary);"></i>
+                Comptabilisation des mouvements de stock
+            </div>
+            <p style="font-size:12.5px;color:var(--text-2);line-height:1.6;margin-bottom:14px;">
+                Le suivi physique du stock continue dans tous les cas. Les écritures comptables de stock sont
+                désactivées par défaut. Activez-les uniquement si vous souhaitez transmettre les variations
+                au journal des opérations diverses (OD) de votre comptabilité.
+            </p>
+
+            <input type="hidden" name="comptabilite_stock_active" value="0">
+            <label style="display:flex;align-items:center;gap:10px;font-weight:700;font-size:13px;margin-bottom:16px;">
+                <input type="checkbox" name="comptabilite_stock_active" value="1" {{ $stockComptaActive ? 'checked' : '' }}>
+                Activer les écritures comptables de stock
+            </label>
+
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;">
+                <div style="padding:14px;border:1px solid var(--border);border-radius:9px;">
+                    <input type="hidden" name="comptabilite_stock_quotidienne" value="0">
+                    <label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;">
+                        <input type="checkbox" name="comptabilite_stock_quotidienne" value="1" {{ $stockComptaQuotidienne ? 'checked' : '' }}>
+                        Comptabilisation quotidienne
+                    </label>
+                    <div style="font-size:11.5px;color:var(--text-3);margin-top:7px;line-height:1.5;">
+                        Une opération de stock agrégée est créée chaque jour, par point de vente.
+                    </div>
+                </div>
+                <div style="padding:14px;border:1px solid var(--border);border-radius:9px;">
+                    <label for="comptabilite_stock_periode_mois" style="display:block;font-size:12px;font-weight:700;margin-bottom:7px;">
+                        Périodicité si le quotidien n'est pas coché
+                    </label>
+                    <select id="comptabilite_stock_periode_mois" name="comptabilite_stock_periode_mois" class="form-control">
+                        @foreach([1 => 'Chaque mois', 2 => 'Tous les 2 mois', 3 => 'Tous les 3 mois', 6 => 'Tous les 6 mois', 12 => 'Tous les 12 mois'] as $mois => $libelle)
+                            <option value="{{ $mois }}" {{ (int) old('comptabilite_stock_periode_mois', $entreprise->comptabilite_stock_periode_mois ?? 1) === $mois ? 'selected' : '' }}>{{ $libelle }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="comptabilite_stock_date_debut" style="display:block;font-size:12px;font-weight:700;margin-bottom:7px;">
+                        Début de la période de variation
+                    </label>
+                    <input type="date" id="comptabilite_stock_date_debut" name="comptabilite_stock_date_debut" class="form-control"
+                           value="{{ old('comptabilite_stock_date_debut', $entreprise->comptabilite_stock_date_debut?->format('Y-m-d')) }}">
+                </div>
+                <div>
+                    <label for="comptabilite_stock_date_fin" style="display:block;font-size:12px;font-weight:700;margin-bottom:7px;">
+                        Fin de la période de variation
+                    </label>
+                    <input type="date" id="comptabilite_stock_date_fin" name="comptabilite_stock_date_fin" class="form-control"
+                           value="{{ old('comptabilite_stock_date_fin', $entreprise->comptabilite_stock_date_fin?->format('Y-m-d')) }}">
+                </div>
+            </div>
+            <div style="font-size:11.5px;color:var(--text-3);margin-top:10px;line-height:1.5;">
+                Les périodes échues sont regroupées par site et par comptes de stock/variation. Une période déjà
+                comptabilisée n'est jamais rejouée. Les montants et les mouvements physiques ne sont pas modifiés.
+            </div>
+        </div>
 
         <div style="display:flex;justify-content:flex-end;margin-top:20px;gap:10px;">
             <a href="{{ route('admin.tableau_de_bord') }}" class="btn btn-outline">Annuler</a>
