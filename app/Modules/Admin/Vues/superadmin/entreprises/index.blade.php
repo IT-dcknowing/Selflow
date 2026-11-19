@@ -214,7 +214,7 @@
                     </td>
                     <td style="text-align: center;">
                         <div style="display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;">
-                            <button type="button" class="btn btn-outline btn-sm" onclick="ouvrirModalDetails({{ json_encode($ent) }}, {{ $ent->pointsDeVente()->count() }}, {{ $ent->utilisateurs()->count() }}, {{ $ent->produits()->count() }})" style="padding: 4px 8px; font-size: 12px;">
+                            <button type="button" class="btn btn-outline btn-sm" onclick="ouvrirModalDetails({{ json_encode($ent) }}, {{ $ent->points_de_vente_count }}, {{ $ent->utilisateurs_count }}, {{ $ent->produits_count }})" style="padding: 4px 8px; font-size: 12px;">
                                 <i class="fas fa-eye"></i> Détails
                             </button>
                             <a href="{{ route('superadmin.entreprises.modifier', $ent) }}" class="btn btn-primary btn-sm" style="padding: 4px 8px; font-size: 12px;">
