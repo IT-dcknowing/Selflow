@@ -69,12 +69,39 @@ class FactureRecueControleur
         $this->siennes($facture);
 
         $propose = $facture->rapprochementPropose();
-        $achat   = $propose['achat'];
+        $achat = $propose['achat'];
+
+        // Pour un avoir fournisseur, parentReference n'est pas toujours
+        // renseigné par le portail. L'utilisateur peut alors choisir l'achat
+        // d'origine parmi ceux du même fournisseur. Le contrôle porte sur
+        // l'entreprise ET le fournisseur : un identifiant envoyé à la main ne
+        // peut jamais rattacher la pièce à un achat d'un autre tiers.
+        if ($facture->subtype === 'refund' && request()->filled('achat_id')) {
+            request()->validate([
+                'achat_id' => ['required', 'integer'],
+            ]);
+
+            $fournisseur = $propose['fournisseur'];
+            $achat = $fournisseur
+                ? Achat::query()
+                    ->whereKey((int) request('achat_id'))
+                    ->where('fournisseur_id', $fournisseur->id)
+                    ->where('etape', 'Facture')
+                    ->where(fn ($q) => $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir'))
+                    ->whereHas('pointDeVente', fn ($q) => $q->where('entreprise_id', Auth::user()->entreprise_id))
+                    ->first()
+                : null;
+
+            if (!$achat) {
+                return back()->with('erreur', 'Achat invalide : choisissez une facture du fournisseur indiqué sur cet avoir.');
+            }
+
+            $propose['ecart_ttc'] = round((float) $achat->montant_ttc - (float) $facture->montant_ttc, 2);
+        }
 
         if (!$achat instanceof Achat) {
             return back()->with('erreur',
-                "Aucun achat de Selflow ne correspond à cette facture. Saisissez-le d'abord, "
-                . "puis revenez le rattacher — le relevé ne crée pas d'achat."
+                "Aucun achat correspondant n'a été identifié. Vérifiez le fournisseur et choisissez sa facture d'origine — le relevé ne crée pas d'achat."
             );
         }
 
