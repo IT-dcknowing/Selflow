@@ -17,8 +17,13 @@ class GoogleAuthControleur
     /**
      * Rediriger vers Google pour l'authentification.
      */
-    public function rediriger(): RedirectResponse
+    public function rediriger(Request $request): RedirectResponse
     {
+        $offre = (string) $request->query('offre', '');
+        if ($offre !== '' && array_key_exists($offre, \App\Modules\Admin\Regles\Abonnements::offres())) {
+            session(['inscription_offre' => $offre]);
+        }
+
         return Socialite::driver('google')->redirect();
     }
 
@@ -38,6 +43,7 @@ class GoogleAuthControleur
         $utilisateur = Utilisateur::where('email', $googleUser->getEmail())->first();
 
         if ($utilisateur) {
+            session()->forget('inscription_offre');
             // ── Connexion directe ──────────────────────────────────────────
             if ($utilisateur->statut === 'en_attente') {
                 return redirect()->route('connexion')
@@ -78,7 +84,23 @@ class GoogleAuthControleur
             // `statut` est volontairement hors `$fillable` : l'état de validation
             // ne doit jamais être fourni par un formulaire d'entreprise.
             $entreprise->forceFill(['statut' => 'en_attente'])->save();
-            $entreprise->forceFill(['quota_utilisateurs' => \App\Modules\Admin\Regles\Abonnements::QUOTA_PAR_DEFAUT])->save();
+
+            // Le pack choisi sur le formulaire d'inscription est conservé
+            // pendant l'aller-retour OAuth. Pour un accès Google direct depuis
+            // la page de connexion, le pass d'essai est proposé par défaut :
+            // aucun dossier ne reste bloqué sur « À choisir ».
+            $offresDisponibles = \App\Modules\Admin\Regles\Abonnements::offres();
+            $offreDemandee = session()->pull('inscription_offre', \App\Modules\Admin\Regles\Abonnements::PASS_CADEAU);
+            if (!array_key_exists($offreDemandee, $offresDisponibles)) {
+                $offreDemandee = \App\Modules\Admin\Regles\Abonnements::PASS_CADEAU;
+            }
+            $detailsOffre = $offresDisponibles[$offreDemandee];
+            $entreprise->forceFill([
+                'quota_points_de_vente' => $detailsOffre['points_de_vente'] ?? \App\Modules\Admin\Regles\Abonnements::QUOTA_PAR_DEFAUT,
+                'quota_utilisateurs' => $detailsOffre['utilisateurs'] ?? \App\Modules\Admin\Regles\Abonnements::QUOTA_PAR_DEFAUT,
+                'abonnement_demande' => $offreDemandee,
+                'abonnement_demande_le' => now(),
+            ])->save();
 
             // Sans plan comptable ni journal, la premiere vente s'impute sur des
             // comptes inventes a la volee. L'entreprise recoit donc de quoi
