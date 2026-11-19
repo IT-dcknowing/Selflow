@@ -487,7 +487,7 @@ function ouvrirModalDetails(ent, countPdv, countUsers, countProducts) {
     document.getElementById('modalTelephone').textContent = ent.telephone || '— Non renseigné —';
     document.getElementById('modalNCC').textContent = ent.ncc || '— Non renseigné —';
     document.getElementById('modalRCCM').textContent = ent.rccm || '— Non renseigné —';
-    document.getElementById('modalPlan').textContent = ent.plan_abonnement;
+    document.getElementById('modalPlan').textContent = ent.abonnement_demande || ent.plan_abonnement;
     document.getElementById('modalQuota').textContent = ent.quota_points_de_vente + ' max';
     
     document.getElementById('modalCountPdv').textContent = countPdv;
