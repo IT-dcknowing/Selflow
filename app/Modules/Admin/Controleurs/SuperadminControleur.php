@@ -523,6 +523,11 @@ class SuperadminControleur
             return back()->with('erreur', 'Cette inscription a déjà été traitée.');
         }
 
+        if ($entreprise->plan_abonnement === \App\Modules\Admin\Regles\Abonnements::A_CHOISIR
+            && blank($entreprise->abonnement_demande)) {
+            return back()->with('erreur', 'Choisissez ou renseignez le pack de cette entreprise avant de valider son inscription.');
+        }
+
         DB::transaction(function () use ($entreprise) {
             $entreprise->forceFill(['statut' => 'actif'])->save();
             $entreprise->utilisateurs()->where('statut', 'en_attente')->update(['statut' => 'actif']);
