@@ -159,7 +159,7 @@ class InscriptionControleur
                 'adresse'             => trim($request->adresse ?? ''),
                 'rccm'                => trim($request->rccm ?? ''),
                 'compte_contribuable' => trim($request->compte_contribuable ?? ''),
-                'regime_imposition'   => $request->regime_imposition,
+                'regime_imposition'   => $request->input('regime_imposition') ?: 'TEE',
                 'ncc'                 => $request->filled('fne_ncc')
                     ? strtoupper(trim($request->fne_ncc))
                     : ($request->filled('ncc') ? strtoupper(trim($request->ncc)) : null),
