@@ -259,11 +259,11 @@ class InventairePermanentTest extends TestCase
 
     public function test_l_entree_d_un_achat_antidate_prend_la_date_de_l_achat(): void
     {
-        $fournisseur = \\App\\Modules\\Admin\\Modeles\\Fournisseur::create([
+        $fournisseur = \App\Modules\Admin\Modeles\Fournisseur::create([
             'entreprise_id' => $this->entreprise->id, 'nom' => 'Grossiste du port',
         ]);
 
-        $achat = \\App\\Modules\\Admin\\Modeles\\Achat::create([
+        $achat = \App\Modules\Admin\Modeles\Achat::create([
             'point_de_vente_id' => $this->magasin->id,
             'fournisseur_id'    => $fournisseur->id,
             'numero_facture'    => 'ACH-TEST-001',
@@ -284,12 +284,12 @@ class InventairePermanentTest extends TestCase
 
     public function test_la_reception_tardive_d_une_commande_garde_le_jour_de_la_reception(): void
     {
-        $fournisseur = \\App\\Modules\\Admin\\Modeles\\Fournisseur::create([
+        $fournisseur = \App\Modules\Admin\Modeles\Fournisseur::create([
             'entreprise_id' => $this->entreprise->id, 'nom' => 'Grossiste du port',
         ]);
 
         $this->travelTo(now()->subDays(6));
-        $commande = \\App\\Modules\\Admin\\Modeles\\Achat::create([
+        $commande = \App\Modules\Admin\Modeles\Achat::create([
             'point_de_vente_id' => $this->magasin->id,
             'fournisseur_id'    => $fournisseur->id,
             'numero_facture'    => 'BC-TEST-001',
