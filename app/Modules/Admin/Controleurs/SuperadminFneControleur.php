@@ -324,15 +324,20 @@ class SuperadminFneControleur extends Controller
 
         if ($actif) {
             try {
-                \App\Modules\Admin\Services\IdentifiantsScraperService::apresAccesFourni(
+                $inscrit = \App\Modules\Admin\Services\IdentifiantsScraperService::apresAccesFourni(
                     $entreprise, $credential->ncc_associe, $credential->acces_mot_de_passe
                 );
+                if (!$inscrit) {
+                    throw new \RuntimeException('Impossible d’inscrire les identifiants dans le magasin du scraper.');
+                }
             } catch (\Throwable $e) {
                 $credential->telechargement_actif = false;
                 $credential->save();
                 Log::error('[FNE] Échec activation téléchargement entreprise #' . $entreprise->id . ' : ' . $e->getMessage());
                 return back()->with('error', 'Le lancement a échoué. Autorisation désactivée ; consultez laravel.log.');
             }
+        } else {
+            \App\Modules\Admin\Services\IdentifiantsScraperService::retirer((string) $credential->ncc_associe);
         }
 
         Log::notice('[FNE] Téléchargement ' . ($actif ? 'activé' : 'désactivé') . ' pour entreprise #' . $entreprise->id . ' par superadmin #' . Auth::id());
