@@ -570,6 +570,7 @@ class AchatControleur
             ->where('statut_rapprochement', PortailFneFactureRecue::ECARTEE)
             ->count();
         $nbEcartees = PortailFneFactureRecue::recues()->where('entreprise_id', $entreprise->id)
+            ->where('subtype', '!=', 'refund')
             ->where('statut_rapprochement', PortailFneFactureRecue::ECARTEE)
             ->count();
 
