@@ -14,6 +14,7 @@ use App\Modules\Admin\Modeles\PortailFneFactureRecue;
 use App\Modules\Admin\Services\FiltrePeriodeService;
 use App\Modules\Admin\Services\ImportAvoirsService;
 use App\Modules\Admin\Services\ImportFacturesRecuesService;
+use App\Modules\Admin\Services\ImportFacturesEmisesService;
 use App\Modules\Admin\Services\ScraperPortailFneService;
 use App\Modules\Admin\Modeles\PortailFneImport;
 use Illuminate\Support\Facades\Cache;
@@ -524,6 +525,54 @@ class FneDashboardControleur
         }
 
         $rapport = app(ImportFacturesRecuesService::class)->importerDossier(null, $login);
+
+        return response()->json([
+            'status' => 'success',
+            'termine' => true,
+            'import' => [
+                'importes' => $rapport['importes'] ?? 0,
+                'modifies' => $rapport['inchanges'] ?? 0,
+                'erreurs' => $rapport['erreurs'] ?? 0,
+            ],
+        ]);
+    }
+
+    /** Déclenche le relevé des factures de vente émises sur le portail FNE. */
+    public function actualiserVentes(): JsonResponse
+    {
+        $entreprise = Auth::user()?->entreprise;
+        $login = trim((string) ($entreprise?->ncc ?? ''));
+
+        if ($login === '') {
+            return response()->json(['status' => 'error', 'message' => 'NCC de l’entreprise introuvable.'], 422);
+        }
+
+        if (Cache::has(ScraperPortailFneService::verrouVentes($login))) {
+            return response()->json(['status' => 'success', 'en_cours' => true, 'message' => 'Un relevé des ventes est déjà en cours.']);
+        }
+
+        if (!ScraperPortailFneService::lancerVentes($login)) {
+            return response()->json(['status' => 'error', 'message' => 'Le relevé des factures de vente FNE n’a pas pu être lancé. Vérifiez la configuration du scraper.'], 503);
+        }
+
+        return response()->json(['status' => 'success', 'en_cours' => true, 'message' => 'Récupération des factures de vente FNE lancée.']);
+    }
+
+    /** Importe les factures de vente du seul NCC connecté après le passage du scraper. */
+    public function statutActualisationVentes(): JsonResponse
+    {
+        $entreprise = Auth::user()?->entreprise;
+        $login = trim((string) ($entreprise?->ncc ?? ''));
+
+        if ($login === '') {
+            return response()->json(['status' => 'error', 'message' => 'NCC de l’entreprise introuvable.'], 422);
+        }
+
+        if (Cache::has(ScraperPortailFneService::verrouVentes($login))) {
+            return response()->json(['status' => 'success', 'termine' => false]);
+        }
+
+        $rapport = app(ImportFacturesEmisesService::class)->importerDossier(null, $login);
 
         return response()->json([
             'status' => 'success',
