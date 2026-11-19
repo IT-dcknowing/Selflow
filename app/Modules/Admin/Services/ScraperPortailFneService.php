@@ -220,6 +220,17 @@ class ScraperPortailFneService
             ->exists();
     }
 
+    /** Lancer le relevé de la fiche FNE uniquement pour les comptes autorisés. */
+    public static function lancerPourTousLesLoginsAutorises(): bool
+    {
+        $logins = self::loginsAutorises();
+        foreach ($logins as $login) {
+            self::lancerPourLogin($login);
+        }
+
+        return $logins !== [];
+    }
+
     /**
      * Lancer une relève de ce login, détachée, sans jamais lever d'exception.
      *
