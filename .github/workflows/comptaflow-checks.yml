@@ -1,0 +1,28 @@
+name: SELFLOW COMPTAFLOW checks
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  comptaflow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: bcmath, ctype, curl, dom, fileinfo, gd, intl, mbstring, openssl, pdo, pdo_sqlite, tokenizer, xml, zip
+          tools: composer:v2
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Prepare application key
+        run: php artisan key:generate --force
+      - name: Run COMPTAFLOW liaison tests
+        run: php artisan test --filter='LiaisonComptaflow|PasserelleComptaflow'
+      - name: Compile Blade views
+        run: php artisan view:cache
+      - name: Verify Super Admin liaison routes
+        run: php artisan route:list --name=superadmin.liaisons
