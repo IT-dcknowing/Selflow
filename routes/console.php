@@ -193,27 +193,32 @@ if (config('selflow.portail_fne.scraper.actif')) {
     // individuelle donnée par le superadministrateur.
     Schedule::call(fn () => $scraperFne::lancerPourTousLesLoginsAutorises())
         ->hourlyAt(config('selflow.portail_fne.scraper.minute_horaire'))
+        ->name('selflow-portail-fne-global-horaire')
         ->withoutOverlapping(30);
 
     Schedule::call(fn () => $scraperFne::lancerPourTousLesLoginsAutorises())
         ->dailyAt(config('selflow.portail_fne.scraper.heure_nocturne'))
+        ->name('selflow-portail-fne-global-nocturne')
         ->withoutOverlapping(120);
 
     if (config('selflow.portail_fne.scraper.achats_actif')) {
         Schedule::call(fn () => $scraperFne::lancerAchats())
             ->cron("*/{$pasAchats} * * * *")
+            ->name('selflow-portail-fne-achats')
             ->withoutOverlapping($pasAchats * 2);
     }
 
     if (config('selflow.portail_fne.scraper.avoirs_actif')) {
         Schedule::call(fn () => $scraperFne::lancerAvoirs())
             ->cron("{$decalageAvoirs}-59/{$pasAvoirs} * * * *")
+            ->name('selflow-portail-fne-avoirs')
             ->withoutOverlapping($pasAvoirs * 2);
     }
 
     if (config('selflow.portail_fne.scraper.ventes_actif', true)) {
         Schedule::call(fn () => $scraperFne::lancerVentes())
             ->cron("*/{$pasVentes} * * * *")
+            ->name('selflow-portail-fne-ventes')
             ->withoutOverlapping($pasVentes * 2);
     }
 }
