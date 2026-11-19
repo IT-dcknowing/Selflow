@@ -1893,8 +1893,8 @@ async function actualiserFacturesFneVentes() {
     const statut = document.getElementById('statut-actualiser-fne-ventes');
     if (!bouton || bouton.disabled) return;
 
-    const urlLancement = @json(route('admin.ventes.factures.fne.actualiser'));
-    const urlStatut = @json(route('admin.ventes.factures.fne.actualiser.statut'));
+    const urlLancement = @json(route($isCaissier ? 'caissier.ventes.factures.fne.actualiser' : 'admin.ventes.factures.fne.actualiser'));
+    const urlStatut = @json(route($isCaissier ? 'caissier.ventes.factures.fne.actualiser.statut' : 'admin.ventes.factures.fne.actualiser.statut'));
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
     bouton.disabled = true;
     statut.textContent = 'Connexion au portail FNE…';
