@@ -48,6 +48,61 @@ class ScraperPortailFneService
     public const VERROU_AVOIRS = 'portail_fne_releve_avoirs_';
     public const VERROU_VENTES = 'portail_fne_releve_ventes_';
 
+    private const DUREE_MAX_PROCESSUS_MINUTES = 20;
+
+
+    /**
+     * Crée un suivi de processus durable pendant toute la durée du scraper.
+     * Le verrou n'expire pas au bout des cinq minutes de cadence du relevé :
+     * le script Node dépose un petit fichier d'état à sa sortie, que le statut
+     * HTTP peut lire même après un rechargement ou une fermeture de page.
+     */
+    private static function preparerSuivi(string $verrou, string $type, ?string $login, int $minutes): ?string
+    {
+        $dossier = storage_path('app/portail-fne/etat-processus');
+
+        if (!is_dir($dossier) && !mkdir($dossier, 0775, true) && !is_dir($dossier)) {
+            throw new \\RuntimeException("Impossible de créer le dossier de suivi FNE : {$dossier}");
+        }
+
+        $identifiant = preg_replace('/[^A-Za-z0-9_-]/', '_', trim((string) $login) ?: 'tous');
+        $fichierEtat = $dossier . DIRECTORY_SEPARATOR . $type . '_' . $identifiant . '_' . bin2hex(random_bytes(6)) . '.json';
+        $ttl = max(self::DUREE_MAX_PROCESSUS_MINUTES, $minutes);
+
+        return Cache::add($verrou, ['fichier_etat' => $fichierEtat], now()->addMinutes($ttl))
+            ? $fichierEtat
+            : null;
+    }
+
+    /**
+     * null : aucun processus suivi ; en_cours : le scraper n'a pas encore
+     * déposé son marqueur ; exit_code : le processus est terminé.
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function etatProcessus(string $verrou): ?array
+    {
+        $suivi = Cache::get($verrou);
+
+        if ($suivi === null) {
+            return null;
+        }
+
+        if (!is_array($suivi) || empty($suivi['fichier_etat'])) {
+            return ['en_cours' => true];
+        }
+
+        $fichierEtat = (string) $suivi['fichier_etat'];
+
+        if (!is_file($fichierEtat)) {
+            return ['en_cours' => true];
+        }
+
+        $etat = json_decode((string) @file_get_contents($fichierEtat), true);
+
+        return is_array($etat) ? $etat : ['en_cours' => true];
+    }
+
     /** La clé du verrou pour ce login, ou pour le passage complet. */
     public static function verrouAchats(?string $login = null): string
     {
@@ -316,9 +371,15 @@ class ScraperPortailFneService
 
         // Le verrou d'abord, et par écriture atomique : deux appels simultanés
         // ne doivent pas ouvrir deux navigateurs sur le même portail.
-        if (!Cache::add(self::verrouAchats($login), true, now()->addMinutes($minutes))) {
-            self::tracer('info', "achats[{$cible}] : rien lancé — un relevé est déjà en route (verrou de {$minutes} min).");
-
+        $verrou = self::verrouAchats($login);
+        try {
+            $fichierEtat = self::preparerSuivi($verrou, 'achats', $login, $minutes);
+        } catch (\\Throwable $e) {
+            self::tracer('error', "achats[{$cible}] : impossible de préparer le suivi — " . $e->getMessage());
+            return false;
+        }
+        if ($fichierEtat === null) {
+            self::tracer('info', "achats[{$cible}] : rien lancé — un relevé est déjà en route.");
             return false;
         }
 
@@ -326,7 +387,7 @@ class ScraperPortailFneService
         $script = (string) config('selflow.portail_fne.scraper.script_achats');
 
         try {
-            self::detacher([$node, $script, $login ?: '--tous'], self::sorties());
+            self::detacher([$node, $script, $login ?: '--tous', '--status-file=' . $fichierEtat], self::sorties());
 
             // Le chemin de Node et celui du script sont dans le message, et non
             // seulement dans la configuration : les deux pannes les plus
@@ -387,9 +448,15 @@ class ScraperPortailFneService
 
         $minutes = max(1, (int) config('selflow.portail_fne.scraper.avoirs_minutes', 5));
 
-        if (!Cache::add(self::verrouAvoirs($login), true, now()->addMinutes($minutes))) {
-            self::tracer('info', "avoirs[{$cible}] : rien lancé — un relevé est déjà en route (verrou de {$minutes} min).");
-
+        $verrou = self::verrouAvoirs($login);
+        try {
+            $fichierEtat = self::preparerSuivi($verrou, 'avoirs', $login, $minutes);
+        } catch (\\Throwable $e) {
+            self::tracer('error', "avoirs[{$cible}] : impossible de préparer le suivi — " . $e->getMessage());
+            return false;
+        }
+        if ($fichierEtat === null) {
+            self::tracer('info', "avoirs[{$cible}] : rien lancé — un relevé est déjà en route.");
             return false;
         }
 
@@ -401,6 +468,7 @@ class ScraperPortailFneService
             if ($listing !== 'tous') {
                 $arguments[] = '--listing=' . $listing;
             }
+            $arguments[] = '--status-file=' . $fichierEtat;
             self::detacher($arguments, self::sorties());
 
             self::tracer('info', "avoirs[{$cible}] : relevé lancé en arrière-plan.", [
@@ -441,7 +509,14 @@ class ScraperPortailFneService
         }
 
         $minutes = max(1, (int) config('selflow.portail_fne.scraper.ventes_minutes', 5));
-        if (!Cache::add(self::verrouVentes($login), true, now()->addMinutes($minutes))) {
+        $verrou = self::verrouVentes($login);
+        try {
+            $fichierEtat = self::preparerSuivi($verrou, 'ventes', $login, $minutes);
+        } catch (\\Throwable $e) {
+            self::tracer('error', "ventes[{$cible}] : impossible de préparer le suivi — " . $e->getMessage());
+            return false;
+        }
+        if ($fichierEtat === null) {
             self::tracer('info', "ventes[{$cible}] : rien lancé — un relevé est déjà en route.");
             return false;
         }
@@ -454,7 +529,7 @@ class ScraperPortailFneService
             // VENTES_DEPUIS ne doit jamais réduire le relevé demandé à l'année
             // civile en cours.
             $depuis = now()->startOfYear()->toDateString();
-            self::detacher([$node, $script, $login ?: '--tous', '--depuis=' . $depuis], self::sorties());
+            self::detacher([$node, $script, $login ?: '--tous', '--depuis=' . $depuis, '--status-file=' . $fichierEtat], self::sorties());
             self::tracer('info', "ventes[{$cible}] : relevé FNE lancé en arrière-plan.", [
                 'node' => $node,
                 'script' => $script,
