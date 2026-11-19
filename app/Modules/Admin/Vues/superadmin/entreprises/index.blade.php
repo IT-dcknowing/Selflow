@@ -80,7 +80,7 @@
         @endif
     </div>
 
-    <div style="background:#fffbeb;border:1px solid #fde68a;border-left:5px solid #d97706;border-radius:12px;padding:16px;">
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-left:5px solid #d97706;border-radius:10px;padding:11px;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;">
             <strong style="color:#92400e;"><i class="fas fa-bell"></i> Échéances dans les 10 jours</strong>
             <span style="background:#d97706;color:#fff;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:800;">{{ $abonnementsProchesTotal }}</span>
