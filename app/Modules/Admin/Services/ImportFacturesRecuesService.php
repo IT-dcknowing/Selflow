@@ -203,6 +203,8 @@ class ImportFacturesRecuesService
                 : $this->tracer('info', $bilan);
         }
 
+        PortailFneNotificationService::notifier($rapport, 'Factures fournisseurs (achats)');
+
         return $rapport;
     }
 
