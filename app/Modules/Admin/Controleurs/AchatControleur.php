@@ -662,6 +662,31 @@ class AchatControleur
             : \App\Modules\Admin\Modeles\PointDeVente::where('entreprise_id', $entreprise->id)
                 ->orderBy('nom')->get();
 
+        // Pour les avoirs fournisseurs, la référence de la facture d'origine
+        // n'est pas toujours fournie par l'API FNE. On présente alors les achats
+        // du même fournisseur afin que l'utilisateur choisisse explicitement
+        // la pièce à laquelle rattacher l'avoir — sans rapprochement hasardeux.
+        $achatsCandidatsParFournisseur = collect();
+        if ($section === 'avoirs_fournisseur' && $facturesPortail->isNotEmpty()) {
+            $fournisseursIds = $facturesPortail
+                ->map(fn (PortailFneFactureRecue $piece) => $piece->fournisseurProbable()?->id)
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($fournisseursIds->isNotEmpty()) {
+                $achatsCandidatsParFournisseur = Achat::query()
+                    ->with('fournisseur')
+                    ->whereIn('fournisseur_id', $fournisseursIds)
+                    ->where('etape', 'Facture')
+                    ->where(fn ($q) => $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir'))
+                    ->whereHas('pointDeVente', fn ($q) => $q->where('entreprise_id', $entreprise->id))
+                    ->orderByDesc('date_achat')
+                    ->get()
+                    ->groupBy('fournisseur_id');
+            }
+        }
+
         // Les KPI des factures d'achat (19/10/2026), sur le site et les dates
         // affichés. Seul le bordereau se normalise : « non normalisées » ne
         // compte donc que les bordereaux en attente.
@@ -691,7 +716,7 @@ class AchatControleur
             'kpiFactures',
             'achats', 'etapeActive', 'section', 'nbDP', 'nbBC', 'nbFacture',
             'nbBapa', 'nbEnregistrees', 'nbDgi', 'nbAvoirsFournisseurs', 'nbAvoirsFournisseursEcartees', 'nbEcartees',
-            'facturesPortail', 'sitesDisponibles', 'entreprise'
+            'facturesPortail', 'sitesDisponibles', 'achatsCandidatsParFournisseur', 'entreprise'
         ));
     }
 
