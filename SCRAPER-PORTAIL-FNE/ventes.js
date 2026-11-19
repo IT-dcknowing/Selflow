@@ -9,12 +9,12 @@
  * ## Pourquoi un troisieme fichier
  *
  * `achats.js` releve les factures RECUES (listing=received). Les ventes sont
- * des factures EMISES de sous-type "normal" (listing=issued). Ce sont nos
- * propres pieces -- etablies et certifiees par nous -- qui corrigent une
- * facture deja emise. Le meme endpoint `/ws/invoices`, parametre different.
+ * des factures EMISES de sous-type "normal" (listing=issued), associées au NCC
+ * connecté. Elles peuvent avoir été émises dans Selflow ou par une autre source.
+ * Le même endpoint `/ws/invoices`, avec un listing différent.
  *
- * Ce relevé est séparé des avoirs : il ne conserve que les factures de vente normales
- * n'est pas une vente, meme s'il sort du meme ecran.
+ * Les avoirs sont relevés séparément par `avoirs.js` : ils ne sont pas mélangés
+ * aux factures de vente normales.
  *
  * ## Le contrat de depot
  *
