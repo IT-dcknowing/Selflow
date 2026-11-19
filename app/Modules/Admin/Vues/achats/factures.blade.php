@@ -87,8 +87,8 @@
 </div>
 
 <div style="margin-bottom:16px; padding:10px 14px; border-radius:8px; font-size:12px; line-height:1.5;
-            background:{{ $section === 'bapa' ? '#fff7ed' : ($section === 'dgi' ? '#eff6ff' : '#f8fafc') }};
-            border:1px solid {{ $section === 'bapa' ? '#fed7aa' : ($section === 'dgi' ? '#bfdbfe' : 'var(--border)') }};
+            background:{{ $section === 'bapa' ? '#fff7ed' : (in_array($section, ['dgi', 'avoirs_fournisseur'], true) ? '#eff6ff' : '#f8fafc') }};
+            border:1px solid {{ $section === 'bapa' ? '#fed7aa' : (in_array($section, ['dgi', 'avoirs_fournisseur'], true) ? '#bfdbfe' : 'var(--border)') }};
             color:var(--text-2);">
     @if($section === 'bapa')
         <i class="fas fa-circle-info" style="color:#c2410c;"></i>
@@ -107,24 +107,18 @@
             </button>
             <span id="statut-actualiser-fne-achats" style="font-size:12px; color:var(--text-2);" aria-live="polite"></span>
         </div>
-        <div style="margin-top:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-            <button type="button" id="btn-actualiser-fne-achats" class="btn btn-primary btn-sm" onclick="actualiserFacturesFneAchats()">
-                <i class="fas fa-rotate"></i> Actualiser les factures FNE
-            </button>
-            <span id="statut-actualiser-fne-achats" style="font-size:12px; color:var(--text-2);" aria-live="polite"></span>
-        </div>
         {{-- Écarter n'est pas supprimer : la pièce reste, et le portail la
              redéposera. Ce qu'on a mis de côté doit pouvoir revenir, sinon
              l'écartement serait une suppression déguisée. --}}
-        @if($nbEcartees > 0 || request('statut') === 'ecartees')
+        @if(($section === 'avoirs_fournisseur' ? $nbAvoirsFournisseursEcartees : $nbEcartees) > 0 || request('statut') === 'ecartees')
             <div style="margin-top:6px;">
                 @if(request('statut') === 'ecartees')
-                    <a href="{{ route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']) }}" style="font-weight:700;">
+                    <a href="{{ route('admin.achats.factures', ['etape' => 'Facture', 'section' => $section]) }}" style="font-weight:700;">
                         &larr; Revenir aux factures à rapprocher
                     </a>
                 @else
-                    <a href="{{ route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi', 'statut' => 'ecartees']) }}" style="font-weight:700;">
-                        Voir les {{ $nbEcartees }} facture(s) écartée(s)
+                    <a href="{{ route('admin.achats.factures', ['etape' => 'Facture', 'section' => $section, 'statut' => 'ecartees']) }}" style="font-weight:700;">
+                        Voir les {{ $section === 'avoirs_fournisseur' ? $nbAvoirsFournisseursEcartees : $nbEcartees }} pièce(s) écartée(s)
                     </a>
                 @endif
             </div>
