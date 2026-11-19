@@ -61,18 +61,18 @@
         </div>
         <span style="font-size:12px; font-weight:700; color:#1e40af;">{{ $nbFacturesFneDansSelflow }} déjà dans Selflow · {{ $facturesFneExternes->count() }} hors Selflow</span>
     </div>
-    @if($facturesFneExternes->isNotEmpty())
+    @if($facturesFnePortail->isNotEmpty())
     <div style="overflow-x:auto;">
         <table style="width:100%; background:#fff;">
             <thead>
                 <tr>
                     <th>Date</th><th>Référence FNE</th><th>Client indiqué par la FNE</th>
                     <th style="text-align:right;">HT</th><th style="text-align:right;">TVA</th><th style="text-align:right;">TTC</th>
-                    <th>Origine</th><th>Document</th>
+                    <th>Origine</th><th>Vente Selflow correspondante</th><th>Document</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach($facturesFneExternes as $documentFne)
+                @foreach($facturesFnePortail as $documentFne)
                     @php
                         $brutFne = is_array($documentFne->contenu_brut) ? $documentFne->contenu_brut : [];
                         $clientFne = $brutFne['clientCompany']['name'] ?? $brutFne['customer']['name'] ?? $brutFne['client']['name'] ?? '—';
@@ -85,7 +85,22 @@
                         <td style="text-align:right;">{{ number_format((float) $documentFne->montant_ht, 0, ',', ' ') }} F</td>
                         <td style="text-align:right;">{{ number_format((float) $documentFne->montant_tva, 0, ',', ' ') }} F</td>
                         <td style="text-align:right; font-weight:700;">{{ number_format((float) $documentFne->montant_ttc, 0, ',', ' ') }} F</td>
-                        <td><span style="color:#1d4ed8; font-weight:700;">Émise hors Selflow</span></td>
+                        <td>
+                            @if($documentFne->vente_locale)
+                                <span style="color:#047857; font-weight:700;">Déjà enregistrée dans Selflow</span>
+                            @else
+                                <span style="color:#1d4ed8; font-weight:700;">Émise hors Selflow</span>
+                            @endif
+                        </td>
+                        <td>
+                            @if($documentFne->vente_locale)
+                                <a href="{{ route($isCaissier ? 'caissier.ventes.imprimer' : 'admin.ventes.imprimer', $documentFne->vente_locale) }}">
+                                    {{ $documentFne->vente_locale->numero_facture }}
+                                </a>
+                            @else
+                                <span style="color:var(--text-3);">Aucune correspondance locale</span>
+                            @endif
+                        </td>
                         <td>
                             @if($urlFne)
                                 <a href="{{ $urlFne }}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Consulter FNE</a>
