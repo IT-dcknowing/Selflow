@@ -77,7 +77,7 @@ class InventairePeriodiqueService
             ? Carbon::parse($entreprise->comptabilite_stock_date_fin)->startOfDay()
             : null;
         $quotidien = (bool) $entreprise->comptabilite_stock_quotidienne;
-        $mois = max(1, min(12, (int) ($entreprise->comptabilite_stock_periode_mois ?: 1)));
+        $mois = max(1, min(12, (int) ($entreprise->comptabilite_stock_periode_mois ?: 3)));
         $fait = ['periodes' => 0, 'operations' => 0];
 
         for ($i = 0; $i < $maximum; $i++) {
