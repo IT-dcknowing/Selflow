@@ -27,7 +27,7 @@ use Tests\TestCase;
  *   quantité, pas en valeur : la balance n'en portait pas trace, et aucun bilan
  *   ne pouvait être établi.
  */
-class InventairePermanentTest extends TestCase
+class ComptabilisationStockPeriodiqueTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -183,9 +183,9 @@ class InventairePermanentTest extends TestCase
         $this->assertSame(270000.0, StockService::valeurDuStock($this->riz, $this->magasin->id));
     }
 
-    // ══════════════ Les écritures d'inventaire permanent ══════════════
+    // ══════════════ La comptabilisation différée du stock ══════════════
 
-    public function test_une_entree_debite_le_stock_et_credite_la_variation(): void
+    public function test_une_entree_de_stock_ne_genere_pas_d_ecriture_par_defaut(): void
     {
         // Le stock physique bouge, mais les écritures sont désactivées par défaut.
         $this->entree(10, 12000);
@@ -193,7 +193,7 @@ class InventairePermanentTest extends TestCase
         $this->assertSame(0, EcritureComptable::withoutGlobalScopes()->count());
     }
 
-    public function test_une_sortie_inverse_les_deux_comptes(): void
+    public function test_une_sortie_de_stock_ne_genere_pas_d_ecriture_par_defaut(): void
     {
         $this->entree(10, 12000);
         StockService::sortie($this->riz, $this->magasin->id, 4, MouvementStock::LIVRAISON);
@@ -201,7 +201,7 @@ class InventairePermanentTest extends TestCase
         $this->assertSame(0, EcritureComptable::withoutGlobalScopes()->count());
     }
 
-    public function test_l_ecriture_dit_pourquoi_le_stock_a_bouge(): void
+    public function test_le_journal_de_stock_reste_independant_de_la_comptabilisation(): void
     {
         $this->entree(10, 12000);
         StockService::sortie($this->riz, $this->magasin->id, 2, MouvementStock::REBUT);
@@ -249,7 +249,7 @@ class InventairePermanentTest extends TestCase
         $this->assertSame(0, EcritureComptable::count());
     }
 
-    public function test_l_ecriture_est_equilibree(): void
+    public function test_aucune_operation_comptable_n_est_creee_par_defaut(): void
     {
         $this->entree(10, 12000);
         StockService::sortie($this->riz, $this->magasin->id, 3, MouvementStock::LIVRAISON);
@@ -257,7 +257,7 @@ class InventairePermanentTest extends TestCase
         $this->assertSame(0, EcritureComptable::withoutGlobalScopes()->count());
     }
 
-    public function test_l_entree_d_un_achat_antidate_prend_la_date_de_l_achat(): void
+    public function test_un_mouvement_lie_a_un_achat_ne_genere_pas_d_ecriture_par_defaut(): void
     {
         $fournisseur = \App\Modules\Admin\Modeles\Fournisseur::create([
             'entreprise_id' => $this->entreprise->id, 'nom' => 'Grossiste du port',
@@ -282,7 +282,7 @@ class InventairePermanentTest extends TestCase
         $this->assertSame(0, EcritureComptable::withoutGlobalScopes()->count());
     }
 
-    public function test_la_reception_tardive_d_une_commande_garde_le_jour_de_la_reception(): void
+    public function test_une_reception_de_commande_ne_genere_pas_d_ecriture_par_defaut(): void
     {
         $fournisseur = \App\Modules\Admin\Modeles\Fournisseur::create([
             'entreprise_id' => $this->entreprise->id, 'nom' => 'Grossiste du port',
