@@ -27,10 +27,9 @@ class DeverserReferentielComptaflowService
             return ['success' => false, 'message' => 'La liaison Comptaflow n’est pas active.'];
         }
 
-        $secret = config('selflow.comptaflow_api_secret');
         $cle = $entreprise->comptaflow_sync_key;
-        if (blank($secret) || blank($cle)) {
-            return ['success' => false, 'message' => 'La configuration sécurisée de la liaison Comptaflow est incomplète.'];
+        if (blank($cle)) {
+            return ['success' => false, 'message' => 'La clé de liaison Comptaflow est absente.'];
         }
 
         $plan = PlanComptable::query()
@@ -42,7 +41,7 @@ class DeverserReferentielComptaflowService
             ->map(fn ($c) => [
                 'numero_de_compte' => (string) $c->numero,
                 'intitule' => (string) $c->libelle,
-                'numero_original' => $c->numero,
+
             ])->filter(fn ($c) => $c['numero_de_compte'] !== '' && $c['intitule'] !== '')
             ->values()->all();
 
@@ -65,7 +64,7 @@ class DeverserReferentielComptaflowService
                     'intitule' => trim((string) $j->intitule),
                     'type' => $type,
                     'compte_numero' => $j->compte ?: null,
-                    'numero_original' => $j->code,
+
                 ];
             })->filter(fn ($j) => $j['code_journal'] !== '' && $j['intitule'] !== '')
             ->values()->all();
@@ -103,7 +102,7 @@ class DeverserReferentielComptaflowService
                         'type_de_tiers' => $definition['type'],
                         'compte_general' => $t->compte_comptable,
                         'informations' => $informations,
-                        'numero_original' => $t->numero_tiers,
+
                     ];
                 });
         }
@@ -112,9 +111,6 @@ class DeverserReferentielComptaflowService
             $reponse = Http::timeout(self::DELAI)
                 ->withHeaders(['X-Company-Key' => $cle])
                 ->post(self::url('/api/external/referentiel/deverser'), [
-                    'secret' => $secret,
-                    'selflow_company_id' => $entreprise->id,
-                    'comptaflow_company_id' => $entreprise->comptaflow_company_id,
                     'plan_comptable' => $plan,
                     'codes_journaux' => $journaux,
                     'tiers' => $tiers,
