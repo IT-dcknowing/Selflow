@@ -113,7 +113,7 @@
                         @endif
                     </form>
                 @else
-                    <a href="{{ route('inscription') }}" class="bouton {{ $code === Abonnements::SUR_MESURE ? 'secondaire' : '' }}">
+                    <a href="{{ route('inscription', ['offre' => $code]) }}" class="bouton {{ $code === Abonnements::SUR_MESURE ? 'secondaire' : '' }}">
                         {{ $code === Abonnements::PASS_CADEAU ? 'Commencer gratuitement' : 'Commencer' }}
                     </a>
                 @endif
