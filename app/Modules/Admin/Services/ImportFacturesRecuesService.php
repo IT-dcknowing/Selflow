@@ -428,6 +428,15 @@ class ImportFacturesRecuesService
         }
 
         foreach ($factures as $brute) {
+            // Le dossier achats ne reçoit que les pièces du listing received
+            // qui ne sont pas des avoirs. Les anciens exports sans
+            // listing_source restent acceptés, mais jamais un refund.
+            if (!is_array($brute)
+                || ($brute['subtype'] ?? null) === 'refund'
+                || (isset($brute['listing_source']) && $brute['listing_source'] !== 'received')) {
+                continue;
+            }
+
             $reference = trim((string) ($brute['reference'] ?? ''));
 
             // Une pièce sans numéro FNE n'a pas d'identité : on ne peut ni la
