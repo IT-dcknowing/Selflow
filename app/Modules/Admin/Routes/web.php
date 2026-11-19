@@ -756,6 +756,7 @@ Route::prefix('superadmin')
             // Le timbre de quittance est un réglage de la plateforme, non un
             // choix de l'entreprise : il se reporte ici, avec les clés.
             Route::post('/{entreprise}/timbre', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'basculerTimbre'])->name('timbre');
+            Route::post('/{entreprise}/telechargement', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'basculerTelechargement'])->name('telechargement');
         });
 
         // ── Paiements d'abonnement déclarés par référence (16/10/2026) ──
