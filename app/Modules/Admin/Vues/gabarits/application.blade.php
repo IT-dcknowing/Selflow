@@ -1467,13 +1467,19 @@
                     @php $__donneesNotification = $__notification->data ?? []; @endphp
                     <div style="padding:10px;margin-bottom:7px;border:1px solid var(--border);border-radius:9px;background:{{ $__notification->read_at ? '#fff' : '#eff6ff' }};">
                         <div style="font-size:12px;font-weight:800;color:var(--text);">{{ $__donneesNotification['titre'] ?? 'Information' }}</div>
-                        <div style="font-size:11px;color:var(--text-2);margin-top:3px;">{{ $__donneesNotification['type_recuperation'] ?? '' }}</div>
+                        <div style="font-size:11px;color:var(--text-2);margin-top:3px;">{{ $__donneesNotification['entreprise'] ?? '' }} · {{ $__donneesNotification['type_recuperation'] ?? '' }}</div>
                         <div style="font-size:11px;color:var(--text-2);margin-top:5px;">
                             {{ (int)($__donneesNotification['documents'] ?? 0) }} document(s) ·
                             {{ (int)($__donneesNotification['importes'] ?? 0) }} nouveau(x) ·
                             {{ (int)($__donneesNotification['inchanges'] ?? 0) }} mis à jour ·
                             {{ (int)($__donneesNotification['erreurs'] ?? 0) }} erreur(s)
                         </div>
+                        @if(isset($__donneesNotification['avoirs_clients']) || isset($__donneesNotification['avoirs_fournisseurs']))
+                            <div style="font-size:11px;color:var(--text-2);margin-top:4px;">
+                                Avoirs clients : {{ (int)($__donneesNotification['avoirs_clients'] ?? 0) }} ·
+                                Avoirs fournisseurs : {{ (int)($__donneesNotification['avoirs_fournisseurs'] ?? 0) }}
+                            </div>
+                        @endif
                         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;">
                             <span style="font-size:10px;color:var(--text-3);">{{ $__notification->created_at?->format('d/m/Y à H:i') }}</span>
                             @if(!$__notification->read_at)
