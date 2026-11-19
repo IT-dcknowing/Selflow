@@ -582,7 +582,7 @@ class ImportFacturesEmisesService
     private function tracer(string $niveau, string $message, array $contexte = []): void
     {
         try {
-            Log::channel('portail_fne')->{$niveau}($message, $contexte);
+            Log::channel('portail_fne_vente')->{$niveau}($message, $contexte);
         } catch (\Throwable) {
             // Volontairement muet.
         }
