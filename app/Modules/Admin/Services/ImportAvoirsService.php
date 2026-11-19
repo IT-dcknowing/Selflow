@@ -164,6 +164,8 @@ class ImportAvoirsService
                 : $this->tracer('info', $bilan);
         }
 
+        PortailFneNotificationService::notifier($rapport, 'Avoirs clients et fournisseurs');
+
         return $rapport;
     }
 
