@@ -226,7 +226,7 @@ class ComptabilisationStockPeriodiqueTest extends TestCase
         $this->travelBack();
     }
 
-    public function test_une_sortie_de_stock_ne_genere_pas_d_ecriture_par_defaut(): void
+    public function test_une_sortie_de_stock_ne_genere_pas_d_ecriture_immediate(): void
     {
         $this->entree(10, 12000);
         StockService::sortie($this->riz, $this->magasin->id, 4, MouvementStock::LIVRAISON);

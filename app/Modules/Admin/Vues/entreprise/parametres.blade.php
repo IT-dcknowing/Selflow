@@ -1445,7 +1445,7 @@
                 </div>
                 <div>
                     <label for="comptabilite_stock_date_fin" style="display:block;font-size:12px;font-weight:700;margin-bottom:7px;">
-                        Fin de la période de variation
+                        Fin de la période de variation (facultative)
                     </label>
                     <input type="date" id="comptabilite_stock_date_fin" name="comptabilite_stock_date_fin" class="form-control"
                            value="{{ old('comptabilite_stock_date_fin', $entreprise->comptabilite_stock_date_fin?->format('Y-m-d')) }}" placeholder="Aucune date de fin">

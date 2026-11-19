@@ -68,8 +68,8 @@ class Entreprise extends Model
         // `liaison_comptaflow_delivree_et_non_saisie`.
         'comptaflow_sync_status',
         'comptaflow_mode_deversement',
-        // Comptabilisation du stock : inactive par défaut, puis quotidienne
-        // ou agrégée sur une période de plusieurs mois.
+        // Comptabilisation du stock : active par défaut, par périodes de trois mois.
+        // Le quotidien reste une option explicite.
         'comptabilite_stock_active',
         'comptabilite_stock_quotidienne',
         'comptabilite_stock_periode_mois',
