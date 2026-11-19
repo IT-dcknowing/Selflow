@@ -3,6 +3,7 @@
 namespace App\Modules\Admin\Services;
 
 use App\Modules\Admin\Modeles\ConfigurationCompte;
+use App\Modules\Admin\Modeles\Entreprise;
 use App\Modules\Admin\Modeles\Produit;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -189,9 +190,10 @@ class PropagationComptesService
                 ->count();
 
             if ($nouveau === '__SANS_COMPTE__') {
-                if ($nombreAnciennes > 0) {
+                $entreprise = Entreprise::find($entrepriseId);
+                if ($nombreAnciennes > 0 || $entreprise?->liaisonComptaflowActive()) {
                     throw ValidationException::withMessages([
-                        'config' => "Le compte {$ancien} est utilisé par des écritures historiques. "
+                        'config' => "Le compte {$ancien} est utilisé par des écritures historiques locales ou déjà déversées. "
                             . 'Attribuez un compte de remplacement avant de supprimer cette configuration.',
                     ]);
                 }
