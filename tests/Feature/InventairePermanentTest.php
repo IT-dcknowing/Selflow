@@ -11,6 +11,7 @@ use App\Modules\Admin\Modeles\PointDeVente;
 use App\Modules\Admin\Modeles\Produit;
 use App\Modules\Admin\Modeles\Stock;
 use App\Modules\Admin\Services\StockService;
+use App\Modules\Admin\Services\InventairePeriodiqueService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -307,3 +308,59 @@ class InventairePermanentTest extends TestCase
 
         $this->assertSame(0, EcritureComptable::withoutGlobalScopes()->count());
     }
+
+
+    public function test_la_comptabilisation_quotidienne_est_agregee_et_idempotente(): void
+    {
+        $aujourdhui = now()->toDateString();
+        $this->travelTo(now()->setTime(23, 56));
+
+        $this->entreprise->update([
+            'comptabilite_stock_active' => true,
+            'comptabilite_stock_quotidienne' => true,
+            'comptabilite_stock_periode_mois' => 1,
+            'comptabilite_stock_date_debut' => $aujourdhui,
+            'comptabilite_stock_date_fin' => $aujourdhui,
+        ]);
+
+        $this->entree(10, 12000);
+
+        $premier = InventairePeriodiqueService::traiterEntreprise($this->entreprise->fresh());
+        $second = InventairePeriodiqueService::traiterEntreprise($this->entreprise->fresh());
+
+        $this->assertSame(1, $premier['periodes']);
+        $this->assertSame(1, $premier['operations']);
+        $this->assertSame(0, $second['periodes']);
+        $this->assertSame(2, EcritureComptable::withoutGlobalScopes()->count());
+        $this->assertSame(1, \Illuminate\Support\Facades\DB::table('stock_comptabilites_periodiques')
+            ->where('entreprise_id', $this->entreprise->id)->count());
+
+        $this->travelBack();
+    }
+
+    public function test_la_comptabilisation_mensuelle_attend_la_fin_des_trois_mois(): void
+    {
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-03-31 23:56'));
+
+        $this->entreprise->update([
+            'comptabilite_stock_active' => true,
+            'comptabilite_stock_quotidienne' => false,
+            'comptabilite_stock_periode_mois' => 3,
+            'comptabilite_stock_date_debut' => '2026-01-01',
+            'comptabilite_stock_date_fin' => '2026-03-31',
+        ]);
+
+        $this->entree(10, 12000);
+
+        $bilan = InventairePeriodiqueService::traiterEntreprise($this->entreprise->fresh());
+
+        $this->assertSame(1, $bilan['periodes']);
+        $this->assertSame(1, $bilan['operations']);
+        $this->assertSame(2, EcritureComptable::withoutGlobalScopes()->count());
+        $this->assertSame('2026-03-31', \Illuminate\Support\Facades\DB::table('stock_comptabilites_periodiques')
+            ->where('entreprise_id', $this->entreprise->id)->value('date_fin'));
+
+        $this->travelBack();
+    }
+}
+
