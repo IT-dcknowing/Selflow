@@ -27,6 +27,7 @@ class FneCredential extends Model
         // la création de son compte. Chiffré, jamais rendu à l'écran.
         'acces_mot_de_passe',
         'acces_fourni_at',
+        'telechargement_actif',
     ];
 
     protected function casts(): array
@@ -43,6 +44,7 @@ class FneCredential extends Model
             // l'Etat, pas un reglage.
             'acces_mot_de_passe'     => 'encrypted',
             'acces_fourni_at'        => 'datetime',
+            'telechargement_actif'    => 'boolean',
             'cle_test_ajoutee_at'    => 'datetime',
             'cle_reelle_ajoutee_at'  => 'datetime',
             'derniere_verification_at' => 'datetime',
