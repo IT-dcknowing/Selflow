@@ -1,5 +1,5 @@
 /**
- * Le releve des factures AVOIR (notes de credit) du portail FNE.
+ * Le relevé des factures de vente émises et certifiées par le portail FNE.
  *
  *   node ventes.js --reconnaissance 1864699A <motDePasse>   explore et rapporte
  *   node ventes.js 1864699A <motDePasse>                    releve et depose
@@ -9,11 +9,11 @@
  * ## Pourquoi un troisieme fichier
  *
  * `achats.js` releve les factures RECUES (listing=received). Les ventes sont
- * des factures EMISES de sous-type "refund" (listing=issued). Ce sont nos
+ * des factures EMISES de sous-type "normal" (listing=issued). Ce sont nos
  * propres pieces -- etablies et certifiees par nous -- qui corrigent une
  * facture deja emise. Le meme endpoint `/ws/invoices`, parametre different.
  *
- * Separer ce releve des ventes normales est une decision comptable : un avoir
+ * Ce relevé est séparé des avoirs : il ne conserve que les factures de vente normales
  * n'est pas une vente, meme s'il sort du meme ecran.
  *
  * ## Le contrat de depot
@@ -163,9 +163,9 @@ function optionListing() {
  * (issued pour les ventes clients/ventes, received pour les ventes fournisseurs/achats)
  * et on ne garde que subtype=normal.
  */
-async function interrogerLesFactures de vente(page, autorisation, depuis, jusquA, listing = 'issued') {
+async async function interrogerLesVentes(page, autorisation, depuis, jusquA, listing = 'issued') {
   const base = String(process.env.FNE_URL || '').replace(/\/fr\/login\/?$/, '').replace(/\/$/, '');
-  const ventes   = [];
+  const ventes = [];
   let totalBrut  = 0;
   const cibles = ['issued'];
 
@@ -204,7 +204,7 @@ async function interrogerLesFactures de vente(page, autorisation, depuis, jusquA
           listing_source: cible,
           nature_document: 'vente',
         }));
-      ventes.push(...factures);
+      ventes.push(...documents);
 
       if (corps.data.length === 0 || numero * PAR_PAGE >= totalCible) break;
     }
@@ -264,9 +264,9 @@ async function reconnaitre(navigateur, login, motDePasse) {
     let sonde = null;
 
     try {
-      const { ventes, totalBrut } = await interrogerLesFactures de vente(page, autorisation, depuis, jusquA, listing);
+      const { ventes, totalBrut } = await interrogerLesVentes(page, autorisation, depuis, jusquA, listing);
       sonde = { listing, totalBrut, ventesRamenes: ventes.length, exemple: ventes[0] ?? null };
-      dire('INFO', `   ${listing} : ${totalBrut} facture(s), dont ${ventes.length} facture(s) de vente`);
+      dire('INFO', `   ${listing} : ${totalBrut} pièce(s), dont ${ventes.length} facture(s) de vente`);
     } catch (e) {
       sonde = { listing, erreur: e.message };
       dire('ERREUR', `   ${listing} : ${e.message}`);
@@ -313,9 +313,9 @@ async function releverDansLaSession(page, autorisation, login, dossier) {
   const depuis  = optionDepuis();
   const jusquA  = aujourdHui();
   const listing = optionListing();
-  const { ventes, totalBrut } = await interrogerLesFactures de vente(page, autorisation, depuis, jusquA, listing);
+  const { ventes, totalBrut } = await interrogerLesVentes(page, autorisation, depuis, jusquA, listing);
 
-  dire('INFO', `   ${ventes.length} avoir(s) sur ${totalBrut} pieces scrutees (${depuis} -> ${jusquA}, listing=${listing})`);
+  dire('INFO', `   ${ventes.length} facture(s) de vente sur ${totalBrut} pieces scrutees (${depuis} -> ${jusquA}, listing=${listing})`);
 
   const contenu = {
     login,
@@ -329,7 +329,7 @@ async function releverDansLaSession(page, autorisation, login, dossier) {
   const chemin = path.join(dossier, `${nomDeBase(login)}_${jusquA.replace(/-/g, '')}.json`);
   fs.writeFileSync(chemin, JSON.stringify(contenu, null, 2), 'utf-8');
 
-  dire('INFO', `   ${ventes.length} avoir(s) -> ${path.basename(chemin)}`);
+  dire('INFO', `   ${ventes.length} facture(s) de vente -> ${path.basename(chemin)}`);
   return { login, ok: true, nombre: ventes.length, chemin };
 }
 
