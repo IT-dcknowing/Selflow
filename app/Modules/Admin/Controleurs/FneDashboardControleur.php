@@ -778,7 +778,9 @@ class FneDashboardControleur
 
             // Les achats que le portail certifie : leur facture reçue leur est
             // rattachée. Lu avant le tri des onglets, qui s'en sert.
-            $certifiesParLePortail = PortailFneFactureRecue::where('entreprise_id', $entreprise->id)
+            $certifiesParLePortail = PortailFneFactureRecue::recues()
+                ->where('entreprise_id', $entreprise->id)
+                ->where('subtype', '!=', 'refund')
                 ->whereNotNull('achat_id')
                 ->pluck('achat_id');
 
@@ -833,7 +835,9 @@ class FneDashboardControleur
             // achat saisi ici et retrouvé au portail n'est pas « non normalisé »,
             // il est certifié par le fournisseur. Chargé en une fois, et non par
             // ligne, pour ne pas rouvrir la table à chaque document affiché.
-            $certifiees = PortailFneFactureRecue::where('entreprise_id', $entreprise->id)
+            $certifiees = PortailFneFactureRecue::recues()
+                ->where('entreprise_id', $entreprise->id)
+                ->where('subtype', '!=', 'refund')
                 ->whereNotNull('achat_id')
                 ->pluck('reference', 'achat_id');
 
@@ -864,9 +868,8 @@ class FneDashboardControleur
                 ];
             };
 
-            // Les factures relevées au portail ne rejoignent que l'onglet
-            // « Factures Reçues » : ce sont des pièces qu'un fournisseur nous a
-            // adressées, ni des BAPA que nous émettons, ni des avoirs.
+            // Les factures reçues ordinaires et les avoirs fournisseurs ont
+            // chacun leur onglet ; les documents émis par nous restent exclus.
             $portail = $this->facturesDuPortail($entreprise->id, $categorie, $pdvId, $recherche, $request);
 
             if ($portail === null) {
@@ -941,8 +944,8 @@ class FneDashboardControleur
      * revient. Elle reste visible sur « Tous », et sur l'écran des achats qui,
      * lui, ne totalise pas et propose de l'affecter.
      *
-     * @return Collection<int, array<string, mixed>>|null  null hors de l'onglet
-     *         « Factures Reçues », où ces pièces n'ont rien à faire.
+     * @return Collection<int, array<string, mixed>>|null  pièces reçues pour
+     *         les onglets « Factures Reçues » et « Avoirs fournisseurs ».
      */
     private function facturesDuPortail(
         int $entrepriseId,
