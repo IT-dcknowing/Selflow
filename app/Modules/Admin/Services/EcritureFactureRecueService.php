@@ -194,8 +194,8 @@ class EcritureFactureRecueService
      * Passe la facture au journal des achats.
      *
      * Charges au débit, TVA déductible au débit, droit de timbre et autres
-     * taxes au débit, le fournisseur au crédit du net à payer. Un avoir reçu
-     * (`refund`) inverse les sens.
+     * taxes au débit, le fournisseur au crédit du net à payer. Les avoirs
+     * (`refund`) sont exclus par `synchroniser()` avant cet appel.
      */
     private static function passer(PortailFneFactureRecue $facture): bool
     {
