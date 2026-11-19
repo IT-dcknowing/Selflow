@@ -19,7 +19,9 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Prepare application key
-        run: php artisan key:generate --force
+        run: |
+          printf 'APP_KEY=\\n' > .env
+          php artisan key:generate --force
       - name: Run COMPTAFLOW liaison tests
         run: php artisan test --filter='LiaisonComptaflow|PasserelleComptaflow'
       - name: Compile Blade views
