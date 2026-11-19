@@ -348,12 +348,12 @@ class PortailFneFactureRecue extends Model
         return preg_replace('/[^0-9A-Z]/', '', strtoupper((string) $ncc));
     }
 
-    /** La liste « émises » du portail : un avoir que l'entreprise a établi à son client. */
+    /** La liste « émises » du portail : factures et avoirs établis par l'entreprise. */
     public const LISTE_EMISES = 'issued';
 
     /**
-     * Les pièces reçues de fournisseurs, sans les avoirs que l'entreprise a
-     * émis à ses clients (le relevé des avoirs les range dans la même table).
+     * Les pièces reçues de fournisseurs. Tous les documents du listing
+     * `issued` (factures et avoirs émis) restent hors de cette liste.
      */
     public function scopeRecues($requete)
     {
