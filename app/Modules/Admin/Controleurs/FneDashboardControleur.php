@@ -12,6 +12,10 @@ use App\Modules\Admin\Modeles\EcritureComptable;
 use App\Modules\Admin\Modeles\TaxConfiguration;
 use App\Modules\Admin\Modeles\PortailFneFactureRecue;
 use App\Modules\Admin\Services\FiltrePeriodeService;
+use App\Modules\Admin\Services\ImportAvoirsService;
+use App\Modules\Admin\Services\ScraperPortailFneService;
+use App\Modules\Admin\Modeles\PortailFneImport;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -482,6 +486,68 @@ class FneDashboardControleur
     // ─────────────────────────────────────────────────────────────────
     // PAGE 3 — FACTURES & REÇUS (registre complet, normalisé ou non)
     // ─────────────────────────────────────────────────────────────────
+
+    /**
+     * Déclenche le relevé des avoirs du portail pour l'entreprise connectée.
+     */
+    public function actualiserAvoirs(): JsonResponse
+    {
+        $entreprise = Auth::user()?->entreprise;
+        $login = trim((string) ($entreprise?->ncc ?? ''));
+
+        if ($login === '') {
+            return response()->json(['status' => 'error', 'message' => 'NCC de l’entreprise introuvable.'], 422);
+        }
+
+        if (Cache::has(ScraperPortailFneService::verrouAvoirs($login))) {
+            return response()->json(['status' => 'success', 'en_cours' => true, 'message' => 'Un relevé est déjà en cours.']);
+        }
+
+        if (!ScraperPortailFneService::lancerAvoirs($login)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Le relevé n’a pas pu être lancé. Vérifiez que le scraper FNE est activé et configuré.',
+            ], 503);
+        }
+
+        return response()->json(['status' => 'success', 'en_cours' => true, 'message' => 'Relevé des avoirs lancé.']);
+    }
+
+    /**
+     * Attend la fin du processus détaché, puis importe les fichiers déposés.
+     */
+    public function statutActualisationAvoirs(): JsonResponse
+    {
+        $entreprise = Auth::user()?->entreprise;
+        $login = trim((string) ($entreprise?->ncc ?? ''));
+
+        if ($login === '') {
+            return response()->json(['status' => 'error', 'message' => 'NCC de l’entreprise introuvable.'], 422);
+        }
+
+        if (Cache::has(ScraperPortailFneService::verrouAvoirs($login))) {
+            return response()->json(['status' => 'success', 'termine' => false]);
+        }
+
+        $rapport = app(ImportAvoirsService::class)->importerDossier();
+        $dernier = PortailFneImport::query()
+            ->where('login', $login)
+            ->where('type', ImportAvoirsService::TYPE)
+            ->latest('id')
+            ->first();
+
+        return response()->json([
+            'status' => 'success',
+            'termine' => true,
+            'import' => [
+                'importes' => $rapport['importes'] ?? 0,
+                'modifies' => $rapport['inchanges'] ?? 0,
+                'erreurs' => $rapport['erreurs'] ?? 0,
+                'dernier_releve' => $dernier?->date_scraping?->toDateString(),
+                'message' => $dernier?->message,
+            ],
+        ]);
+    }
 
     public function factures(Request $request): View
     {
