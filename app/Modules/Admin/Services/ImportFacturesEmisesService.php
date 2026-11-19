@@ -212,9 +212,7 @@ class ImportFacturesEmisesService
 
                 if ($precedent !== null) {
                     $this->confirmerLeReleve($precedent, $date, $entreprise?->id);
-                    // Même un relevé identique peut réparer un rattachement local
-                    // qui n'existait pas lors du premier passage.
-                    
+                    // L'empreinte identique évite de retraiter les mêmes pièces.
 
                     return $this->resultat(
                         $nom,
@@ -465,9 +463,8 @@ class ImportFacturesEmisesService
             $champs['est_rne'] = (bool) $donnees['rne'];
         }
 
-        // Client (destinataire de l'avoir — le bloc `company` côté émetteur)
-        // La liste d'où vient l'avoir : émis à un client, ou reçu d'un
-        // fournisseur. C'est elle qui décide s'il passe au journal des achats.
+        // Bloc entreprise associé à la pièce. `listing_source` distingue les
+        // documents émis des documents reçus ; ici le relevé ne garde que `issued`.
         $liste = $donnees['listing_source'] ?? null;
         $champs['liste_portail'] = in_array($liste, ['issued', 'received'], true) ? $liste : null;
 
