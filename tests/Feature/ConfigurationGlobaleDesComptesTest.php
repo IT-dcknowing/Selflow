@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Modules\Admin\Modeles\Categorie;
 use App\Modules\Admin\Modeles\ConfigurationCompte;
 use App\Modules\Admin\Modeles\Entreprise;
+use App\Modules\Admin\Modeles\EcritureComptable;
 use App\Modules\Admin\Modeles\PointDeVente;
 use App\Modules\Admin\Modeles\Produit;
 use App\Modules\Admin\Services\ImputationService;
@@ -89,6 +90,34 @@ class ConfigurationGlobaleDesComptesTest extends TestCase
         $this->assertSame('706000', ImputationService::compteVente($this->article(['type' => 'service'])));
         // Une exception portée par l'article lui-même.
         $this->assertSame('707100', ImputationService::compteVente($this->article(['compte_vente' => '707100'])));
+    }
+
+    public function test_un_changement_de_compte_propage_les_fiches_et_les_ecritures_sans_changer_les_montants(): void
+    {
+        $article = $this->article(['compte_vente' => '701000']);
+        $ecriture = EcritureComptable::create([
+            'entreprise_id' => $this->entreprise->id,
+            'point_de_vente_id' => $this->admin->point_de_vente_id,
+            'date_ecriture' => now()->toDateString(),
+            'libelle' => 'Vente antérieure',
+            'reference_document' => 'VTE-ANT-001',
+            'code_journal' => 'VTE',
+            'compte_debit' => '411000',
+            'compte_credit' => '701000',
+            'debit' => 125000,
+            'credit' => 125000,
+        ]);
+
+        $this->configurer([
+            'general:' => ['compte_vente' => '702000'],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('702000', $article->fresh()->compte_vente);
+        $ligne = DB::table('ecritures_comptables')->where('id', $ecriture->id)->first();
+        $this->assertSame('702000', $ligne->compte_credit);
+        $this->assertSame('411000', $ligne->compte_debit);
+        $this->assertSame('125000.00', $ligne->debit);
+        $this->assertSame('125000.00', $ligne->credit);
     }
 
     public function test_une_categorie_d_une_autre_entreprise_est_ignoree(): void
