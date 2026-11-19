@@ -191,97 +191,35 @@ Schedule::command('portail-fne:changements --silencieux')
  * d'erreurs sans objet cesse d'être lu.
  */
 if (config('selflow.portail_fne.scraper.actif')) {
-    $scraper = ProcessUtils::escapeArgument(config('selflow.portail_fne.scraper.node'))
-        . ' ' . ProcessUtils::escapeArgument(config('selflow.portail_fne.scraper.script'));
+    $scraperFne = \App\Modules\Admin\Services\ScraperPortailFneService::class;
 
-    /*
-     * Le passage qui sert la file, à la minute 40 : après le ramassage (:00) et
-     * le rapprochement (:10), de sorte que ce qu'il dépose soit rangé à l'heure
-     * suivante puis diagnostiqué dix minutes après.
-     *
-     * Toutes les heures et non toutes les dix minutes : quand la file est vide
-     * — le cas ordinaire — le scraper s'arrête sans même ouvrir le navigateur,
-     * mais quand elle ne l'est pas, il ouvre une session sur le portail de la
-     * DGI. Y retourner six fois par heure avec un mot de passe éventuellement
-     * faux est le meilleur moyen de faire bloquer le compte.
-     *
-     * `runInBackground` parce qu'un relevé prend des dizaines de secondes :
-     * sans lui, la minute du planificateur reste occupée et tout le reste
-     * attend derrière. Le verrou expire au bout de 30 minutes, sans quoi un
-     * navigateur resté planté empêcherait tous les passages suivants.
-     */
-    Schedule::exec($scraper)
+    // Les callbacks ne lancent plus directement Node avec --tous.
+    // Chaque méthode du service filtre maintenant les NCC sur l'autorisation
+    // individuelle donnée par le superadministrateur.
+    Schedule::call(fn () => $scraperFne::lancerPourTousLesLoginsAutorises())
         ->hourlyAt(config('selflow.portail_fne.scraper.minute_horaire'))
-        ->withoutOverlapping(30)
-        ->runInBackground()
-        ->appendOutputTo($sortiesPortail);
+        ->withoutOverlapping(30);
 
-    /*
-     * Le passage complet, une fois par nuit : tous les logins connus, qu'une
-     * pièce ait été refusée ou non. La file dit ce qui est urgent, pas ce qui
-     * est permis — et un relevé frais chaque matin fait que le premier rejet de
-     * la journée se diagnostique tout de suite, au lieu d'attendre son tour.
-     */
-    Schedule::exec($scraper . ' --tous')
+    Schedule::call(fn () => $scraperFne::lancerPourTousLesLoginsAutorises())
         ->dailyAt(config('selflow.portail_fne.scraper.heure_nocturne'))
-        ->withoutOverlapping(120)
-        ->runInBackground()
-        ->appendOutputTo($sortiesPortail);
+        ->withoutOverlapping(120);
 
-    /*
-     * Le relevé des factures REÇUES, à son propre rythme.
-     *
-     * Demandé par le propriétaire du projet le 08/09/2026 : « que le scrapping
-     * se lance chaque 5 min ». Il a eu un rendez-vous quotidien (04:15), retiré
-     * au lot 22 parce qu'il rouvrait une seconde session pour une entreprise que
-     * `fne.js` venait de relever. Il en retrouve un, beaucoup plus rapproché.
-     *
-     * **Ce que ça coûte, et qui est assumé** : `fne.js` regarde d'abord la file
-     * de Selflow et s'arrête sans ouvrir de navigateur quand elle est vide —
-     * le cas ordinaire. `achats.js` n'a rien qui le retienne : chaque passage
-     * est une connexion au portail de la DGI avec le mot de passe du client,
-     * soit 288 par jour à cinq minutes. C'est le prix d'une facture fournisseur
-     * vue dans le quart d'heure au lieu du lendemain.
-     *
-     * D'où deux interrupteurs plutôt qu'un rythme écrit en dur :
-     * `PORTAIL_FNE_SCRAPER_ACHATS_ACTIF` éteint la tâche sans toucher au reste
-     * du scraper, `PORTAIL_FNE_SCRAPER_ACHATS_MINUTES` la ralentit. Le jour où
-     * un compte se bloque, ils se changent sans livrer une version.
-     *
-     * `--tous` : tous les logins d'`identifiants.json`, sans regarder la file.
-     * La file dit ce qu'un refus rend urgent ; une facture reçue n'y figure
-     * jamais, personne ne l'ayant demandée.
-     *
-     * Le verrou expire au bout de deux pas : un navigateur resté planté ne doit
-     * pas bloquer tous les passages suivants, et deux `achats.js` en parallèle
-     * sur le même login déposeraient deux fois le même fichier.
-     */
     if (config('selflow.portail_fne.scraper.achats_actif')) {
-        $scraperAchats = ProcessUtils::escapeArgument(config('selflow.portail_fne.scraper.node'))
-            . ' ' . ProcessUtils::escapeArgument(config('selflow.portail_fne.scraper.script_achats'));
-
-        Schedule::exec($scraperAchats . ' --tous')
+        Schedule::call(fn () => $scraperFne::lancerAchats())
             ->cron("*/{$pasAchats} * * * *")
-            ->withoutOverlapping($pasAchats * 2)
-            ->runInBackground()
-            ->appendOutputTo($sortiesPortail);
+            ->withoutOverlapping($pasAchats * 2);
     }
 
-    /*
-     * Le relevé des factures d'AVOIR (notes de crédit), à son propre rythme.
-     */
     if (config('selflow.portail_fne.scraper.avoirs_actif')) {
-        $scraperAvoirs = ProcessUtils::escapeArgument(config('selflow.portail_fne.scraper.node'))
-            . ' ' . ProcessUtils::escapeArgument(config('selflow.portail_fne.scraper.script_avoirs'));
-
-        // Décalé d'une demi-période : le relevé des achats et celui des
-        // avoirs ouvraient deux navigateurs à la même minute, ce qui pesait
-        // sur le serveur toutes les cinq minutes (constaté le 08/10/2026).
-        Schedule::exec($scraperAvoirs . ' --tous')
+        Schedule::call(fn () => $scraperFne::lancerAvoirs())
             ->cron("{$decalageAvoirs}-59/{$pasAvoirs} * * * *")
-            ->withoutOverlapping($pasAvoirs * 2)
-            ->runInBackground()
-            ->appendOutputTo($sortiesPortail);
+            ->withoutOverlapping($pasAvoirs * 2);
+    }
+
+    if (config('selflow.portail_fne.scraper.ventes_actif', true)) {
+        Schedule::call(fn () => $scraperFne::lancerVentes())
+            ->cron("*/{$pasVentes} * * * *")
+            ->withoutOverlapping($pasVentes * 2);
     }
 }
 
