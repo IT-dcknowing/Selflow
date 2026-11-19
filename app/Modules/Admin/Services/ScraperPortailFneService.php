@@ -405,6 +405,7 @@ class ScraperPortailFneService
 
             return true;
         } catch (\Throwable $e) {
+            Cache::forget($verrou);
             self::tracer('error', "achats[{$cible}] : lancement impossible — " . $e->getMessage(), [
                 'node'   => $node,
                 'script' => $script,
@@ -480,6 +481,7 @@ class ScraperPortailFneService
 
             return true;
         } catch (\Throwable $e) {
+            Cache::forget($verrou);
             self::tracer('error', "avoirs[{$cible}] : lancement impossible — " . $e->getMessage(), [
                 'node'   => $node,
                 'script' => $script,
@@ -538,6 +540,7 @@ class ScraperPortailFneService
             ]);
             return true;
         } catch (\Throwable $e) {
+            Cache::forget($verrou);
             self::tracer('error', "ventes[{$cible}] : lancement impossible — " . $e->getMessage(), [
                 'node' => $node,
                 'script' => $script,
