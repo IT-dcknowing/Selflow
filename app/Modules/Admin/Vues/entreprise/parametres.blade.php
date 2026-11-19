@@ -1428,8 +1428,10 @@
                         Périodicité si le quotidien n'est pas coché
                     </label>
                     <select id="comptabilite_stock_periode_mois" name="comptabilite_stock_periode_mois" class="form-control">
-                        @foreach([1 => 'Chaque mois', 2 => 'Tous les 2 mois', 3 => 'Tous les 3 mois', 6 => 'Tous les 6 mois', 12 => 'Tous les 12 mois'] as $mois => $libelle)
-                            <option value="{{ $mois }}" {{ (int) old('comptabilite_stock_periode_mois', $entreprise->comptabilite_stock_periode_mois ?? 1) === $mois ? 'selected' : '' }}>{{ $libelle }}</option>
+                        @foreach(range(1, 12) as $mois)
+                            <option value="{{ $mois }}" {{ (int) old('comptabilite_stock_periode_mois', $entreprise->comptabilite_stock_periode_mois ?? 1) === $mois ? 'selected' : '' }}>
+                                {{ $mois === 1 ? 'Chaque mois' : 'Tous les ' . $mois . ' mois' }}
+                            </option>
                         @endforeach
                     </select>
                 </div>
