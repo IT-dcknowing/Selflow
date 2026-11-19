@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Une facture que le portail FNE dit avoir reçue pour le compte de l'entreprise.
+ * Une pièce FNE relevée au portail pour le compte de l'entreprise : facture reçue d'un fournisseur ou document émis par l'entreprise.
  *
  * Ce n'est pas un achat : rien ici ne mouvemente un stock. Mais c'est une
  * **pièce comptable** depuis le 06/10/2026 — décision du propriétaire : une
