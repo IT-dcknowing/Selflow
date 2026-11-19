@@ -108,9 +108,13 @@ class PropagationComptesService
     {
         $apres = self::capturer($entrepriseId);
         $correspondances = [];
+        $produitsApres = Produit::with('categorieRelation')
+            ->where('entreprise_id', $entrepriseId)
+            ->get()
+            ->keyBy('id');
 
         foreach ($avant['produits'] as $id => $ancienProduit) {
-            $nouveauProduit = $apres['produits'][$id] ?? null;
+            $nouveauProduit = $produitsApres->get($id);
             if (!$nouveauProduit) {
                 continue;
             }
@@ -118,7 +122,13 @@ class PropagationComptesService
             $ancienneCategorie = $avant['categories'][$ancienProduit->categorie_id ?? 0] ?? null;
             foreach (['compte_vente', 'compte_achat', 'compte_variation', 'compte_stock'] as $champ) {
                 $ancien = self::compteEffectifAvant($ancienProduit, $ancienneCategorie, $avant['configurations'], $champ);
-                $nouveau = trim((string) ($nouveauProduit->$champ ?? '')) ?: null;
+                $nouveau = match ($champ) {
+                    'compte_vente' => ImputationService::compteHerite($nouveauProduit, 'compte_vente'),
+                    'compte_achat' => ImputationService::compteHerite($nouveauProduit, 'compte_achat'),
+                    'compte_variation' => ImputationService::variationHeritee($nouveauProduit),
+                    'compte_stock' => ImputationService::compteStock($nouveauProduit),
+                    default => null,
+                };
                 self::ajouterCorrespondance($correspondances, $ancien, $nouveau);
             }
         }
