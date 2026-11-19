@@ -80,6 +80,12 @@
     {{ $message }}
 </div>
 @enderror
+@if($errors->has('client_id') || $errors->has('client_secret'))
+<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:12px 16px;margin-bottom:18px;color:#991b1b;font-size:12px;">
+    @error('client_id')<div>{{ $message }}</div>@enderror
+    @error('client_secret')<div>{{ $message }}</div>@enderror
+</div>
+@endif
 
 {{-- En-tête --}}
 <div class="page-header">
@@ -96,6 +102,48 @@
        class="btn btn-outline">
         <i class="fas fa-arrow-up-right-from-square"></i> Ouvrir Comptaflow
     </a>
+</div>
+
+{{-- Identifiants Bearer de l'application SELFLOW : saisis une seule fois,
+     conservés chiffrés côté serveur, jamais dans le .env ni dans le dépôt. --}}
+<div class="card" style="margin-bottom:24px;padding:18px 22px;border:1px solid var(--border);">
+    <div style="display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap;">
+        <div>
+            <h3 style="font-size:15px;font-weight:700;margin:0 0 5px;">Authentification centralisée COMPTA-APK</h3>
+            <p style="font-size:12px;color:var(--text-3);margin:0;">
+                Collez ici le Client ID et le Client Secret générés dans COMPTAFLOW → Liaison COMPTA-APK → APPLICATION MAISON.
+            </p>
+        </div>
+        @if($bearerConfigure)
+            <span class="liaison-badge badge-active"><i class="fas fa-shield-halved"></i> Bearer configuré</span>
+        @else
+            <span class="liaison-badge badge-attente"><i class="fas fa-hourglass-half"></i> Mode historique X-Company-Key</span>
+        @endif
+    </div>
+    @if($bearerConfigure)
+        <p style="font-size:12px;color:var(--text-2);margin:12px 0;">
+            Client ID enregistré : <code>{{ $bearerClientId }}</code>. Le secret est chiffré et n'est jamais réaffiché.
+            Les anciens appels X-Company-Key restent acceptés pendant la transition.
+        </p>
+    @endif
+    <form method="POST" action="{{ route('superadmin.liaisons.configurer_bearer') }}" style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;margin-top:14px;">
+        @csrf
+        <div>
+            <label for="comptaflow_client_id" style="display:block;font-size:12px;font-weight:700;margin-bottom:5px;">Client ID</label>
+            <input id="comptaflow_client_id" name="client_id" class="form-control" maxlength="100" required value="{{ old('client_id') }}" autocomplete="off" placeholder="cf_app_…">
+        </div>
+        <div>
+            <label for="comptaflow_client_secret" style="display:block;font-size:12px;font-weight:700;margin-bottom:5px;">Client Secret</label>
+            <input id="comptaflow_client_secret" name="client_secret" type="password" class="form-control" maxlength="255" required autocomplete="new-password" placeholder="Secret affiché une seule fois par COMPTAFLOW">
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-shield-check"></i> Enregistrer</button>
+    </form>
+    @if($bearerConfigure)
+        <form method="POST" action="{{ route('superadmin.liaisons.supprimer_bearer') }}" style="margin-top:10px;" onsubmit="return confirm('Supprimer les identifiants Bearer enregistrés ? Les appels reviendront à X-Company-Key.')">
+            @csrf @method('DELETE')
+            <button type="submit" class="btn btn-outline btn-sm">Retirer la configuration Bearer</button>
+        </form>
+    @endif
 </div>
 
 {{-- ══ Ce qui attend une décision ══

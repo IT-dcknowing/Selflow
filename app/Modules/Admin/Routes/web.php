@@ -334,7 +334,7 @@ Route::prefix('admin')
             // **La normalisation par lot appelle la plateforme de la DGI.** La
             // marteler expose l'entreprise à voir sa propre clé ralentie ou
             // coupée : la conséquence est chez elle, pas chez nous.
-            Route::post('/batch-normaliser', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'batchNormaliser'])->middleware('throttle:plateforme')->name('batch_normaliser');
+            Route::post('/batch-normaliser', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'batchNormaliser'])->middleware('throttle:10,1')->name('batch_normaliser');
             Route::post('/schedule-batch', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'scheduleBatch'])->middleware('throttle:plateforme')->name('schedule_batch');
             Route::get('/batch-status', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'batchStatus'])->name('batch_status');
 
@@ -721,6 +721,8 @@ Route::prefix('superadmin')
         // ── Liaisons SELFLOW ↔ COMPTAFLOW ──
         Route::prefix('liaisons')->name('liaisons.')->group(function () {
             Route::get('/', [SuperadminLiaisonControleur::class, 'index'])->name('index');
+            Route::post('/identifiants-bearer', [SuperadminLiaisonControleur::class, 'configurerBearer'])->middleware('throttle:plateforme')->name('configurer_bearer');
+            Route::delete('/identifiants-bearer', [SuperadminLiaisonControleur::class, 'supprimerBearer'])->name('supprimer_bearer');
             // `lier` pointait sur une methode absente du controleur — le
             // formulaire tombait en 500 depuis un renommage. `creerComptaflow`
             // demandait au superadministrateur de choisir le mot de passe du

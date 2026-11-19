@@ -35,20 +35,16 @@ class RecevoirReferentielComptaflowService
             return ['success' => false, 'message' => 'La liaison Comptaflow n’est pas active.'];
         }
 
-        $secret = config('selflow.comptaflow_api_secret');
-        if (empty($secret)) {
-            return ['success' => false, 'message' => 'Le secret serveur est absent (EXTERNAL_SYNC_SECRET).'];
+        $headers = LiaisonComptaflowService::enTete($entreprise);
+        if ($headers === []) {
+            return ['success' => false, 'message' => 'Aucun identifiant de liaison COMPTAFLOW utilisable.'];
         }
 
+        $payload = ['selflow_company_id' => $entreprise->id];
         try {
-            // Cet endpoint renvoie le référentiel du dossier lié. Ne surtout
-            // pas lui transmettre les clients/fournisseurs Selflow : son ancien
-            // comportement fusionnait ces fiches dans Comptaflow.
-            $reponse = Http::timeout(self::DELAI)->post(self::url('/api/external/link-company'), [
-                'secret'                => $secret,
-                'selflow_sync_key'      => $entreprise->comptaflow_sync_key,
-                'selflow_company_id'    => $entreprise->id,
-            ]);
+            // Seul le référentiel détenu par COMPTAFLOW revient ici. Aucun
+            // client ou fournisseur Selflow n'est transmis dans cette requête.
+            $reponse = LiaisonComptaflowService::poster($entreprise, self::url('/api/external/link-company'), $payload, self::DELAI);
         } catch (\Throwable $e) {
             Log::warning('Réception du référentiel Comptaflow impossible', [
                 'entreprise_id' => $entreprise->id,

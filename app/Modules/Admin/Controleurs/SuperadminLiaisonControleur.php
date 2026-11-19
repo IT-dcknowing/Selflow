@@ -4,11 +4,14 @@ namespace App\Modules\Admin\Controleurs;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Admin\Modeles\Entreprise;
+use App\Modules\Admin\Modeles\ParametrePlateforme;
 use App\Modules\Admin\Services\LiaisonComptaflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * Les liaisons Selflow ↔ Comptaflow, vues du superadministrateur.
@@ -64,9 +67,45 @@ class SuperadminLiaisonControleur extends Controller
             ->map(fn ($l) => $l->pluck('annees_demandees')->flatten()->map(fn ($a) => (int) $a)->unique()->values()->all())
             ->all();
 
+        $bearerClientId = ParametrePlateforme::lire('comptaflow_client_id');
+        $bearerConfigure = filled($bearerClientId) && filled(ParametrePlateforme::lire('comptaflow_client_secret_chiffre'));
+
         return view('admin::superadmin.liaisons.index', compact(
-            'entreprises', 'demandes', 'comptaflowCompanies', 'dossiersComptaflow', 'exercices', 'anneesDemandees'
+            'entreprises', 'demandes', 'comptaflowCompanies', 'dossiersComptaflow',
+            'exercices', 'anneesDemandees', 'bearerClientId', 'bearerConfigure'
         ));
+    }
+
+    /**
+     * Enregistrer les identifiants de l'application SELFLOW générés par
+     * COMPTAFLOW. Le secret est chiffré avec APP_KEY et n'est jamais relu
+     * ni affiché après l'enregistrement.
+     */
+    public function configurerBearer(Request $request): RedirectResponse
+    {
+        $donnees = $request->validate([
+            'client_id' => ['required', 'string', 'max:100'],
+            'client_secret' => ['required', 'string', 'max:255'],
+        ]);
+
+        ParametrePlateforme::ecrire('comptaflow_client_id', trim($donnees['client_id']));
+        ParametrePlateforme::ecrire('comptaflow_client_secret_chiffre', Crypt::encryptString($donnees['client_secret']));
+        ParametrePlateforme::ecrire('comptaflow_client_secret_version', Str::random(24));
+
+        Log::info('Identifiants applicatifs Bearer COMPTAFLOW mis à jour depuis le Super Admin.', [
+            'client_id_suffix' => substr(trim($donnees['client_id']), -6),
+        ]);
+
+        return back()->with('success', 'Identifiants Bearer enregistrés et secret chiffré. Les prochains appels utiliseront le nouveau jeton ; X-Company-Key reste disponible en repli pendant la transition.');
+    }
+
+    public function supprimerBearer(): RedirectResponse
+    {
+        ParametrePlateforme::ecrire('comptaflow_client_id', '');
+        ParametrePlateforme::ecrire('comptaflow_client_secret_chiffre', '');
+        ParametrePlateforme::ecrire('comptaflow_client_secret_version', Str::random(24));
+
+        return back()->with('success', 'Configuration Bearer supprimée. Les appels reviennent au mécanisme historique X-Company-Key.');
     }
 
     /**
@@ -179,13 +218,12 @@ class SuperadminLiaisonControleur extends Controller
         }
 
         try {
-            $reponse = Http::timeout(10)
-                ->withHeaders(LiaisonComptaflowService::enTete($entreprise))
-                ->post($this->url('/api/external/companies/verify'), [
-                    'secret'                => config('selflow.comptaflow_api_secret'),
-                    'selflow_company_id'    => $entreprise->id,
-                    'comptaflow_company_id' => $entreprise->comptaflow_company_id,
-                ]);
+            $reponse = LiaisonComptaflowService::poster(
+                $entreprise,
+                $this->url('/api/external/companies/verify'),
+                [],
+                10
+            );
         } catch (\Throwable $e) {
             return back()->with('error', "❌ Comptaflow injoignable : " . $e->getMessage());
         }

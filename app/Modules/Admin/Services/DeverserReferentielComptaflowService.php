@@ -27,9 +27,9 @@ class DeverserReferentielComptaflowService
             return ['success' => false, 'message' => 'La liaison Comptaflow n’est pas active.'];
         }
 
-        $cle = $entreprise->comptaflow_sync_key;
-        if (blank($cle)) {
-            return ['success' => false, 'message' => 'La clé de liaison Comptaflow est absente.'];
+        $headers = LiaisonComptaflowService::enTete($entreprise);
+        if ($headers === []) {
+            return ['success' => false, 'message' => 'Aucun identifiant de liaison COMPTAFLOW utilisable.'];
         }
 
         $plan = PlanComptable::query()
@@ -108,13 +108,11 @@ class DeverserReferentielComptaflowService
         }
 
         try {
-            $reponse = Http::timeout(self::DELAI)
-                ->withHeaders(['X-Company-Key' => $cle])
-                ->post(self::url('/api/external/referentiel/deverser'), [
-                    'plan_comptable' => $plan,
-                    'codes_journaux' => $journaux,
-                    'tiers' => $tiers,
-                ]);
+            $reponse = LiaisonComptaflowService::poster($entreprise, self::url('/api/external/referentiel/deverser'), [
+                'plan_comptable' => $plan,
+                'codes_journaux' => $journaux,
+                'tiers' => $tiers,
+            ], self::DELAI);
         } catch (\Throwable $e) {
             Log::warning('Déversement du référentiel vers Comptaflow impossible', [
                 'entreprise_id' => $entreprise->id,

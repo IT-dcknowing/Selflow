@@ -4,10 +4,14 @@ namespace App\Modules\Admin\Services;
 
 use App\Mail\CompteComptaflowOuvert;
 use App\Modules\Admin\Modeles\Entreprise;
+use App\Modules\Admin\Modeles\ParametrePlateforme;
 use App\Modules\Authentification\Modeles\Utilisateur;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 /**
  * La liaison Comptaflow, délivrée et non saisie.
@@ -379,7 +383,7 @@ class LiaisonComptaflowService
 
         try {
             $reponse = Http::timeout(self::DELAI)
-                ->withHeaders(self::enTete($entreprise))
+                ->withHeaders(self::enTeteHistorique($entreprise))
                 ->post(self::url('/api/external/companies/rotate-key'), [
                     'secret'                => config('selflow.comptaflow_api_secret'),
                     'selflow_company_id'    => $entreprise->id,
@@ -484,7 +488,7 @@ class LiaisonComptaflowService
         if (filled($entreprise->comptaflow_sync_key)) {
             try {
                 $reponse = Http::timeout(self::DELAI)
-                    ->withHeaders(self::enTete($entreprise))
+                    ->withHeaders(self::enTeteHistorique($entreprise))
                     ->post(self::url('/api/external/companies/revoke'), [
                         'secret'                => config('selflow.comptaflow_api_secret'),
                         'selflow_company_id'    => $entreprise->id,
@@ -588,11 +592,12 @@ class LiaisonComptaflowService
         }
 
         try {
-            $reponse = Http::timeout(self::DELAI)
-                ->withHeaders(self::enTete($entreprise))
-                ->post(self::url('/api/external/ecritures/comptes/propager'), [
-                    'remplacements' => array_values($remplacements),
-                ]);
+            $reponse = self::poster(
+                $entreprise,
+                self::url('/api/external/ecritures/comptes/propager'),
+                ['remplacements' => array_values($remplacements)],
+                self::DELAI
+            );
         } catch (\Throwable $e) {
             Log::error('Propagation des comptes vers Comptaflow : ' . $e->getMessage(), [
                 'entreprise_id' => $entreprise->id,
@@ -616,11 +621,111 @@ class LiaisonComptaflowService
         ];
     }
 
+    /**
+     * En-têtes métier : Bearer si les identifiants de l'application SELFLOW
+     * ont été enregistrés par le superadministrateur, sinon repli historique.
+     * Chaque requête Bearer reçoit un nonce neuf et un horodatage court.
+     */
     public static function enTete(Entreprise $entreprise): array
     {
-        $cle = $entreprise->comptaflow_sync_key;
+        $jeton = self::jetonBearer($entreprise);
+        if ($jeton !== null) {
+            return [
+                'Authorization' => 'Bearer ' . $jeton,
+                'X-Request-Timestamp' => (string) now()->timestamp,
+                'X-Request-Nonce' => Str::random(40),
+            ];
+        }
 
+        return self::enTeteHistorique($entreprise);
+    }
+
+    /** En-tête réservé aux opérations historiques de rotation/révocation de clé. */
+    public static function enTeteHistorique(Entreprise $entreprise): array
+    {
+        $cle = $entreprise->comptaflow_sync_key;
         return filled($cle) ? ['X-Company-Key' => (string) $cle] : [];
+    }
+
+    /**
+     * Envoi métier avec renouvellement transparent du jeton après un 401.
+     * Si les identifiants Bearer viennent d'être renouvelés, le client purge
+     * son jeton en cache et en demande un nouveau. Si le secret n'a pas encore
+     * été mis à jour, le repli X-Company-Key maintient la compatibilité.
+     */
+    public static function poster(Entreprise $entreprise, string $url, array $payload, int $timeout = self::DELAI)
+    {
+        $headers = self::enTete($entreprise);
+        $reponse = Http::timeout($timeout)->withHeaders($headers)->post($url, $payload);
+
+        if ($reponse->status() === 401 && isset($headers['Authorization'])) {
+            self::invaliderJeton($entreprise);
+            $headers = self::enTete($entreprise);
+            $reponse = Http::timeout($timeout)->withHeaders($headers)->post($url, $payload);
+        }
+
+        return $reponse;
+    }
+
+    private static function invaliderJeton(Entreprise $entreprise): void
+    {
+        $version = ParametrePlateforme::lire('comptaflow_client_secret_version', 'v1');
+        Cache::forget('comptaflow.bearer.' . $entreprise->id . '.' . $version);
+    }
+
+    private static function jetonBearer(Entreprise $entreprise): ?string
+    {
+        $clientId = ParametrePlateforme::lire('comptaflow_client_id');
+        $secretChiffre = ParametrePlateforme::lire('comptaflow_client_secret_chiffre');
+        if (blank($clientId) || blank($secretChiffre) || !$entreprise->comptaflow_company_id) {
+            return null;
+        }
+
+        try {
+            $secret = Crypt::decryptString($secretChiffre);
+        } catch (\Throwable $e) {
+            Log::error('Identifiants Bearer COMPTAFLOW illisibles dans les paramètres plateforme.', [
+                'entreprise_id' => $entreprise->id,
+            ]);
+            return null;
+        }
+
+        $version = ParametrePlateforme::lire('comptaflow_client_secret_version', 'v1');
+        $cacheKey = 'comptaflow.bearer.' . $entreprise->id . '.' . $version;
+        $jetonChiffre = Cache::get($cacheKey);
+        if (filled($jetonChiffre)) {
+            try {
+                return Crypt::decryptString($jetonChiffre);
+            } catch (\Throwable) {
+                Cache::forget($cacheKey);
+            }
+        }
+
+        try {
+            $reponse = Http::timeout(10)->post(self::url('/api/integration/token'), [
+                'client_id' => $clientId,
+                'client_secret' => $secret,
+                'company_id' => $entreprise->comptaflow_company_id,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Obtention du jeton Bearer COMPTAFLOW impossible.', [
+                'entreprise_id' => $entreprise->id,
+                'erreur' => $e->getMessage(),
+            ]);
+            return null;
+        }
+
+        $jeton = $reponse->json('access_token');
+        if (!$reponse->successful() || blank($jeton)) {
+            Log::warning('COMPTAFLOW a refusé le jeton Bearer.', [
+                'entreprise_id' => $entreprise->id,
+                'http_status' => $reponse->status(),
+            ]);
+            return null;
+        }
+
+        Cache::put($cacheKey, Crypt::encryptString($jeton), now()->addMinutes(55));
+        return $jeton;
     }
 
     /**

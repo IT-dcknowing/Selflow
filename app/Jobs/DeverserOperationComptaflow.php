@@ -154,22 +154,20 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
             ->update(['comptaflow_sync_status' => 'sending', 'comptaflow_sync_error' => null]);
 
         try {
-            $reponse = Http::timeout(15)
-                ->withHeaders(LiaisonComptaflowService::enTete($entreprise))
-                ->post(
-                    rtrim(config('selflow.comptaflow_api_url', 'http://127.0.0.1:8000'), '/')
-                        . '/api/external/ecritures/deverser',
-                    [
-                        // L'opération entière, et le dire : Comptaflow peut
-                        // ainsi refuser le tout plutôt que d'en garder la
-                        // moitié.
-                        'operation'          => $operation->numero_saisie,
-                        'atomique'           => true,
-                        'exercice_debut'     => $exercice?->date_debut?->toDateString(),
-                        'exercice_fin'       => $exercice?->date_fin?->toDateString(),
-                        'ecritures'          => $charge,
-                    ]
-                );
+            $reponse = LiaisonComptaflowService::poster(
+                $entreprise,
+                rtrim(config('selflow.comptaflow_api_url', 'http://127.0.0.1:8000'), '/') . '/api/external/ecritures/deverser',
+                [
+                    // L'opération entière, et le dire : Comptaflow peut
+                    // ainsi refuser le tout plutôt que d'en garder la moitié.
+                    'operation' => $operation->numero_saisie,
+                    'atomique' => true,
+                    'exercice_debut' => $exercice?->date_debut?->toDateString(),
+                    'exercice_fin' => $exercice?->date_fin?->toDateString(),
+                    'ecritures' => $charge,
+                ],
+                15
+            );
 
             // Les mises à jour de statut, elles aussi, hors filtre de période :
             // sous ce filtre, une ligne d'un exercice antérieur partait chez
@@ -308,18 +306,17 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
             throw new \RuntimeException('Impossible de construire la clé de rattachement du justificatif Comptaflow.');
         }
 
-        $reponse = Http::timeout(30)
-            ->withHeaders(LiaisonComptaflowService::enTete($entreprise))
-            ->post(
-                rtrim(config('selflow.comptaflow_api_url', 'http://127.0.0.1:8000'), '/')
-                    . '/api/external/pieces-justificatives/deverser',
-                [
-                    'operation_source' => $operationSource,
-                    'nom_fichier' => basename((string) $nom),
-                    'sha256' => hash('sha256', $pdf),
-                    'contenu_base64' => base64_encode($pdf),
-                ]
-            );
+        $reponse = LiaisonComptaflowService::poster(
+            $entreprise,
+            rtrim(config('selflow.comptaflow_api_url', 'http://127.0.0.1:8000'), '/') . '/api/external/pieces-justificatives/deverser',
+            [
+                'operation_source' => $operationSource,
+                'nom_fichier' => basename((string) $nom),
+                'sha256' => hash('sha256', $pdf),
+                'contenu_base64' => base64_encode($pdf),
+            ],
+            30
+        );
 
         if (!$reponse->successful() || !($reponse->json('success') ?? false)) {
             throw new \RuntimeException(

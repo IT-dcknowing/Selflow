@@ -59,11 +59,12 @@ class RegrouperOperationsComptaflow extends Command
                         return;
                     }
 
-                    $reponse = Http::timeout(60)
-                        ->withHeaders(LiaisonComptaflowService::enTete($entreprise))
-                        ->post(rtrim(config('selflow.comptaflow_api_url', 'http://127.0.0.1:8000'), '/') . '/api/external/ecritures/regrouper', [
-                            'operations'         => $charge,
-                        ]);
+                    $reponse = LiaisonComptaflowService::poster(
+                        $entreprise,
+                        rtrim(config('selflow.comptaflow_api_url', 'http://127.0.0.1:8000'), '/') . '/api/external/ecritures/regrouper',
+                        ['operations' => $charge],
+                        60
+                    );
 
                     if (!$reponse->successful()) {
                         $this->error("Entreprise {$entreprise->id} : Comptaflow a répondu {$reponse->status()}.");
