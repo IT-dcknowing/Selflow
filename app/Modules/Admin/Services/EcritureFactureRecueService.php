@@ -84,6 +84,14 @@ class EcritureFactureRecueService
      */
     public static function synchroniser(PortailFneFactureRecue $facture): ?string
     {
+        // Ce service ne traite que les factures reçues. Les documents émis
+        // (listing=issued) et tous les avoirs (subtype=refund) sont déjà
+        // certifiés par la DGI : leur relevé/rapprochement ne crée ni ne
+        // contre-passe d'écriture comptable.
+        if ($facture->liste_portail === 'issued' || $facture->subtype === 'refund') {
+            return null;
+        }
+
         $doitEtrePortee = self::motifDeNePasPorter($facture) === null;
         $estPortee      = $facture->operation_id !== null;
 
@@ -113,7 +121,15 @@ class EcritureFactureRecueService
         }
 
         if ($facture->estUnAvoirEmis()) {
-            return 'avoir émis par l’entreprise à son client : sa vente porte déjà l’écriture';
+            return 'avoir émis par l’entreprise à son client : il reste dans le registre FNE des ventes';
+        }
+
+        if ($facture->liste_portail === 'issued') {
+            return 'facture émise par l’entreprise : elle ne relève pas du journal des achats';
+        }
+
+        if ($facture->subtype === 'refund') {
+            return 'avoir fournisseur déjà certifié par la DGI : aucun traitement comptable ni normalisation dans Selflow';
         }
 
         if ($facture->subtype === 'proforma') {
