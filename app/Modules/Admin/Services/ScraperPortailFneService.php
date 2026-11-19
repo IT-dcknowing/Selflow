@@ -363,10 +363,15 @@ class ScraperPortailFneService
      *
      * @return bool vrai si le lancement a été tenté, faux s'il a été écarté ou a échoué.
      */
-    public static function lancerAvoirs(?string $login = null): bool
+    public static function lancerAvoirs(?string $login = null, string $listing = 'tous'): bool
     {
         $login = trim((string) $login);
         $cible = $login ?: 'tous les logins';
+
+        if (!in_array($listing, ['issued', 'received', 'tous'], true)) {
+            self::tracer('warning', "avoirs[{$cible}] : listing invalide — {$listing}.");
+            return false;
+        }
 
         if (!config('selflow.portail_fne.scraper.actif')) {
             self::tracer('notice', "avoirs[{$cible}] : rien lancé — le scraper est éteint (PORTAIL_FNE_SCRAPER_ACTIF).");
@@ -392,7 +397,11 @@ class ScraperPortailFneService
         $script = (string) config('selflow.portail_fne.scraper.script_avoirs', base_path('SCRAPER-PORTAIL-FNE/avoirs.js'));
 
         try {
-            self::detacher([$node, $script, $login ?: '--tous'], self::sorties());
+            $arguments = [$node, $script, $login ?: '--tous'];
+            if ($listing !== 'tous') {
+                $arguments[] = '--listing=' . $listing;
+            }
+            self::detacher($arguments, self::sorties());
 
             self::tracer('info', "avoirs[{$cible}] : relevé lancé en arrière-plan.", [
                 'node'           => $node,
