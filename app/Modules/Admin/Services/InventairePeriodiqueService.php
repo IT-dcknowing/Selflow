@@ -39,7 +39,6 @@ class InventairePeriodiqueService
         Entreprise::query()
             ->where('comptabilite_stock_active', true)
             ->whereNotNull('comptabilite_stock_date_debut')
-            ->whereNotNull('comptabilite_stock_date_fin')
             ->orderBy('id')
             ->chunkById(100, function ($entreprises) use (&$bilan, $maximumPeriodesParEntreprise) {
                 foreach ($entreprises as $entreprise) {
@@ -69,14 +68,14 @@ class InventairePeriodiqueService
      */
     public static function traiterEntreprise(Entreprise $entreprise, int $maximum = 12): array
     {
-        if (!$entreprise->comptabilite_stock_active
-            || !$entreprise->comptabilite_stock_date_debut
-            || !$entreprise->comptabilite_stock_date_fin) {
+        if (!$entreprise->comptabilite_stock_active || !$entreprise->comptabilite_stock_date_debut) {
             return ['periodes' => 0, 'operations' => 0];
         }
 
         $debutConfiguration = Carbon::parse($entreprise->comptabilite_stock_date_debut)->startOfDay();
-        $finConfiguration = Carbon::parse($entreprise->comptabilite_stock_date_fin)->startOfDay();
+        $finConfiguration = $entreprise->comptabilite_stock_date_fin
+            ? Carbon::parse($entreprise->comptabilite_stock_date_fin)->startOfDay()
+            : null;
         $quotidien = (bool) $entreprise->comptabilite_stock_quotidienne;
         $mois = max(1, min(12, (int) ($entreprise->comptabilite_stock_periode_mois ?: 1)));
         $fait = ['periodes' => 0, 'operations' => 0];
@@ -94,7 +93,7 @@ class InventairePeriodiqueService
                 $debut = $debutConfiguration->copy();
             }
 
-            if ($debut->gt($finConfiguration) || $debut->gt(now()->startOfDay())) {
+            if (($finConfiguration && $debut->gt($finConfiguration)) || $debut->gt(now()->startOfDay())) {
                 break;
             }
 
@@ -102,7 +101,7 @@ class InventairePeriodiqueService
                 ? $debut->copy()
                 : $debut->copy()->addMonthsNoOverflow($mois)->subDay()->startOfDay();
 
-            if ($fin->gt($finConfiguration)) {
+            if ($finConfiguration && $fin->gt($finConfiguration)) {
                 $fin = $finConfiguration->copy();
             }
 

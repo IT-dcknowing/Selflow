@@ -170,6 +170,13 @@ class Entreprise extends Model
      */
     protected static function booted(): void
     {
+        static::creating(function (self $entreprise): void {
+            $entreprise->comptabilite_stock_active ??= true;
+            $entreprise->comptabilite_stock_quotidienne ??= false;
+            $entreprise->comptabilite_stock_periode_mois ??= 3;
+            $entreprise->comptabilite_stock_date_debut ??= now()->toDateString();
+        });
+
         static::saving(function (self $entreprise): void {
             $nom = preg_replace('/\s+/u', ' ', trim((string) $entreprise->nom));
             $entreprise->nom_normalise = $nom !== ''

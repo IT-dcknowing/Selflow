@@ -2,10 +2,14 @@
 
 namespace App\Jobs;
 
+use App\Modules\Admin\Modeles\Achat;
 use App\Modules\Admin\Modeles\EcritureComptable;
 use App\Modules\Admin\Modeles\Entreprise;
 use App\Modules\Admin\Modeles\Operation;
 use App\Modules\Admin\Modeles\Periode;
+use App\Modules\Admin\Modeles\PortailFneFactureRecue;
+use App\Modules\Admin\Modeles\Vente;
+use App\Modules\Admin\Services\DocumentPdfService;
 use App\Modules\Admin\Services\LiaisonComptaflowService;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -134,6 +138,7 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
             ->values();
 
         if ($lignes->isEmpty()) {
+            $this->transmettreJustificatif($operation, $entreprise);
             return;
         }
 
@@ -185,6 +190,8 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
                         'operation_id' => $operation->id,
                         'refus'        => $refus,
                     ]);
+                } else {
+                    $this->transmettreJustificatif($operation, $entreprise);
                 }
 
                 return;
@@ -220,6 +227,109 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
             ]);
             throw $e;
         }
+    }
+
+
+    /**
+     * Construit ou récupère le PDF source de la pièce, puis le rattache à
+     * l'opération déjà déversée chez Comptaflow. L'API distante est idempotente.
+     */
+    private function transmettreJustificatif(Operation $operation, Entreprise $entreprise): void
+    {
+        if ($operation->ecritures->isEmpty()) {
+            return;
+        }
+
+        $reference = trim((string) $operation->reference_document);
+        $type = (string) $operation->type_operation;
+        $pdf = null;
+        $nom = null;
+
+        if ($type === 'FactureAchatRecue') {
+            $facture = PortailFneFactureRecue::withoutGlobalScopes()
+                ->where('entreprise_id', $entreprise->id)
+                ->where('reference', $reference)
+                ->first();
+
+            $chemin = $facture?->cheminDuPdf();
+            if (!$chemin || !is_file($chemin)) {
+                throw new \RuntimeException("Le PDF source de la facture FNE reçue {$reference} est introuvable.");
+            }
+
+            $pdf = file_get_contents($chemin);
+            $nom = basename($chemin);
+        } elseif (in_array($type, ['FactureVente', 'AvoirVente', 'ReglementVente'], true)) {
+            $vente = Vente::withoutGlobalScopes()
+                ->with(['pointDeVente.entreprise', 'client', 'beneficiaire', 'apporteur', 'details.produit', 'parent'])
+                ->where('numero_facture', $reference)
+                ->whereHas('pointDeVente', fn ($q) => $q->where('entreprise_id', $entreprise->id))
+                ->first();
+
+            if (!$vente) {
+                throw new \RuntimeException("La pièce de vente {$reference} est introuvable pour générer le justificatif.");
+            }
+
+            $service = app(DocumentPdfService::class);
+            $pdf = $type === 'ReglementVente'
+                ? $service->recuDeVente($vente, (float) $vente->montant_paye)
+                : $service->vente($vente, (float) $vente->montant_paye, 1);
+            $nom = DocumentPdfService::nomDuFichier($vente, $type === 'ReglementVente' ? '-recu' : '');
+        } elseif (in_array($type, ['FactureAchat', 'AvoirAchat'], true)) {
+            $achat = Achat::withoutGlobalScopes()
+                ->with(['pointDeVente.entreprise', 'fournisseur', 'details.produit', 'parent'])
+                ->where('numero_facture', $reference)
+                ->whereHas('pointDeVente', fn ($q) => $q->where('entreprise_id', $entreprise->id))
+                ->first();
+
+            if (!$achat) {
+                throw new \RuntimeException("La pièce d'achat {$reference} est introuvable pour générer le justificatif.");
+            }
+
+            $pdf = app(DocumentPdfService::class)->achat($achat, (float) $achat->montant_paye, 1);
+            $nom = DocumentPdfService::nomDuFichier($achat);
+        } else {
+            // Les OD, règlements fournisseurs et mouvements de stock ne
+            // possèdent pas de document PDF commercial propre à transmettre.
+            return;
+        }
+
+        if (!is_string($pdf) || $pdf === '' || !str_starts_with($pdf, '%PDF-')) {
+            throw new \RuntimeException('Le document justificatif généré n’est pas un PDF valide.');
+        }
+        if (strlen($pdf) > 10 * 1024 * 1024) {
+            throw new \RuntimeException('Le justificatif PDF dépasse la limite de 10 Mo acceptée par Comptaflow.');
+        }
+
+        $operationSource = self::cleOperation($entreprise, $operation);
+        if (!$operationSource) {
+            throw new \RuntimeException('Impossible de construire la clé de rattachement du justificatif Comptaflow.');
+        }
+
+        $reponse = Http::timeout(30)
+            ->withHeaders(LiaisonComptaflowService::enTete($entreprise))
+            ->post(
+                rtrim(config('selflow.comptaflow_api_url', 'http://127.0.0.1:8000'), '/')
+                    . '/api/external/pieces-justificatives/deverser',
+                [
+                    'operation_source' => $operationSource,
+                    'nom_fichier' => basename((string) $nom),
+                    'sha256' => hash('sha256', $pdf),
+                    'contenu_base64' => base64_encode($pdf),
+                ]
+            );
+
+        if (!$reponse->successful() || !($reponse->json('success') ?? false)) {
+            throw new \RuntimeException(
+                (string) ($reponse->json('message') ?? 'Comptaflow a refusé le justificatif PDF.')
+            );
+        }
+
+        Log::info('Justificatif PDF transmis à Comptaflow', [
+            'operation_id' => $operation->id,
+            'operation_source' => $operationSource,
+            'sha256' => hash('sha256', $pdf),
+            'idempotent' => (bool) $reponse->json('idempotent', false),
+        ]);
     }
 
     /**

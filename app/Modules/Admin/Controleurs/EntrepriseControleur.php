@@ -276,7 +276,7 @@ class EntrepriseControleur
             'comptabilite_stock_quotidienne' => ['required', 'in:0,1'],
             'comptabilite_stock_periode_mois' => ['required', 'integer', 'min:1', 'max:12'],
             'comptabilite_stock_date_debut' => ['required_if:comptabilite_stock_active,1', 'nullable', 'date'],
-            'comptabilite_stock_date_fin' => ['required_if:comptabilite_stock_active,1', 'nullable', 'date', 'after_or_equal:comptabilite_stock_date_debut'],
+            'comptabilite_stock_date_fin' => ['nullable', 'date', 'after_or_equal:comptabilite_stock_date_debut'],
             'comptaflow_mode_deversement' => ['required', 'in:manuel,automatique'],
         ], [
             'pied_de_page_facture.max'    => 'Le pied de page ne peut pas dépasser 248 caractères.',
@@ -366,12 +366,12 @@ class EntrepriseControleur
             $data['comptabilite_activee'] = $request->input('comptabilite_activee') === '1';
         }
 
-        // Les écritures de stock sont désactivées par défaut. Activées,
-        // elles sont traitées quotidiennement ou par périodes de N mois.
+        // Le stock est comptabilisé par défaut tous les trois mois. Le mode
+        // quotidien reste un choix explicite ; la date de fin est facultative.
         $data['comptabilite_stock_active'] = $request->boolean('comptabilite_stock_active');
         $data['comptabilite_stock_quotidienne'] = $request->boolean('comptabilite_stock_quotidienne');
-        $data['comptabilite_stock_periode_mois'] = (int) $request->input('comptabilite_stock_periode_mois', 1);
-        $data['comptabilite_stock_date_debut'] = $request->input('comptabilite_stock_date_debut') ?: null;
+        $data['comptabilite_stock_periode_mois'] = (int) $request->input('comptabilite_stock_periode_mois', 3);
+        $data['comptabilite_stock_date_debut'] = $request->input('comptabilite_stock_date_debut') ?: ($data['comptabilite_stock_active'] ? now()->toDateString() : null);
         $data['comptabilite_stock_date_fin'] = $request->input('comptabilite_stock_date_fin') ?: null;
 
         // Le statut de la liaison Comptaflow se déduisait de la présence du

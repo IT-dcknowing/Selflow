@@ -1391,8 +1391,9 @@
 
         {{-- Comptabilisation du stock : indépendante du simple suivi physique. --}}
         @php
-            $stockComptaActive = (bool) old('comptabilite_stock_active', $entreprise->comptabilite_stock_active ?? false);
+            $stockComptaActive = (bool) old('comptabilite_stock_active', $entreprise->comptabilite_stock_active ?? true);
             $stockComptaQuotidienne = (bool) old('comptabilite_stock_quotidienne', $entreprise->comptabilite_stock_quotidienne ?? false);
+            $stockComptaPeriodeMois = (int) old('comptabilite_stock_periode_mois', $entreprise->comptabilite_stock_periode_mois ?? 3);
         @endphp
         <div class="card pleine-largeur" style="margin-top:22px;padding:22px;border:1px solid var(--border);">
             <span id="stock-comptabilite" style="scroll-margin-top:90px;"></span>
@@ -1401,9 +1402,9 @@
                 Comptabilisation des mouvements de stock
             </div>
             <p style="font-size:12.5px;color:var(--text-2);line-height:1.6;margin-bottom:14px;">
-                Le suivi physique du stock continue dans tous les cas. Les écritures comptables de stock sont
-                désactivées par défaut. Activez-les uniquement si vous souhaitez transmettre les variations
-                au journal des opérations diverses (OD) de votre comptabilité.
+                Le suivi physique du stock continue dans tous les cas. La comptabilisation des mouvements est
+                activée par défaut tous les trois mois. Vous pouvez choisir une autre périodicité ou activer
+                le traitement quotidien si votre organisation le nécessite.
             </p>
 
             <input type="hidden" name="comptabilite_stock_active" value="0">
@@ -1429,7 +1430,7 @@
                     </label>
                     <select id="comptabilite_stock_periode_mois" name="comptabilite_stock_periode_mois" class="form-control">
                         @foreach(range(1, 12) as $mois)
-                            <option value="{{ $mois }}" {{ (int) old('comptabilite_stock_periode_mois', $entreprise->comptabilite_stock_periode_mois ?? 1) === $mois ? 'selected' : '' }}>
+                            <option value="{{ $mois }}" {{ $stockComptaPeriodeMois === $mois ? 'selected' : '' }}>
                                 {{ $mois === 1 ? 'Chaque mois' : 'Tous les ' . $mois . ' mois' }}
                             </option>
                         @endforeach
@@ -1440,14 +1441,14 @@
                         Début de la période de variation
                     </label>
                     <input type="date" id="comptabilite_stock_date_debut" name="comptabilite_stock_date_debut" class="form-control"
-                           value="{{ old('comptabilite_stock_date_debut', $entreprise->comptabilite_stock_date_debut?->format('Y-m-d')) }}">
+                           value="{{ old('comptabilite_stock_date_debut', $entreprise->comptabilite_stock_date_debut?->format('Y-m-d') ?? now()->toDateString()) }}">
                 </div>
                 <div>
                     <label for="comptabilite_stock_date_fin" style="display:block;font-size:12px;font-weight:700;margin-bottom:7px;">
                         Fin de la période de variation
                     </label>
                     <input type="date" id="comptabilite_stock_date_fin" name="comptabilite_stock_date_fin" class="form-control"
-                           value="{{ old('comptabilite_stock_date_fin', $entreprise->comptabilite_stock_date_fin?->format('Y-m-d')) }}">
+                           value="{{ old('comptabilite_stock_date_fin', $entreprise->comptabilite_stock_date_fin?->format('Y-m-d')) }}" placeholder="Aucune date de fin">
                 </div>
             </div>
             <div style="font-size:11.5px;color:var(--text-3);margin-top:10px;line-height:1.5;">
