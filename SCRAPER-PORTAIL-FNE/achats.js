@@ -698,11 +698,28 @@ async function passage() {
   }
 }
 
+function ecrireEtatProcessus() {
+  const option = process.argv.find(argument => argument.startsWith('--status-file='));
+  if (!option) return;
+
+  const fichier = option.slice('--status-file='.length);
+  try {
+    fs.writeFileSync(fichier, JSON.stringify({
+      exit_code: Number(process.exitCode || 0),
+      termine_at: new Date().toISOString(),
+    }), 'utf-8');
+  } catch (erreur) {
+    dire('ERREUR', `Impossible d'ecrire le marqueur de fin : ${erreur.message}`);
+  }
+}
+
 if (require.main === module) {
-  passage().catch(erreur => {
-    dire('ERREUR', erreur.message);
-    process.exitCode = 1;
-  });
+  passage()
+    .catch(erreur => {
+      dire('ERREUR', erreur.message);
+      process.exitCode = 1;
+    })
+    .finally(ecrireEtatProcessus);
 }
 
 module.exports = {
