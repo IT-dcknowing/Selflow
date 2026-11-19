@@ -7,6 +7,7 @@ use App\Modules\Admin\Modeles\ConfigurationCompte;
 use App\Modules\Admin\Modeles\PlanComptable;
 use App\Modules\Admin\Modeles\Produit;
 use App\Modules\Admin\Services\PropagationComptesService;
+use App\Jobs\PropagerComptesComptaflow;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -102,9 +103,9 @@ class ConfigurationComptesControleur
 
         $variationEnPlace = ConfigurationCompte::porteLaVariation();
         $avant = PropagationComptesService::capturer($entreprise->id);
-        $ecrituresHistoriquesMaj = 0;
+        $propagationComptes = ['lignes' => 0, 'remplacements' => []];
 
-        DB::transaction(function () use ($request, $entreprise, $categories, $types, $variationEnPlace, $avant, &$ecrituresHistoriquesMaj) {
+        DB::transaction(function () use ($request, $entreprise, $categories, $types, $variationEnPlace, $avant, &$propagationComptes) {
             foreach ((array) $request->input('config', []) as $cleComplete => $valeurs) {
                 [$portee, $cle] = array_pad(explode(':', (string) $cleComplete, 2), 2, '');
 
@@ -206,14 +207,41 @@ class ConfigurationComptesControleur
 
             // Répercuter les numéros sur toutes les écritures historiques.
             // La mise à jour SQL ne touche qu'aux comptes, jamais aux montants.
-            $ecrituresHistoriquesMaj = PropagationComptesService::propagerEcritures($entreprise->id, $avant);
+            $propagationComptes = PropagationComptesService::propagerEcritures($entreprise->id, $avant);
         });
 
         ConfigurationCompte::oublier();
 
+        $messageComptaflow = '';
+        $remplacements = $propagationComptes['remplacements'] ?? [];
+        if ($entreprise->liaisonComptaflowActive() && $remplacements !== []) {
+            foreach ($remplacements as $remplacement) {
+                DB::table('comptaflow_comptes_propagations')->updateOrInsert(
+                    [
+                        'entreprise_id' => $entreprise->id,
+                        'ancien_numero' => $remplacement['ancien_numero'],
+                        'nouveau_numero' => $remplacement['nouveau_numero'],
+                    ],
+                    [
+                        'statut' => 'en_attente',
+                        'tentatives' => 0,
+                        'dernier_message' => null,
+                        'resultat' => null,
+                        'updated_at' => now(),
+                        'created_at' => now(),
+                    ]
+                );
+            }
+
+            PropagerComptesComptaflow::dispatch($entreprise->id);
+            $messageComptaflow = ' La propagation des anciens déversements vers COMPTAFLOW a été mise en file.';
+        }
+
         return back()->with(
             'succes',
-            'Configuration enregistrée. ' . $ecrituresHistoriquesMaj . ' ligne(s) historique(s) mise(s) à jour ; les montants sont inchangés.'
+            'Configuration enregistrée. ' . ($propagationComptes['lignes'] ?? 0)
+                . ' ligne(s) historique(s) Selflow mise(s) à jour ; les montants sont inchangés.'
+                . $messageComptaflow
         );
     }
 }
