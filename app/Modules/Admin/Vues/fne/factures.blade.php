@@ -60,6 +60,13 @@
     <button data-cat="avoir_fournisseur" onclick="changerCategorie('avoir_fournisseur')">Avoirs fournisseurs</button>
 </div>
 
+<div style="display:flex; align-items:center; gap:12px; margin:0 0 14px;">
+    <button type="button" id="btn-actualiser-avoirs" class="btn btn-primary" onclick="actualiserAvoirsFne()">
+        <i class="fas fa-rotate"></i> Actualiser les avoirs FNE
+    </button>
+    <span id="statut-actualiser-avoirs" role="status" aria-live="polite" style="font-size:12px; color:var(--text-2);"></span>
+</div>
+
 <div style="margin-bottom:16px; padding:10px 14px; border-radius:8px; background:var(--bg3);
             border:1px solid var(--border); font-size:12px; line-height:1.6; color:var(--text-2);">
     <i class="fas fa-circle-info" style="color:var(--primary);"></i>
@@ -170,6 +177,61 @@ function changerCategorie(cat) {
 
 function pagePrecedente() { if (page > 1) { page--; rafraichirFactures(); } }
 function pageSuivante() { if (page < dernierePagination.derniere_page) { page++; rafraichirFactures(); } }
+
+let actualisationAvoirsEnCours = false;
+
+function attendreFinActualisationAvoirs() {
+    fetch("{{ route('admin.fne.avoirs.actualiser.statut') }}", { headers: { 'Accept': 'application/json' } })
+        .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
+        .then(({ok, data}) => {
+            if (!ok || data.status !== 'success') throw new Error(data.message || 'Échec du suivi du relevé.');
+            if (!data.termine) {
+                document.getElementById('statut-actualiser-avoirs').textContent = 'Relevé du portail en cours…';
+                setTimeout(attendreFinActualisationAvoirs, 4000);
+                return;
+            }
+            actualisationAvoirsEnCours = false;
+            document.getElementById('btn-actualiser-avoirs').disabled = false;
+            const bilan = data.import || {};
+            document.getElementById('statut-actualiser-avoirs').textContent =
+                'Relevé terminé. ' + (bilan.importes || 0) + ' import(s), ' +
+                (bilan.erreurs || 0) + ' erreur(s).';
+            rafraichirFactures();
+        })
+        .catch(e => {
+            actualisationAvoirsEnCours = false;
+            document.getElementById('btn-actualiser-avoirs').disabled = false;
+            document.getElementById('statut-actualiser-avoirs').textContent = e.message;
+        });
+}
+
+function actualiserAvoirsFne() {
+    if (actualisationAvoirsEnCours) return;
+    const bouton = document.getElementById('btn-actualiser-avoirs');
+    const statut = document.getElementById('statut-actualiser-avoirs');
+    actualisationAvoirsEnCours = true;
+    bouton.disabled = true;
+    statut.textContent = 'Démarrage du relevé…';
+    fetch("{{ route('admin.fne.avoirs.actualiser') }}", {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+    .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
+    .then(({ok, data}) => {
+        if (!ok || data.status !== 'success') throw new Error(data.message || 'Impossible de lancer le relevé.');
+        statut.textContent = data.message || 'Relevé lancé…';
+        setTimeout(attendreFinActualisationAvoirs, 3000);
+    })
+    .catch(e => {
+        actualisationAvoirsEnCours = false;
+        bouton.disabled = false;
+        statut.textContent = e.message;
+    });
+}
 
 function rafraichirFactures() {
     const params = parametresFiltreFne();
