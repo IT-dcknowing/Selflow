@@ -539,6 +539,7 @@ class FneDashboardControleur
             'import' => [
                 'importes' => $rapport['importes'] ?? 0,
                 'modifies' => $rapport['inchanges'] ?? 0,
+                'ignores' => $rapport['ignores'] ?? 0,
                 'erreurs' => $rapport['erreurs'] ?? 0,
             ],
         ]);
@@ -594,6 +595,7 @@ class FneDashboardControleur
             'import' => [
                 'importes' => $rapport['importes'] ?? 0,
                 'modifies' => $rapport['inchanges'] ?? 0,
+                'ignores' => $rapport['ignores'] ?? 0,
                 'erreurs' => $rapport['erreurs'] ?? 0,
             ],
         ]);
@@ -683,6 +685,7 @@ class FneDashboardControleur
             'import' => [
                 'importes' => $rapport['importes'] ?? 0,
                 'modifies' => $rapport['inchanges'] ?? 0,
+                'ignores' => $rapport['ignores'] ?? 0,
                 'erreurs' => $rapport['erreurs'] ?? 0,
                 'dernier_releve' => $dernier?->date_scraping?->toDateString(),
                 'message' => $dernier?->message,
