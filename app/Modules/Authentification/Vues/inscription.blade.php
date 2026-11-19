@@ -205,6 +205,21 @@
                     </small>
                 </div>
 
+                <div class="champ" style="margin-top:14px;">
+                    <label for="offre">Pack souhaité <span class="req">*</span></label>
+                    <select id="offre" name="offre" required class="{{ $errors->has('offre') ? 'erreur' : '' }}">
+                        <option value="">Choisissez votre pack</option>
+                        @foreach($offres as $code => $offre)
+                            <option value="{{ $code }}" @selected(old('offre', request('offre')) === $code)>
+                                {{ $offre['nom'] }}{{ $offre['prix'] === null ? ' — Sur devis' : ($offre['prix'] === 0 ? ' — Gratuit ' . \App\Modules\Admin\Regles\Abonnements::DUREE_PASS_CADEAU_JOURS . ' jours' : ' — ' . number_format($offre['prix'], 0, ',', ' ') . ' F/mois') }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <small style="display:block;margin-top:6px;font-size:11.5px;color:#9CA3AF;line-height:1.55;">
+                        Votre pack et ses quotas seront transmis à l'équipe pour validation. Le choix pourra être confirmé avec votre abonnement.
+                    </small>
+                </div>
+
                 </section>
 
 
@@ -561,6 +576,36 @@ document.getElementById('form-inscription').addEventListener('submit', function(
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner" style="animation:spin 1s linear infinite;"></i> Création en cours…';
 });
+</script>
+<script>
+(function () {
+    var offre = document.getElementById('offre');
+    var google = document.getElementById('btn-google-inscription');
+    if (!offre || !google) return;
+    function synchroniserOffreGoogle() {
+        if (!offre.value) {
+            google.setAttribute('aria-disabled', 'true');
+            google.style.opacity = '.55';
+            google.title = 'Choisissez d’abord votre pack';
+            return;
+        }
+        var url = new URL(google.href, window.location.origin);
+        url.searchParams.set('offre', offre.value);
+        google.href = url.toString();
+        google.removeAttribute('aria-disabled');
+        google.style.opacity = '';
+        google.title = '';
+    }
+    offre.addEventListener('change', synchroniserOffreGoogle);
+    google.addEventListener('click', function (event) {
+        if (!offre.value) {
+            event.preventDefault();
+            offre.focus();
+            alert('Choisissez votre pack avant de continuer avec Google.');
+        }
+    });
+    synchroniserOffreGoogle();
+})();
 </script>
 </body>
 </html>
