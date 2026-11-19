@@ -14,6 +14,12 @@ class Entreprise extends Model
 
     protected $table = 'entreprises';
 
+    // Toute nouvelle entreprise démarre sur le régime TEE si aucun régime
+    // n'est fourni ; les entreprises existantes conservent leur valeur.
+    protected $attributes = [
+        'regime_imposition' => 'TEE',
+    ];
+
     protected $fillable = [
         'nom',
         'forme_juridique',
