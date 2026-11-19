@@ -21,9 +21,42 @@
 </div>
 @endif
 
+<form method="GET" action="{{ route('superadmin.entreprises') }}" style="display:flex;flex-wrap:wrap;gap:10px;align-items:end;background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;">
+    <div style="min-width:190px;flex:1;">
+        <label class="form-label" for="filtre-etat">État</label>
+        <select class="form-control" id="filtre-etat" name="etat">
+            <option value="tous" @selected($etat === 'tous')>Tous</option>
+            <option value="confirme" @selected($etat === 'confirme')>Confirmées</option>
+            <option value="cree" @selected($etat === 'cree')>Créées / en attente</option>
+            <option value="echeances_10" @selected($etat === 'echeances_10')>Échéances dans les 10 jours</option>
+            <option value="echus" @selected($etat === 'echus')>Abonnements échus</option>
+        </select>
+    </div>
+    <div style="min-width:210px;flex:1;">
+        <label class="form-label" for="filtre-entreprise">Entreprise</label>
+        <select class="form-control" id="filtre-entreprise" name="entreprise_id">
+            <option value="">Toutes les entreprises</option>
+            @foreach($entreprisesPourFiltre as $optionEntreprise)
+                <option value="{{ $optionEntreprise->id }}" @selected((string)$entrepriseId === (string)$optionEntreprise->id)>{{ $optionEntreprise->nom }}</option>
+            @endforeach
+        </select>
+    </div>
+    <div style="min-width:170px;flex:1;">
+        <label class="form-label" for="filtre-ncc">NCC</label>
+        <input class="form-control" id="filtre-ncc" type="search" name="ncc" value="{{ $ncc }}" placeholder="Saisir le NCC">
+    </div>
+    <button class="btn btn-primary" type="submit"><i class="fas fa-filter"></i> Filtrer</button>
+    <a class="btn btn-outline" href="{{ route('superadmin.entreprises') }}">Réinitialiser</a>
+</form>
+
+<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:11px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;">
+    <span style="font-size:12px;color:#1d4ed8;font-weight:700;text-transform:uppercase;">Comptes en attente de validation</span>
+    <strong style="font-size:23px;color:#1e40af;">{{ $comptesEnAttenteTotal }}</strong>
+</div>
+
 {{-- Synthèse globale des échéances, indépendante de la pagination. --}}
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:20px;">
-    <div style="background:#fff7f7;border:1px solid #fecaca;border-left:5px solid #dc2626;border-radius:12px;padding:16px;">
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px;">
+    <div style="background:#fff7f7;border:1px solid #fecaca;border-left:5px solid #dc2626;border-radius:10px;padding:11px;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;">
             <strong style="color:#991b1b;"><i class="fas fa-circle-exclamation"></i> Abonnements échus</strong>
             <span style="background:#dc2626;color:#fff;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:800;">{{ $abonnementsEchusTotal }}</span>
