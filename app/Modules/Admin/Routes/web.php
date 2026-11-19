@@ -39,6 +39,8 @@ Route::prefix('admin')
             Route::post('/enregistrer', [VenteControleur::class, 'enregistrer'])->name('enregistrer');
             Route::get('/factures', [VenteControleur::class, 'factures'])->name('factures');
             Route::get('/factures/rechercher', [VenteControleur::class, 'rechercherFacturesPourAvoir'])->name('factures.rechercher');
+            Route::post('/factures/fne/actualiser', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'actualiserVentes'])->name('factures.fne.actualiser');
+            Route::get('/factures/fne/actualiser/statut', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'statutActualisationVentes'])->name('factures.fne.actualiser.statut');
             Route::get('/facture-details/{vente}', [VenteControleur::class, 'detailsFacturePourAvoir'])->name('factures.details');
             Route::get('/factures/produits-categories', [VenteControleur::class, 'produitsParCategorie'])->name('factures.produits_categories');
             Route::post('/avoir/creer-nouveau', [VenteControleur::class, 'creerAvoirNouveau'])->name('avoir.creer_nouveau');
