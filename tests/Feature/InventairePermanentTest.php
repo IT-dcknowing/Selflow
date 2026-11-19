@@ -23,9 +23,9 @@ use Tests\TestCase;
  * - **`produits.prix_achat` tenait lieu de coût** — un prix de catalogue, figé,
  *   saisi une fois. La marge affichée était donc fausse dès que le fournisseur
  *   changeait ses prix.
- * - **Aucun compte de classe 3 n'était mouvementé.** Le stock existait en
- *   quantité, pas en valeur : la balance n'en portait pas trace, et aucun bilan
- *   ne pouvait être établi.
+ * - **La valorisation du stock est désormais comptabilisée périodiquement.**
+ *   Les mouvements sont agrégés par site et par période, avec une activation
+ *   par défaut tous les trois mois ; aucune écriture immédiate n'est créée.
  */
 class ComptabilisationStockPeriodiqueTest extends TestCase
 {
