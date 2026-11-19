@@ -62,8 +62,6 @@ class RegrouperOperationsComptaflow extends Command
                     $reponse = Http::timeout(60)
                         ->withHeaders(LiaisonComptaflowService::enTete($entreprise))
                         ->post(rtrim(config('selflow.comptaflow_api_url', 'http://127.0.0.1:8000'), '/') . '/api/external/ecritures/regrouper', [
-                            'secret'             => config('selflow.comptaflow_api_secret'),
-                            'selflow_company_id' => $entreprise->id,
                             'operations'         => $charge,
                         ]);
 
