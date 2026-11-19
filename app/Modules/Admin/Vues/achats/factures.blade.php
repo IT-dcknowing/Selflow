@@ -8,9 +8,17 @@
         <h1><i class="fas fa-file-invoice-dollar"></i> Cycles d'achat</h1>
         <p>Suivi complet des demandes de prix, bons de commande et factures</p>
     </div>
-    <a href="{{ route('admin.achats.nouveau') }}" class="btn btn-primary">
-        <i class="fas fa-plus"></i> Nouvel achat
-    </a>
+    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        @if($etapeActive === 'Facture')
+            <button type="button" id="btn-actualiser-fne-achats" class="btn btn-outline" onclick="actualiserFacturesFneAchats()">
+                <i class="fas fa-rotate"></i> Actualiser les factures FNE
+            </button>
+            <span id="statut-actualiser-fne-achats" style="font-size:12px; color:var(--text-2);" aria-live="polite"></span>
+        @endif
+        <a href="{{ route('admin.achats.nouveau') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Nouvel achat
+        </a>
+    </div>
 </div>
 
 @include('admin::partials.kpi-factures', ['kpiFactures' => $kpiFactures ?? []])
@@ -101,12 +109,6 @@
         <strong>Ces factures viennent du portail de la DGI.</strong>
         Vos fournisseurs les ont établies et certifiées ; le relevé les rapporte.
         Il n'y a rien à leur faire — seulement à les rapprocher de vos achats.
-        <div style="margin-top:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-            <button type="button" id="btn-actualiser-fne-achats" class="btn btn-primary btn-sm" onclick="actualiserFacturesFneAchats()">
-                <i class="fas fa-rotate"></i> Actualiser les factures FNE
-            </button>
-            <span id="statut-actualiser-fne-achats" style="font-size:12px; color:var(--text-2);" aria-live="polite"></span>
-        </div>
         {{-- Écarter n'est pas supprimer : la pièce reste, et le portail la
              redéposera. Ce qu'on a mis de côté doit pouvoir revenir, sinon
              l'écartement serait une suppression déguisée. --}}
