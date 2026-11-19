@@ -531,11 +531,18 @@ class FneDashboardControleur
                 'message' => 'Le scraper des factures d’achat s’est terminé en erreur (code ' . (int) $processus['exit_code'] . '). Consultez storage/logs/portail-fne-sorties.log.',
             ], 502);
         }
+        $verrou = ScraperPortailFneService::verrouAchats($login);
         if ($processus) {
-            Cache::forget(ScraperPortailFneService::verrouAchats($login));
+            Cache::put($verrou, ['import_en_cours' => true], now()->addMinutes(5));
+        } elseif (!Cache::add($verrou, ['import_en_cours' => true], now()->addMinutes(5))) {
+            return response()->json(['status' => 'success', 'termine' => false, 'message' => 'Les relevés FNE sont en cours d’intégration.']);
         }
 
-        $rapport = app(ImportFacturesRecuesService::class)->importerDossier(null, $login);
+        try {
+            $rapport = app(ImportFacturesRecuesService::class)->importerDossier(null, $login);
+        } finally {
+            Cache::forget($verrou);
+        }
 
         if (empty($rapport['details'])) {
             return response()->json([
@@ -598,11 +605,18 @@ class FneDashboardControleur
                 'message' => 'Le scraper des factures de vente s’est terminé en erreur (code ' . (int) $processus['exit_code'] . '). Consultez storage/logs/portail-fne-sorties.log.',
             ], 502);
         }
+        $verrou = ScraperPortailFneService::verrouVentes($login);
         if ($processus) {
-            Cache::forget(ScraperPortailFneService::verrouVentes($login));
+            Cache::put($verrou, ['import_en_cours' => true], now()->addMinutes(5));
+        } elseif (!Cache::add($verrou, ['import_en_cours' => true], now()->addMinutes(5))) {
+            return response()->json(['status' => 'success', 'termine' => false, 'message' => 'Les relevés FNE sont en cours d’intégration.']);
         }
 
-        $rapport = app(ImportFacturesEmisesService::class)->importerDossier(null, $login);
+        try {
+            $rapport = app(ImportFacturesEmisesService::class)->importerDossier(null, $login);
+        } finally {
+            Cache::forget($verrou);
+        }
 
         if (empty($rapport['details'])) {
             return response()->json([
@@ -693,11 +707,18 @@ class FneDashboardControleur
                 'message' => 'Le scraper des avoirs s’est terminé en erreur (code ' . (int) $processus['exit_code'] . '). Consultez storage/logs/portail-fne-sorties.log.',
             ], 502);
         }
+        $verrou = ScraperPortailFneService::verrouAvoirs($login);
         if ($processus) {
-            Cache::forget(ScraperPortailFneService::verrouAvoirs($login));
+            Cache::put($verrou, ['import_en_cours' => true], now()->addMinutes(5));
+        } elseif (!Cache::add($verrou, ['import_en_cours' => true], now()->addMinutes(5))) {
+            return response()->json(['status' => 'success', 'termine' => false, 'message' => 'Les relevés FNE sont en cours d’intégration.']);
         }
 
-        $rapport = app(ImportAvoirsService::class)->importerDossier(null, $login);
+        try {
+            $rapport = app(ImportAvoirsService::class)->importerDossier(null, $login);
+        } finally {
+            Cache::forget($verrou);
+        }
 
         if (empty($rapport['details'])) {
             return response()->json([
