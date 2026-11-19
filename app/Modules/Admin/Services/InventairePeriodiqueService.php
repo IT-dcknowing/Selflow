@@ -192,11 +192,12 @@ class InventairePeriodiqueService
             }
 
             // Dans Selflow, le journal OD est le journal de type « Général ».
-            // Son code peut être personnalisé ; ne pas forcer littéralement « OD ».
-            $journal = CodeJournal::where('entreprise_id', $entreprise->id)
+            // Préférer les journaux reçus de COMPTAFLOW lorsqu'ils existent.
+            $journal = CodeJournal::obtenirJournauxPrioritaires($entreprise->id)
                 ->where('type', 'Général')
                 ->whereNull('archive_le')
-                ->value('code') ?? 'OD';
+                ->sortBy('code')
+                ->first()?->code ?? 'OD';
 
             $operationsCreees = 0;
             $parSite = [];
