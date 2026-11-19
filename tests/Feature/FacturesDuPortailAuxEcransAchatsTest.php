@@ -65,6 +65,61 @@ class FacturesDuPortailAuxEcransAchatsTest extends TestCase
             ->assertSee('à affecter');
     }
 
+    public function test_les_avoirs_fournisseurs_sont_separes_des_factures_d_achat_fne(): void
+    {
+        [$utilisateur, $entreprise] = $this->uneEntrepriseAvecUtilisateur();
+
+        $this->uneFactureRecue($entreprise, [
+            'reference' => 'FNE-ACHAT-NORMAL-001',
+            'subtype' => 'normal',
+            'liste_portail' => 'received',
+        ]);
+        $this->uneFactureRecue($entreprise, [
+            'reference' => 'FNE-AVOIR-FOURNISSEUR-001',
+            'subtype' => 'refund',
+            'liste_portail' => 'received',
+        ]);
+
+        $this->actingAs($utilisateur)
+            ->get(route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'dgi']))
+            ->assertOk()
+            ->assertSee('FNE-ACHAT-NORMAL-001')
+            ->assertDontSee('FNE-AVOIR-FOURNISSEUR-001');
+
+        $this->actingAs($utilisateur)
+            ->get(route('admin.achats.factures', ['etape' => 'Facture', 'section' => 'avoirs_fournisseur']))
+            ->assertOk()
+            ->assertSee('Avoirs fournisseurs FNE')
+            ->assertSee('FNE-AVOIR-FOURNISSEUR-001')
+            ->assertDontSee('FNE-ACHAT-NORMAL-001');
+    }
+
+    public function test_un_avoir_fournisseur_se_rapproche_de_sa_facture_origine_sans_ecriture(): void
+    {
+        [$utilisateur, $entreprise, $pdv] = $this->uneEntrepriseAvecUtilisateur();
+        $fournisseur = $this->unFournisseur($entreprise);
+        $achat = $this->unAchat($pdv, $fournisseur, 11800);
+
+        $avoir = $this->uneFactureRecue($entreprise, [
+            'reference' => 'FNE-AVOIR-FOURNISSEUR-002',
+            'subtype' => 'refund',
+            'liste_portail' => 'received',
+            'emetteur_ncc' => $fournisseur->ncc,
+            'contenu_brut' => ['parentReference' => $achat->numero_facture],
+        ]);
+
+        $proposition = $avoir->rapprochementPropose();
+        $this->assertSame($achat->id, $proposition['achat']?->id);
+
+        $this->actingAs($utilisateur)
+            ->post(route('admin.achats.factures_recues.rattacher', $avoir))
+            ->assertRedirect();
+
+        $this->assertSame($achat->id, $avoir->fresh()->achat_id);
+        $this->assertNull($avoir->fresh()->operation_id);
+        $this->assertSame(0, \App\Modules\Admin\Modeles\EcritureComptable::where('reference_document', $avoir->reference)->count());
+    }
+
     /* ------------------------ L'adresse de vérification -------------------- */
 
     public function test_l_adresse_de_verification_se_reconstruit_a_partir_du_token(): void
