@@ -1903,51 +1903,62 @@ document.getElementById('modal-annulation').addEventListener('click', function (
 </script>
 
 <script>
+const cleSuiviFneVentes = 'selflow:fne:actualisation:ventes';
+async function suivreActualisationFneVentes() {
+    const bouton = document.getElementById('btn-actualiser-fne-ventes');
+    const statut = document.getElementById('statut-actualiser-fne-ventes');
+    if (!statut) return;
+    if (bouton) bouton.disabled = true;
+    statut.textContent = 'Le relevé des ventes continue en arrière-plan…';
+    try {
+        const reponse = await fetch(@json(route('admin.ventes.factures.fne.actualiser.statut')), { headers: { 'Accept': 'application/json' } });
+        const etat = await reponse.json();
+        if (etat.termine) {
+            const n = etat.import || {};
+            statut.textContent = 'Terminé : ' + (n.importes || 0) + ' nouvelle(s) facture(s), '
+                + (n.modifies || 0) + ' relevé(s) identique(s), '
+                + (n.ignores || 0) + ' déjà lu(s), ' + (n.erreurs || 0) + ' erreur(s).';
+            statut.style.color = n.erreurs ? '#b45309' : '#047857';
+            localStorage.removeItem(cleSuiviFneVentes);
+            if (bouton) bouton.disabled = false;
+            setTimeout(() => window.location.reload(), 2500);
+            return;
+        }
+        if (!reponse.ok || etat.status !== 'success') throw new Error(etat.message || 'Le relevé des ventes a échoué.');
+        statut.textContent = 'Récupération des factures de vente FNE en cours… La tâche continue même si vous quittez cette page.';
+        setTimeout(suivreActualisationFneVentes, 3000);
+    } catch (erreur) {
+        statut.textContent = erreur.message;
+        statut.style.color = '#b91c1c';
+        localStorage.removeItem(cleSuiviFneVentes);
+        if (bouton) bouton.disabled = false;
+    }
+}
 async function actualiserFacturesFneVentes() {
     const bouton = document.getElementById('btn-actualiser-fne-ventes');
     const statut = document.getElementById('statut-actualiser-fne-ventes');
     if (!bouton || bouton.disabled) return;
-
-    const urlLancement = @json(route($isCaissier ? 'caissier.ventes.factures.fne.actualiser' : 'admin.ventes.factures.fne.actualiser'));
-    const urlStatut = @json(route($isCaissier ? 'caissier.ventes.factures.fne.actualiser.statut' : 'admin.ventes.factures.fne.actualiser.statut'));
-    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
     bouton.disabled = true;
-    statut.textContent = 'Connexion au portail FNE…';
-
+    statut.textContent = 'Demande envoyée : connexion au portail FNE et lancement du relevé…';
     try {
-        const lancement = await fetch(urlLancement, {
+        const lancement = await fetch(@json(route('admin.ventes.factures.fne.actualiser')), {
             method: 'POST',
-            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf }
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' }
         });
         const resultat = await lancement.json();
-        if (!lancement.ok || resultat.status !== 'success') {
-            throw new Error(resultat.message || 'Le relevé FNE n’a pas pu démarrer.');
-        }
-
-        const limite = Date.now() + 360000;
-        while (Date.now() < limite) {
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            const reponse = await fetch(urlStatut, { headers: { 'Accept': 'application/json' } });
-            const etat = await reponse.json();
-            if (!reponse.ok || etat.status !== 'success') {
-                throw new Error(etat.message || 'Impossible de vérifier le relevé FNE.');
-            }
-            if (etat.termine) {
-                const n = etat.import || {};
-                statut.textContent = (n.importes || 0) + ' nouvelle(s) facture(s), '
-                    + (n.modifies || 0) + ' mise(s) à jour, '
-                    + (n.erreurs || 0) + ' erreur(s).';
-                window.location.reload();
-                return;
-            }
-            statut.textContent = 'Récupération des factures de vente FNE en cours…';
-        }
-        throw new Error('Le relevé prend plus de temps que prévu. Rechargez cette page dans quelques instants.');
+        if (!lancement.ok || resultat.status !== 'success') throw new Error(resultat.message || 'Le relevé FNE n’a pas pu démarrer.');
+        localStorage.setItem(cleSuiviFneVentes, '1');
+        statut.textContent = resultat.message || 'Relevé lancé en arrière-plan.';
+        setTimeout(suivreActualisationFneVentes, 1000);
     } catch (erreur) {
-        statut.textContent = erreur.message;
+        statut.textContent = 'Échec du lancement : ' + erreur.message;
+        statut.style.color = '#b91c1c';
         bouton.disabled = false;
     }
 }
+document.addEventListener('DOMContentLoaded', () => {
+    if (localStorage.getItem(cleSuiviFneVentes) === '1') suivreActualisationFneVentes();
+});
 </script>
 
 @endsection
