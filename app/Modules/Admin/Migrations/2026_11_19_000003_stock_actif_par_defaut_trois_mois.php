@@ -17,6 +17,7 @@ return new class extends Migration
             ->where('comptabilite_stock_quotidienne', false)
             ->where('comptabilite_stock_periode_mois', 1)
             ->whereNull('comptabilite_stock_date_debut')
+            ->whereNull('comptabilite_stock_date_fin')
             ->update([
                 'comptabilite_stock_active' => true,
                 'comptabilite_stock_quotidienne' => false,
