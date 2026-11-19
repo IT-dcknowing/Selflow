@@ -809,8 +809,8 @@ Route::prefix('caissier')
             Route::post('/enregistrer', [VenteControleur::class, 'enregistrer'])->name('enregistrer');
             Route::get('/factures', [VenteControleur::class, 'factures'])->name('factures');
             // Le relevé FNE est aussi accessible au caissier habilité.
-            Route::post('/factures/fne/actualiser', [\\App\\Modules\\Admin\\Controleurs\\FneDashboardControleur::class, 'actualiserVentes'])->name('factures.fne.actualiser');
-            Route::get('/factures/fne/actualiser/statut', [\\App\\Modules\\Admin\\Controleurs\\FneDashboardControleur::class, 'statutActualisationVentes'])->name('factures.fne.actualiser.statut');
+            Route::post('/factures/fne/actualiser', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'actualiserVentes'])->name('factures.fne.actualiser');
+            Route::get('/factures/fne/actualiser/statut', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'statutActualisationVentes'])->name('factures.fne.actualiser.statut');
 
             Route::get('/facture/{vente}', [VenteControleur::class, 'imprimer'])->name('imprimer');
             Route::get('/facture/{vente}/ticket', [VenteControleur::class, 'imprimerTicket'])->name('ticket');
