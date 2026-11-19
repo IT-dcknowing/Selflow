@@ -11,6 +11,7 @@ use App\Modules\Admin\Modeles\Produit;
 use App\Modules\Admin\Services\ImputationService;
 use App\Modules\Authentification\Modeles\Utilisateur;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
