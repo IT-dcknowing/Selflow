@@ -1,9 +1,9 @@
 <?php
 
-namespace App\\Console\\Commands;
+namespace App\Console\Commands;
 
-use App\\Modules\\Admin\\Services\\ImportFacturesEmisesService;
-use Illuminate\\Console\\Command;
+use App\Modules\Admin\Services\ImportFacturesEmisesService;
+use Illuminate\Console\Command;
 
 /**
  * Range les factures de vente émises relevées au portail FNE.
