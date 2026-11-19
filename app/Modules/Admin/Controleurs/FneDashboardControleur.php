@@ -800,7 +800,7 @@ class FneDashboardControleur
              * une qui n'a rien à y faire.
              */
             $query = match ($categorie) {
-                'avoir_fournisseur' => $query->where('type_facture', 'avoir')->where('normalise', true),
+                'avoir_fournisseur' => $query->whereRaw('1 = 0'), // Les avoirs fournisseurs viennent du listing FNE reçu, jamais d'une normalisation Selflow.
                 'emis'              => $query->where('type_facture', 'bapa')->where('normalise', true),
                 /*
                  * Le relevé, et ce qu'il a déjà rapproché.
