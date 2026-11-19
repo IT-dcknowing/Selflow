@@ -50,6 +50,7 @@ class PasserelleComptaflowTest extends TestCase
         $this->entreprise = Entreprise::create([
             'nom' => 'Boutique du carrefour',
             'comptaflow_sync_status' => 'active',
+            'comptaflow_mode_deversement' => 'manuel',
         ]);
 
         // La clé ne passe plus par l'affectation en masse : elle n'est pas
@@ -117,6 +118,13 @@ class PasserelleComptaflowTest extends TestCase
         ]));
 
         $operation->cloturerEquilibre();
+
+        // En mode manuel, le bouton « Déverser » lance explicitement le job.
+        // Les tests de payload l'exécutent ici ; le test d'automatisme ci-dessous
+        // vérifie séparément la mise en file à la clôture.
+        if (($this->entreprise->fresh()->comptaflow_mode_deversement ?? 'manuel') === 'manuel') {
+            DeverserOperationComptaflow::dispatchSync($operation->id);
+        }
 
         return $debit;
     }
@@ -250,14 +258,16 @@ class PasserelleComptaflowTest extends TestCase
         $vu = false;
 
         Http::recorded(function ($requete) use (&$vu) {
-            if (($requete->data()['secret'] ?? null) === 'secret-de-test') {
+            if (str_contains($requete->url(), '/api/external/ecritures/deverser')
+                && $requete->header('X-Company-Key') === 'cle-de-liaison'
+                && !array_key_exists('secret', $requete->data())) {
                 $vu = true;
             }
 
             return true;
         });
 
-        $this->assertTrue($vu, 'Le secret partagé doit accompagner chaque déversement.');
+        $this->assertTrue($vu, 'La clé identifie le dossier dans l’en-tête ; aucun secret global ne part dans le payload métier.');
     }
 
     public function test_sans_secret_configure_rien_ne_part_avec_un_secret_devinable(): void
@@ -303,6 +313,7 @@ class PasserelleComptaflowTest extends TestCase
 
     public function test_l_operation_met_le_deversement_en_file_au_lieu_d_appeler_en_direct(): void
     {
+        $this->entreprise->update(['comptaflow_mode_deversement' => 'automatique']);
         Queue::fake();
 
         $ecriture = $this->ecrire();

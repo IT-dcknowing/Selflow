@@ -104,6 +104,12 @@ class LiaisonComptaflowTest extends TestCase
             'adresse'         => 'Cocody, Abidjan',
             'rccm'            => 'CI-ABJ-2026-B-00042',
             'ncc'             => '2601234A',
+            'comptabilite_stock_active' => '1',
+            'comptabilite_stock_quotidienne' => '0',
+            'comptabilite_stock_periode_mois' => 3,
+            'comptabilite_stock_date_debut' => '2026-01-01',
+            'comptabilite_stock_date_fin' => '',
+            'comptaflow_mode_deversement' => 'manuel',
         ], $extra));
     }
 
@@ -115,6 +121,7 @@ class LiaisonComptaflowTest extends TestCase
                 'success' => true, 'company_id' => 42, 'sync_key' => $cle,
             ]),
             '*/api/external/link-company' => Http::response(['success' => true, 'company_id' => 42, 'plan_comptable' => [], 'codes_journaux' => [], 'tiers' => []]),
+            '*/api/external/referentiel/deverser' => Http::response(['success' => true, 'created' => 0]),
             '*/api/external/companies/revoke' => Http::response(['success' => true]),
             '*' => Http::response(['success' => true]),
         ]);
@@ -243,13 +250,15 @@ class LiaisonComptaflowTest extends TestCase
 
         LiaisonComptaflowService::valider($this->entreprise);
 
-        // Selflow lit le référentiel du dossier lié. Aucun référentiel Selflow
-        // n'est envoyé vers Comptaflow.
-        Http::assertSent(fn ($requete) => str_contains($requete->url(), '/api/external/link-company')
-            && $requete['selflow_company_id'] === $this->entreprise->id
-            && !array_key_exists('clients', $requete->data())
-            && !array_key_exists('fournisseurs', $requete->data()));
-        Http::assertNotSent(fn ($requete) => str_contains($requete->url(), '/referentiel/deverser'));
+        // À la validation, Selflow transmet son référentiel à Comptaflow.
+        // Le secret global et les identifiants de routage ne sont pas dans le payload.
+        Http::assertSent(fn ($requete) => str_contains($requete->url(), '/api/external/referentiel/deverser')
+            && array_key_exists('plan_comptable', $requete->data())
+            && array_key_exists('codes_journaux', $requete->data())
+            && array_key_exists('tiers', $requete->data())
+            && !array_key_exists('secret', $requete->data())
+            && !array_key_exists('company_id', $requete->data()));
+        Http::assertNotSent(fn ($requete) => str_contains($requete->url(), '/api/external/link-company'));
     }
 
     public function test_un_provisionnement_en_echec_ne_laisse_pas_de_liaison_a_moitie_ouverte(): void
@@ -717,10 +726,13 @@ class LiaisonComptaflowTest extends TestCase
 
         RecevoirReferentielComptaflowService::synchroniser($this->entreprise->fresh());
 
-        // La clé identifie le dossier à relire. Le corps ne contient aucune
-        // donnée comptable Selflow à envoyer en sens inverse.
+        // Le dossier est identifié par l'en-tête X-Company-Key. Le corps
+        // ne contient ni secret global, ni clé, ni référentiel Selflow.
         Http::assertSent(fn ($requete) => str_contains($requete->url(), '/api/external/link-company')
-            && $requete['selflow_sync_key'] === 'cptf_live_abcd'
+            && $requete->hasHeader('X-Company-Key', 'cptf_live_abcd')
+            && $requete['selflow_company_id'] === $this->entreprise->id
+            && !array_key_exists('secret', $requete->data())
+            && !array_key_exists('selflow_sync_key', $requete->data())
             && !array_key_exists('plan_comptable', $requete->data())
             && !array_key_exists('codes_journaux', $requete->data())
             && !array_key_exists('tiers', $requete->data()));
@@ -737,7 +749,8 @@ class LiaisonComptaflowTest extends TestCase
 
         RecevoirReferentielComptaflowService::synchroniser($this->entreprise->fresh());
 
-        Http::assertSent(fn ($requete) => str_contains($requete->url(), '/link-company'));
+        Http::assertSent(fn ($requete) => str_contains($requete->url(), '/link-company')
+            && $requete->hasHeader('X-Company-Key', 'cptf_live_abcd'));
     }
 
     // ── Ce que la base et les écrans laissent voir ───────────────────
