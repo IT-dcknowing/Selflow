@@ -16,6 +16,7 @@ use App\Modules\Admin\Modeles\BonLivraison;
 use App\Modules\Admin\Modeles\B2bNegotiation;
 use App\Modules\Admin\Modeles\Entreprise;
 use App\Modules\Admin\Modeles\PointDeVente;
+use App\Modules\Admin\Modeles\PortailFneFactureRecue;
 use App\Modules\Admin\Traits\GereLesChampsFne;
 use App\Modules\Admin\Traits\JournaliseActions;
 use Illuminate\Http\RedirectResponse;
@@ -753,7 +754,35 @@ class VenteControleur
             ? self::kpiDesFactures($entreprise->id, $pointDeVenteId, $voirArchives)
             : [];
 
-        return view('admin::ventes.factures', compact('ventes', 'etapeActive', 'nbDV', 'nbBC', 'nbBL', 'nbFacture', 'type', 'voirArchives', 'facturesDispo', 'banques', 'kpiFactures', 'gestionApporteurs', 'apporteurs'));
+        // Registre des factures de vente certifiées au portail FNE pendant
+        // l'année civile en cours. Ce relevé reste documentaire : il ne crée
+        // aucune Vente et ne déclenche aucune normalisation.
+        $facturesFnePortail = collect();
+        if ($etapeActive === 'Facture' && $type !== 'avoir' && !$voirArchives) {
+            $facturesFnePortail = PortailFneFactureRecue::query()
+                ->where('entreprise_id', $entreprise->id)
+                ->where('login', trim((string) $entreprise->ncc))
+                ->where('liste_portail', 'issued')
+                ->where('subtype', 'normal')
+                ->whereBetween('date_facture', [now()->startOfYear(), now()->endOfYear()])
+                ->orderByDesc('date_facture')
+                ->get();
+
+            $references = $facturesFnePortail->pluck('reference')->filter()->unique()->values();
+            $ventesLocales = $references->isEmpty()
+                ? collect()
+                : Vente::query()
+                    ->whereHas('pointDeVente', fn ($q) => $q->where('entreprise_id', $entreprise->id))
+                    ->whereIn('numero_fne', $references)
+                    ->get()
+                    ->keyBy('numero_fne');
+
+            $facturesFnePortail->each(function ($document) use ($ventesLocales) {
+                $document->setAttribute('vente_locale', $ventesLocales->get($document->reference));
+            });
+        }
+
+        return view('admin::ventes.factures', compact('ventes', 'etapeActive', 'nbDV', 'nbBC', 'nbBL', 'nbFacture', 'type', 'voirArchives', 'facturesDispo', 'banques', 'kpiFactures', 'gestionApporteurs', 'apporteurs', 'facturesFnePortail'));
     }
 
 
