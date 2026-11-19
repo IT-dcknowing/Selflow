@@ -51,6 +51,17 @@ Schedule::command('queue:work --stop-when-empty --max-time=50')
 Schedule::command('selflow:sync-ecritures')->everyFiveMinutes()->withoutOverlapping();
 
 /*
+ * Comptabilisation du stock à la périodicité choisie par chaque entreprise.
+ *
+ * Désactivée par défaut au niveau de l'entreprise. Activée, elle produit
+ * soit une écriture quotidienne, soit une écriture agrégée à chaque période
+ * de N mois. Le traitement est exécuté après la journée de mouvements.
+ */
+Schedule::command('selflow:comptabiliser-stock-periodique')
+    ->dailyAt('23:55')
+    ->withoutOverlapping();
+
+/*
  * Ramassage des relevés du portail FNE déposés dans le dossier d'import.
  *
  * Toutes les heures, et non toutes les minutes : un relevé se produit au mieux
