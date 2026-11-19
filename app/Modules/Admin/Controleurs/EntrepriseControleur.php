@@ -274,7 +274,7 @@ class EntrepriseControleur
             'comptabilite_activee'   => ['nullable', 'in:0,1'],
             'comptabilite_stock_active' => ['required', 'in:0,1'],
             'comptabilite_stock_quotidienne' => ['required', 'in:0,1'],
-            'comptabilite_stock_periode_mois' => ['required', 'in:1,2,3,6,12'],
+            'comptabilite_stock_periode_mois' => ['required', 'integer', 'min:1', 'max:12'],
             'comptabilite_stock_date_debut' => ['required_if:comptabilite_stock_active,1', 'nullable', 'date'],
             'comptabilite_stock_date_fin' => ['required_if:comptabilite_stock_active,1', 'nullable', 'date', 'after_or_equal:comptabilite_stock_date_debut'],
             'comptaflow_mode_deversement' => ['required', 'in:manuel,automatique'],
