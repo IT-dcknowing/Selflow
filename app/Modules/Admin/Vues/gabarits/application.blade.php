@@ -1451,6 +1451,46 @@
         <div class="topbar-clock" id="horloge">--:--:--</div>
 
         @php
+            $__notificationsFne = auth()->user()->notifications()->latest()->limit(6)->get();
+            $__notificationsFneNonLues = auth()->user()->unreadNotifications()->count();
+        @endphp
+        <details style="position:relative;">
+            <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:9px;background:#fff;color:var(--text-2);">
+                <i class="fas fa-bell"></i>
+                @if($__notificationsFneNonLues > 0)
+                    <span style="background:#dc2626;color:#fff;border-radius:20px;padding:1px 6px;font-size:10px;font-weight:800;">{{ $__notificationsFneNonLues }}</span>
+                @endif
+            </summary>
+            <div style="position:absolute;right:0;top:calc(100% + 9px);width:min(380px,88vw);max-height:430px;overflow:auto;padding:12px;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 32px rgba(15,23,42,.16);z-index:1200;">
+                <div style="font-weight:800;margin:2px 4px 10px;color:var(--text);">Notifications</div>
+                @forelse($__notificationsFne as $__notification)
+                    @php $__donneesNotification = $__notification->data ?? []; @endphp
+                    <div style="padding:10px;margin-bottom:7px;border:1px solid var(--border);border-radius:9px;background:{{ $__notification->read_at ? '#fff' : '#eff6ff' }};">
+                        <div style="font-size:12px;font-weight:800;color:var(--text);">{{ $__donneesNotification['titre'] ?? 'Information' }}</div>
+                        <div style="font-size:11px;color:var(--text-2);margin-top:3px;">{{ $__donneesNotification['type_recuperation'] ?? '' }}</div>
+                        <div style="font-size:11px;color:var(--text-2);margin-top:5px;">
+                            {{ (int)($__donneesNotification['documents'] ?? 0) }} document(s) ·
+                            {{ (int)($__donneesNotification['importes'] ?? 0) }} nouveau(x) ·
+                            {{ (int)($__donneesNotification['inchanges'] ?? 0) }} mis à jour ·
+                            {{ (int)($__donneesNotification['erreurs'] ?? 0) }} erreur(s)
+                        </div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;">
+                            <span style="font-size:10px;color:var(--text-3);">{{ $__notification->created_at?->format('d/m/Y à H:i') }}</span>
+                            @if(!$__notification->read_at)
+                                <form method="POST" action="{{ route('notifications.lire', $__notification->id) }}" style="margin:0;">
+                                    @csrf
+                                    <button type="submit" style="border:0;background:none;color:var(--primary);font-size:10px;font-weight:700;cursor:pointer;">Marquer lue</button>
+                                </form>
+                            @endif
+                        </div>
+                    </div>
+                @empty
+                    <div style="font-size:12px;color:var(--text-3);padding:10px;">Aucune notification pour le moment.</div>
+                @endforelse
+            </div>
+        </details>
+
+        @php
             $__utilisateurAlerteAbonnement = auth()->user();
             $__entrepriseAlerteAbonnement = $__utilisateurAlerteAbonnement?->entreprise;
             $__joursAlerteAbonnement = null;
