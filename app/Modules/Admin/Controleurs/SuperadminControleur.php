@@ -102,42 +102,55 @@ class SuperadminControleur
     /**
      * Liste complète des entreprises.
      */
-    public function entreprises(): View
+    public function entreprises(Request $request): View
     {
         $base = Entreprise::horsCorbeille()->whereNotNull('abonnement_expire_le');
 
-        // Vue globale des échéances : ces listes ne dépendent pas de la page
-        // courante de la pagination des entreprises.
         $abonnementsEchusTotal = (clone $base)->where('abonnement_expire_le', '<', now())->count();
-        $abonnementsEchus = (clone $base)
-            ->where('abonnement_expire_le', '<', now())
-            ->orderBy('abonnement_expire_le')
-            ->limit(20)
-            ->get();
+        $abonnementsEchus = (clone $base)->where('abonnement_expire_le', '<', now())
+            ->orderBy('abonnement_expire_le')->limit(20)->get();
 
         $limiteAlerte = now()->copy()->addDays(10);
-        $abonnementsProchesTotal = (clone $base)
-            ->where('abonnement_expire_le', '>=', now())
+        $abonnementsProchesTotal = (clone $base)->where('abonnement_expire_le', '>=', now())
+            ->where('abonnement_expire_le', '<=', $limiteAlerte)->count();
+        $abonnementsProches = (clone $base)->where('abonnement_expire_le', '>=', now())
             ->where('abonnement_expire_le', '<=', $limiteAlerte)
-            ->count();
-        $abonnementsProches = (clone $base)
-            ->where('abonnement_expire_le', '>=', now())
-            ->where('abonnement_expire_le', '<=', $limiteAlerte)
-            ->orderBy('abonnement_expire_le')
-            ->limit(20)
-            ->get();
+            ->orderBy('abonnement_expire_le')->limit(20)->get();
 
-        $entreprises = Entreprise::horsCorbeille()
-            ->with('fneCredential')
-            ->orderBy('nom', 'asc')
-            ->paginate(10);
+        $etat = (string) $request->query('etat', 'tous');
+        $entrepriseId = $request->query('entreprise_id');
+        $ncc = trim((string) $request->query('ncc', ''));
+
+        $requete = Entreprise::horsCorbeille()->with('fneCredential');
+        if ($etat === 'confirme') {
+            $requete->where('statut', 'actif');
+        } elseif ($etat === 'cree') {
+            $requete->where('statut', 'en_attente');
+        } elseif ($etat === 'echeances_10') {
+            $requete->whereNotNull('abonnement_expire_le')->whereBetween('abonnement_expire_le', [now(), $limiteAlerte]);
+        } elseif ($etat === 'echus') {
+            $requete->whereNotNull('abonnement_expire_le')->where('abonnement_expire_le', '<', now());
+        }
+
+        if (filled($entrepriseId)) {
+            $requete->whereKey($entrepriseId);
+        }
+        if ($ncc !== '') {
+            $requete->where(function ($q) use ($ncc) {
+                $q->where('ncc', 'like', '%' . $ncc . '%')
+                    ->orWhereHas('fneCredential', fn ($credential) => $credential->where('ncc_associe', 'like', '%' . $ncc . '%'));
+            });
+        }
+
+        $entreprises = $requete->orderByDesc('created_at')->orderByDesc('id')->paginate(15)->withQueryString();
+        $entreprisesPourFiltre = Entreprise::horsCorbeille()->orderBy('nom')->get(['id', 'nom']);
+        $comptesEnAttenteTotal = Entreprise::horsCorbeille()->where('statut', 'en_attente')->count();
 
         return view('admin::superadmin.entreprises.index', compact(
-            'entreprises',
-            'abonnementsEchus',
-            'abonnementsEchusTotal',
-            'abonnementsProches',
-            'abonnementsProchesTotal'
+            'entreprises', 'entreprisesPourFiltre', 'comptesEnAttenteTotal',
+            'etat', 'entrepriseId', 'ncc',
+            'abonnementsEchus', 'abonnementsEchusTotal',
+            'abonnementsProches', 'abonnementsProchesTotal'
         ));
     }
 
