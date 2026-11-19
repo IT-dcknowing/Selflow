@@ -53,6 +53,7 @@ class SuperadminFneControleur extends Controller
                     'possede_compte_fne'      => $e->possede_compte_fne,
                     'informations_manquantes' => $e->informationsFneManquantes(),
                     'timbre_quittance'        => (bool) $e->timbre_quittance,
+                    'telechargement_actif'    => (bool) ($cred?->telechargement_actif ?? false),
                 ];
             });
 
@@ -302,6 +303,40 @@ class SuperadminFneControleur extends Controller
         $cred->save();
 
         return back()->with('success', 'Notes mises à jour.');
+    }
+
+    /**
+     * Autoriser ou suspendre le téléchargement automatique des documents FNE.
+     */
+    public function basculerTelechargement(Request $request, Entreprise $entreprise): RedirectResponse
+    {
+        $request->validate(['telechargement_actif' => ['required', 'in:0,1']]);
+
+        $credential = FneCredential::firstOrNew(['entreprise_id' => $entreprise->id]);
+        $actif = $request->input('telechargement_actif') === '1';
+
+        if ($actif && (blank($credential->ncc_associe) || blank($credential->acces_mot_de_passe))) {
+            return back()->with('error', 'Activation impossible : le NCC et le mot de passe FNE doivent être renseignés.');
+        }
+
+        $credential->telechargement_actif = $actif;
+        $credential->save();
+
+        if ($actif) {
+            try {
+                \App\Modules\Admin\Services\IdentifiantsScraperService::apresAccesFourni(
+                    $entreprise, $credential->ncc_associe, $credential->acces_mot_de_passe
+                );
+            } catch (\Throwable $e) {
+                $credential->telechargement_actif = false;
+                $credential->save();
+                Log::error('[FNE] Échec activation téléchargement entreprise #' . $entreprise->id . ' : ' . $e->getMessage());
+                return back()->with('error', 'Le lancement a échoué. Autorisation désactivée ; consultez laravel.log.');
+            }
+        }
+
+        Log::notice('[FNE] Téléchargement ' . ($actif ? 'activé' : 'désactivé') . ' pour entreprise #' . $entreprise->id . ' par superadmin #' . Auth::id());
+        return back()->with('success', 'Téléchargement FNE ' . ($actif ? 'activé' : 'désactivé') . ' pour « ' . $entreprise->nom . ' ».');
     }
 
     /**
