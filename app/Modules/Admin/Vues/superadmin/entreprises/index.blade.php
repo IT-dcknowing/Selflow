@@ -160,7 +160,9 @@
                         </span>
                     </td>
                     <td>
-                        <span class="badge badge-purple" style="margin-bottom: 4px; display: inline-block;">{{ $ent->plan_abonnement }}</span>
+                        <span class="badge badge-purple" style="margin-bottom: 4px; display: inline-block;">
+                            {{ $ent->abonnement_demande ? \App\Modules\Admin\Regles\Abonnements::libelle($ent->abonnement_demande) . ' · demandé' : $ent->plan_abonnement }}
+                        </span>
                         <div style="font-size: 11px; color: var(--text-3);">
                             Points de vente max : <strong>{{ $ent->quota_points_de_vente }}</strong>
                         </div>
