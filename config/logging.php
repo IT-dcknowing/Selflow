@@ -101,7 +101,26 @@ return [
         */
         'portail_fne' => [
             'driver' => 'single',
-            'path' => env('PORTAIL_FNE_JOURNAL', storage_path('logs/portail-fne.log')),
+            'path' => storage_path('logs/laravel.log'),
+            'level' => env('PORTAIL_FNE_JOURNAL_NIVEAU', 'debug'),
+            'replace_placeholders' => true,
+        ],
+
+        'portail_fne_achat' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/portail-fne-achat.log'),
+            'level' => env('PORTAIL_FNE_JOURNAL_NIVEAU', 'debug'),
+            'replace_placeholders' => true,
+        ],
+        'portail_fne_vente' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/portail-fne-vente.log'),
+            'level' => env('PORTAIL_FNE_JOURNAL_NIVEAU', 'debug'),
+            'replace_placeholders' => true,
+        ],
+        'portail_fne_avoir' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/portail-fne-avoir.log'),
             'level' => env('PORTAIL_FNE_JOURNAL_NIVEAU', 'debug'),
             'replace_placeholders' => true,
         ],
