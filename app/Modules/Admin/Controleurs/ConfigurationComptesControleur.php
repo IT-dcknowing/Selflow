@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -95,6 +96,41 @@ class ConfigurationComptesControleur
             'stock.*.compte_stock.regex'  => 'Un compte de stock est un compte de classe 3.',
             'stock.*.compte_variation.regex' => 'Un compte de variation est un 603x (achats) ou un 73x (production).',
         ]);
+
+        // Un compte affecté à une opération doit exister dans le plan de
+        // cette entreprise (référentiel COMPTAFLOW), jamais dans un autre dossier.
+        $comptesSaisis = collect([
+            ...collect($request->input('config', []))->flatMap(fn ($v) => [
+                $v['compte_vente'] ?? null,
+                $v['compte_achat'] ?? null,
+                $v['compte_variation'] ?? null,
+            ])->all(),
+            ...collect($request->input('stock', []))->flatMap(fn ($v) => [
+                $v['compte_stock'] ?? null,
+                $v['compte_variation'] ?? null,
+            ])->all(),
+            ...collect($request->input('article', []))->flatMap(fn ($v) => [
+                $v['compte_vente'] ?? null,
+                $v['compte_achat'] ?? null,
+                $v['compte_variation'] ?? null,
+            ])->all(),
+        ])->filter(fn ($v) => filled($v))->map(fn ($v) => trim((string) $v))->unique()->values();
+
+        if ($comptesSaisis->isNotEmpty()) {
+            $comptesDisponibles = PlanComptable::where('entreprise_id', $entreprise->id)
+                ->whereIn('numero', $comptesSaisis)
+                ->pluck('numero')
+                ->map(fn ($numero) => (string) $numero);
+
+            $comptesManquants = $comptesSaisis->diff($comptesDisponibles)->values();
+            if ($comptesManquants->isNotEmpty()) {
+                throw ValidationException::withMessages([
+                    'config' => 'Ces comptes ne figurent pas dans le plan de cette entreprise : '
+                        . $comptesManquants->implode(', ')
+                        . '. Importez-les depuis COMPTAFLOW avant de les affecter.',
+                ]);
+            }
+        }
 
         // Les catégories de l'entreprise, et elles seules : un identifiant
         // forgé rangerait la configuration d'une autre entreprise.
