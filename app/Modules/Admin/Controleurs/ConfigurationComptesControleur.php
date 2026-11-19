@@ -62,7 +62,7 @@ class ConfigurationComptesControleur
                 ->where('entreprise_id', $entreprise->id)
                 ->orderBy('nom')
                 ->get(['id', 'nom', 'reference', 'type', 'categorie_id', 'entreprise_id', 'compte_vente', 'compte_achat', 'compte_variation']),
-            'comptes'    => PlanComptable::obtenirComptesPrioritaires($entreprise->id),
+            'comptes'    => PlanComptable::obtenirComptesPrioritaires($entreprise->id)->whereNull('archive_le')->values(),
             'defauts'    => [
                 'compte_vente' => config('selflow.plan_comptable_defaut.vente_defaut'),
                 'compte_achat' => config('selflow.plan_comptable_defaut.achat_defaut'),
@@ -118,6 +118,7 @@ class ConfigurationComptesControleur
 
         if ($comptesSaisis->isNotEmpty()) {
             $comptesDisponibles = PlanComptable::obtenirComptesPrioritaires($entreprise->id)
+                ->whereNull('archive_le')
                 ->whereIn('numero', $comptesSaisis)
                 ->pluck('numero')
                 ->map(fn ($numero) => (string) $numero);
