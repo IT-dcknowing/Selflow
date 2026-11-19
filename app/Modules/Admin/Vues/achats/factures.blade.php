@@ -494,7 +494,8 @@
                                     <span style="font-size:11px; color:var(--danger); font-weight:700;" title="Le montant de l'achat saisi diffère de celui que la DGI détient">
                                         écart {{ number_format((float) $propose['ecart_ttc'], 0, ',', ' ') }} F
                                     </span>
-                                @elseif(!$propose['fournisseur'])
+                                @endif
+                            @elseif(!$propose['fournisseur'])
                                 <span style="font-size:11px; color:var(--text-3);" title="Créez d'abord la fiche de ce fournisseur, avec son NCC.">
                                     <i class="fas fa-circle-question"></i> Aucun fournisseur ne porte ce NCC
                                 </span>
