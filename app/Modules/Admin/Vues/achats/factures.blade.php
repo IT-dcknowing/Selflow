@@ -447,7 +447,42 @@
                                 </a>
                             @endif
 
-                            @if($propose['achat'])
+                            @if($recue->achat_id)
+                                <span style="display:inline-flex; align-items:center; gap:5px; color:#047857; font-size:11px; font-weight:800;">
+                                    <i class="fas fa-link"></i> Rapproché à l'achat {{ $recue->achat?->numero_facture ?? 'associé' }}
+                                </span>
+                                <form method="POST" action="{{ route('admin.achats.factures_recues.detacher', $recue) }}" style="display:inline; margin:0;">
+                                    @csrf
+                                    <button type="submit" class="btn btn-outline btn-sm" style="font-size:11px; padding:4px 8px;"
+                                            onclick="return confirm('Détacher cet avoir de son achat ?');">
+                                        <i class="fas fa-link-slash"></i> Détacher
+                                    </button>
+                                </form>
+                            @elseif($recue->subtype === 'refund' && $propose['fournisseur'])
+                                @php
+                                    $candidatsAvoir = $achatsCandidatsParFournisseur->get($propose['fournisseur']->id, collect());
+                                @endphp
+                                @if($candidatsAvoir->isNotEmpty())
+                                    <form method="POST" action="{{ route('admin.achats.factures_recues.rattacher', $recue) }}" style="display:flex; gap:5px; align-items:center; margin:0;">
+                                        @csrf
+                                        <select name="achat_id" required style="max-width:260px; font-size:11px; padding:5px; border:1px solid #bfdbfe; border-radius:6px; background:#fff;">
+                                            <option value="">Choisir la facture d'achat d'origine…</option>
+                                            @foreach($candidatsAvoir as $candidatAvoir)
+                                                <option value="{{ $candidatAvoir->id }}" @selected($propose['achat']?->id === $candidatAvoir->id)>
+                                                    {{ $candidatAvoir->numero_facture }} · {{ $candidatAvoir->date_achat?->format('d/m/Y') ?? 'Date inconnue' }} · {{ number_format((float) $candidatAvoir->montant_ttc, 0, ',', ' ') }} F
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <button type="submit" class="btn btn-primary btn-sm" style="font-size:11px; padding:4px 8px;">
+                                            <i class="fas fa-link"></i> Rapprocher
+                                        </button>
+                                    </form>
+                                @else
+                                    <a href="{{ route('admin.achats.nouveau') }}" class="btn btn-outline btn-sm" style="font-size:11px; padding:4px 8px;">
+                                        <i class="fas fa-magnifying-glass"></i> Saisir l'achat d'origine
+                                    </a>
+                                @endif
+                            @elseif($propose['achat'])
                                 <form method="POST" action="{{ route('admin.achats.factures_recues.rattacher', $recue) }}" style="display:inline; margin:0;">
                                     @csrf
                                     <button type="submit" class="btn btn-primary btn-sm" style="font-size:11px; padding:4px 8px;"
@@ -459,14 +494,8 @@
                                     <span style="font-size:11px; color:var(--danger); font-weight:700;" title="Le montant de l'achat saisi diffère de celui que la DGI détient">
                                         écart {{ number_format((float) $propose['ecart_ttc'], 0, ',', ' ') }} F
                                     </span>
-                                @endif
-                            @elseif(!$propose['fournisseur'])
-                                {{-- Le NCC de l'emetteur ne designe aucun de vos
-                                     fournisseurs : il n'y a meme pas de qui
-                                     rapprocher. Le dire, plutot que de proposer
-                                     un geste qui ne menerait nulle part. --}}
-                                <span style="font-size:11px; color:var(--text-3);"
-                                      title="Creez d'abord la fiche de ce fournisseur, avec son NCC.">
+                                @elseif(!$propose['fournisseur'])
+                                <span style="font-size:11px; color:var(--text-3);" title="Créez d'abord la fiche de ce fournisseur, avec son NCC.">
                                     <i class="fas fa-circle-question"></i> Aucun fournisseur ne porte ce NCC
                                 </span>
                             @else
