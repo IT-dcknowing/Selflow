@@ -113,22 +113,28 @@ class PropagationComptesService
         foreach ($avant['configurations'] as $cle => $ancienneLigne) {
             $nouvelleLigne = $apres['configurations'][$cle] ?? null;
             foreach (['compte_vente', 'compte_achat', 'compte_variation'] as $champ) {
-                self::ajouterCorrespondance(
-                    $correspondances,
-                    $ancienneLigne->$champ ?? null,
-                    $nouvelleLigne->$champ ?? null
-                );
+                $nouveauCompte = $nouvelleLigne->$champ ?? null;
+                if ($nouveauCompte !== null && trim((string) $nouveauCompte) !== '') {
+                    self::ajouterCorrespondance(
+                        $correspondances,
+                        $ancienneLigne->$champ ?? null,
+                        $nouveauCompte
+                    );
+                }
             }
         }
 
         foreach ($avant['categories'] as $id => $ancienneCategorie) {
             $nouvelleCategorie = $apres['categories'][$id] ?? null;
             foreach (['compte_stock', 'compte_variation'] as $champ) {
-                self::ajouterCorrespondance(
-                    $correspondances,
-                    $ancienneCategorie->$champ ?? null,
-                    $nouvelleCategorie->$champ ?? null
-                );
+                $nouveauCompte = $nouvelleCategorie->$champ ?? null;
+                if ($nouveauCompte !== null && trim((string) $nouveauCompte) !== '') {
+                    self::ajouterCorrespondance(
+                        $correspondances,
+                        $ancienneCategorie->$champ ?? null,
+                        $nouveauCompte
+                    );
+                }
             }
         }
 
