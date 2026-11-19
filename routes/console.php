@@ -58,7 +58,7 @@ Schedule::command('selflow:sync-ecritures')->everyFiveMinutes()->withoutOverlapp
  * de N mois. Le traitement est exécuté après la journée de mouvements.
  */
 Schedule::command('selflow:comptabiliser-stock-periodique')
-    ->dailyAt('23:55')
+    ->dailyAt('00:10')
     ->withoutOverlapping();
 
 /*
