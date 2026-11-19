@@ -327,7 +327,12 @@ class ImportAvoirsService
         $compte = ['total' => 0, 'crees' => 0, 'modifies' => 0];
 
         foreach ($factures as $donnees) {
-            if (!is_array($donnees)) {
+            if (!is_array($donnees)
+                || ($donnees['subtype'] ?? null) !== 'refund'
+                || !in_array($donnees['listing_source'] ?? null, ['issued', 'received'], true)) {
+                // Ce dossier ne reçoit que des notes de crédit. Une facture
+                // normale ou un document sans origine de listing ne doit jamais
+                // se glisser dans le registre des avoirs.
                 continue;
             }
 
