@@ -155,8 +155,6 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
                     rtrim(config('selflow.comptaflow_api_url', 'http://127.0.0.1:8000'), '/')
                         . '/api/external/ecritures/deverser',
                     [
-                        'secret'             => config('selflow.comptaflow_api_secret'),
-                        'selflow_company_id' => $entreprise->id,
                         // L'opération entière, et le dire : Comptaflow peut
                         // ainsi refuser le tout plutôt que d'en garder la
                         // moitié.
