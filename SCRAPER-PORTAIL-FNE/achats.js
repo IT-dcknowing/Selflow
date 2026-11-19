@@ -309,7 +309,8 @@ function aujourdHui() {
 async function interrogerLesFactures(page, autorisation, listing, depuis, jusqu_a) {
   const base = String(process.env.FNE_URL || '').replace(/\/fr\/login\/?$/, '').replace(/\/$/, '');
   const factures = [];
-  let total = null;
+  let totalBrut = null;
+  let totalPertinent = 0;
 
   for (let numero = 1; numero <= PAGES_MAX; numero++) {
     const url = `${base}${CHEMIN_API}?page=${numero}&perPage=${PAR_PAGE}`
@@ -342,14 +343,29 @@ async function interrogerLesFactures(page, autorisation, listing, depuis, jusqu_
       );
     }
 
-    if (total === null) total = Number(corps.total ?? corps.data.length);
+    if (totalBrut === null) totalBrut = Number(corps.total ?? corps.data.length);
 
-    factures.push(...corps.data);
+    // Le listing received contient aussi les avoirs fournisseurs. Ils ont
+    // leur propre relevé (avoirs.js) et ne doivent jamais entrer dans
+    // l'import des factures d'achat.
+    const pieces = listing === 'received'
+      ? corps.data.filter(f => f && f.subtype !== 'refund')
+      : corps.data;
 
-    if (corps.data.length === 0 || factures.length >= total) break;
+    const etiquetees = pieces.map(f => ({
+      ...f,
+      listing_source: listing,
+      nature_document: listing === 'received' ? 'achat' : 'vente',
+    }));
+    factures.push(...etiquetees);
+    totalPertinent += etiquetees.length;
+
+    // La pagination suit le total brut de l'API, même lorsque les avoirs
+    // fournisseurs sont exclus du contenu déposé.
+    if (corps.data.length === 0 || numero * PAR_PAGE >= totalBrut) break;
   }
 
-  return { factures, total };
+  return { factures, total: totalPertinent, totalBrut: totalBrut ?? 0 };
 }
 
 /* ------------------------------ Le repli DOM ------------------------------ */
