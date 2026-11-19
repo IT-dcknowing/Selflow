@@ -10,16 +10,11 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 /*
- * Ce que les tâches du portail impriment.
+ * Sortie brute des commandes FNE.
  *
- * **Un fichier distinct du canal `portail_fne`**, et l'essai du 08/09/2026 dit
- * pourquoi : `appendOutputTo` redirige la sortie par `>>`, ce qui verrouille le
- * fichier sous Windows. Monolog ne peut alors plus l'ouvrir et lève « Resource
- * temporarily unavailable » — au moment précis où la commande journalisait.
- * `portail-fne:importer-achats` se cassait ainsi lui-même.
- *
- * Les deux fichiers portent le même format de ligne : `sort` les remet dans
- * l'ordre quand il faut lire l'histoire complète.
+ * Sur Linux, elle rejoint laravel.log avec les événements généraux. Sous
+ * Windows, le service conserve un fichier distinct : appendOutputTo verrouille
+ * le fichier pendant que Monolog écrit et ferait échouer la commande.
  */
 $sortiesPortail = \App\Modules\Admin\Services\ScraperPortailFneService::sorties();
 
