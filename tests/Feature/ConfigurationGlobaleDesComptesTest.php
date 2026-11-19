@@ -7,6 +7,7 @@ use App\Modules\Admin\Modeles\ConfigurationCompte;
 use App\Modules\Admin\Modeles\Entreprise;
 use App\Modules\Admin\Modeles\EcritureComptable;
 use App\Modules\Admin\Modeles\PointDeVente;
+use App\Modules\Admin\Modeles\PlanComptable;
 use App\Modules\Admin\Modeles\Produit;
 use App\Modules\Admin\Services\ImputationService;
 use App\Modules\Authentification\Modeles\Utilisateur;
@@ -46,6 +47,17 @@ class ConfigurationGlobaleDesComptesTest extends TestCase
             'entreprise_id' => $this->entreprise->id, 'nom' => 'Boissons', 'prefixe' => 'BOI',
             'compte_vente' => '701000', 'compte_achat' => '601000', 'compte_stock' => '311000', 'compte_variation' => '603100',
         ]);
+
+        // Référentiel de comptes de l'entreprise, tel qu'il est reçu de COMPTAFLOW.
+        foreach (["701000","601000","311000","603100","706000","702000","602000","701200","707100","321000","311200","707200","707900","736000","603110","603120","603190"] as $numero) {
+            PlanComptable::create([
+                'entreprise_id' => $this->entreprise->id,
+                'numero' => $numero,
+                'numero_original' => $numero,
+                'libelle' => 'Compte ' . $numero,
+                'source' => 'comptaflow',
+            ]);
+        }
         $this->actingAs($this->admin)->withSession(['point_de_vente_actif_id' => $site->id]);
     }
 
