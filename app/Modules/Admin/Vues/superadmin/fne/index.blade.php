@@ -105,6 +105,7 @@
                      qu'on lui demande, la configuration se fait ici. --}}
                 <th style="text-align:left; padding:12px 14px; font-size:12px; text-transform:uppercase; color:var(--text-3);">Déclaration du compte</th>
                 <th style="text-align:left; padding:12px 14px; font-size:12px; text-transform:uppercase; color:var(--text-3);">Timbre</th>
+                <th style="text-align:left; padding:12px 14px; font-size:12px; text-transform:uppercase; color:var(--text-3);">Téléchargement FNE</th>
                 {{-- La dernière colonne ouvre les accès du compte FNE et les clés API. --}}
                 <th style="text-align:right; padding:12px 14px; font-size:12px; text-transform:uppercase; color:var(--text-3); position:sticky; right:0; background:#f8fafc; box-shadow:-6px 0 8px -6px rgba(0,0,0,.15);">COMPTE FNE</th>
             </tr>
@@ -177,6 +178,19 @@
                         </button>
                     </form>
                 </td>
+                <td>
+                    <form method="POST" action="{{ route('superadmin.fne.telechargement', $row['entreprise']) }}" style="margin:0;">
+                        @csrf
+                        <input type="hidden" name="telechargement_actif" value="{{ $row['telechargement_actif'] ? '0' : '1' }}">
+                        <button type="submit" class="btn btn-outline" style="font-size:11.5px;padding:5px 9px;white-space:nowrap;">
+                            <i class="fas {{ $row['telechargement_actif'] ? 'fa-toggle-on' : 'fa-toggle-off' }}"></i>
+                            {{ $row['telechargement_actif'] ? 'Activé' : 'Désactivé' }}
+                        </button>
+                    </form>
+                    @if(!$row['credential'] || blank($row['credential']->ncc_associe) || blank($row['credential']->acces_mot_de_passe))
+                        <div style="font-size:10px;color:#b45309;margin-top:4px;">NCC / mot de passe manquant</div>
+                    @endif
+                </td>
                 <td style="text-align:right; position:sticky; right:0; background:#fff; box-shadow:-6px 0 8px -6px rgba(0,0,0,.15);">
                     {{-- L'identifiant public, et non le numéro de ligne : les routes de
                          l'entreprise se lient par `uuid` (IdentifiantOpaque). Avec le
@@ -189,7 +203,7 @@
                 </td>
             </tr>
             @empty
-            <tr><td colspan="7" style="padding:30px; text-align:center; color:var(--text-3);">Aucune entreprise.</td></tr>
+            <tr><td colspan="8" style="padding:30px; text-align:center; color:var(--text-3);">Aucune entreprise.</td></tr>
             @endforelse
         </tbody>
     </table>
