@@ -312,7 +312,12 @@ class StockService
             self::ventilerParLot($mouvement, $produit, $pointDeVenteId, $quantite, $sens, $motif, $contexte);
 
             $mouvement->setRelation('produit', $produit);
-            InventairePermanentService::comptabiliser($mouvement);
+
+            // Aucune écriture comptable immédiate : le réglage par entreprise
+            // décide si le stock est comptabilisé, et à quelle périodicité.
+            // Le planificateur traite les périodes échues via
+            // InventairePeriodiqueService. Le journal de mouvements, le stock
+            // physique et le CUMP restent mis à jour dans cette transaction.
 
             return $mouvement;
         }, 5);
