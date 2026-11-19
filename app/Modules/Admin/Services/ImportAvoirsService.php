@@ -6,6 +6,7 @@ use App\Modules\Admin\Modeles\Entreprise;
 use App\Modules\Admin\Modeles\PortailFneFactureRecue;
 use App\Modules\Admin\Modeles\PortailFneFactureRecueLigne;
 use App\Modules\Admin\Modeles\PortailFneImport;
+use App\Modules\Admin\Modeles\Vente;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -210,6 +211,9 @@ class ImportAvoirsService
 
                 if ($precedent !== null) {
                     $this->confirmerLeReleve($precedent, $date, $entreprise?->id);
+                    // Même un relevé identique peut réparer un rattachement local
+                    // qui n'existait pas lors du premier passage.
+                    $this->rapprocherAvoirsEmis($factures);
 
                     return $this->resultat(
                         $nom,
@@ -240,6 +244,7 @@ class ImportAvoirsService
                 ]);
 
                 $compte = $this->rangerLesAvoirs($import, $factures);
+                $this->rapprocherAvoirsEmis($factures);
                 $import->update(['lignes_importees' => $compte['total']]);
 
                 $message = sprintf(
@@ -359,6 +364,66 @@ class ImportAvoirsService
         }
 
         return $compte;
+    }
+
+    /**
+     * Rattache un avoir client déjà saisi à sa vente d'origine.
+     *
+     * La référence de l'avoir identifie la pièce locale ; le numéro de facture
+     * initiale (ou parentReference rendu par l'API FNE) identifie la vente.
+     * Aucun document ni aucune écriture n'est créé ici.
+     *
+     * @param array<int, array<string, mixed>> $factures
+     */
+    private function rapprocherAvoirsEmis(array $factures): void
+    {
+        foreach ($factures as $donnees) {
+            if (!is_array($donnees)
+                || ($donnees['listing_source'] ?? null) !== 'issued'
+                || ($donnees['subtype'] ?? null) !== 'refund') {
+                continue;
+            }
+
+            $referenceAvoir = trim((string) ($donnees['reference'] ?? ''));
+            $referenceOrigine = trim((string) (
+                $donnees['numero_facture_initiale']
+                ?? $donnees['parentReference']
+                ?? ($donnees['invoice']['parentReference'] ?? '')
+            ));
+
+            if ($referenceAvoir === '' || $referenceOrigine === '') {
+                continue;
+            }
+
+            // Les scopes de période sont volontairement levés : l'avoir et sa
+            // facture peuvent appartenir à des périodes comptables différentes.
+            $avoirsLocaux = Vente::withoutGlobalScopes()
+                ->where('type_facture', 'avoir')
+                ->where('numero_fne', $referenceAvoir)
+                ->get();
+
+            $ventesOrigine = Vente::withoutGlobalScopes()
+                ->where('numero_fne', $referenceOrigine)
+                ->where(function ($q) {
+                    $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir');
+                })
+                ->get();
+
+            // La référence FNE est unique. En cas de données locales ambiguës,
+            // on s'abstient plutôt que de rattacher la mauvaise pièce.
+            if ($avoirsLocaux->count() !== 1 || $ventesOrigine->count() !== 1) {
+                continue;
+            }
+
+            $avoirLocal = $avoirsLocaux->first();
+            $venteOrigine = $ventesOrigine->first();
+
+            // Ne jamais écraser un parent déjà défini par un utilisateur.
+            if ($avoirLocal->parent_id === null) {
+                $avoirLocal->parent_id = $venteOrigine->id;
+                $avoirLocal->save();
+            }
+        }
     }
 
     /**
