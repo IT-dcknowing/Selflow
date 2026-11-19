@@ -154,9 +154,16 @@ class ScraperPortailFneService
             'avoirs' => storage_path('logs/portail-fne-avoir.log'),
         ];
 
-        return $type !== null
-            ? ($fichiers[$type] ?? storage_path('logs/portail-fne-sorties.log'))
-            : (string) config('selflow.portail_fne.sorties', storage_path('logs/portail-fne-sorties.log'));
+        if ($type !== null) {
+            return $fichiers[$type] ?? storage_path('logs/portail-fne-sorties.log');
+        }
+
+        // Sur le serveur Linux, les sorties générales rejoignent laravel.log.
+        // Sous Windows, garder un fichier distinct évite le verrouillage du
+        // fichier par appendOutputTo pendant que Monolog écrit dedans.
+        return PHP_OS_FAMILY === 'Windows'
+            ? (string) config('selflow.portail_fne.sorties', storage_path('logs/portail-fne-sorties.log'))
+            : storage_path('logs/laravel.log');
     }
 
     /**
