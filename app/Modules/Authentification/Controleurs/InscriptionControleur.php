@@ -209,7 +209,7 @@ class InscriptionControleur
             // L'acces a l'espace FNE, si l'entreprise en a deja un. Chiffre au
             // repos, jamais rendu a l'ecran, efface une fois le parametrage
             // releve : c'est un acces a un service de l'Etat, pas un reglage.
-            AccesFneService::enregistrer($entreprise, $request->fne_ncc, $request->fne_mot_de_passe);
+            AccesFneService::enregistrer(\n                $entreprise,\n                $request->fne_ncc ?: ($request->input('possede_compte_fne') === '1' ? $request->input('ncc') : null),\n                $request->fne_mot_de_passe\n            );
 
             // 2. Créer l'utilisateur admin principal
             $utilisateur = Utilisateur::create([
