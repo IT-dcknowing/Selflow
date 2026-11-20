@@ -21,7 +21,7 @@ class BloquerSiHorsLigne
             return $next($request);
         }
 
-        if ($request->routeIs('connexion', 'connexion.traitement', 'deconnexion')
+        if ($request->routeIs('connexion', 'connexion.traitement', 'deconnexion', 'assistance.quitter*')
             || $request->user()?->role === 'superadmin') {
             return $next($request);
         }
