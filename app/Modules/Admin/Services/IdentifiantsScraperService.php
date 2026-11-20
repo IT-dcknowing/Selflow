@@ -106,12 +106,28 @@ class IdentifiantsScraperService
     public static function retirer(string $login): bool
     {
         $login = strtoupper(trim($login));
-        if ($login === '') return false;
+        if ($login === '') {
+            return false;
+        }
 
         $fichier = self::fichier();
-        if (!is_file($fichier)) return true;
+        if (!is_file($fichier)) {
+            return true;
+        }
+
+        $verrou = fopen($fichier . '.lock', 'c');
+        if (!$verrou) {
+            return false;
+        }
+        @chmod($fichier . '.lock', 0600);
+        $verrouAcquis = false;
 
         try {
+            $verrouAcquis = flock($verrou, LOCK_EX);
+            if (!$verrouAcquis) {
+                return false;
+            }
+
             $contenu = json_decode((string) file_get_contents($fichier), true);
             if (!is_array($contenu)) {
                 Log::error('[FNE] identifiants.json illisible : impossible de retirer un accès', ['login' => $login]);
@@ -119,27 +135,36 @@ class IdentifiantsScraperService
             }
 
             unset($contenu[$login]);
+            $json = json_encode($contenu, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            if ($json === false) {
+                return false;
+            }
+
             $temporaire = $fichier . '.' . bin2hex(random_bytes(4)) . '.tmp';
-            file_put_contents($temporaire, json_encode($contenu, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+            if (file_put_contents($temporaire, $json, LOCK_EX) === false) {
+                @unlink($temporaire);
+                return false;
+            }
             @chmod($temporaire, 0600);
             if (!rename($temporaire, $fichier)) {
                 @unlink($temporaire);
                 return false;
             }
 
+            @chmod($fichier, 0600);
             Log::notice('[FNE] Accès retiré du magasin du scraper', ['login' => $login]);
             return true;
         } catch (\Throwable $e) {
-            Log::error('[FNE] Retrait d’accès du scraper impossible : ' . $e->getMessage(), ['login' => $login]);
+            Log::error('[FNE] Retrait de l’accès du portail impossible : ' . $e->getMessage(), ['login' => $login]);
             return false;
+        } finally {
+            if ($verrouAcquis) {
+                flock($verrou, LOCK_UN);
+            }
+            fclose($verrou);
         }
     }
 
-    /**
-     * Les accès reçus : on les remet au scraper, on demande un relevé et on le
-     * lance — ses champs se reprennent ensuite d'eux-mêmes à l'import
-     * (SynchronisationPortailFneService).
-     */
     public static function apresAccesFourni(Entreprise $entreprise, string $login, string $motDePasse): bool
     {
         if (!self::inscrire($login, $motDePasse, $entreprise->nom)) {
