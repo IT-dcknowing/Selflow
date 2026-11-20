@@ -17,6 +17,13 @@ class VerifierEntrepriseActive
      */
     public function handle(Request $request, Closure $next): Response
     {
+        // Même une entreprise suspendue doit pouvoir quitter une session
+        // d'assistance. Le contrôle d'état ne doit jamais enfermer le superadmin
+        // dans l'identité de l'entreprise qu'il est en train d'aider.
+        if ($request->routeIs('assistance.quitter*')) {
+            return $next($request);
+        }
+
         if (Auth::check()) {
             $user = Auth::user();
             
