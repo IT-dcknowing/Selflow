@@ -244,6 +244,36 @@ class ScraperPortailFneService
      * @return bool  vrai si le lancement a été tenté, faux s'il a été écarté
      *               (login vide, scraper éteint) ou qu'il a échoué.
      */
+    /**
+     * Reconstruire le magasin local du scraper depuis la source chiffrée en base.
+     * Le fichier JSON n'est qu'un cache d'exécution : il ne doit jamais être
+     * l'unique copie des identifiants. Chaque lancement le réconcilie avec la DB.
+     */
+    private static function synchroniserIdentifiants(string $login): bool
+    {
+        $credential = FneCredential::with('entreprise')
+            ->where('telechargement_actif', true)
+            ->whereRaw('UPPER(ncc_associe) = ?', [strtoupper(trim($login))])
+            ->first();
+
+        if (!$credential || blank($credential->acces_mot_de_passe)) {
+            self::tracer('error', "fne[{$login}] : accès absent de la base chiffrée.");
+            return false;
+        }
+
+        $ok = IdentifiantsScraperService::inscrire(
+            $login,
+            $credential->acces_mot_de_passe,
+            $credential->entreprise?->nom
+        );
+
+        if (!$ok) {
+            self::tracer('error', "fne[{$login}] : impossible de reconstruire identifiants.json depuis la base.");
+        }
+
+        return $ok;
+    }
+
     public static function lancerPourLogin(?string $login): bool
     {
         $login = trim((string) $login);
@@ -269,7 +299,7 @@ class ScraperPortailFneService
             return false;
         }
 
-        $node = (string) config('selflow.portail_fne.scraper.node');
+        if (!self::synchroniserIdentifiants($login)) {\n            return false;\n        }\n\n        $node = (string) config('selflow.portail_fne.scraper.node');
         $script = (string) config('selflow.portail_fne.scraper.script');
 
         try {
@@ -437,7 +467,7 @@ class ScraperPortailFneService
             return false;
         }
 
-        $minutes = max(1, (int) config('selflow.portail_fne.scraper.achats_minutes', 5));
+        if (!self::synchroniserIdentifiants($login)) {\n            return false;\n        }\n\n        $minutes = max(1, (int) config('selflow.portail_fne.scraper.achats_minutes', 5));
 
         // Le verrou d'abord, et par écriture atomique : deux appels simultanés
         // ne doivent pas ouvrir deux navigateurs sur le même portail.
@@ -526,7 +556,7 @@ class ScraperPortailFneService
             return false;
         }
 
-        $minutes = max(1, (int) config('selflow.portail_fne.scraper.avoirs_minutes', 5));
+        if (!self::synchroniserIdentifiants($login)) {\n            return false;\n        }\n\n        $minutes = max(1, (int) config('selflow.portail_fne.scraper.avoirs_minutes', 5));
 
         $verrou = self::verrouAvoirs($login);
         try {
@@ -598,7 +628,7 @@ class ScraperPortailFneService
             return false;
         }
 
-        $minutes = max(1, (int) config('selflow.portail_fne.scraper.ventes_minutes', 5));
+        if (!self::synchroniserIdentifiants($login)) {\n            return false;\n        }\n\n        $minutes = max(1, (int) config('selflow.portail_fne.scraper.ventes_minutes', 5));
         $verrou = self::verrouVentes($login);
         try {
             $fichierEtat = self::preparerSuivi($verrou, 'ventes', $login, $minutes);
