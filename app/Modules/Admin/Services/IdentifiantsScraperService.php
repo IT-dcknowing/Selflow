@@ -30,22 +30,35 @@ class IdentifiantsScraperService
     public static function inscrire(string $login, string $motDePasse, ?string $libelle = null): bool
     {
         $login = strtoupper(trim($login));
-
         if ($login === '' || $motDePasse === '') {
             return false;
         }
 
         $fichier = self::fichier();
+        if (!is_dir(dirname($fichier))) {
+            return false;
+        }
+
+        // Le verrou porte sur un fichier séparé : le fichier JSON est remplacé
+        // atomiquement, donc verrouiller son inode ne protégerait pas le renommage.
+        $verrou = fopen($fichier . '.lock', 'c');
+        if (!$verrou) {
+            return false;
+        }
+        @chmod($fichier . '.lock', 0600);
+        $verrouAcquis = false;
 
         try {
+            $verrouAcquis = flock($verrou, LOCK_EX);
+            if (!$verrouAcquis) {
+                return false;
+            }
+
             $contenu = [];
             if (is_file($fichier)) {
                 $lu = json_decode((string) file_get_contents($fichier), true);
                 if (!is_array($lu)) {
-                    // Un magasin illisible ne s'écrase pas : on perdrait les
-                    // accès des autres entreprises.
                     Log::error('[FNE] identifiants.json illisible : accès non inscrit', ['login' => $login]);
-
                     return false;
                 }
                 $contenu = $lu;
@@ -53,25 +66,36 @@ class IdentifiantsScraperService
 
             $contenu[$login] = array_filter([
                 'motDePasse' => $motDePasse,
-                'libelle'    => $libelle,
-            ], fn ($v) => $v !== null && $v !== '');
+                'libelle' => $libelle,
+            ], fn ($valeur) => $valeur !== null && $valeur !== '');
 
-            if (!is_dir(dirname($fichier))) {
+            $json = json_encode($contenu, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            if ($json === false) {
                 return false;
             }
 
             $temporaire = $fichier . '.' . bin2hex(random_bytes(4)) . '.tmp';
-            file_put_contents($temporaire, json_encode($contenu, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            if (file_put_contents($temporaire, $json, LOCK_EX) === false) {
+                @unlink($temporaire);
+                return false;
+            }
             @chmod($temporaire, 0600);
-            rename($temporaire, $fichier);
+            if (!rename($temporaire, $fichier)) {
+                @unlink($temporaire);
+                return false;
+            }
 
+            @chmod($fichier, 0600);
             Log::info('[FNE] Accès du portail remis au scraper', ['login' => $login]);
-
             return true;
         } catch (\Throwable $e) {
             Log::error('[FNE] Accès du portail non remis au scraper : ' . $e->getMessage(), ['login' => $login]);
-
             return false;
+        } finally {
+            if ($verrouAcquis) {
+                flock($verrou, LOCK_UN);
+            }
+            fclose($verrou);
         }
     }
 
