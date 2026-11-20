@@ -263,6 +263,7 @@
                 <div style="margin-bottom:18px; padding:14px; border:1px solid var(--border); border-radius:10px; background:#f8fafc;">
                     <h4 style="font-size:14px; margin:0 0 10px;"><i class="fas fa-user-lock" style="color:#2563eb;"></i> Accès au compte FNE de l'entreprise</h4>
                     <div style="font-size:12px; color:var(--text-3); margin-bottom:10px;">Identifiants communiqués par l'entreprise pour accéder à son espace FNE (distincts des clés API ci-dessous).</div>
+                    <form id="formAccesFne" onsubmit="event.preventDefault(); enregistrerAccesFne();">
                     <div style="margin-bottom:8px;">
                         <label class="form-label" style="font-size:12px;">NCC du compte FNE</label>
                         <input type="text" id="accesFneNcc" class="form-control" maxlength="8" placeholder="Ex. 1864699A" style="text-transform:uppercase;">
@@ -275,7 +276,8 @@
                         </div>
                     </div>
                     <div style="font-size:11px;color:var(--text-3);margin-top:6px;">Champs modifiables même si des identifiants existent déjà. La nouvelle valeur remplace l’ancienne.</div>
-                    <button type="button" class="btn btn-primary" id="btnEnregistrerAccesFne" onclick="enregistrerAccesFne()" style="width:100%;margin-top:12px;"><i class="fas fa-save"></i> Enregistrer les identifiants</button>
+                    <button type="submit" class="btn btn-primary" id="btnEnregistrerAccesFne"  style="width:100%;margin-top:12px;"><i class="fas fa-save"></i> Enregistrer les identifiants</button>
+</form>
                     <div id="accesFneFourniLe" style="font-size:11px; color:var(--text-3); margin-top:8px;"></div>
                     <div id="accesFneMessage" style="font-size:12px; color:var(--text-3); margin-top:8px;">Chargement des accès…</div>
                 </div>
