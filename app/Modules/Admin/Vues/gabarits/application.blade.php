@@ -879,9 +879,11 @@
             <a href="{{ route('superadmin.fne.index') }}" class="nav-item {{ request()->routeIs('superadmin.fne*') ? 'active' : '' }}">
                 <i class="fas fa-key"></i> Gestion FNE
             </a>
+            @if(auth()->user()->aHabilitation('gestion_entreprises'))
             <a href="{{ route('superadmin.integrations.paiements.index') }}" class="nav-item {{ request()->routeIs('superadmin.integrations.paiements*') ? 'active' : '' }}">
                 <i class="fas fa-credit-card"></i> API de paiement
             </a>
+            @endif
             @php $__stickersOuverts = \App\Modules\Admin\Modeles\DemandeSticker::whereIn('statut', \App\Modules\Admin\Modeles\DemandeSticker::A_TRAITER)->count(); @endphp
             <a href="{{ route('superadmin.stickers.index') }}" class="nav-item {{ request()->routeIs('superadmin.stickers*') ? 'active' : '' }}">
                 <i class="fas fa-ticket"></i> Demandes de stickers
