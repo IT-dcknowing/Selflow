@@ -277,13 +277,13 @@ class SuperadminFneControleur extends Controller
         // sans jamais activer cette option à la faveur de cette saisie.
         if ($credential->telechargement_actif) {
             try {
-                $inscrit = \\App\\Modules\\Admin\\Services\\IdentifiantsScraperService::apresAccesFourni(
+                $inscrit = \App\Modules\Admin\Services\IdentifiantsScraperService::apresAccesFourni(
                     $entreprise, $ncc, $donnees['mot_de_passe_fne']
                 );
                 if (!$inscrit) {
-                    throw new \\RuntimeException('Le magasin du scraper a refusé les nouveaux identifiants.');
+                    throw new \RuntimeException('Le magasin du scraper a refusé les nouveaux identifiants.');
                 }
-            } catch (\\Throwable $e) {
+            } catch (\Throwable $e) {
                 Log::error('[FNE] Mise à jour des identifiants scraper échouée pour entreprise #' . $entreprise->id . ' : ' . $e->getMessage());
                 return response()->json(['success' => true, 'warning' => 'Identifiants enregistrés, mais le magasin du téléchargement doit être actualisé.']);
             }
