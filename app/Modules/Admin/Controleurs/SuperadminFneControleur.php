@@ -248,6 +248,55 @@ class SuperadminFneControleur extends Controller
     }
 
     /**
+     * Renseigner ou remplacer les identifiants du compte FNE depuis le superadmin.
+     * Les secrets sont chiffrés par les casts du modèle FneCredential.
+     */
+    public function enregistrerAcces(Request $request, Entreprise $entreprise): JsonResponse
+    {
+        $donnees = $request->validate([
+            'mot_de_passe_superadmin' => ['required', 'string'],
+            'ncc' => ['required', 'string', 'size:8', 'regex:/^[A-Z0-9]{7}[A-Z]$/'],
+            'mot_de_passe_fne' => ['required', 'string', 'max:255'],
+        ]);
+
+        if (!Hash::check($donnees['mot_de_passe_superadmin'], Auth::user()->password)) {
+            return response()->json(['success' => false, 'message' => 'Mot de passe superadmin incorrect.'], 403);
+        }
+
+        $ncc = strtoupper(preg_replace('/\\s+/', '', $donnees['ncc']));
+        $credential = FneCredential::firstOrNew(['entreprise_id' => $entreprise->id]);
+        $credential->ncc_associe = $ncc;
+        $credential->acces_mot_de_passe = $donnees['mot_de_passe_fne'];
+        $credential->acces_fourni_at = now();
+        $credential->save();
+
+        // Les paramètres de l'entreprise ne doivent plus réclamer ces accès.
+        $entreprise->forceFill(['possede_compte_fne' => true])->save();
+
+        // Si le téléchargement était déjà autorisé, actualiser ses identifiants
+        // sans jamais activer cette option à la faveur de cette saisie.
+        if ($credential->telechargement_actif) {
+            try {
+                $inscrit = \\App\\Modules\\Admin\\Services\\IdentifiantsScraperService::apresAccesFourni(
+                    $entreprise, $ncc, $donnees['mot_de_passe_fne']
+                );
+                if (!$inscrit) {
+                    throw new \\RuntimeException('Le magasin du scraper a refusé les nouveaux identifiants.');
+                }
+            } catch (\\Throwable $e) {
+                Log::error('[FNE] Mise à jour des identifiants scraper échouée pour entreprise #' . $entreprise->id . ' : ' . $e->getMessage());
+                return response()->json(['success' => true, 'warning' => 'Identifiants enregistrés, mais le magasin du téléchargement doit être actualisé.']);
+            }
+        }
+
+        Log::notice('[FNE] Identifiants du compte FNE renseignés/remplacés par superadmin #' . Auth::id() . ' pour entreprise #' . $entreprise->id);
+        return response()->json([
+            'success' => true,
+            'message' => 'Identifiants FNE enregistrés. La demande a été retirée des paramètres de l’entreprise.',
+            'fourni_le' => $credential->acces_fourni_at?->format('d/m/Y à H:i'),
+        ]);
+    }
+    /**
      * Supprimer une clé (test ou réelle). Mot de passe requis.
      */
     public function supprimerCle(Request $request, Entreprise $entreprise): RedirectResponse
