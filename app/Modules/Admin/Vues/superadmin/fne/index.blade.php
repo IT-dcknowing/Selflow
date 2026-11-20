@@ -109,10 +109,22 @@
                 {{-- La dernière colonne ouvre les accès du compte FNE et les clés API. --}}
                 <th style="text-align:right; padding:12px 14px; font-size:12px; text-transform:uppercase; color:var(--text-3); position:sticky; right:0; background:#f8fafc; box-shadow:-6px 0 8px -6px rgba(0,0,0,.15);">COMPTE FNE</th>
             </tr>
+            <tr><th colspan="8" style="padding:10px 12px;background:#fff;">
+                <div style="display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:8px;">
+                    <input id="filtreEntrepriseFne" class="form-control" list="listeEntreprisesFne" placeholder="Rechercher une entreprise…" oninput="filtrerEntreprisesFne()">
+                    <datalist id="listeEntreprisesFne">@foreach($entreprises as $row)<option value="{{ $row['entreprise']->nom }}">@endforeach</datalist>
+                    <select id="filtreStatutFne" class="form-control" onchange="filtrerEntreprisesFne()"><option value="">Tous les statuts</option><option value="validee">Clé réelle active</option><option value="test">En test</option><option value="non_configure">Non connectée</option></select>
+                    <select id="filtreCleTestFne" class="form-control" onchange="filtrerEntreprisesFne()"><option value="">Clé test : toutes</option><option value="oui">Renseignée</option><option value="non">Absente</option></select>
+                    <select id="filtreCleReelleFne" class="form-control" onchange="filtrerEntreprisesFne()"><option value="">Clé réelle : toutes</option><option value="oui">Renseignée</option><option value="non">Absente</option></select>
+                    <select id="filtreDeclarationFne" class="form-control" onchange="filtrerEntreprisesFne()"><option value="">Toutes déclarations</option><option value="oui">Déclaré</option><option value="non">À ouvrir</option><option value="inconnu">Pas répondu</option></select>
+                    <select id="filtreTimbreFne" class="form-control" onchange="filtrerEntreprisesFne()"><option value="">Timbre : tous</option><option value="oui">Appliqué</option><option value="non">Non appliqué</option></select>
+                    <select id="filtreTelechargementFne" class="form-control" onchange="filtrerEntreprisesFne()"><option value="">Téléchargement : tous</option><option value="oui">Activé</option><option value="non">Désactivé</option></select>
+                    <button type="button" class="btn btn-outline" onclick="reinitialiserFiltresFne()">Réinitialiser les filtres</button>
+                </div></th></tr>
         </thead>
         <tbody>
             @forelse($entreprises as $row)
-            <tr class="ent-row" style="border-bottom:1px solid var(--border);">
+            <tr class="ent-row" data-nom="{{ mb_strtolower($row['entreprise']->nom) }}" data-statut="{{ $row['statut'] }}" data-cle-test="{{ $row['credential'] && $row['credential']->cle_test ? 'oui' : 'non' }}" data-cle-reelle="{{ $row['credential'] && $row['credential']->cle_reelle ? 'oui' : 'non' }}" data-declaration="{{ $row['possede_compte_fne'] === true ? 'oui' : ($row['possede_compte_fne'] === false ? 'non' : 'inconnu') }}" data-timbre="{{ $row['timbre_quittance'] ? 'oui' : 'non' }}" data-telechargement="{{ $row['telechargement_actif'] ? 'oui' : 'non' }}" style="border-bottom:1px solid var(--border);">
                 <td>
                     <div style="font-weight:700; color:var(--text-1);">{{ $row['entreprise']->nom }}</div>
                     <div style="font-size:12px; color:var(--text-3);">NCC : {{ $row['entreprise']->ncc ?? '—' }}</div>
@@ -241,15 +253,17 @@
                     <div style="font-size:12px; color:var(--text-3); margin-bottom:10px;">Identifiants communiqués par l'entreprise pour accéder à son espace FNE (distincts des clés API ci-dessous).</div>
                     <div style="margin-bottom:8px;">
                         <label class="form-label" style="font-size:12px;">NCC du compte FNE</label>
-                        <input type="text" id="accesFneNcc" class="form-control" readonly value="" placeholder="Non renseigné">
+                        <input type="text" id="accesFneNcc" class="form-control" maxlength="8" placeholder="Ex. 1864699A" style="text-transform:uppercase;">
                     </div>
                     <div>
                         <label class="form-label" style="font-size:12px;">Mot de passe du compte FNE</label>
                         <div style="display:flex; gap:8px; align-items:center;">
-                            <input type="password" id="accesFneMotDePasse" class="form-control" readonly value="" placeholder="Non renseigné" style="flex:1;">
+                            <input type="password" id="accesFneMotDePasse" class="form-control" value="" placeholder="Saisir ou remplacer le mot de passe FNE" autocomplete="new-password" style="flex:1;">
                             <button type="button" class="btn btn-outline" id="btnAfficherAccesFne" onclick="basculerAffichageAccesFne()" style="font-size:12px; white-space:nowrap;" disabled><i class="fas fa-eye"></i> Afficher</button>
                         </div>
                     </div>
+                    <div style="font-size:11px;color:var(--text-3);margin-top:6px;">Champs modifiables même si des identifiants existent déjà. La nouvelle valeur remplace l’ancienne.</div>
+                    <button type="button" class="btn btn-primary" id="btnEnregistrerAccesFne" onclick="enregistrerAccesFne()" style="width:100%;margin-top:12px;"><i class="fas fa-save"></i> Enregistrer les identifiants</button>
                     <div id="accesFneFourniLe" style="font-size:11px; color:var(--text-3); margin-top:8px;"></div>
                     <div id="accesFneMessage" style="font-size:12px; color:var(--text-3); margin-top:8px;">Chargement des accès…</div>
                 </div>
@@ -291,6 +305,7 @@ let motDePasseValide = null;
 const URLS_FNE = {
     voirCle: "{{ route('superadmin.fne.voir_cle', ':id') }}",
     voirAcces: "{{ route('superadmin.fne.voir_acces', ':id') }}",
+    enregistrerAcces: "{{ route('superadmin.fne.enregistrer_acces', ':id') }}",
     cleTest: "{{ route('superadmin.fne.cle_test', ':id') }}",
     cleReelle: "{{ route('superadmin.fne.cle_reelle', ':id') }}",
     supprimerCle: "{{ route('superadmin.fne.supprimer_cle', ':id') }}",
@@ -409,6 +424,33 @@ async function verifierMotDePasseEtOuvrirGestion() {
         afficherErreurMdp('Erreur réseau. Réessayez.');
     }
 }
+
+async function enregistrerAccesFne() {
+    if (!motDePasseValide) return;
+    const ncc = document.getElementById('accesFneNcc').value.trim().toUpperCase().replace(/\s+/g, '');
+    const motDePasseFne = document.getElementById('accesFneMotDePasse').value;
+    const bouton = document.getElementById('btnEnregistrerAccesFne');
+    const message = document.getElementById('accesFneMessage');
+    if (!/^[A-Z0-9]{7}[A-Z]$/.test(ncc)) { message.textContent = 'Le NCC doit contenir 8 caractères alphanumériques et se terminer par une lettre.'; message.style.color = '#b91c1c'; return; }
+    if (!motDePasseFne) { message.textContent = 'Saisissez le mot de passe de l’espace FNE.'; message.style.color = '#b91c1c'; return; }
+    bouton.disabled = true; bouton.textContent = 'Enregistrement…';
+    try {
+        const res = await fetch(urlFne('enregistrerAcces', entrepriseCourante), {method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content}, body:JSON.stringify({mot_de_passe_superadmin:motDePasseValide,ncc:ncc,mot_de_passe_fne:motDePasseFne})});
+        const data = await lireJson(res);
+        if (!res.ok || !data.success) throw new Error(data.message || 'Enregistrement impossible.');
+        message.textContent = data.warning || data.message; message.style.color = data.warning ? '#b45309' : '#047857';
+        document.getElementById('accesFneFourniLe').textContent = data.fourni_le ? 'Identifiants enregistrés le ' + data.fourni_le : '';
+        document.getElementById('accesFneMotDePasse').value = '';
+        setTimeout(function(){ location.reload(); }, 1200);
+    } catch(e) { message.textContent = e.message || 'Erreur réseau.'; message.style.color = '#b91c1c'; }
+    finally { bouton.disabled = false; bouton.innerHTML = '<i class="fas fa-save"></i> Enregistrer les identifiants'; }
+}
+
+function filtrerEntreprisesFne() {
+    const f = {nom:document.getElementById('filtreEntrepriseFne').value.trim().toLocaleLowerCase('fr'), statut:document.getElementById('filtreStatutFne').value, test:document.getElementById('filtreCleTestFne').value, reelle:document.getElementById('filtreCleReelleFne').value, declaration:document.getElementById('filtreDeclarationFne').value, timbre:document.getElementById('filtreTimbreFne').value, telechargement:document.getElementById('filtreTelechargementFne').value};
+    document.querySelectorAll('.ent-row').forEach(function(row){ const d=row.dataset; const ok=(!f.nom||d.nom.includes(f.nom))&&(!f.statut||d.statut===f.statut)&&(!f.test||d.cleTest===f.test)&&(!f.reelle||d.cleReelle===f.reelle)&&(!f.declaration||d.declaration===f.declaration)&&(!f.timbre||d.timbre===f.timbre)&&(!f.telechargement||d.telechargement===f.telechargement); row.style.display=ok?'':'none'; });
+}
+function reinitialiserFiltresFne(){ document.querySelectorAll('#filtreEntrepriseFne,#filtreStatutFne,#filtreCleTestFne,#filtreCleReelleFne,#filtreDeclarationFne,#filtreTimbreFne,#filtreTelechargementFne').forEach(function(el){el.value='';}); filtrerEntreprisesFne(); }
 
 function basculerAffichageAccesFne() {
     const champ = document.getElementById('accesFneMotDePasse');
