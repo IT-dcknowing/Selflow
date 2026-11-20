@@ -111,8 +111,20 @@
             </tr>
             <tr><th colspan="8" style="padding:10px 12px;background:#fff;">
                 <div style="display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:8px;">
-                    <input id="filtreEntrepriseFne" class="form-control" list="listeEntreprisesFne" placeholder="Rechercher une entreprise…" oninput="filtrerEntreprisesFne()">
-                    <datalist id="listeEntreprisesFne">@foreach($entreprises as $row)<option value="{{ $row['entreprise']->nom }}">@endforeach</datalist>
+                    <div style="position:relative;">
+    <button type="button" class="form-control" id="boutonListeEntreprisesFne" onclick="basculerListeEntreprisesFne()" style="text-align:left;display:flex;justify-content:space-between;align-items:center;">
+        <span id="libelleEntrepriseFne">Toutes les entreprises</span><i class="fas fa-chevron-down"></i>
+    </button>
+    <div id="listeDeroulanteEntreprisesFne" style="display:none;position:absolute;z-index:50;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 10px 24px rgba(0,0,0,.12);padding:8px;margin-top:4px;">
+        <input id="rechercheEntrepriseDansListeFne" class="form-control" placeholder="Rechercher dans les entreprises…" oninput="rechercherDansListeEntreprisesFne()" style="margin-bottom:7px;">
+        <div id="optionsEntreprisesFne" style="max-height:220px;overflow-y:auto;">
+            <button type="button" class="btn btn-outline" data-nom="" onclick="choisirEntrepriseFne('')" style="width:100%;text-align:left;margin-bottom:4px;">Toutes les entreprises</button>
+            @foreach($entreprises as $row)
+            <button type="button" class="btn btn-outline option-entreprise-fne" data-nom="{{ mb_strtolower($row['entreprise']->nom) }}" onclick="choisirEntrepriseFne(@js($row['entreprise']->nom))" style="width:100%;text-align:left;margin-bottom:4px;">{{ $row['entreprise']->nom }}</button>
+            @endforeach
+        </div>
+    </div>
+</div>
                     <select id="filtreStatutFne" class="form-control" onchange="filtrerEntreprisesFne()"><option value="">Tous les statuts</option><option value="validee">Clé réelle active</option><option value="test">En test</option><option value="non_configure">Non connectée</option></select>
                     <select id="filtreCleTestFne" class="form-control" onchange="filtrerEntreprisesFne()"><option value="">Clé test : toutes</option><option value="oui">Renseignée</option><option value="non">Absente</option></select>
                     <select id="filtreCleReelleFne" class="form-control" onchange="filtrerEntreprisesFne()"><option value="">Clé réelle : toutes</option><option value="oui">Renseignée</option><option value="non">Absente</option></select>
@@ -446,11 +458,16 @@ async function enregistrerAccesFne() {
     finally { bouton.disabled = false; bouton.innerHTML = '<i class="fas fa-save"></i> Enregistrer les identifiants'; }
 }
 
+window.entrepriseFneSelectionnee = "";
+function basculerListeEntreprisesFne(){ const p=document.getElementById("listeDeroulanteEntreprisesFne"); p.style.display=p.style.display==="block"?"none":"block"; if(p.style.display==="block") document.getElementById("rechercheEntrepriseDansListeFne").focus(); }
+function rechercherDansListeEntreprisesFne(){ const q=document.getElementById("rechercheEntrepriseDansListeFne").value.trim().toLocaleLowerCase("fr"); document.querySelectorAll(".option-entreprise-fne").forEach(function(b){b.style.display=b.dataset.nom.includes(q)?"block":"none";}); }
+function choisirEntrepriseFne(nom){ window.entrepriseFneSelectionnee=nom; document.getElementById("libelleEntrepriseFne").textContent=nom||"Toutes les entreprises"; document.getElementById("listeDeroulanteEntreprisesFne").style.display="none"; document.getElementById("rechercheEntrepriseDansListeFne").value=""; rechercherDansListeEntreprisesFne(); filtrerEntreprisesFne(); }
+
 function filtrerEntreprisesFne() {
-    const f = {nom:document.getElementById('filtreEntrepriseFne').value.trim().toLocaleLowerCase('fr'), statut:document.getElementById('filtreStatutFne').value, test:document.getElementById('filtreCleTestFne').value, reelle:document.getElementById('filtreCleReelleFne').value, declaration:document.getElementById('filtreDeclarationFne').value, timbre:document.getElementById('filtreTimbreFne').value, telechargement:document.getElementById('filtreTelechargementFne').value};
+    const f = {nom:(window.entrepriseFneSelectionnee || '').toLocaleLowerCase('fr'), statut:document.getElementById('filtreStatutFne').value, test:document.getElementById('filtreCleTestFne').value, reelle:document.getElementById('filtreCleReelleFne').value, declaration:document.getElementById('filtreDeclarationFne').value, timbre:document.getElementById('filtreTimbreFne').value, telechargement:document.getElementById('filtreTelechargementFne').value};
     document.querySelectorAll('.ent-row').forEach(function(row){ const d=row.dataset; const ok=(!f.nom||d.nom.includes(f.nom))&&(!f.statut||d.statut===f.statut)&&(!f.test||d.cleTest===f.test)&&(!f.reelle||d.cleReelle===f.reelle)&&(!f.declaration||d.declaration===f.declaration)&&(!f.timbre||d.timbre===f.timbre)&&(!f.telechargement||d.telechargement===f.telechargement); row.style.display=ok?'':'none'; });
 }
-function reinitialiserFiltresFne(){ document.querySelectorAll('#filtreEntrepriseFne,#filtreStatutFne,#filtreCleTestFne,#filtreCleReelleFne,#filtreDeclarationFne,#filtreTimbreFne,#filtreTelechargementFne').forEach(function(el){el.value='';}); filtrerEntreprisesFne(); }
+function reinitialiserFiltresFne(){ choisirEntrepriseFne(''); document.querySelectorAll('#filtreStatutFne,#filtreCleTestFne,#filtreCleReelleFne,#filtreDeclarationFne,#filtreTimbreFne,#filtreTelechargementFne').forEach(function(el){el.value='';}); filtrerEntreprisesFne(); }
 
 function basculerAffichageAccesFne() {
     const champ = document.getElementById('accesFneMotDePasse');
