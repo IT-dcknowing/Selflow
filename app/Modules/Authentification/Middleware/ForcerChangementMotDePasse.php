@@ -28,6 +28,8 @@ class ForcerChangementMotDePasse
                 'password.changer.afficher',
                 'password.changer.traiter',
                 'deconnexion',
+                'assistance.quitter',
+                'assistance.quitter.lien',
             ];
 
             if (!in_array($request->route()?->getName(), $routesAutorisees)) {
