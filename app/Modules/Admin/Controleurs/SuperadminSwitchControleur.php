@@ -191,10 +191,26 @@ class SuperadminSwitchControleur
     public function quitter(Request $request): RedirectResponse
     {
         $incarnation = $request->session()->get(self::SESSION);
-        abort_unless(is_array($incarnation) && !empty($incarnation['superadmin_id']), 403);
+
+        // L'adresse peut être ouverte directement, ou la session d'assistance
+        // avoir expiré. Dans ces cas, ne jamais afficher une page 403 :
+        // renvoyer proprement vers l'espace correspondant à la session courante.
+        if (!is_array($incarnation) || empty($incarnation['superadmin_id'])) {
+            if (Auth::user()?->estSuperAdmin()) {
+                return redirect()->route('superadmin.tableau_de_bord');
+            }
+
+            return redirect()->route('accueil')
+                ->with('avertissement', 'La session d’assistance a expiré. Reconnectez-vous avec votre compte superadministrateur.');
+        }
 
         $superadmin = Utilisateur::find($incarnation['superadmin_id']);
-        abort_unless($superadmin && $superadmin->estSuperAdmin(), 403);
+        if (!$superadmin || !$superadmin->estSuperAdmin()) {
+            $request->session()->forget(self::SESSION);
+
+            return redirect()->route('accueil')
+                ->with('avertissement', 'La session d’assistance n’est plus valide. Reconnectez-vous avec votre compte superadministrateur.');
+        }
 
         $quitte = Auth::user();
         \App\Modules\Admin\Modeles\JournalAudit::create([
