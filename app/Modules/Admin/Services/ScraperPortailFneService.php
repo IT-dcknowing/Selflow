@@ -299,7 +299,11 @@ class ScraperPortailFneService
             return false;
         }
 
-        if (!self::synchroniserIdentifiants($login)) {\n            return false;\n        }\n\n        $node = (string) config('selflow.portail_fne.scraper.node');
+        if (!self::synchroniserIdentifiants($login)) {
+            return false;
+        }
+
+        $node = (string) config('selflow.portail_fne.scraper.node');
         $script = (string) config('selflow.portail_fne.scraper.script');
 
         try {
@@ -467,7 +471,11 @@ class ScraperPortailFneService
             return false;
         }
 
-        if (!self::synchroniserIdentifiants($login)) {\n            return false;\n        }\n\n        $minutes = max(1, (int) config('selflow.portail_fne.scraper.achats_minutes', 5));
+        if (!self::synchroniserIdentifiants($login)) {
+            return false;
+        }
+
+        $minutes = max(1, (int) config('selflow.portail_fne.scraper.achats_minutes', 5));
 
         // Le verrou d'abord, et par écriture atomique : deux appels simultanés
         // ne doivent pas ouvrir deux navigateurs sur le même portail.
@@ -556,7 +564,11 @@ class ScraperPortailFneService
             return false;
         }
 
-        if (!self::synchroniserIdentifiants($login)) {\n            return false;\n        }\n\n        $minutes = max(1, (int) config('selflow.portail_fne.scraper.avoirs_minutes', 5));
+        if (!self::synchroniserIdentifiants($login)) {
+            return false;
+        }
+
+        $minutes = max(1, (int) config('selflow.portail_fne.scraper.avoirs_minutes', 5));
 
         $verrou = self::verrouAvoirs($login);
         try {
@@ -628,7 +640,11 @@ class ScraperPortailFneService
             return false;
         }
 
-        if (!self::synchroniserIdentifiants($login)) {\n            return false;\n        }\n\n        $minutes = max(1, (int) config('selflow.portail_fne.scraper.ventes_minutes', 5));
+        if (!self::synchroniserIdentifiants($login)) {
+            return false;
+        }
+
+        $minutes = max(1, (int) config('selflow.portail_fne.scraper.ventes_minutes', 5));
         $verrou = self::verrouVentes($login);
         try {
             $fichierEtat = self::preparerSuivi($verrou, 'ventes', $login, $minutes);
