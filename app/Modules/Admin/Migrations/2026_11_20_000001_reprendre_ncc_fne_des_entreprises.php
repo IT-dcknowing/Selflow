@@ -1,8 +1,8 @@
 <?php
 
-use Illuminate\\Database\\Migrations\\Migration;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Schema;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -29,7 +29,7 @@ return new class extends Migration
                         ->where(function ($query): void {
                             $query->whereNull('ncc_associe')->orWhere('ncc_associe', '');
                         })
-                        ->update(['ncc_associe' => strtoupper(preg_replace('/\\s+/', '', $entreprise->ncc))]);
+                        ->update(['ncc_associe' => strtoupper(preg_replace('/\s+/', '', $entreprise->ncc))]);
                 }
             });
     }
