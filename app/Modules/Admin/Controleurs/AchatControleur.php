@@ -163,6 +163,11 @@ class AchatControleur
             ]);
         }
 
+        // Charger les produits du panier en une fois. Le verrou est pris dans la transaction,
+        // sur les identifiants triés, pour éviter une lecture verrouillée par ligne.
+        $idsProduits = collect((array) $request->input('articles', []))->pluck('produit_id')->filter()->unique()->values();
+        $catalogue = $idsProduits->isEmpty() ? collect() : Produit::whereIn('id', $idsProduits)->get()->keyBy('id');
+
         // Un formulaire ne s'enregistre qu'une fois (urgence du 26/10/2026).
         if (!\App\Modules\Admin\Services\EnvoiUniqueService::reserver($request, 'achat')) {
             return redirect()->route('admin.achats.factures', ['etape' => $request->input('etape', 'Facture')])
@@ -170,7 +175,10 @@ class AchatControleur
         }
 
         try {
-        $achat = DB::transaction(function () use ($request, $pointDeVenteId, $entreprise, $isBapa) {
+        $achat = DB::transaction(function () use ($request, $pointDeVenteId, $entreprise, $isBapa, $catalogue) {
+            $produitsVerrouilles = $catalogue->isEmpty() ? collect() : Produit::whereIn('id', $catalogue->keys())
+                ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+
             $montantHt  = 0;
             $montantTva = 0;
             $etape = $request->input('etape', 'Facture');
@@ -193,7 +201,10 @@ class AchatControleur
                 // Le payload envoyé à la FNE ne portant aucune taxe pour ce
                 // type de pièce, le bordereau certifié divergeait du nôtre.
                 if (!$isBapa && !empty($article['produit_id'])) {
-                    $produit = Produit::find($article['produit_id']);
+                    $produit = $produitsVerrouilles->get((int) $article['produit_id']);
+                    if (!$produit) {
+                        throw (new \Illuminate\Database\Eloquent\ModelNotFoundException())->setModel(Produit::class, [$article['produit_id']]);
+                    }
                     $tauxTva = $produit ? (float)($produit->taux_tva ?? 0) : 0;
                     if ($tauxTva > 0) {
                         $montantTva += round($ht * ($tauxTva / 100), 2);
@@ -293,7 +304,10 @@ class AchatControleur
             // enregistre. Table et bloc de saisie retires le 24/08/2026.
 
             foreach ($request->articles as $article) {
-                $produit = !empty($article['produit_id']) ? Produit::lockForUpdate()->find($article['produit_id']) : null;
+                $produit = !empty($article['produit_id']) ? $produitsVerrouilles->get((int) $article['produit_id']) : null;
+                if (!empty($article['produit_id']) && !$produit) {
+                    throw (new \Illuminate\Database\Eloquent\ModelNotFoundException())->setModel(Produit::class, [$article['produit_id']]);
+                }
                 $remiseLigne = self::tauxBorne($article['remise_taux'] ?? 0);
                 $ht      = (float)$article['quantite'] * (float)$article['prix_unitaire'] * (1 - $remiseLigne / 100);
                 // Exonération du bordereau d'achat : voir le calcul du total.
