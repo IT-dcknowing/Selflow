@@ -22,7 +22,7 @@ class SuperadminIntegrationsPaiementControleur extends Controller
             ->where('statut', 'active')
             ->whereNotNull('active_le')
             ->where('active_le', '>=', $debut)
-            ->get(['nature', 'montant', 'active_le']);
+            ->get(['offre', 'nature', 'montant', 'active_le']);
 
         $mois = collect(range(0, 11))->mapWithKeys(function (int $decalage) use ($debut): array {
             $date = $debut->copy()->addMonths($decalage);
@@ -42,7 +42,7 @@ class SuperadminIntegrationsPaiementControleur extends Controller
 
             $ligne = $mois->get($cle);
             $montant = (float) $paiement->montant;
-            if ($paiement->nature === 'abonnement') {
+            if ($paiement->nature === 'souscription') {
                 $ligne['abonnements'] += $montant;
             } elseif ($paiement->nature === 'renouvellement') {
                 $ligne['renouvellements'] += $montant;
@@ -51,12 +51,22 @@ class SuperadminIntegrationsPaiementControleur extends Controller
             $mois->put($cle, $ligne);
         }
 
+        $revenusParOffre = $paiements
+            ->filter(fn ($paiement) => $paiement->active_le?->isSameMonth(now()))
+            ->groupBy('offre')
+            ->map(fn ($lignes) => [
+                'abonnements' => (float) $lignes->where('nature', 'souscription')->sum('montant'),
+                'renouvellements' => (float) $lignes->where('nature', 'renouvellement')->sum('montant'),
+                'total' => (float) $lignes->sum('montant'),
+                'nombre' => $lignes->count(),
+            ]);
+
         $courant = $mois->last() ?? ['abonnements' => 0, 'renouvellements' => 0, 'total' => 0];
         $totalPeriode = (float) $mois->sum('total');
 
         return view('admin::superadmin.integrations.paiements', [
             'integrations' => $integrations,
-            'fournisseurs' => IntegrationPaiement::FOURNISSEURS,
+            'fournisseurs' => IntegrationPaiement::FOURNISSEURS,\n            'offres' => \\App\\Modules\\Admin\\Regles\\Abonnements::offres(),\n            'revenusParOffre' => $revenusParOffre,
             'mois' => $mois->values(),
             'revenuMois' => $courant,
             'totalPeriode' => $totalPeriode,
