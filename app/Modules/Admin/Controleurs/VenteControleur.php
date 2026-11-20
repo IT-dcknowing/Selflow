@@ -383,7 +383,7 @@ class VenteControleur
                 if (!empty($article['produit_id'])) {
                     $produit = $produitsVerrouilles->get((int) $article['produit_id']);
                     if (!$produit) {
-                        throw (new \\Illuminate\\Database\\Eloquent\\ModelNotFoundException())->setModel(Produit::class, [$article['produit_id']]);
+                        throw (new \Illuminate\\Database\\Eloquent\\ModelNotFoundException())->setModel(Produit::class, [$article['produit_id']]);
                     }
                     $prix = isset($article['prix_unitaire']) && $article['prix_unitaire'] !== ''
                         ? (float) $article['prix_unitaire']
