@@ -451,7 +451,10 @@ async function enregistrerAccesFne() {
     try {
         const res = await fetch(urlFne('enregistrerAcces', entrepriseCourante), {method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content}, body:JSON.stringify({mot_de_passe_superadmin:motDePasseValide,ncc:ncc,mot_de_passe_fne:motDePasseFne})});
         const data = await lireJson(res);
-        if (!res.ok || !data.success) throw new Error(data.message || 'Enregistrement impossible.');
+        if (!res.ok || !data.success) {
+            const detail = data.message || (data.errors ? Object.values(data.errors).flat().join(' ') : '') || (data.illisible ? 'Réponse serveur non JSON.' : 'Aucun détail transmis par le serveur.');
+            throw new Error('Échec HTTP ' + res.status + ' : ' + detail);
+        }
         message.textContent = data.warning || data.message; message.style.color = data.warning ? '#b45309' : '#047857';
         document.getElementById('accesFneFourniLe').textContent = data.fourni_le ? 'Identifiants enregistrés le ' + data.fourni_le : '';
         document.getElementById('accesFneMotDePasse').value = '';
