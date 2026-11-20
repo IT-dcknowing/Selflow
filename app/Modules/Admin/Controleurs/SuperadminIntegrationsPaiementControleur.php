@@ -66,7 +66,9 @@ class SuperadminIntegrationsPaiementControleur extends Controller
 
         return view('admin::superadmin.integrations.paiements', [
             'integrations' => $integrations,
-            'fournisseurs' => IntegrationPaiement::FOURNISSEURS,\n            'offres' => \\App\\Modules\\Admin\\Regles\\Abonnements::offres(),\n            'revenusParOffre' => $revenusParOffre,
+            'fournisseurs' => IntegrationPaiement::FOURNISSEURS,
+            'offres' => \App\\Modules\\Admin\\Regles\\Abonnements::offres(),
+            'revenusParOffre' => $revenusParOffre,
             'mois' => $mois->values(),
             'revenuMois' => $courant,
             'totalPeriode' => $totalPeriode,
