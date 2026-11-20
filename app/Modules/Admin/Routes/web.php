@@ -765,6 +765,12 @@ Route::prefix('superadmin')
             Route::put('/{paiement}', [\App\Modules\Admin\Controleurs\SuperadminPaiementControleur::class, 'traiter'])->name('traiter');
         });
 
+        // ── Configuration des passerelles de paiement ──
+        Route::prefix('integrations/paiements')->name('integrations.paiements.')->group(function () {
+            Route::get('/', [\\App\\Modules\\Admin\\Controleurs\\SuperadminIntegrationsPaiementControleur::class, 'index'])->name('index');
+            Route::post('/', [\\App\\Modules\\Admin\\Controleurs\\SuperadminIntegrationsPaiementControleur::class, 'enregistrer'])->name('enregistrer');
+        });
+
         // ── Registre des pannes et contacts de l'assistance (15/10/2026) ──
         Route::prefix('pannes')->name('pannes.')->group(function () {
             Route::get('/', [\App\Modules\Admin\Controleurs\SuperadminPanneControleur::class, 'index'])->name('index');
