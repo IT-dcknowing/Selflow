@@ -7,6 +7,7 @@
     <div>
         <h1><i class="fas fa-plug"></i> Intégrations de paiement</h1>
         <p>Configuration centralisée des passerelles de paiement et suivi des recettes d'abonnement.</p>
+        <p style="font-size:12px;color:var(--text-3);margin-top:6px;">Les paramètres sont stockés de façon sécurisée. L'encaissement automatique ne sera activé qu'après raccordement du connecteur propre à chaque fournisseur et validation de ses webhooks.</p>
     </div>
 </div>
 
@@ -91,6 +92,9 @@
                     Activer cette configuration
                 </label>
             </div>
+            @if($integration?->configuration)
+                <div style="font-size:12px;color:var(--text-3);margin-bottom:10px;">Des paramètres complémentaires sont déjà enregistrés et conservés si ce champ reste vide.</div>
+            @endif
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
                 <div class="form-group">
                     <label class="form-label">Environnement</label>
