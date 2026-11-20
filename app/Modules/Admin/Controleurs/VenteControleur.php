@@ -212,7 +212,7 @@ class VenteControleur
 
         $normalisationEcartee = false;
         try {
-        DB::transaction(function () use ($request, $pointDeVenteId, &$venteId, $entreprise, &$normalisationEcartee, $produitDe, $gestionApporteurs) {
+        DB::transaction(function () use ($request, $pointDeVenteId, &$venteId, $entreprise, &$normalisationEcartee, $produitDe, $gestionApporteurs, $catalogue) {\n            // Verrouiller une seule fois chaque fiche produit, dans un ordre stable.\n            // Avant : une requête SELECT FOR UPDATE par ligne, même si le même\n            // article apparaissait plusieurs fois dans le panier.\n            $produitsVerrouilles = $catalogue->isEmpty() ? collect() : Produit::whereIn('id', $catalogue->keys())\n                ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
             $montantHt = 0;
             $remiseTaux = self::tauxBorne($request->input('remise_taux', 0));
             $etape = $request->input('etape', 'Facture');
@@ -376,7 +376,7 @@ class VenteControleur
 
             foreach ($request->articles as $article) {
                 if (!empty($article['produit_id'])) {
-                    $produit = Produit::lockForUpdate()->findOrFail($article['produit_id']);
+                    $produit = $produitsVerrouilles->get((int) $article['produit_id']);\n                    if (!$produit) {\n                        throw (new \\Illuminate\\Database\\Eloquent\\ModelNotFoundException())->setModel(Produit::class, [$article['produit_id']]);\n                    }
                     $prix = isset($article['prix_unitaire']) && $article['prix_unitaire'] !== ''
                         ? (float) $article['prix_unitaire']
                         : (float) $produit->prix_vente;
