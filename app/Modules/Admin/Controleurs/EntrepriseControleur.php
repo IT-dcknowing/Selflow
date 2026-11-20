@@ -393,7 +393,9 @@ class EntrepriseControleur
         // Le NCC et le mot de passe de l'espace FNE, quand l'écran les a
         // demandés. Même porte qu'à l'inscription : chiffré, jamais rendu.
         \App\Modules\Admin\Services\AccesFneService::enregistrer(
-            $entreprise,\n            $request->input('fne_ncc') ?: ($request->input('possede_compte_fne') === '1' ? $request->input('ncc') : null),\n            $request->input('fne_mot_de_passe')
+            $entreprise,
+            $request->input('fne_ncc') ?: ($request->input('possede_compte_fne') === '1' ? $request->input('ncc') : null),
+            $request->input('fne_mot_de_passe')
         );
 
         $ancien = $entreprise->only(array_keys($data));
