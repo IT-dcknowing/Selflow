@@ -51,6 +51,25 @@
     <div style="padding:10px 18px;font-size:11px;color:var(--text-3);">Seuls les paiements dont le statut est « confirmé / actif » sont comptabilisés. Les montants sont issus du registre des paiements Selflow.</div>
 </div>
 
+<div class="card" style="padding:0;overflow-x:auto;margin-bottom:22px;">
+    <div style="padding:16px 18px;border-bottom:1px solid var(--border);font-weight:800;">Recettes par offre — mois en cours</div>
+    <table class="table" style="width:100%;min-width:620px;">
+        <thead><tr><th>Offre</th><th style="text-align:right;">Souscriptions</th><th style="text-align:right;">Réabonnements</th><th style="text-align:right;">Total</th><th style="text-align:right;">Paiements</th></tr></thead>
+        <tbody>
+        @foreach($offres as $code => $offre)
+            @php $recette = $revenusParOffre->get($code, ['abonnements' => 0, 'renouvellements' => 0, 'total' => 0, 'nombre' => 0]); @endphp
+            <tr>
+                <td style="font-weight:700;">{{ $offre['nom'] }}</td>
+                <td style="text-align:right;">{{ number_format($recette['abonnements'], 0, ',', ' ') }} F</td>
+                <td style="text-align:right;">{{ number_format($recette['renouvellements'], 0, ',', ' ') }} F</td>
+                <td style="text-align:right;font-weight:800;">{{ number_format($recette['total'], 0, ',', ' ') }} F</td>
+                <td style="text-align:right;">{{ $recette['nombre'] }}</td>
+            </tr>
+        @endforeach
+        </tbody>
+    </table>
+</div>
+
 <div class="page-header" style="margin-top:28px;">
     <div><h2>Passerelles API</h2><p>Les secrets sont chiffrés en base. Ils ne sont jamais préremplis ni renvoyés dans le HTML.</p></div>
 </div>
