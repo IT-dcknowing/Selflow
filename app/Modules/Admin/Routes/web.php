@@ -874,7 +874,7 @@ Route::prefix('caissier')
         Route::post('/banques/creer', [TresorerieControleur::class, 'creerBanqueAjax'])->name('banques.creer');
     });
 
-// Revenir au superadmin après une assistance (19/10/2026). Hors du groupe
+// L'adresse peut aussi être ouverte directement depuis le bandeau ou les favoris.\n// Le GET ne fait que terminer une incarnation déjà ouverte : il ne permet jamais\n// d'entrer dans l'espace d'une entreprise. Le POST reste utilisé par le formulaire.\nRoute::get('/assistance/quitter', [\\App\\Modules\\Admin\\Controleurs\\SuperadminSwitchControleur::class, 'quitter'])\n    ->middleware('auth')\n    ->name('assistance.quitter.lien');\n\n// Revenir au superadmin après une assistance (19/10/2026). Hors du groupe
 // superadmin : on y arrive connecté sous le compte du client. Le contrôleur
 // refuse quiconque n'a pas d'incarnation ouverte en session.
 Route::post('/assistance/quitter', [\App\Modules\Admin\Controleurs\SuperadminSwitchControleur::class, 'quitter'])
