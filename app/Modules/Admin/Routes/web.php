@@ -317,6 +317,8 @@ Route::prefix('admin')
             Route::get('/factures', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'factures'])->name('factures');
             Route::get('/factures/donnees', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'facturesJson'])->name('factures.donnees');
             Route::post('/avoirs/actualiser', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'actualiserAvoirs'])->name('avoirs.actualiser');
+            Route::post('/actualiser-tout', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'actualiserTout'])->name('actualiser_tout');
+            Route::get('/actualiser-tout/statut', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'statutActualisationTout'])->name('actualiser_tout.statut');
             Route::get('/avoirs/actualiser/statut', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'statutActualisationAvoirs'])->name('avoirs.actualiser.statut');
             // L'ecran des stickers a ete retire le 25/09/2026, a la demande du
             // proprietaire : « Gestion FNE » porte deja le solde, la provision

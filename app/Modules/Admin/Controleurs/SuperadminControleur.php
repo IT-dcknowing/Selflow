@@ -902,7 +902,7 @@ class SuperadminControleur
             'points_de_vente'=> ['label' => 'Points de vente',      'icone' => 'fa-store',              'par_defaut' => true,  'desactivable' => true],
             'personnel'      => ['label' => 'Personnels & Accès',   'icone' => 'fa-users-gear',         'par_defaut' => true,  'desactivable' => true],
             'b2b'            => ['label' => 'Communication B2B',    'icone' => 'fa-handshake',          'par_defaut' => true,  'desactivable' => true],
-            'fne'            => ['label' => 'Fiscalité DGI',        'icone' => 'fa-file-invoice-dollar','par_defaut' => true,  'desactivable' => true],
+            'fne'            => ['label' => 'FNE DGI',              'icone' => 'fa-file-invoice-dollar','par_defaut' => true,  'desactivable' => true],
         ];
     }
 

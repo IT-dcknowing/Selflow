@@ -225,4 +225,49 @@ class ReleveDesVentesVerrouTest extends TestCase
         $this->assertStringNotContainsString('scraper', $message, "Le détail technique n'a rien à faire à l'écran.");
         $this->assertStringNotContainsString('storage/logs', $message);
     }
+
+    private function connecte(): void
+    {
+        Auth::login(Utilisateur::create([
+            'nom' => 'Yao', 'prenom' => 'Kouamé', 'email' => 'kouame-' . uniqid() . '@exemple.ci',
+            'password' => bcrypt('secret-de-test'), 'role' => 'admin',
+            'entreprise_id' => $this->entreprise->id,
+        ]));
+    }
+
+    public function test_un_second_clic_avant_cinq_minutes_est_refuse_avec_le_temps_restant(): void
+    {
+        $this->connecte();
+        $controleur = app(FneDashboardControleur::class);
+
+        $this->assertSame(200, $controleur->actualiserVentes()->getStatusCode());
+
+        $second = $controleur->actualiserAchats();
+        $this->assertSame(429, $second->getStatusCode(), 'Le délai vaut pour tous les relevés de l’entreprise.');
+        $this->assertGreaterThan(290, $second->getData(true)['attendre_secondes']);
+
+        $this->travel(301)->seconds();
+        Cache::forget(ScraperPortailFneService::verrouVentes(self::NCC));
+        $this->assertNotSame(429, $controleur->actualiserVentes()->getStatusCode(), 'Après cinq minutes, on peut relancer.');
+    }
+
+    public function test_actualiser_tout_lance_les_trois_releves(): void
+    {
+        config([
+            'selflow.portail_fne.scraper.achats_actif'  => true,
+            'selflow.portail_fne.scraper.avoirs_actif'  => true,
+            'selflow.portail_fne.scraper.script_achats' => $this->dossier . '/ventes.js',
+            'selflow.portail_fne.scraper.script_avoirs' => $this->dossier . '/ventes.js',
+        ]);
+        $this->connecte();
+
+        $reponse = app(FneDashboardControleur::class)->actualiserTout();
+
+        $this->assertSame(200, $reponse->getStatusCode());
+        $this->assertEqualsCanonicalizing(['ventes', 'achats', 'avoirs'], $reponse->getData(true)['lances']);
+        $this->assertSame(429, app(FneDashboardControleur::class)->actualiserTout()->getStatusCode());
+
+        Cache::forget(ScraperPortailFneService::verrouAchats(self::NCC));
+        Cache::forget(ScraperPortailFneService::verrouAvoirs(self::NCC));
+    }
 }

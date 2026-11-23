@@ -1071,6 +1071,12 @@ async function actualiserFacturesFneAchats() {
             headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' }
         });
         const resultat = await lancement.json();
+        if (lancement.status === 429) {
+            statut.textContent = '';
+            bouton.disabled = false;
+            if (window.selflowPatienter) window.selflowPatienter(resultat.attendre_secondes);
+            return;
+        }
         if (!lancement.ok || resultat.status !== 'success') throw new Error(resultat.message || 'Le relevé FNE n’a pas pu démarrer.');
         localStorage.setItem(cleSuiviFneAchats, '1');
         statut.textContent = resultat.message || 'Relevé lancé en arrière-plan.';
@@ -1133,6 +1139,12 @@ async function actualiserAvoirsFournisseursFne() {
             headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' }
         });
         const resultat = await lancement.json();
+        if (lancement.status === 429) {
+            statut.textContent = '';
+            bouton.disabled = false;
+            if (window.selflowPatienter) window.selflowPatienter(resultat.attendre_secondes);
+            return;
+        }
         if (!lancement.ok || resultat.status !== 'success') throw new Error(resultat.message || 'Le relevé des avoirs n’a pas pu démarrer.');
         localStorage.setItem(cleSuiviFneAvoirsFournisseurs, '1');
         statut.textContent = resultat.message || 'Relevé lancé en arrière-plan.';

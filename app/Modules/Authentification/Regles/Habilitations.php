@@ -170,7 +170,7 @@ class Habilitations
             ],
         ],
         'fne' => [
-            'Fiscalité & DGI' => [
+            'FNE DGI' => [
                 'fne_gestion'       => 'Gestion FNE, situation, factures émises/reçues',
                 'stickers_commande' => 'Commander des stickers',
             ],

@@ -53,7 +53,7 @@ class HabilitationsAJourTest extends TestCase
         ]);
 
         $groupes = array_keys(Habilitations::pourLEntreprise($entreprise));
-        foreach (['Produits', 'Tiers', 'B2B', 'Fiscalité & DGI', 'Entreprise', 'Ventes', 'Stock'] as $groupe) {
+        foreach (['Produits', 'Tiers', 'B2B', 'FNE DGI', 'Entreprise', 'Ventes', 'Stock'] as $groupe) {
             $this->assertContains($groupe, $groupes);
         }
     }

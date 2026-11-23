@@ -453,7 +453,7 @@ class ScraperPortailFneService
         $script = (string) config('selflow.portail_fne.scraper.script');
 
         try {
-            self::detacher([$node, $script, $login], self::sorties());
+            self::detacher([$node, $script, $login], self::sorties(), $login);
 
             self::tracer('info', "fne[{$login}] : relève lancée en arrière-plan.", [
                 'node'   => $node,
@@ -642,7 +642,7 @@ class ScraperPortailFneService
         $script = (string) config('selflow.portail_fne.scraper.script_achats');
 
         try {
-            self::retenirProcessus($verrou, self::detacher([$node, $script, $login, '--status-file=' . $fichierEtat], self::sorties('achats')));
+            self::retenirProcessus($verrou, self::detacher([$node, $script, $login, '--status-file=' . $fichierEtat], self::sorties('achats'), $login));
 
             // Le chemin de Node et celui du script sont dans le message, et non
             // seulement dans la configuration : les deux pannes les plus
@@ -739,7 +739,7 @@ class ScraperPortailFneService
                 $arguments[] = '--listing=' . $listing;
             }
             $arguments[] = '--status-file=' . $fichierEtat;
-            self::retenirProcessus($verrou, self::detacher($arguments, self::sorties('avoirs')));
+            self::retenirProcessus($verrou, self::detacher($arguments, self::sorties('avoirs'), $login));
 
             self::tracer('info', "avoirs[{$cible}] : relevé lancé en arrière-plan.", [
                 'node'           => $node,
@@ -814,7 +814,7 @@ class ScraperPortailFneService
             // VENTES_DEPUIS ne doit jamais réduire le relevé demandé à l'année
             // civile en cours.
             $depuis = now()->startOfYear()->toDateString();
-            self::retenirProcessus($verrou, self::detacher([$node, $script, $login, '--depuis=' . $depuis, '--status-file=' . $fichierEtat], self::sorties('ventes')));
+            self::retenirProcessus($verrou, self::detacher([$node, $script, $login, '--depuis=' . $depuis, '--status-file=' . $fichierEtat], self::sorties('ventes'), $login));
             self::tracer('info', "ventes[{$cible}] : relevé FNE lancé en arrière-plan.", [
                 'node' => $node,
                 'script' => $script,
@@ -838,15 +838,27 @@ class ScraperPortailFneService
      * @param  array<int, string>  $arguments  programme puis arguments
      * @return int|null  le numéro du processus sous Unix, null sous Windows
      */
-    private static function detacher(array $arguments, string $journal): ?int
+    private static function detacher(array $arguments, string $journal, ?string $login = null): ?int
     {
+        // L'adresse du portail suit l'accès FNE de l'entreprise : production
+        // si validé, test sinon (23/11/2026). Elle passe par l'environnement
+        // du processus, que `dotenv` ne réécrit pas.
+        if ($login !== null && \PHP_OS_FAMILY !== 'Windows') {
+            $adresse = AdressePortailFne::connexion(AdressePortailFne::pourLogin($login));
+            if ($adresse !== '') {
+                $arguments = array_merge(['env', 'FNE_URL=' . $adresse], $arguments);
+            }
+        }
+
         // Le programme doit exister AVANT d'être lancé. Sous Windows, `start`
         // sur un programme introuvable ouvre une fenêtre d'erreur système qui
         // attend un clic — et `pclose()` attend avec elle : la requête, ou la
         // suite d'épreuves, restait figée sans fin. C'est ce qui a bloqué la
         // suite deux fois le 15/09/2026. L'exception est rattrapée par
         // `lancerPourLogin()`, qui la journalise : la demande reste en file.
-        $programme = (string) ($arguments[0] ?? '');
+        // Derrière un éventuel `env FNE_URL=…`, c'est Node qui doit exister.
+        $programme = (string) (collect($arguments)
+            ->first(fn ($a, $i) => !($i === 0 && $a === 'env') && !preg_match('/^[A-Z_]+=/', (string) $a)) ?? '');
         $trouve = $programme !== ''
             && (is_file($programme) || (new \Symfony\Component\Process\ExecutableFinder())->find($programme) !== null);
 

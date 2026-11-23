@@ -70,7 +70,7 @@
         @include($avant)
     @endisset
 
-    <button class="btn btn-primary" onclick="{{ $onChange }}">
+    <button type="button" class="btn btn-primary" onclick="window.actualiserToutFne ? actualiserToutFne(this, function () { {{ $onChange }} }) : {{ $onChange }}">
         <i class="fas fa-rotate"></i> Actualiser
     </button>
     <button class="btn btn-outline" onclick="reinitialiserFiltresFne(); {{ $onChange }}">

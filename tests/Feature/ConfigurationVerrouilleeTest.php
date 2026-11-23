@@ -229,7 +229,7 @@ class ConfigurationVerrouilleeTest extends TestCase
             ->get(route('admin.entreprise.parametres'))->assertOk()->getContent();
 
         $this->assertStringContainsString('Comptabilité', $html);
-        $this->assertStringContainsString('Fiscalité &amp; DGI', $html);
+        $this->assertStringContainsString('FNE DGI', $html);
         $this->assertStringNotContainsString('>Comptabilite<', $html);
         $this->assertStringNotContainsString('>Fne<', $html);
     }

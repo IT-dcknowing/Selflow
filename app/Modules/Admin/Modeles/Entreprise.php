@@ -1028,7 +1028,7 @@ class Entreprise extends Model
         'tiers'           => 'Tiers',
         'rapports'        => 'Rapports',
         'b2b'             => 'B2B',
-        'fne'             => 'Fiscalité & DGI',
+        'fne'             => 'FNE DGI',
     ];
 
     public static function libelleModule(string $module): string

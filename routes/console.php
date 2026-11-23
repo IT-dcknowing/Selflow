@@ -188,38 +188,60 @@ Schedule::command('portail-fne:changements --silencieux')
 if (config('selflow.portail_fne.scraper.actif')) {
     $scraperFne = \App\Modules\Admin\Services\ScraperPortailFneService::class;
 
-    // Les callbacks ne lancent plus directement Node avec --tous.
-    // Chaque méthode du service filtre maintenant les NCC sur l'autorisation
-    // individuelle donnée par le superadministrateur.
-    Schedule::call(fn () => $scraperFne::lancerPourTousLesLoginsAutorises())
-        ->hourlyAt(config('selflow.portail_fne.scraper.minute_horaire'))
-        ->name('selflow-portail-fne-global-horaire')
-        ->withoutOverlapping(30);
+    /*
+     * Trois passages automatiques par jour, et pas un de plus (23/11/2026,
+     * propriétaire du projet) : 01:00, 13:00 et 20:00 par défaut
+     * (`PORTAIL_FNE_PASSAGES`). Chaque relevé ouvre un Chromium, et le compte
+     * de l'hébergement mutualisé est plafonné en processus : à raison d'un
+     * relevé toutes les cinq minutes par type, plus la fiche chaque heure, le
+     * compte saturait (« fork: Resource temporarily unavailable ») et les
+     * navigateurs avortaient ou se figeaient.
+     *
+     * À chaque passage, les quatre relevés partent à cinq minutes d'écart :
+     * la fiche, les ventes, les achats, les avoirs. Le verrou du navigateur
+     * (`navigateur.lock`) les fait de toute façon passer un par un. Le bouton
+     * « Actualiser » reste là pour un relevé immédiat.
+     */
+    $passages = array_filter(array_map('trim', explode(',', (string) config('selflow.portail_fne.scraper.passages', '01:00,13:00,20:00'))));
+    $decaler = function (string $heure, int $minutes): ?string {
+        if (!preg_match('/^(\d{1,2}):(\d{2})$/', $heure, $m)) {
+            return null;
+        }
+        $total = ((int) $m[1] * 60 + (int) $m[2] + $minutes) % 1440;
 
-    Schedule::call(fn () => $scraperFne::lancerPourTousLesLoginsAutorises())
-        ->dailyAt(config('selflow.portail_fne.scraper.heure_nocturne'))
-        ->name('selflow-portail-fne-global-nocturne')
-        ->withoutOverlapping(120);
+        return sprintf('%02d:%02d', intdiv($total, 60), $total % 60);
+    };
 
-    if (config('selflow.portail_fne.scraper.achats_actif')) {
-        Schedule::call(fn () => $scraperFne::lancerAchats())
-            ->cron("*/{$pasAchats} * * * *")
-            ->name('selflow-portail-fne-achats')
-            ->withoutOverlapping($pasAchats * 2);
-    }
+    foreach (array_values($passages) as $rang => $heure) {
+        if ($decaler($heure, 0) === null) {
+            continue;
+        }
 
-    if (config('selflow.portail_fne.scraper.avoirs_actif')) {
-        Schedule::call(fn () => $scraperFne::lancerAvoirs())
-            ->cron("{$decalageAvoirs}-59/{$pasAvoirs} * * * *")
-            ->name('selflow-portail-fne-avoirs')
-            ->withoutOverlapping($pasAvoirs * 2);
-    }
+        Schedule::call(fn () => $scraperFne::lancerPourTousLesLoginsAutorises())
+            ->dailyAt($decaler($heure, 0))
+            ->name("selflow-portail-fne-fiche-{$rang}")
+            ->withoutOverlapping(30);
 
-    if (config('selflow.portail_fne.scraper.ventes_actif', true)) {
-        Schedule::call(fn () => $scraperFne::lancerVentes())
-            ->cron("*/{$pasVentes} * * * *")
-            ->name('selflow-portail-fne-ventes')
-            ->withoutOverlapping($pasVentes * 2);
+        if (config('selflow.portail_fne.scraper.ventes_actif', true)) {
+            Schedule::call(fn () => $scraperFne::lancerVentes())
+                ->dailyAt($decaler($heure, 5))
+                ->name("selflow-portail-fne-ventes-{$rang}")
+                ->withoutOverlapping(30);
+        }
+
+        if (config('selflow.portail_fne.scraper.achats_actif')) {
+            Schedule::call(fn () => $scraperFne::lancerAchats())
+                ->dailyAt($decaler($heure, 10))
+                ->name("selflow-portail-fne-achats-{$rang}")
+                ->withoutOverlapping(30);
+        }
+
+        if (config('selflow.portail_fne.scraper.avoirs_actif')) {
+            Schedule::call(fn () => $scraperFne::lancerAvoirs())
+                ->dailyAt($decaler($heure, 15))
+                ->name("selflow-portail-fne-avoirs-{$rang}")
+                ->withoutOverlapping(30);
+        }
     }
 }
 

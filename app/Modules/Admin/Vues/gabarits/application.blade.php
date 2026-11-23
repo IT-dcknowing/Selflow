@@ -1269,7 +1269,7 @@
 
             <!-- Fiscalité & DGI (Module FNE) -->
             @if(in_array('comptabilite', $modulesActifs) && auth()->user()->aHabilitation('fne_gestion'))
-            <div class="nav-section"><i class="fas fa-receipt nav-section-icone" aria-hidden="true"></i><span>Fiscalité &amp; DGI</span></div>
+            <div class="nav-section"><i class="fas fa-receipt nav-section-icone" aria-hidden="true"></i><span>FNE DGI</span></div>
             <a href="{{ route('admin.fne.gestion') }}" data-visite="fne" class="nav-item {{ request()->routeIs('admin.fne.gestion') ? 'active' : '' }}">
                 <i class="fas fa-calculator"></i> Gestion FNE
             </a>
@@ -2237,12 +2237,35 @@ window.__csrf = '{{ csrf_token() }}';
      * projet) : un message, le numéro de l'assistance, et le pop-up s'efface
      * seul. Le détail est au journal du serveur.
      */
+    /*
+     * Cinq minutes entre deux actualisations du portail FNE (23/11/2026) : un
+     * second clic trop tôt affiche le temps qui reste, décompté seconde par
+     * seconde, et le message s'efface seul après 3 s.
+     */
+    window.selflowPatienter = function (secondes) {
+        var reste = Math.max(1, parseInt(secondes, 10) || 1);
+        var texte = function () {
+            var m = Math.floor(reste / 60), s = reste % 60;
+            return 'Une actualisation vient d’être lancée. Nouvel essai possible dans '
+                + (m > 0 ? m + ' min ' : '') + s + ' s.';
+        };
+        afficher({ type: 'avertissement', titre: 'Veuillez patienter', message: texte(), duree: 3000 });
+        var toasts = zone.querySelectorAll('.toast');
+        var dernier = toasts[toasts.length - 1];
+        var ms = dernier ? dernier.querySelector('.ms') : null;
+        var minuterie = setInterval(function () {
+            reste = Math.max(0, reste - 1);
+            if (!ms || !document.body.contains(ms) || reste <= 0) { clearInterval(minuterie); return; }
+            ms.textContent = texte();
+        }, 1000);
+    };
+
     window.selflowErreurTache = function () {
         afficher({
             type: 'erreur',
             titre: 'Une erreur s’est produite',
             message: @json('Veuillez réessayer plus tard ou contacter le service assistance au ' . config('selflow.assistance_telephone') . '.'),
-            duree: 10000
+            duree: 3000
         });
     };
 
@@ -2344,6 +2367,52 @@ window.__csrf = '{{ csrf_token() }}';
     }
 })();
 </script>
+
+@if(\Illuminate\Support\Facades\Route::has('admin.fne.actualiser_tout'))
+<script>
+/*
+ * « Actualiser » des écrans FNE : relève tout le portail — ventes, achats,
+ * avoirs —, attend la fin, range, puis rafraîchit l'écran (23/11/2026).
+ */
+window.actualiserToutFne = function (bouton, apres) {
+    if (bouton && bouton.disabled) return;
+    var libelle = bouton ? bouton.innerHTML : '';
+    var finir = function () {
+        if (bouton) { bouton.disabled = false; bouton.innerHTML = libelle; }
+        if (typeof apres === 'function') apres();
+    };
+    if (bouton) { bouton.disabled = true; bouton.innerHTML = '<i class="fas fa-rotate fa-spin"></i> Relevé du portail…'; }
+
+    var suivre = function () {
+        fetch(@json(route('admin.fne.actualiser_tout.statut')), { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+            .then(function (x) {
+                if (!x.ok || x.d.status !== 'success') throw new Error('echec');
+                if (!x.d.termine) { setTimeout(suivre, 5000); return; }
+                if (window.selflowToast) {
+                    var n = x.d.import || {};
+                    var total = ['ventes', 'achats', 'avoirs'].reduce(function (t, k) { return t + ((n[k] || {}).importes || 0); }, 0);
+                    window.selflowToast({ type: 'succes', titre: 'Portail FNE actualisé', message: total + ' relevé(s) nouveau(x) intégré(s).', duree: 3000 });
+                }
+                finir();
+            })
+            .catch(function () { if (window.selflowErreurTache) window.selflowErreurTache(); finir(); });
+    };
+
+    fetch(@json(route('admin.fne.actualiser_tout')), {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': window.__csrf || '' }
+    })
+        .then(function (r) { return r.json().then(function (d) { return { statut: r.status, ok: r.ok, d: d }; }); })
+        .then(function (x) {
+            if (x.statut === 429) { if (window.selflowPatienter) window.selflowPatienter(x.d.attendre_secondes); finir(); return; }
+            if (!x.ok || x.d.status !== 'success') throw new Error('echec');
+            setTimeout(suivre, 5000);
+        })
+        .catch(function () { if (window.selflowErreurTache) window.selflowErreurTache(); finir(); });
+};
+</script>
+@endif
 
 {{-- Polling automatique : quand le scraper est lancé après un échec de normalisation,
      le pop-up interroge le serveur et se met à jour automatiquement avec les points

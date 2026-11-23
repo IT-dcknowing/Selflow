@@ -218,16 +218,11 @@ class PortailFneFactureRecue extends Model
             return $token;
         }
 
-        $api = (string) (config('selflow.fne_api_url_production')
-            ?: config('selflow.fne_api_url_sandbox'));
-
-        if (trim($api) === '') {
-            return null;
-        }
-
-        // `…/ws` est la racine de l'API ; la page de vérification est servie à
-        // côté, pas dessous.
-        $hote = rtrim((string) preg_replace('#/ws/?$#', '', trim($api)), '/');
+        // Test ou production selon l'accès FNE de l'entreprise (23/11/2026) :
+        // une pièce certifiée en production ne se vérifie pas sur le test.
+        $hote = \App\Modules\Admin\Services\AdressePortailFne::hote(
+            \App\Modules\Admin\Services\AdressePortailFne::pourEntreprise($this->entreprise_id)
+        );
 
         return $hote === '' ? null : "{$hote}/fr/verification/{$token}";
     }

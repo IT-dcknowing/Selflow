@@ -303,6 +303,13 @@ return [
             */
             'ventes_actif' => filter_var(env('PORTAIL_FNE_SCRAPER_VENTES_ACTIF', true), FILTER_VALIDATE_BOOL),
             'ventes_minutes' => (int) env('PORTAIL_FNE_SCRAPER_VENTES_MINUTES', 5),
+
+            // Les heures des passages automatiques des scrapers (23/11/2026).
+            'passages' => env('PORTAIL_FNE_PASSAGES', '01:00,13:00,20:00'),
+
+            // L'hôte du portail de production, si la DGI en donne un distinct de
+            // celui de l'API. Vide : on prend la racine de FNE_API_URL_PRODUCTION.
+            'url_production' => env('FNE_PORTAIL_URL_PRODUCTION', ''),
             'script_ventes' => env('PORTAIL_FNE_SCRAPER_SCRIPT_VENTES', base_path('SCRAPER-PORTAIL-FNE/ventes.js')),
 
             /*
@@ -316,7 +323,7 @@ return [
             | arrière-plan — une fois, verrou de cache à l'appui, quel que soit
             | le nombre d'employés qui se connectent.
             */
-            'releve_a_la_connexion' => filter_var(env('PORTAIL_FNE_RELEVE_A_LA_CONNEXION', true), FILTER_VALIDATE_BOOL),
+            'releve_a_la_connexion' => filter_var(env('PORTAIL_FNE_RELEVE_A_LA_CONNEXION', false), FILTER_VALIDATE_BOOL),
 
             'fraicheur_heures' => (int) env('PORTAIL_FNE_FRAICHEUR_HEURES', 12),
 

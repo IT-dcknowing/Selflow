@@ -221,8 +221,15 @@ function actualiserAvoirsFne() {
             'Accept': 'application/json'
         }
     })
-    .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
-    .then(({ok, data}) => {
+    .then(r => r.json().then(d => ({ ok: r.ok, code: r.status, data: d })))
+    .then(({ok, code, data}) => {
+        if (code === 429) {
+            actualisationAvoirsEnCours = false;
+            bouton.disabled = false;
+            statut.textContent = '';
+            if (window.selflowPatienter) window.selflowPatienter(data.attendre_secondes);
+            return;
+        }
         if (!ok || data.status !== 'success') throw new Error(data.message || 'Impossible de lancer le relevé.');
         statut.textContent = data.message || 'Relevé lancé…';
         setTimeout(attendreFinActualisationAvoirs, 3000);

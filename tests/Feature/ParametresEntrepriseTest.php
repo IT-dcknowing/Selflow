@@ -312,7 +312,7 @@ class ParametresEntrepriseTest extends TestCase
         // elle se parcourt, ce qui est ce qu'elle devait éviter.
         $page = $this->get(route('admin.entreprise.parametres'))->assertOk()->getContent();
 
-        foreach (["L&#039;entreprise", 'Fiscalité &amp; DGI', 'Comptabilité', 'Documents'] as $famille) {
+        foreach (["L&#039;entreprise", 'FNE DGI', 'Comptabilité', 'Documents'] as $famille) {
             $this->assertStringContainsString($famille, $page, $famille);
         }
     }

@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Pièces refusées par la DGI')
-@section('topbar_titre', 'Fiscalité & DGI — Pièces refusées')
+@section('topbar_titre', 'FNE DGI — Pièces refusées')
 
 @section('styles')
     <style>

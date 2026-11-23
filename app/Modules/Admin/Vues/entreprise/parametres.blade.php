@@ -85,7 +85,7 @@
         $comptabiliteOuverte = (bool) $entreprise?->comptabiliteOuverte();
 
         $familles = [
-            'Fiscalité & DGI' => [
+            'FNE DGI' => [
                 'dgi'        => ['DGI & local', 'fa-map-marker-alt'],
                 'compte-fne' => ['Compte FNE', 'fa-id-card-clip'],
                 'statut-fne' => ['Statut FNE', 'fa-key'],

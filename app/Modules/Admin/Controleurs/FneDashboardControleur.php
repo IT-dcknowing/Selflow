@@ -500,6 +500,10 @@ class FneDashboardControleur
             return $this->erreurReleve('NCC de l’entreprise introuvable.', 422);
         }
 
+        if ($attente = $this->attenteAvantActualisation($login)) {
+            return $attente;
+        }
+
         if (Cache::has(ScraperPortailFneService::verrouAchats($login))) {
             return response()->json(['status' => 'success', 'en_cours' => true, 'message' => 'Un relevé des achats est déjà en cours.']);
         }
@@ -507,6 +511,8 @@ class FneDashboardControleur
         if (!ScraperPortailFneService::lancerAchats($login)) {
             return $this->erreurReleve('Le relevé des factures d’achat n’a pas pu être lancé. Vérifiez la configuration du scraper FNE.', 503);
         }
+
+        $this->marquerActualisation($login);
 
         return response()->json(['status' => 'success', 'en_cours' => true, 'message' => 'Récupération des factures d’achat FNE lancée.']);
     }
@@ -571,6 +577,10 @@ class FneDashboardControleur
             return $this->erreurReleve('NCC de l’entreprise introuvable.', 422);
         }
 
+        if ($attente = $this->attenteAvantActualisation($login)) {
+            return $attente;
+        }
+
         if (Cache::has(ScraperPortailFneService::verrouVentes($login))) {
             return response()->json(['status' => 'success', 'en_cours' => true, 'message' => 'Un relevé des ventes est déjà en cours.']);
         }
@@ -578,6 +588,8 @@ class FneDashboardControleur
         if (!ScraperPortailFneService::lancerVentes($login)) {
             return $this->erreurReleve('Le relevé des factures de vente FNE n’a pas pu être lancé. Vérifiez la configuration du scraper.', 503);
         }
+
+        $this->marquerActualisation($login);
 
         return response()->json(['status' => 'success', 'en_cours' => true, 'message' => 'Récupération des factures de vente FNE lancée.']);
     }
@@ -642,6 +654,10 @@ class FneDashboardControleur
             return $this->erreurReleve('NCC de l’entreprise introuvable.', 422);
         }
 
+        if ($attente = $this->attenteAvantActualisation($login)) {
+            return $attente;
+        }
+
         if (Cache::has(ScraperPortailFneService::verrouAvoirs($login))) {
             return response()->json(['status' => 'success', 'en_cours' => true, 'message' => 'Un relevé des avoirs est déjà en cours.']);
         }
@@ -649,6 +665,8 @@ class FneDashboardControleur
         if (!ScraperPortailFneService::lancerAvoirs($login, 'received')) {
             return $this->erreurReleve('Le relevé des avoirs fournisseurs n’a pas pu être lancé. Vérifiez la configuration du scraper FNE.', 503);
         }
+
+        $this->marquerActualisation($login);
 
         return response()->json(['status' => 'success', 'en_cours' => true, 'message' => 'Récupération des avoirs fournisseurs FNE lancée.']);
     }
@@ -665,6 +683,10 @@ class FneDashboardControleur
             return $this->erreurReleve('NCC de l’entreprise introuvable.', 422);
         }
 
+        if ($attente = $this->attenteAvantActualisation($login)) {
+            return $attente;
+        }
+
         if (Cache::has(ScraperPortailFneService::verrouAvoirs($login))) {
             return response()->json(['status' => 'success', 'en_cours' => true, 'message' => 'Un relevé est déjà en cours.']);
         }
@@ -672,6 +694,8 @@ class FneDashboardControleur
         if (!ScraperPortailFneService::lancerAvoirs($login)) {
             return $this->erreurReleve('Le relevé n’a pas pu être lancé. Vérifiez que le scraper FNE est activé et configuré.', 503);
         }
+
+        $this->marquerActualisation($login);
 
         return response()->json(['status' => 'success', 'en_cours' => true, 'message' => 'Relevé des avoirs lancé.']);
     }
@@ -733,6 +757,149 @@ class FneDashboardControleur
                 'dernier_releve' => $dernier?->date_scraping?->toDateString(),
                 'message' => $dernier?->message,
             ],
+        ]);
+    }
+
+    /** Cinq minutes entre deux actualisations du portail, par entreprise (23/11/2026). */
+    private const DELAI_ACTUALISATION_SECONDES = 300;
+
+    private static function cleActualisation(string $login): string
+    {
+        return 'fne_actualisation_' . strtoupper(trim($login));
+    }
+
+    /**
+     * Refuse une actualisation lancée moins de cinq minutes après la
+     * précédente. Chaque clic ouvre un Chromium sur un hébergement plafonné
+     * en processus : un second clic impatient suffisait à le saturer.
+     */
+    private function attenteAvantActualisation(string $login): ?JsonResponse
+    {
+        $depuis = Cache::get(self::cleActualisation($login));
+
+        if (!$depuis) {
+            return null;
+        }
+
+        $reste = self::DELAI_ACTUALISATION_SECONDES - (now()->getTimestamp() - (int) $depuis);
+
+        if ($reste <= 0) {
+            return null;
+        }
+
+        return response()->json([
+            'status'            => 'attente',
+            'attendre_secondes' => $reste,
+            'message'           => "Veuillez patienter {$reste} s avant une nouvelle actualisation.",
+        ], 429);
+    }
+
+    private function marquerActualisation(string $login): void
+    {
+        Cache::put(self::cleActualisation($login), now()->getTimestamp(), now()->addSeconds(self::DELAI_ACTUALISATION_SECONDES));
+    }
+
+    /**
+     * « Actualiser » des écrans Gestion FNE, Situation générale et Factures &
+     * Reçus : tout le portail d'un coup — ventes, achats, avoirs (23/11/2026).
+     * Le bouton ne faisait que relire la base. Les trois relevés passent l'un
+     * après l'autre, par le verrou du navigateur.
+     */
+    public function actualiserTout(): JsonResponse
+    {
+        $login = trim((string) (Auth::user()?->entreprise?->ncc ?? ''));
+
+        if ($login === '') {
+            return $this->erreurReleve('NCC de l’entreprise introuvable.', 422);
+        }
+
+        if ($attente = $this->attenteAvantActualisation($login)) {
+            return $attente;
+        }
+
+        $lances = array_filter([
+            'ventes' => ScraperPortailFneService::lancerVentes($login),
+            'achats' => ScraperPortailFneService::lancerAchats($login),
+            'avoirs' => ScraperPortailFneService::lancerAvoirs($login),
+        ]);
+
+        $enCours = collect([
+            ScraperPortailFneService::verrouVentes($login),
+            ScraperPortailFneService::verrouAchats($login),
+            ScraperPortailFneService::verrouAvoirs($login),
+        ])->contains(fn ($verrou) => Cache::has($verrou));
+
+        if ($lances === [] && !$enCours) {
+            return $this->erreurReleve('Aucun relevé du portail n’a pu être lancé (ventes, achats, avoirs).', 503);
+        }
+
+        $this->marquerActualisation($login);
+
+        return response()->json([
+            'status'   => 'success',
+            'en_cours' => true,
+            'lances'   => array_keys($lances),
+            'message'  => 'Actualisation du portail FNE lancée : ventes, achats et avoirs.',
+        ]);
+    }
+
+    /** Suit les trois relevés, puis range ce qu'ils ont déposé. */
+    public function statutActualisationTout(): JsonResponse
+    {
+        $login = trim((string) (Auth::user()?->entreprise?->ncc ?? ''));
+
+        if ($login === '') {
+            return $this->erreurReleve('NCC de l’entreprise introuvable.', 422);
+        }
+
+        $verrous = [
+            'ventes' => ScraperPortailFneService::verrouVentes($login),
+            'achats' => ScraperPortailFneService::verrouAchats($login),
+            'avoirs' => ScraperPortailFneService::verrouAvoirs($login),
+        ];
+
+        $echecs = [];
+        foreach ($verrous as $type => $verrou) {
+            $etat = ScraperPortailFneService::etatProcessus($verrou);
+
+            if ($etat && !array_key_exists('exit_code', $etat) && empty($etat['import_en_cours'])) {
+                return response()->json(['status' => 'success', 'termine' => false, 'message' => 'Relevé du portail FNE en cours…']);
+            }
+
+            if ($etat && (int) ($etat['exit_code'] ?? 0) !== 0) {
+                $echecs[] = $type;
+            }
+        }
+
+        $rapports = [
+            'ventes' => app(ImportFacturesEmisesService::class)->importerDossier(null, $login),
+            'achats' => app(ImportFacturesRecuesService::class)->importerDossier(null, $login),
+            'avoirs' => app(ImportAvoirsService::class)->importerDossier(null, $login),
+        ];
+
+        // Les verrous des relevés réussis sont rendus ; ceux des relevés en
+        // échec gardent leur pause (voir ScraperPortailFneService).
+        foreach ($verrous as $type => $verrou) {
+            if (!in_array($type, $echecs, true)) {
+                Cache::forget($verrou);
+            }
+        }
+
+        if (count($echecs) === count($verrous)) {
+            return $this->erreurReleve('Les trois relevés du portail ont échoué : ' . implode(', ', $echecs) . '.', 502);
+        }
+
+        if ($echecs !== []) {
+            Log::warning('[relevé FNE] actualisation partielle, en échec : ' . implode(', ', $echecs), ['login' => $login]);
+        }
+
+        return response()->json([
+            'status'  => 'success',
+            'termine' => true,
+            'import'  => collect($rapports)->map(fn ($r) => [
+                'importes' => $r['importes'] ?? 0,
+                'erreurs'  => $r['erreurs'] ?? 0,
+            ])->all(),
         ]);
     }
 

@@ -226,7 +226,7 @@ function dossierDepot() {
  * les scrapers l'un après l'autre, et un lancement qui avorte est retenté.
  */
 
-const ATTENTE_NAVIGATEUR_MS = Number(process.env.FNE_ATTENTE_NAVIGATEUR_MS || 4 * 60 * 1000);
+const ATTENTE_NAVIGATEUR_MS = Number(process.env.FNE_ATTENTE_NAVIGATEUR_MS || 12 * 60 * 1000);
 const ESSAIS_LANCEMENT      = Number(process.env.FNE_ESSAIS_LANCEMENT || 3);
 const PAUSE_ENTRE_ESSAIS_MS = Number(process.env.FNE_PAUSE_ENTRE_ESSAIS_MS || 15 * 1000);
 
