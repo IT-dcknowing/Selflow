@@ -7,6 +7,13 @@
 return [
 
     /*
+    | Le numéro du service assistance, donné à l'utilisateur quand une tâche
+    | de fond (relevé du portail FNE…) échoue. Le détail technique va au
+    | journal ; l'écran ne montre que ce message et ce numéro.
+    */
+    'assistance_telephone' => env('SELFLOW_ASSISTANCE_TELEPHONE', '07 67 13 19 93'),
+
+    /*
     |--------------------------------------------------------------------------
     | URL de l'API COMPTAFLOW
     |--------------------------------------------------------------------------

@@ -23,6 +23,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Carbon\Carbon;
 
@@ -496,7 +497,7 @@ class FneDashboardControleur
         $login = trim((string) ($entreprise?->ncc ?? ''));
 
         if ($login === '') {
-            return response()->json(['status' => 'error', 'message' => 'NCC de l’entreprise introuvable.'], 422);
+            return $this->erreurReleve('NCC de l’entreprise introuvable.', 422);
         }
 
         if (Cache::has(ScraperPortailFneService::verrouAchats($login))) {
@@ -504,7 +505,7 @@ class FneDashboardControleur
         }
 
         if (!ScraperPortailFneService::lancerAchats($login)) {
-            return response()->json(['status' => 'error', 'message' => 'Le relevé des factures d’achat n’a pas pu être lancé. Vérifiez la configuration du scraper FNE.'], 503);
+            return $this->erreurReleve('Le relevé des factures d’achat n’a pas pu être lancé. Vérifiez la configuration du scraper FNE.', 503);
         }
 
         return response()->json(['status' => 'success', 'en_cours' => true, 'message' => 'Récupération des factures d’achat FNE lancée.']);
@@ -517,7 +518,7 @@ class FneDashboardControleur
         $login = trim((string) ($entreprise?->ncc ?? ''));
 
         if ($login === '') {
-            return response()->json(['status' => 'error', 'message' => 'NCC de l’entreprise introuvable.'], 422);
+            return $this->erreurReleve('NCC de l’entreprise introuvable.', 422);
         }
 
         $processus = ScraperPortailFneService::etatProcessus(ScraperPortailFneService::verrouAchats($login));
@@ -526,13 +527,10 @@ class FneDashboardControleur
         }
         if ($processus && (int) $processus['exit_code'] !== 0) {
             Cache::forget(ScraperPortailFneService::verrouAchats($login));
-            return response()->json([
-                'status' => 'error',
-                'message' => (!empty($processus['interrompu'])
+            return $this->erreurReleve((!empty($processus['interrompu'])
                     ? 'Le scraper des factures d’achat s’est arrêté sans terminer (plantage au démarrage ou navigateur interrompu par le serveur).'
                     : 'Le scraper des factures d’achat s’est terminé en erreur (code ' . (int) $processus['exit_code'] . ').')
-                    . ' Consultez storage/logs/portail-fne-achat.log.',
-            ], 502);
+                    . ' Consultez storage/logs/portail-fne-achat.log.', 502);
         }
         $verrou = ScraperPortailFneService::verrouAchats($login);
         if ($processus) {
@@ -548,10 +546,7 @@ class FneDashboardControleur
         }
 
         if (empty($rapport['details'])) {
-            return response()->json([
-                'status' => 'error',
-                'message' => "Le scraper n'a déposé aucun relevé de factures d'achat pour le NCC {$login}. Vérifiez les identifiants FNE et le journal du scraper.",
-            ], 502);
+            return $this->erreurReleve("Le scraper n'a déposé aucun relevé de factures d'achat pour le NCC {$login}. Vérifiez les identifiants FNE et le journal du scraper.", 502);
         }
 
         return response()->json([
@@ -573,7 +568,7 @@ class FneDashboardControleur
         $login = trim((string) ($entreprise?->ncc ?? ''));
 
         if ($login === '') {
-            return response()->json(['status' => 'error', 'message' => 'NCC de l’entreprise introuvable.'], 422);
+            return $this->erreurReleve('NCC de l’entreprise introuvable.', 422);
         }
 
         if (Cache::has(ScraperPortailFneService::verrouVentes($login))) {
@@ -581,7 +576,7 @@ class FneDashboardControleur
         }
 
         if (!ScraperPortailFneService::lancerVentes($login)) {
-            return response()->json(['status' => 'error', 'message' => 'Le relevé des factures de vente FNE n’a pas pu être lancé. Vérifiez la configuration du scraper.'], 503);
+            return $this->erreurReleve('Le relevé des factures de vente FNE n’a pas pu être lancé. Vérifiez la configuration du scraper.', 503);
         }
 
         return response()->json(['status' => 'success', 'en_cours' => true, 'message' => 'Récupération des factures de vente FNE lancée.']);
@@ -594,7 +589,7 @@ class FneDashboardControleur
         $login = trim((string) ($entreprise?->ncc ?? ''));
 
         if ($login === '') {
-            return response()->json(['status' => 'error', 'message' => 'NCC de l’entreprise introuvable.'], 422);
+            return $this->erreurReleve('NCC de l’entreprise introuvable.', 422);
         }
 
         $processus = ScraperPortailFneService::etatProcessus(ScraperPortailFneService::verrouVentes($login));
@@ -603,13 +598,10 @@ class FneDashboardControleur
         }
         if ($processus && (int) $processus['exit_code'] !== 0) {
             Cache::forget(ScraperPortailFneService::verrouVentes($login));
-            return response()->json([
-                'status' => 'error',
-                'message' => (!empty($processus['interrompu'])
+            return $this->erreurReleve((!empty($processus['interrompu'])
                     ? 'Le scraper des factures de vente s’est arrêté sans terminer (plantage au démarrage ou navigateur interrompu par le serveur).'
                     : 'Le scraper des factures de vente s’est terminé en erreur (code ' . (int) $processus['exit_code'] . ').')
-                    . ' Consultez storage/logs/portail-fne-vente.log.',
-            ], 502);
+                    . ' Consultez storage/logs/portail-fne-vente.log.', 502);
         }
         $verrou = ScraperPortailFneService::verrouVentes($login);
         if ($processus) {
@@ -625,10 +617,7 @@ class FneDashboardControleur
         }
 
         if (empty($rapport['details'])) {
-            return response()->json([
-                'status' => 'error',
-                'message' => "Le scraper n'a déposé aucun relevé de ventes FNE pour le NCC {$login}. Vérifiez les identifiants FNE et le journal du scraper.",
-            ], 502);
+            return $this->erreurReleve("Le scraper n'a déposé aucun relevé de ventes FNE pour le NCC {$login}. Vérifiez les identifiants FNE et le journal du scraper.", 502);
         }
 
         return response()->json([
@@ -650,7 +639,7 @@ class FneDashboardControleur
         $login = trim((string) ($entreprise?->ncc ?? ''));
 
         if ($login === '') {
-            return response()->json(['status' => 'error', 'message' => 'NCC de l’entreprise introuvable.'], 422);
+            return $this->erreurReleve('NCC de l’entreprise introuvable.', 422);
         }
 
         if (Cache::has(ScraperPortailFneService::verrouAvoirs($login))) {
@@ -658,7 +647,7 @@ class FneDashboardControleur
         }
 
         if (!ScraperPortailFneService::lancerAvoirs($login, 'received')) {
-            return response()->json(['status' => 'error', 'message' => 'Le relevé des avoirs fournisseurs n’a pas pu être lancé. Vérifiez la configuration du scraper FNE.'], 503);
+            return $this->erreurReleve('Le relevé des avoirs fournisseurs n’a pas pu être lancé. Vérifiez la configuration du scraper FNE.', 503);
         }
 
         return response()->json(['status' => 'success', 'en_cours' => true, 'message' => 'Récupération des avoirs fournisseurs FNE lancée.']);
@@ -673,7 +662,7 @@ class FneDashboardControleur
         $login = trim((string) ($entreprise?->ncc ?? ''));
 
         if ($login === '') {
-            return response()->json(['status' => 'error', 'message' => 'NCC de l’entreprise introuvable.'], 422);
+            return $this->erreurReleve('NCC de l’entreprise introuvable.', 422);
         }
 
         if (Cache::has(ScraperPortailFneService::verrouAvoirs($login))) {
@@ -681,10 +670,7 @@ class FneDashboardControleur
         }
 
         if (!ScraperPortailFneService::lancerAvoirs($login)) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Le relevé n’a pas pu être lancé. Vérifiez que le scraper FNE est activé et configuré.',
-            ], 503);
+            return $this->erreurReleve('Le relevé n’a pas pu être lancé. Vérifiez que le scraper FNE est activé et configuré.', 503);
         }
 
         return response()->json(['status' => 'success', 'en_cours' => true, 'message' => 'Relevé des avoirs lancé.']);
@@ -699,7 +685,7 @@ class FneDashboardControleur
         $login = trim((string) ($entreprise?->ncc ?? ''));
 
         if ($login === '') {
-            return response()->json(['status' => 'error', 'message' => 'NCC de l’entreprise introuvable.'], 422);
+            return $this->erreurReleve('NCC de l’entreprise introuvable.', 422);
         }
 
         $processus = ScraperPortailFneService::etatProcessus(ScraperPortailFneService::verrouAvoirs($login));
@@ -708,13 +694,10 @@ class FneDashboardControleur
         }
         if ($processus && (int) $processus['exit_code'] !== 0) {
             Cache::forget(ScraperPortailFneService::verrouAvoirs($login));
-            return response()->json([
-                'status' => 'error',
-                'message' => (!empty($processus['interrompu'])
+            return $this->erreurReleve((!empty($processus['interrompu'])
                     ? 'Le scraper des avoirs s’est arrêté sans terminer (plantage au démarrage ou navigateur interrompu par le serveur).'
                     : 'Le scraper des avoirs s’est terminé en erreur (code ' . (int) $processus['exit_code'] . ').')
-                    . ' Consultez storage/logs/portail-fne-avoir.log.',
-            ], 502);
+                    . ' Consultez storage/logs/portail-fne-avoir.log.', 502);
         }
         $verrou = ScraperPortailFneService::verrouAvoirs($login);
         if ($processus) {
@@ -730,10 +713,7 @@ class FneDashboardControleur
         }
 
         if (empty($rapport['details'])) {
-            return response()->json([
-                'status' => 'error',
-                'message' => "Le scraper n'a déposé aucun relevé d'avoirs FNE pour le NCC {$login}. Vérifiez les identifiants FNE et le journal du scraper.",
-            ], 502);
+            return $this->erreurReleve("Le scraper n'a déposé aucun relevé d'avoirs FNE pour le NCC {$login}. Vérifiez les identifiants FNE et le journal du scraper.", 502);
         }
 
         $dernier = PortailFneImport::query()
@@ -754,6 +734,34 @@ class FneDashboardControleur
                 'message' => $dernier?->message,
             ],
         ]);
+    }
+
+    /**
+     * L'échec d'un relevé du portail, dit à l'utilisateur sans son détail.
+     *
+     * Le 23/11/2026, l'écran affichait « le scraper s'est arrêté sans terminer…
+     * consultez storage/logs/portail-fne-vente.log » : rien que l'utilisateur
+     * puisse faire, et un chemin du serveur qu'il n'a pas à voir. Le détail
+     * part au journal, avec l'entreprise et l'utilisateur ; l'écran ne reçoit
+     * que le message de l'assistance.
+     */
+    private function erreurReleve(string $detail, int $code): JsonResponse
+    {
+        try {
+            Log::warning('[relevé FNE] ' . $detail, [
+                'utilisateur_id' => Auth::id(),
+                'entreprise_id'  => Auth::user()?->entreprise_id,
+                'http'           => $code,
+            ]);
+        } catch (\Throwable) {
+            // Une panne de journal ne doit pas changer la réponse.
+        }
+
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'Une erreur s’est produite. Veuillez réessayer plus tard ou contacter le service assistance au '
+                . config('selflow.assistance_telephone') . '.',
+        ], $code);
     }
 
     public function factures(Request $request): View

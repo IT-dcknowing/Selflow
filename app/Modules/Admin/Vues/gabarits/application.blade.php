@@ -2228,6 +2228,24 @@ window.__csrf = '{{ csrf_token() }}';
 
     flashs.forEach(function (f, i) { setTimeout(function () { afficher(f); }, i * 160); });
 
+    // Pour les écrans qui ont besoin d'un pop-up sans recharger la page.
+    window.selflowToast = afficher;
+
+    /*
+     * L'échec d'une tâche de fond — relevé du portail FNE… — ne montre jamais
+     * son détail technique à l'utilisateur (23/11/2026, propriétaire du
+     * projet) : un message, le numéro de l'assistance, et le pop-up s'efface
+     * seul. Le détail est au journal du serveur.
+     */
+    window.selflowErreurTache = function () {
+        afficher({
+            type: 'erreur',
+            titre: 'Une erreur s’est produite',
+            message: @json('Veuillez réessayer plus tard ou contacter le service assistance au ' . config('selflow.assistance_telephone') . '.'),
+            duree: 10000
+        });
+    };
+
     function afficher(f) {
         var el = document.createElement('div');
         el.className = 'toast t-' + (f.type || 'info');
@@ -2376,9 +2394,7 @@ window.__csrf = '{{ csrf_token() }}';
     // tournait pas.
     function abandonner() {
         if (zone) { zone.innerHTML = ''; }
-        afficherToast('erreur', 'Relevé non reçu',
-            "Les points de vente du portail FNE ne sont pas arrivés après deux minutes. "
-            + "Le scraper ne tourne peut-être pas sur ce serveur : consultez l'écran des rejets FNE.");
+        if (window.selflowErreurTache) { window.selflowErreurTache(); }
     }
 
     function afficherToast(type, titre, message) {

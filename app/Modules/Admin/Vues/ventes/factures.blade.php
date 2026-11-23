@@ -1928,8 +1928,9 @@ async function suivreActualisationFneVentes() {
         statut.textContent = 'Récupération des factures de vente FNE en cours… La tâche continue même si vous quittez cette page.';
         setTimeout(suivreActualisationFneVentes, 3000);
     } catch (erreur) {
-        statut.textContent = erreur.message;
-        statut.style.color = '#b91c1c';
+        // Le détail reste au journal du serveur : l'utilisateur reçoit le pop-up de l'assistance.
+        statut.textContent = '';
+        if (window.selflowErreurTache) window.selflowErreurTache();
         localStorage.removeItem(cleSuiviFneVentes);
         if (bouton) bouton.disabled = false;
     }
@@ -1951,8 +1952,9 @@ async function actualiserFacturesFneVentes() {
         statut.textContent = resultat.message || 'Relevé lancé en arrière-plan.';
         setTimeout(suivreActualisationFneVentes, 1000);
     } catch (erreur) {
-        statut.textContent = 'Échec du lancement : ' + erreur.message;
-        statut.style.color = '#b91c1c';
+        // Le détail reste au journal du serveur : l'utilisateur reçoit le pop-up de l'assistance.
+        statut.textContent = '';
+        if (window.selflowErreurTache) window.selflowErreurTache();
         bouton.disabled = false;
     }
 }

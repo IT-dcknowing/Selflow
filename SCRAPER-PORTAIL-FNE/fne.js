@@ -214,6 +214,116 @@ function dossierDepot() {
   return resolu;
 }
 
+/* ------------------------ Un seul navigateur à la fois -------------------- */
+
+/*
+ * Constaté le 23/11/2026 sur l'hébergement mutualisé de production : à 02:00
+ * le relevé des ventes passe, à 02:05 Chromium avorte au démarrage
+ * (« Received signal 6 », SIGABRT). Les relevés des achats et des ventes
+ * partent tous deux toutes les cinq minutes, à la même minute : deux
+ * Chromium s'ouvraient ensemble sur un compte plafonné en nombre de
+ * processus (voir le 15/09/2026 plus bas). Un verrou de fichier fait passer
+ * les scrapers l'un après l'autre, et un lancement qui avorte est retenté.
+ */
+
+const ATTENTE_NAVIGATEUR_MS = Number(process.env.FNE_ATTENTE_NAVIGATEUR_MS || 4 * 60 * 1000);
+const ESSAIS_LANCEMENT      = Number(process.env.FNE_ESSAIS_LANCEMENT || 3);
+const PAUSE_ENTRE_ESSAIS_MS = Number(process.env.FNE_PAUSE_ENTRE_ESSAIS_MS || 15 * 1000);
+
+const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+function processusVivant(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (erreur) {
+    // EPERM : il vit, sous un autre utilisateur.
+    return erreur.code === 'EPERM';
+  }
+}
+
+/** Prend le verrou du navigateur ; rend la fonction qui le relâche. */
+async function prendreLeNavigateur(script) {
+  const fichier = path.join(dossierDepot(), 'navigateur.lock');
+  const limite  = Date.now() + ATTENTE_NAVIGATEUR_MS;
+  let annonce   = false;
+
+  for (;;) {
+    try {
+      const fd = fs.openSync(fichier, 'wx');
+      fs.writeSync(fd, JSON.stringify({ pid: process.pid, script, depuis: instant() }));
+      fs.closeSync(fd);
+      break;
+    } catch (erreur) {
+      if (erreur.code !== 'EEXIST') throw erreur;
+    }
+
+    // Un verrou laissé par un scraper mort — tué par l'hébergeur — ne doit
+    // pas bloquer les suivants.
+    let tenant = null;
+    try { tenant = JSON.parse(fs.readFileSync(fichier, 'utf-8')); } catch (_) { tenant = null; }
+    if (!tenant || !processusVivant(Number(tenant.pid))) {
+      try { fs.unlinkSync(fichier); } catch (_) { /* un autre l'a déjà repris */ }
+      continue;
+    }
+
+    if (Date.now() > limite) {
+      throw new Error(
+        `Navigateur occupé depuis plus de ${Math.round(ATTENTE_NAVIGATEUR_MS / 60000)} min ` +
+        `par ${tenant.script || '?'} (pid ${tenant.pid}) : relevé reporté.`
+      );
+    }
+    if (!annonce) {
+      journaliser(script, 'INFO', `   Navigateur occupé par ${tenant.script || '?'} (pid ${tenant.pid}) : attente de son tour...`);
+      annonce = true;
+    }
+    await pause(3000);
+  }
+
+  let relache = false;
+  const relacher = () => {
+    if (relache) return;
+    relache = true;
+    try {
+      const tenant = JSON.parse(fs.readFileSync(fichier, 'utf-8'));
+      if (Number(tenant.pid) === process.pid) fs.unlinkSync(fichier);
+    } catch (_) { /* déjà parti */ }
+  };
+  process.once('exit', relacher);
+
+  return relacher;
+}
+
+/**
+ * Lance Chromium, chacun son tour, et retente un lancement qui avorte.
+ *
+ * Le verrou est rendu à la fermeture du navigateur, ou à la sortie du
+ * processus si le scraper meurt avant de le fermer.
+ */
+async function lancerNavigateur(script, options) {
+  const relacher = await prendreLeNavigateur(script);
+  let derniere = null;
+
+  for (let essai = 1; essai <= ESSAIS_LANCEMENT; essai++) {
+    try {
+      const navigateur = await chromium.launch(options);
+      navigateur.once('disconnected', relacher);
+      return navigateur;
+    } catch (erreur) {
+      derniere = erreur;
+      const motif = String(erreur.message || erreur).split('\n')[0];
+      if (essai < ESSAIS_LANCEMENT) {
+        journaliser(script, 'ALERTE', `   Chromium n'a pas demarre (essai ${essai}/${ESSAIS_LANCEMENT}) : ${motif}. Nouvel essai dans ${PAUSE_ENTRE_ESSAIS_MS / 1000} s.`);
+        await pause(PAUSE_ENTRE_ESSAIS_MS);
+      }
+    }
+  }
+
+  relacher();
+  throw derniere;
+}
+
 /* --------------------------- La file et le magasin ------------------------ */
 
 /**
@@ -695,7 +805,7 @@ async function passage() {
     // invisible depuis `ulimit`, qui répond « illimité » alors que le fork échoue
     // en `pthread_create: Resource temporarily unavailable`. Ces deux options
     // font tenir Chromium dans un seul processus.
-    const navigateur = await chromium.launch({
+    const navigateur = await lancerNavigateur('fne', {
       headless,
       args: ['--no-sandbox', '--single-process', '--no-zygote'],
     });
@@ -755,6 +865,7 @@ if (require.main === module) {
 // Seule cette liste a été complétée : aucune ligne de logique n'a changé, et
 // `verifier-extraction.js` continue de le vérifier à chaque exécution.
 module.exports = {
+  lancerNavigateur,
   CLES_PORTAIL,
   MINIMUM_CHAMPS_RECONNUS,
   normaliser,

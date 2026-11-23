@@ -1051,8 +1051,9 @@ async function suivreActualisationFneAchats() {
         statut.textContent = 'Récupération des factures FNE en cours… La tâche continue même si vous quittez cette page.';
         setTimeout(suivreActualisationFneAchats, 3000);
     } catch (erreur) {
-        statut.textContent = erreur.message;
-        statut.style.color = '#b91c1c';
+        // Le détail reste au journal du serveur : l'utilisateur reçoit le pop-up de l'assistance.
+        statut.textContent = '';
+        if (window.selflowErreurTache) window.selflowErreurTache();
         localStorage.removeItem(cleSuiviFneAchats);
         if (bouton) bouton.disabled = false;
     }
@@ -1075,8 +1076,9 @@ async function actualiserFacturesFneAchats() {
         statut.textContent = resultat.message || 'Relevé lancé en arrière-plan.';
         setTimeout(suivreActualisationFneAchats, 1000);
     } catch (erreur) {
-        statut.textContent = 'Échec du lancement : ' + erreur.message;
-        statut.style.color = '#b91c1c';
+        // Le détail reste au journal du serveur : l'utilisateur reçoit le pop-up de l'assistance.
+        statut.textContent = '';
+        if (window.selflowErreurTache) window.selflowErreurTache();
         bouton.disabled = false;
     }
 }
@@ -1112,8 +1114,9 @@ async function suivreActualisationAvoirsFournisseursFne() {
         statut.textContent = 'Récupération des avoirs fournisseurs en cours… La tâche continue même si vous quittez cette page.';
         setTimeout(suivreActualisationAvoirsFournisseursFne, 3000);
     } catch (erreur) {
-        statut.textContent = erreur.message;
-        statut.style.color = '#b91c1c';
+        // Le détail reste au journal du serveur : l'utilisateur reçoit le pop-up de l'assistance.
+        statut.textContent = '';
+        if (window.selflowErreurTache) window.selflowErreurTache();
         localStorage.removeItem(cleSuiviFneAvoirsFournisseurs);
         if (bouton) bouton.disabled = false;
     }
@@ -1135,8 +1138,9 @@ async function actualiserAvoirsFournisseursFne() {
         statut.textContent = resultat.message || 'Relevé lancé en arrière-plan.';
         setTimeout(suivreActualisationAvoirsFournisseursFne, 1000);
     } catch (erreur) {
-        statut.textContent = 'Échec du lancement : ' + erreur.message;
-        statut.style.color = '#b91c1c';
+        // Le détail reste au journal du serveur : l'utilisateur reçoit le pop-up de l'assistance.
+        statut.textContent = '';
+        if (window.selflowErreurTache) window.selflowErreurTache();
         bouton.disabled = false;
     }
 }

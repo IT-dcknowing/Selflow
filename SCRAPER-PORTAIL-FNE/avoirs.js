@@ -38,6 +38,7 @@ const {
   motDePassePour,
   lireFileDemandes,
   journaliser,
+  lancerNavigateur,
 } = require('./fne.js');
 
 const dire = (niveau, message, details) => journaliser('avoirs', niveau, message, details);
@@ -403,7 +404,7 @@ async function passage() {
   }
 
   if (relevables.length) {
-    const navigateur = await chromium.launch({
+    const navigateur = await lancerNavigateur('avoirs', {
       headless: process.env.FNE_HEADLESS !== 'false',
       args: ['--no-sandbox', '--single-process', '--no-zygote'],
     });

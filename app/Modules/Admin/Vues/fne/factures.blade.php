@@ -201,7 +201,8 @@ function attendreFinActualisationAvoirs() {
         .catch(e => {
             actualisationAvoirsEnCours = false;
             document.getElementById('btn-actualiser-avoirs').disabled = false;
-            document.getElementById('statut-actualiser-avoirs').textContent = e.message;
+            document.getElementById('statut-actualiser-avoirs').textContent = '';
+            if (window.selflowErreurTache) window.selflowErreurTache();
         });
 }
 
@@ -229,7 +230,8 @@ function actualiserAvoirsFne() {
     .catch(e => {
         actualisationAvoirsEnCours = false;
         bouton.disabled = false;
-        statut.textContent = e.message;
+        statut.textContent = '';
+        if (window.selflowErreurTache) window.selflowErreurTache();
     });
 }
 
