@@ -11176,6 +11176,45 @@ sur toute action par identifiant de pièce.
 - `RapportActivitePdfTest` (1). Suite : 1 994 épreuves, 1 776 passantes,
   mêmes 175 échecs qu'avant.
 
+### Lot 145 — Tous les types de pièces du portail intégrés ; Chromium sobre — **TERMINÉ le 23/11/2026**
+
+**Chromium (07:07 et 07:18 en production).** `FNE_CHROMIUM_ARGS="--no-sandbox
+--no-zygote"` avait été posé dans le `.env` : sans `--single-process`,
+l'hébergement refuse les fils (`pthread_create: Resource temporarily
+unavailable`). **`--single-process` reste obligatoire sur ce serveur ;
+retirer `FNE_CHROMIUM_ARGS` du `.env`.** Par défaut, `fne.js` lance
+désormais Chromium avec le moins de fils possible (V8 sur un fil, une
+rastérisation, ni GPU ni audio séparé), et attend 8 s quand il prend un
+navigateur que le précédent vient de rendre (« Target crashed » de 07:18).
+Éprouvé ici : **en `--single-process`, Chromium n'accepte qu'un seul
+contexte sur toute sa vie** ; un script qui en ouvrirait un second (plusieurs
+logins dans un même processus) tomberait. Selflow lance un processus par
+login, ce qui convient.
+
+**Les quatre natures de pièces** passent par « Factures FNE à intégrer »,
+rangées par nature :
+
+| Pièce du portail | Devient |
+|---|---|
+| facture émise | vente normalisée (lot 141) |
+| avoir émis (`refund`) | avoir de vente rattaché à sa facture (`parentReference`), normalisé, proposition d'**entrée** |
+| facture reçue | achat (fournisseur par son NCC), numéro du fournisseur gardé, proposition d'**entrée** (réception au prix d'achat) |
+| avoir reçu | avoir d'achat rattaché à son achat, proposition de **sortie** (retour fournisseur) |
+
+- Un avoir dont la facture d'origine n'est pas dans Selflow attend :
+  « intégrez-la d'abord ».
+- Une facture reçue déjà passée en écriture au relevé est **contre-passée**
+  à l'intégration : l'achat porte la charge, une seule fois.
+- Une pièce reçue déjà saisie comme achat (même numéro fournisseur) est
+  rapprochée, jamais reprise. Notre propre BAPA n'est jamais proposé.
+- Ligne d'achat hors catalogue : compte saisissable, proposé par la
+  configuration globale, sinon 601000 (`achat_details.compte_achat`,
+  migration `2026_11_23_000003`).
+- La famille de menu « Finance & fiscalité » devient **« Finance & FNE »**.
+
+- `IntegrationFacturesPortailFneTest` (+4). Suite : 1 998 épreuves, 1 780
+  passantes, mêmes 175 échecs qu'avant.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

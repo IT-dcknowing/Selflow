@@ -6,8 +6,9 @@
 <div class="page-header">
     <div>
         <h1><i class="fas fa-file-import"></i> Factures FNE à intégrer</h1>
-        <p>Factures émises sur le portail de la DGI, hors de Selflow. Une fois intégrées, ce sont des ventes normalisées :
-           elles comptent dans les factures, le solde du client et la comptabilité. Les factures que Selflow a normalisées lui-même ne sont jamais reprises.</p>
+        <p>Les pièces certifiées sur le portail de la DGI, hors de Selflow : factures et avoirs, émis et reçus. Une fois intégrées,
+           ce sont des ventes, des achats et des avoirs comme les autres : ils comptent dans les listes, les soldes des tiers et la comptabilité.
+           Ce que Selflow a déjà enregistré n'est jamais repris.</p>
     </div>
     <div style="display:flex; gap:8px;">
         <a href="{{ route('admin.ventes.factures') }}" class="btn btn-outline"><i class="fas fa-list"></i> Factures</a>
@@ -27,13 +28,22 @@
     </div>
 @endif
 
-@foreach($factures as $facture)
-    @php($p = $propositions[$facture->id])
+@foreach($factures->groupBy(fn ($f) => $propositions[$f->id]['nature']) as $nature => $groupe)
+<h2 style="font-size:16px; margin:24px 0 10px;">{{ \App\Modules\Admin\Services\IntegrationFacturePortailService::LIBELLES[$nature] ?? 'Autres pièces' }} <span style="color:var(--text-3); font-weight:400;">({{ $groupe->count() }})</span></h2>
+@foreach($groupe as $facture)
+    @php
+        $p = $propositions[$facture->id];
+        $estAchat = in_array($p['nature'], ['achat', 'avoir_achat'], true);
+        $estAvoir = in_array($p['nature'], ['avoir_vente', 'avoir_achat'], true);
+    @endphp
     <form method="POST" action="{{ route('admin.ventes.portail_fne.integrer', $facture) }}" class="card" style="padding:16px; margin-bottom:16px;">
         @csrf
         <div style="display:flex; flex-wrap:wrap; gap:16px; justify-content:space-between; align-items:flex-start;">
             <div>
                 <div style="font-weight:800; font-size:15px;">{{ $facture->reference }}</div>
+                @if($estAvoir)
+                    <div style="font-size:12px; color:#b45309;">Avoir de la facture {{ $p['origine'] ?: 'non indiquée' }}</div>
+                @endif
                 <div style="font-size:12px; color:var(--text-3);">
                     {{ $facture->date_facture?->format('d/m/Y H:i') }} · {{ $p['mode_paiement'] }}
                     @if($facture->urlDeVerification())
@@ -50,7 +60,11 @@
         <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px; margin:12px 0;">
             <label style="font-size:12px;">
                 <span style="font-weight:700;">Point de vente</span>
-                <span style="color:var(--text-3);"> — sur la facture : « {{ $p['nom_point_de_vente'] ?: 'non indiqué' }} »</span>
+                @if(!$estAchat)
+                    <span style="color:var(--text-3);">, sur la facture : « {{ $p['nom_point_de_vente'] ?: 'non indiqué' }} »</span>
+                @else
+                    <span style="color:var(--text-3);">qui a reçu la pièce</span>
+                @endif
                 <select name="point_de_vente_id" class="form-control" required>
                     <option value="">— Choisir —</option>
                     @foreach($pointsDeVente as $site)
@@ -59,10 +73,14 @@
                 </select>
             </label>
             <div style="font-size:12px;">
-                <span style="font-weight:700;">Client</span><br>
+                <span style="font-weight:700;">{{ $estAchat ? 'Fournisseur' : 'Client' }}</span><br>
                 {{ $p['client_nom'] }} @if($p['client_ncc']) · NCC {{ $p['client_ncc'] }} @endif<br>
                 <span style="color:var(--text-3);">
-                    @if($p['client'])
+                    @if($estAchat)
+                        Retrouvé par son NCC, ou créé à l’intégration.
+                    @elseif($estAvoir)
+                        Le client de la facture d’origine.
+                    @elseif($p['client'])
                         Client existant de Selflow.
                     @elseif($p['client_ncc'] === '' && in_array(\Illuminate\Support\Str::lower($p['client_nom']), ['client de passage', 'passage'], true))
                         Vente de passage, sans fiche client.
@@ -112,8 +130,11 @@
                     onclick="return confirm('Écarter cette facture ? Elle ne sera plus proposée.');">
                 <i class="fas fa-ban"></i> Écarter
             </button>
-            <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Intégrer comme vente normalisée</button>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i>
+                {{ ['vente' => 'Intégrer comme vente normalisée', 'avoir_vente' => 'Intégrer comme avoir', 'achat' => 'Intégrer comme achat', 'avoir_achat' => 'Intégrer comme avoir fournisseur'][$p['nature']] ?? 'Intégrer' }}
+            </button>
         </div>
     </form>
+@endforeach
 @endforeach
 @endsection

@@ -60,14 +60,33 @@ class PropositionStockControleur extends Controller
 
                 $produit = $proposition->produit;
                 $pdvId = (int) $proposition->point_de_vente_id;
-                $contexte = ['piece' => $proposition->vente, 'reference' => $proposition->reference, 'client_id' => $proposition->vente?->client_id];
+
+                // La pièce d'origine : une vente (ou son avoir), ou un achat
+                // repris du portail (ou son avoir), retrouvé par son numéro.
+                $achat = $proposition->vente_id ? null : \App\Modules\Admin\Modeles\Achat::query()
+                    ->where('numero_facture', $proposition->reference)
+                    ->whereHas('pointDeVente', fn ($q) => $q->where('entreprise_id', $proposition->entreprise_id))
+                    ->first();
+                $piece = $proposition->vente ?? $achat;
+                $contexte = ['piece' => $piece, 'reference' => $proposition->reference];
+                if ($proposition->vente) {
+                    $contexte['client_id'] = $proposition->vente->client_id;
+                } elseif ($achat) {
+                    $contexte['fournisseur_id'] = $achat->fournisseur_id;
+                }
 
                 if ($proposition->sens === 'sortie') {
                     $disponible = StockService::disponible($produit, $pdvId);
                     if ($disponible < $proposition->quantite) {
                         throw new \DomainException("Stock insuffisant pour « {$produit->nom} » : {$disponible} disponible(s), {$proposition->quantite} à sortir. Faites d'abord l'entrée, ou refusez la proposition.");
                     }
-                    StockService::sortie($produit, $pdvId, (float) $proposition->quantite, MouvementStock::LIVRAISON, $contexte);
+                    StockService::sortie($produit, $pdvId, (float) $proposition->quantite,
+                        $achat ? MouvementStock::RETOUR_FOURNISSEUR : MouvementStock::LIVRAISON, $contexte);
+                } elseif ($achat) {
+                    // Une réception, au prix d'achat de la ligne : c'est lui qui
+                    // fait le CUMP (Coût Unitaire Moyen Pondéré).
+                    $cout = (float) $achat->details()->where('produit_id', $produit->id)->value('prix_unitaire');
+                    StockService::entree($produit, $pdvId, (float) $proposition->quantite, MouvementStock::RECEPTION, $contexte + ['cout_unitaire' => $cout]);
                 } else {
                     StockService::entree($produit, $pdvId, (float) $proposition->quantite, MouvementStock::RETOUR_CLIENT, $contexte);
                 }

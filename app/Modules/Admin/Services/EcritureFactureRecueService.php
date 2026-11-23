@@ -430,6 +430,12 @@ class EcritureFactureRecueService
      * portail sous un seul numéro de tiers. Sans NCC, c'est le fournisseur
      * divers — il n'y a rien de sûr à quoi rattacher la dette.
      */
+    /** Le fournisseur de la pièce, retrouvé par son NCC ou créé (intégration du 23/11/2026). */
+    public static function fournisseurDe(PortailFneFactureRecue $facture, Entreprise $entreprise): Fournisseur
+    {
+        return self::fournisseur($facture, $entreprise);
+    }
+
     private static function fournisseur(PortailFneFactureRecue $facture, Entreprise $entreprise): Fournisseur
     {
         $ncc = self::ncc($facture->emetteur_ncc);

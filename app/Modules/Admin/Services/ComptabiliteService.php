@@ -1145,7 +1145,10 @@ class ComptabiliteService
             $remiseLigne = (float) ($detail->remise_taux ?? 0);
             $ht = $detail->quantite * $detail->prix_unitaire * (1 - $remiseLigne / 100) * $ratio;
             if ($ht > 0) {
-                $compte = ImputationService::compteAchat($detail->produit);
+                // Une ligne hors catalogue reprise du portail porte son compte
+                // (23/11/2026) ; sinon la chaîne, configuration globale comprise.
+                $compte = trim((string) ($detail->compte_achat ?? ''))
+                    ?: ImputationService::compteAchat($detail->produit, $achat->pointDeVente?->entreprise_id);
                 if (!isset($comptes[$compte])) {
                     $comptes[$compte] = ['montant' => 0, 'produits' => []];
                 }

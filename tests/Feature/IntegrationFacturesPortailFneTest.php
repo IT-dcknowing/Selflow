@@ -55,7 +55,7 @@ class IntegrationFacturesPortailFneTest extends TestCase
         $this->service = app(IntegrationFacturePortailService::class);
     }
 
-    private function facture(string $reference, array $brut, array $lignes, string $secteur = 'Commerce'): PortailFneFactureRecue
+    private function facture(string $reference, array $brut, array $lignes, string $secteur = 'Commerce', array $champs = []): PortailFneFactureRecue
     {
         $ht = collect($lignes)->sum(fn ($l) => $l['quantity'] * $l['amount']);
         $tva = round($ht * 0.18, 2);
@@ -66,7 +66,7 @@ class IntegrationFacturesPortailFneTest extends TestCase
             'fichier_empreinte' => hash('sha256', uniqid('', true)), 'statut' => PortailFneImport::STATUT_IMPORTE,
         ]);
 
-        $f = PortailFneFactureRecue::create([
+        $f = PortailFneFactureRecue::create(array_merge([
             'import_id' => $import->id, 'date_scraping' => now()->toDateString(),
             'entreprise_id' => $this->entreprise->id, 'login' => '1864699A', 'reference' => $reference,
             'fne_id' => 'id-' . $reference, 'token' => 'tok-' . $reference, 'type' => 'invoice', 'subtype' => 'normal',
@@ -76,7 +76,7 @@ class IntegrationFacturesPortailFneTest extends TestCase
             'statut_rapprochement' => PortailFneFactureRecue::A_RAPPROCHER,
             'contenu_brut' => array_merge(['clientPointOfSale' => 'PDV-marcory', 'clientCompanyName' => 'Client de passage', 'clientNcc' => '',
                 'paymentMethod' => 'cash', 'company' => ['sector' => $secteur]], $brut),
-        ]);
+        ], $champs));
 
         foreach ($lignes as $l) {
             PortailFneFactureRecueLigne::create([
@@ -183,5 +183,65 @@ class IntegrationFacturesPortailFneTest extends TestCase
 
         $this->assertNotNull($vente->client, 'Un client identifié par son NCC n’est pas un passage.');
         $this->assertSame('9901234Z', $vente->client->ncc);
+    }
+
+    public function test_un_avoir_emis_devient_l_avoir_de_sa_facture(): void
+    {
+        $vente = $this->service->integrer($this->facture('FAC-1', [], [['description' => 'Conseil', 'quantity' => 1, 'amount' => 10000]]), $this->entreprise, Auth::id());
+        $avoirPortail = $this->facture('AVO-1', ['parentReference' => 'FAC-1'], [['description' => 'Conseil', 'quantity' => 1, 'amount' => 10000]], 'Commerce', ['subtype' => 'refund']);
+
+        $avoir = $this->service->integrer($avoirPortail, $this->entreprise, Auth::id());
+
+        $this->assertSame('avoir', $avoir->type_facture);
+        $this->assertSame($vente->id, $avoir->parent_id);
+        $this->assertTrue((bool) $avoir->normalise);
+        $this->assertSame('AVO-1', $avoir->numero_fne);
+    }
+
+    public function test_un_avoir_sans_sa_facture_dans_selflow_attend(): void
+    {
+        $avoirPortail = $this->facture('AVO-2', ['parentReference' => 'FAC-INCONNUE'], [['description' => 'X', 'quantity' => 1, 'amount' => 100]], 'Commerce', ['subtype' => 'refund']);
+
+        $this->expectException(\DomainException::class);
+        $this->service->integrer($avoirPortail, $this->entreprise, Auth::id());
+    }
+
+    public function test_une_facture_recue_devient_un_achat_et_son_ecriture_n_est_pas_doublee(): void
+    {
+        $sucre = Produit::create(['entreprise_id' => $this->entreprise->id, 'reference' => 'SUC', 'nom' => 'Sucre',
+            'type' => 'marchandise', 'unite' => 'u', 'prix_achat' => 100, 'prix_vente' => 200, 'taux_tva' => 18]);
+        $recue = $this->facture('B000123X26000000001', ['paymentMethod' => 'deferred'], [['reference' => 'SUC', 'description' => 'Sucre', 'quantity' => 5, 'amount' => 100]],
+            'Commerce', ['liste_portail' => 'received', 'emetteur_ncc' => '2201234K', 'emetteur_nom' => 'GROSSISTE SA']);
+
+        // Le relevé l'avait déjà passée en écriture.
+        \App\Modules\Admin\Services\EcritureFactureRecueService::synchroniser($recue->fresh());
+
+        $achat = $this->service->integrer($recue->fresh('lignes'), $this->entreprise, Auth::id(), ['point_de_vente_id' => $this->marcory->id]);
+
+        $this->assertSame('B000123X26000000001', $achat->numero_facture_fournisseur);
+        $this->assertSame('GROSSISTE SA', $achat->fournisseur?->nom);
+        $this->assertSame('Crédit', $achat->statut);
+        $this->assertSame($achat->id, $recue->fresh()->achat_id);
+        $this->assertNull($recue->fresh()->operation_id, 'L’écriture du relevé est contre-passée : l’achat porte la charge.');
+        $this->assertSame(1, PropositionStock::where('reference', $achat->numero_facture)->where('sens', 'entree')->count());
+
+        $controleur = app(PropositionStockControleur::class);
+        $controleur->valider(PropositionStock::where('reference', $achat->numero_facture)->first());
+        $this->assertEqualsWithDelta(5, StockService::disponible($sucre, $this->marcory->id), 0.001);
+    }
+
+    public function test_un_avoir_recu_devient_l_avoir_de_son_achat(): void
+    {
+        $recue = $this->facture('B000123X26000000002', ['paymentMethod' => 'deferred'], [['description' => 'Prestation', 'quantity' => 1, 'amount' => 5000]],
+            'Commerce', ['liste_portail' => 'received', 'emetteur_ncc' => '2201234K', 'emetteur_nom' => 'GROSSISTE SA']);
+        $achat = $this->service->integrer($recue, $this->entreprise, Auth::id(), ['point_de_vente_id' => $this->marcory->id]);
+
+        $avoirRecu = $this->facture('B000123X26000000003', ['parentReference' => 'B000123X26000000002'], [['description' => 'Prestation', 'quantity' => 1, 'amount' => 5000]],
+            'Commerce', ['liste_portail' => 'received', 'subtype' => 'refund', 'emetteur_ncc' => '2201234K', 'emetteur_nom' => 'GROSSISTE SA']);
+        $avoir = $this->service->integrer($avoirRecu, $this->entreprise, Auth::id());
+
+        $this->assertSame('avoir', $avoir->type_facture);
+        $this->assertSame($achat->id, $avoir->parent_id);
+        $this->assertSame($achat->fournisseur_id, $avoir->fournisseur_id);
     }
 }

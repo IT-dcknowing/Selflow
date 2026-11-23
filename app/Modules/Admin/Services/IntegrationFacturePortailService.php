@@ -2,6 +2,8 @@
 
 namespace App\Modules\Admin\Services;
 
+use App\Modules\Admin\Modeles\Achat;
+use App\Modules\Admin\Modeles\AchatDetail;
 use App\Modules\Admin\Modeles\Client;
 use App\Modules\Admin\Modeles\Entreprise;
 use App\Modules\Admin\Modeles\PointDeVente;
@@ -54,7 +56,38 @@ class IntegrationFacturePortailService
         'deferred'     => 'Crédit',
     ];
 
-    /** Les factures du portail qui attendent d'être intégrées. */
+    public const VENTE       = 'vente';
+    public const AVOIR_VENTE = 'avoir_vente';
+    public const ACHAT       = 'achat';
+    public const AVOIR_ACHAT = 'avoir_achat';
+
+    public const LIBELLES = [
+        self::VENTE       => 'Factures de vente émises',
+        self::AVOIR_VENTE => 'Avoirs émis à vos clients',
+        self::ACHAT       => 'Factures d’achat reçues',
+        self::AVOIR_ACHAT => 'Avoirs reçus de vos fournisseurs',
+    ];
+
+    /** La nature d'une pièce du portail, d'après sa liste et son sous-type. */
+    public static function nature(PortailFneFactureRecue $facture): ?string
+    {
+        $emise = $facture->liste_portail === PortailFneFactureRecue::LISTE_EMISES;
+        $recue = $facture->liste_portail === 'received';
+
+        return match (true) {
+            $emise && $facture->subtype === 'normal' => self::VENTE,
+            $emise && $facture->subtype === 'refund' => self::AVOIR_VENTE,
+            $recue && $facture->subtype === 'normal' => self::ACHAT,
+            $recue && $facture->subtype === 'refund' => self::AVOIR_ACHAT,
+            default => null,
+        };
+    }
+
+    /**
+     * Les pièces du portail qui attendent d'être intégrées : factures et
+     * avoirs, émis et reçus (23/11/2026, « tous les types dans le même
+     * style »).
+     */
     public function enAttente(Entreprise $entreprise): Collection
     {
         $this->rapprocherCeQueSelflowConnait($entreprise);
@@ -62,12 +95,15 @@ class IntegrationFacturePortailService
         return PortailFneFactureRecue::query()
             ->with('lignes')
             ->where('entreprise_id', $entreprise->id)
-            ->where('liste_portail', PortailFneFactureRecue::LISTE_EMISES)
-            ->where('subtype', 'normal')
+            ->whereIn('liste_portail', [PortailFneFactureRecue::LISTE_EMISES, 'received'])
+            ->whereIn('subtype', ['normal', 'refund'])
+            ->whereNull('achat_id')
             ->where(fn ($q) => $q->whereNull('statut_rapprochement')
                 ->orWhereNotIn('statut_rapprochement', [PortailFneFactureRecue::RAPPROCHEE, PortailFneFactureRecue::ECARTEE]))
             ->orderBy('date_facture')
-            ->get();
+            ->get()
+            ->reject(fn (PortailFneFactureRecue $f) => EcritureFactureRecueService::estNotrePropreBapa($f))
+            ->values();
     }
 
     /**
@@ -100,8 +136,26 @@ class IntegrationFacturePortailService
             ->get()
             ->keyBy('numero_fne');
 
+        // Les pièces reçues déjà saisies : l'achat porte le numéro du fournisseur.
+        $achats = Achat::query()
+            ->whereIn('numero_facture_fournisseur', $factures->where('liste_portail', 'received')->pluck('reference')->filter())
+            ->whereHas('pointDeVente', fn ($q) => $q->whereIn('entreprise_id', $memeNcc))
+            ->get()
+            ->keyBy('numero_facture_fournisseur');
+
         $n = 0;
         foreach ($factures as $facture) {
+            if ($facture->liste_portail === 'received') {
+                $achat = $achats->get($facture->reference);
+                if ($achat && !$facture->achat_id && (int) $achat->pointDeVente?->entreprise_id === (int) $entreprise->id) {
+                    $facture->update(['achat_id' => $achat->id, 'statut_rapprochement' => PortailFneFactureRecue::RAPPROCHEE,
+                        'note_rapprochement' => "Déjà dans Selflow : {$achat->numero_facture}."]);
+                    EcritureFactureRecueService::synchroniser($facture->refresh());
+                    $n++;
+                }
+                continue;
+            }
+
             $vente = $ventes->get($facture->reference);
             if (!$vente) {
                 continue;
@@ -128,7 +182,10 @@ class IntegrationFacturePortailService
     {
         $brut = (array) ($facture->contenu_brut ?? []);
 
-        $lignes = $facture->lignes->map(function ($ligne) use ($entreprise, $brut) {
+        $nature = self::nature($facture);
+        $estAchat = in_array($nature, [self::ACHAT, self::AVOIR_ACHAT], true);
+
+        $lignes = $facture->lignes->map(function ($ligne) use ($entreprise, $brut, $estAchat) {
             $produit = $this->articlePour($entreprise, $ligne->reference_article, $ligne->designation);
 
             return [
@@ -136,18 +193,26 @@ class IntegrationFacturePortailService
                 'produit' => $produit,
                 'taux'    => $this->tauxTva($ligne->taxes),
                 'compte'  => $produit
-                    ? ImputationService::compteVente($produit, $entreprise->id)
-                    : $this->compteLigneLibre($entreprise, $brut),
+                    ? ($estAchat ? ImputationService::compteAchat($produit, $entreprise->id) : ImputationService::compteVente($produit, $entreprise->id))
+                    : ($estAchat ? $this->compteAchatLigneLibre($entreprise) : $this->compteLigneLibre($entreprise, $brut)),
             ];
         });
 
+        // Une pièce reçue ne dit pas lequel de nos sites l'a reçue : à choisir,
+        // sauf si l'entreprise n'en a qu'un.
+        $nomSite = $estAchat ? '' : (string) ($brut['clientPointOfSale'] ?? '');
+
         return [
-            'point_de_vente' => $this->pointDeVentePour($entreprise, (string) ($brut['clientPointOfSale'] ?? '')),
-            'nom_point_de_vente' => (string) ($brut['clientPointOfSale'] ?? ''),
-            'client'         => $this->clientPour($entreprise, $brut),
-            'client_nom'     => trim((string) ($brut['clientCompanyName'] ?? '')) ?: 'Client de passage',
-            'client_ncc'     => trim((string) ($brut['clientNcc'] ?? '')),
+            'nature'         => $nature,
+            'point_de_vente' => $this->pointDeVentePour($entreprise, $nomSite),
+            'nom_point_de_vente' => $nomSite,
+            'client'         => $estAchat ? null : $this->clientPour($entreprise, $brut),
+            'client_nom'     => $estAchat
+                ? ($facture->emetteur_nom ?: 'Fournisseur')
+                : (trim((string) ($brut['clientCompanyName'] ?? '')) ?: 'Client de passage'),
+            'client_ncc'     => $estAchat ? (string) $facture->emetteur_ncc : trim((string) ($brut['clientNcc'] ?? '')),
             'mode_paiement'  => $this->mode($brut['paymentMethod'] ?? $facture->moyen_paiement),
+            'origine'        => trim((string) ($brut['parentReference'] ?? '')),
             'lignes'         => $lignes,
         ];
     }
@@ -174,12 +239,35 @@ class IntegrationFacturePortailService
             : (string) config('selflow.plan_comptable_defaut.vente_defaut', '701000');
     }
 
+    /** Le compte d'une ligne d'achat hors catalogue : configuration globale, sinon 601000. */
+    public function compteAchatLigneLibre(Entreprise $entreprise): string
+    {
+        return ImputationService::configurationGlobale(null, 'compte_achat', $entreprise->id)
+            ?? (string) config('selflow.plan_comptable_defaut.achat_defaut', '601000');
+    }
+
+    /**
+     * Intègre la pièce selon sa nature : vente, avoir de vente, achat, avoir d'achat.
+     *
+     * @param  array<string, mixed>  $choix
+     */
+    public function integrer(PortailFneFactureRecue $facture, Entreprise $entreprise, ?int $utilisateurId, array $choix = []): Vente|Achat
+    {
+        return match (self::nature($facture)) {
+            self::VENTE       => $this->integrerVente($facture, $entreprise, $utilisateurId, $choix),
+            self::AVOIR_VENTE => $this->integrerAvoirVente($facture, $entreprise, $utilisateurId, $choix),
+            self::ACHAT       => $this->integrerAchat($facture, $entreprise, $utilisateurId, $choix, false),
+            self::AVOIR_ACHAT => $this->integrerAchat($facture, $entreprise, $utilisateurId, $choix, true),
+            default           => throw new \DomainException("La pièce {$facture->reference} n'est ni une facture ni un avoir."),
+        };
+    }
+
     /**
      * Intègre la facture comme une vente normalisée.
      *
      * @param  array{point_de_vente_id?: int|null, lignes?: array<int, array{produit_id?: int|null, compte?: string|null}>}  $choix
      */
-    public function integrer(PortailFneFactureRecue $facture, Entreprise $entreprise, ?int $utilisateurId, array $choix = []): Vente
+    public function integrerVente(PortailFneFactureRecue $facture, Entreprise $entreprise, ?int $utilisateurId, array $choix = []): Vente
     {
         if ((int) $facture->entreprise_id !== (int) $entreprise->id) {
             throw new \DomainException('Cette facture du portail appartient à une autre entreprise.');
@@ -319,6 +407,301 @@ class IntegrationFacturePortailService
 
             return $vente;
         });
+    }
+
+    /**
+     * L'avoir émis sur le portail devient l'avoir de sa facture de vente.
+     *
+     * La facture d'origine doit être dans Selflow (normalisée par Selflow ou
+     * déjà intégrée) : un avoir s'écrit contre une vente. Les lignes sont
+     * celles que la DGI a certifiées ; la marchandise qui revient passe par
+     * une proposition d'entrée en stock.
+     */
+    private function integrerAvoirVente(PortailFneFactureRecue $facture, Entreprise $entreprise, ?int $utilisateurId, array $choix): Vente
+    {
+        $this->appartient($facture, $entreprise);
+        $brut = (array) ($facture->contenu_brut ?? []);
+        $origine = trim((string) ($brut['parentReference'] ?? ''));
+
+        $parent = $origine === '' ? null : Vente::query()
+            ->where('numero_fne', $origine)
+            ->whereHas('pointDeVente', fn ($q) => $q->where('entreprise_id', $entreprise->id))
+            ->first();
+
+        if (!$parent) {
+            throw new \DomainException("L'avoir {$facture->reference} corrige la facture « " . ($origine ?: 'inconnue')
+                . " », qui n'est pas dans Selflow : intégrez-la d'abord.");
+        }
+
+        $proposition = $this->proposer($facture, $entreprise);
+
+        return DB::transaction(function () use ($facture, $entreprise, $utilisateurId, $choix, $proposition, $parent) {
+            $facture = $this->verrouiller($facture);
+            if (Vente::where('numero_fne', $facture->reference)->exists()) {
+                throw new \DomainException("L'avoir {$facture->reference} est déjà dans Selflow.");
+            }
+
+            $pdvId  = (int) $parent->point_de_vente_id;
+            $numero = NumerotationService::genererNumeroVente($entreprise->id, 'Facture', 'avoir', $pdvId);
+            $date   = $facture->date_facture?->toDateString() ?? now()->toDateString();
+            $lien   = $facture->urlDeVerification();
+
+            $avoir = Vente::create([
+                'point_de_vente_id'   => $pdvId,
+                'utilisateur_id'      => $utilisateurId,
+                'client_id'           => $parent->client_id,
+                'numero_facture'      => $numero,
+                'date_vente'          => $date,
+                'mode_paiement'       => $parent->mode_paiement,
+                'montant_ht'          => (float) $facture->montant_ht,
+                'montant_tva'         => (float) $facture->montant_tva,
+                'montant_ttc'         => (float) $facture->montant_ttc,
+                'montant_autres_taxes'=> (float) ($facture->autres_taxes ?? 0),
+                'remise'              => 0,
+                'statut'              => 'Payé',
+                'type_facture'        => 'avoir',
+                'etape'               => 'Facture',
+                'parent_id'           => $parent->id,
+                'raison_avoir'        => 'Avoir émis sur le portail FNE de la DGI',
+                'normalise'           => true,
+                'numero_fne'          => $facture->reference,
+                'fne_invoice_id'      => $facture->fne_id,
+                'qr_code_data'        => $lien,
+                'fichier_fne_pdf_url' => $lien,
+                'fne_certifie_at'     => $facture->date_facture,
+                'fne_montant_ttc'     => (float) $facture->montant_ttc,
+                'fne_montant_tva'     => (float) $facture->montant_tva,
+                'fne_timbre_fiscal'   => (float) ($facture->timbre_fiscal ?? 0),
+                'autres_mentions'     => 'Avoir émis sur le portail FNE de la DGI, repris dans Selflow.',
+            ]);
+
+            $this->lignesDeVente($avoir, $proposition, $choix, $entreprise, $pdvId, 'entree', $numero);
+
+            ComptabiliteService::genererEcritureAvoirVente($avoir->fresh());
+
+            $facture->update([
+                'statut_rapprochement' => PortailFneFactureRecue::RAPPROCHEE,
+                'note_rapprochement'   => "Intégré comme {$numero}, avoir de {$parent->numero_facture}.",
+                'point_de_vente_id'    => $pdvId,
+            ]);
+
+            return $avoir;
+        });
+    }
+
+    /**
+     * La facture (ou l'avoir) reçue d'un fournisseur devient un achat (ou un
+     * avoir d'achat) de Selflow.
+     *
+     * Elle était déjà passée en écriture par `EcritureFactureRecueService` :
+     * rattachée à l'achat, cette écriture est contre-passée et c'est l'achat
+     * qui porte la charge, une seule fois. La marchandise passe par une
+     * proposition d'entrée (ou de sortie, pour un avoir).
+     */
+    private function integrerAchat(PortailFneFactureRecue $facture, Entreprise $entreprise, ?int $utilisateurId, array $choix, bool $estAvoir): Achat
+    {
+        $this->appartient($facture, $entreprise);
+        $proposition = $this->proposer($facture, $entreprise);
+
+        $pdvId = (int) ($choix['point_de_vente_id'] ?? $proposition['point_de_vente']?->id ?? 0);
+        $pdv = PointDeVente::where('entreprise_id', $entreprise->id)->find($pdvId);
+
+        $parent = null;
+        if ($estAvoir) {
+            $origine = $proposition['origine'];
+            $parent = $origine === '' ? null : Achat::query()
+                ->where('numero_facture_fournisseur', $origine)
+                ->whereHas('pointDeVente', fn ($q) => $q->where('entreprise_id', $entreprise->id))
+                ->first();
+            if (!$parent) {
+                throw new \DomainException("L'avoir {$facture->reference} corrige la facture fournisseur « " . ($origine ?: 'inconnue')
+                    . " », qui n'est pas dans Selflow : intégrez-la d'abord.");
+            }
+            $pdv = $pdv ?? $parent->pointDeVente;
+        }
+
+        if (!$pdv) {
+            throw new \DomainException("Choisissez le point de vente qui a reçu la pièce {$facture->reference}.");
+        }
+
+        return DB::transaction(function () use ($facture, $entreprise, $utilisateurId, $choix, $proposition, $pdv, $parent, $estAvoir) {
+            $facture = $this->verrouiller($facture);
+            if (Achat::where('numero_facture_fournisseur', $facture->reference)
+                ->whereHas('pointDeVente', fn ($q) => $q->where('entreprise_id', $entreprise->id))->exists()) {
+                throw new \DomainException("La pièce {$facture->reference} est déjà dans Selflow.");
+            }
+
+            $fournisseur = EcritureFactureRecueService::fournisseurDe($facture, $entreprise);
+            $mode   = $estAvoir ? ($parent->mode_paiement ?: 'Crédit') : $proposition['mode_paiement'];
+            $credit = $estAvoir || $mode === 'Crédit';
+            $numero = NumerotationService::genererNumeroAchat($entreprise->id, 'Facture', $estAvoir ? 'avoir' : null, $pdv->id);
+            $date   = $facture->date_facture?->toDateString() ?? now()->toDateString();
+
+            $achat = Achat::create(array_filter([
+                'point_de_vente_id'          => $pdv->id,
+                'utilisateur_id'             => $utilisateurId,
+                'fournisseur_id'             => $fournisseur->id,
+                'numero_facture'             => $numero,
+                'numero_facture_fournisseur' => $facture->reference,
+                'date_achat'                 => $date,
+                'mode_paiement'              => $mode,
+                'montant_ht'                 => (float) $facture->montant_ht,
+                'montant_tva'                => (float) $facture->montant_tva,
+                'montant_ttc'                => (float) $facture->montant_ttc,
+                'remise'                     => 0,
+                'statut'                     => $estAvoir ? 'Payé' : ($credit ? 'Crédit' : 'Payé'),
+                'etape'                      => 'Facture',
+                'type_facture'               => $estAvoir ? 'avoir' : 'normale',
+                'parent_id'                  => $parent?->id,
+                'autres_mentions'            => 'Pièce certifiée reçue sur le portail FNE de la DGI, reprise dans Selflow.',
+            ], fn ($v) => $v !== null));
+
+            $avecCompte = Schema::hasColumn('achat_details', 'compte_achat');
+
+            foreach ($proposition['lignes'] as $i => $p) {
+                $ligne = $p['ligne'];
+                $produit = $this->produitChoisi($p, $choix, $i, $entreprise);
+                $quantite = (float) $ligne->quantite;
+                $prix     = (float) $ligne->prix_unitaire;
+                $remise   = (float) ($ligne->remise ?? 0);
+                $ht       = round($quantite * $prix * (1 - $remise / 100), 2);
+                $tva      = round($ht * $p['taux'] / 100, 2);
+                $compte   = trim((string) ($choix['lignes'][$i]['compte'] ?? '')) ?: $p['compte'];
+
+                $detail = AchatDetail::create(array_filter([
+                    'achat_id'              => $achat->id,
+                    'produit_id'            => $produit?->id,
+                    'reference_produit'     => $produit?->reference ?? $ligne->reference_article,
+                    'libelle_virtuel'       => $produit ? null : ($ligne->designation ?: 'Ligne du portail FNE'),
+                    'quantite'              => $quantite,
+                    // L'entrée en stock passe par une proposition : marquée
+                    // reçue, la ligne ne revient pas dans la file des réceptions.
+                    'quantite_receptionnee' => $quantite,
+                    'unite'                 => $ligne->unite ?: 'Unité',
+                    'prix_unitaire'         => $prix,
+                    'remise_taux'           => $remise,
+                    'montant_tva'           => $tva,
+                    'montant_ttc'           => $ht + $tva,
+                    'compte_achat'          => ($avecCompte && !$produit) ? $compte : null,
+                ], fn ($v) => $v !== null));
+
+                $this->proposerMouvement($entreprise, $pdv->id, $produit, $estAvoir ? 'sortie' : 'entree', $quantite, $numero, null);
+            }
+
+            $achat->refresh();
+
+            if ($estAvoir) {
+                ComptabiliteService::genererEcritureAvoirAchat($achat);
+            } else {
+                $paye = $credit ? 0.0 : (float) $achat->montant_ttc;
+                ComptabiliteService::genererEcrituresAchat($achat, $paye, $mode, $date);
+
+                if ($paye > 0) {
+                    $solde = TresorerieJournal::where('point_de_vente_id', $pdv->id)->orderByDesc('created_at')->value('solde_resultat') ?? 0;
+                    TresorerieJournal::create([
+                        'point_de_vente_id'  => $pdv->id,
+                        'date_operation'     => $date,
+                        'type_operation'     => 'Décaissement',
+                        'libelle'            => ComptabiliteService::libelleTresorerieAchat($achat),
+                        'mode_paiement'      => $mode,
+                        'montant_entree'     => 0,
+                        'montant_sortie'     => $paye,
+                        'solde_resultat'     => $solde - $paye,
+                        'reference_document' => $numero,
+                    ]);
+                }
+            }
+
+            $facture->update([
+                'achat_id'             => $achat->id,
+                'statut_rapprochement' => PortailFneFactureRecue::RAPPROCHEE,
+                'note_rapprochement'   => "Intégrée comme {$numero}.",
+                'point_de_vente_id'    => $pdv->id,
+            ]);
+
+            // L'écriture passée à la réception du relevé est contre-passée :
+            // l'achat porte désormais la charge.
+            EcritureFactureRecueService::synchroniser($facture->refresh());
+
+            return $achat;
+        });
+    }
+
+    /** Les lignes d'une vente ou d'un avoir de vente, et leurs propositions de stock. */
+    private function lignesDeVente(Vente $vente, array $proposition, array $choix, Entreprise $entreprise, int $pdvId, string $sens, string $numero): void
+    {
+        $avecCompte = Schema::hasColumn('vente_details', 'compte_vente');
+
+        foreach ($proposition['lignes'] as $i => $p) {
+            $ligne = $p['ligne'];
+            $produit = $this->produitChoisi($p, $choix, $i, $entreprise);
+            $quantite = (float) $ligne->quantite;
+            $prix     = (float) $ligne->prix_unitaire;
+            $remise   = (float) ($ligne->remise ?? 0);
+            $ht       = round($quantite * $prix * (1 - $remise / 100), 2);
+            $tva      = round($ht * $p['taux'] / 100, 2);
+            $compte   = trim((string) ($choix['lignes'][$i]['compte'] ?? '')) ?: $p['compte'];
+
+            $detail = VenteDetail::create(array_filter([
+                'vente_id'          => $vente->id,
+                'produit_id'        => $produit?->id,
+                'reference_produit' => $produit?->reference ?? $ligne->reference_article,
+                'libelle_virtuel'   => $produit ? null : ($ligne->designation ?: 'Ligne du portail FNE'),
+                'quantite'          => $quantite,
+                'quantite_livree'   => $quantite,
+                'unite'             => $ligne->unite ?: 'Unité',
+                'prix_unitaire'     => $prix,
+                'remise_taux'       => $remise,
+                'montant_tva'       => $tva,
+                'montant_ttc'       => $ht + $tva,
+                'compte_vente'      => ($avecCompte && !$produit) ? $compte : null,
+            ], fn ($v) => $v !== null));
+
+            $this->proposerMouvement($entreprise, $pdvId, $produit, $sens, $quantite, $numero, $vente, $detail->id);
+        }
+    }
+
+    private function produitChoisi(array $p, array $choix, int $i, Entreprise $entreprise): ?Produit
+    {
+        if (array_key_exists('produit_id', $choix['lignes'][$i] ?? [])) {
+            $choisi = $choix['lignes'][$i]['produit_id'];
+
+            return $choisi ? Produit::where('entreprise_id', $entreprise->id)->find((int) $choisi) : null;
+        }
+
+        return $p['produit'];
+    }
+
+    private function proposerMouvement(Entreprise $entreprise, int $pdvId, ?Produit $produit, string $sens, float $quantite, string $numero, ?Vente $vente, ?int $detailId = null): void
+    {
+        if (!$produit || !$produit->estStockable() || !PropositionStock::disponible()) {
+            return;
+        }
+
+        PropositionStock::create([
+            'entreprise_id'     => $entreprise->id,
+            'point_de_vente_id' => $pdvId,
+            'produit_id'        => $produit->id,
+            'vente_id'          => $vente?->id,
+            'vente_detail_id'   => $detailId,
+            'sens'              => $sens,
+            'quantite'          => $quantite,
+            'origine'           => 'portail_fne',
+            'reference'         => $numero,
+            'statut'            => PropositionStock::PROPOSEE,
+        ]);
+    }
+
+    private function appartient(PortailFneFactureRecue $facture, Entreprise $entreprise): void
+    {
+        if ((int) $facture->entreprise_id !== (int) $entreprise->id) {
+            throw new \DomainException('Cette pièce du portail appartient à une autre entreprise.');
+        }
+    }
+
+    private function verrouiller(PortailFneFactureRecue $facture): PortailFneFactureRecue
+    {
+        return PortailFneFactureRecue::whereKey($facture->id)->lockForUpdate()->firstOrFail();
     }
 
     /** Écarter une facture : elle ne sera plus proposée. */
