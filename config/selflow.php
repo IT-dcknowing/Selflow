@@ -18,6 +18,19 @@ return [
     | `domaine_racine` ; `ip_serveur` et `cible_cname` sont ce qu'on inscrit
     | dans les DNS d'un domaine propre, et ce que vérifie le superadmin.
     */
+    /*
+    | L'API de cPanel, pour créer l'adresse d'un espace sur mesure depuis le
+    | superadmin (23/11/2026). `dossier_selflow` : la racine du document de
+    | selflow.dc-knowing.com, relative au dossier personnel (ex.
+    | public_html/Selflow/public). Sans jeton, la procédure reste manuelle.
+    */
+    'cpanel' => [
+        'hote'            => env('CPANEL_HOTE'),
+        'utilisateur'     => env('CPANEL_UTILISATEUR'),
+        'jeton'           => env('CPANEL_JETON'),
+        'dossier_selflow' => env('CPANEL_DOSSIER_SELFLOW'),
+    ],
+
     'sur_mesure' => [
         // Selflow est servi à selflow.dc-knowing.com : les espaces prennent la
         // forme formen.dc-knowing.com.

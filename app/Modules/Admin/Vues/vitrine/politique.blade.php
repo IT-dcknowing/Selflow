@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Politique d'utilisation · Selflow</title>
+@include('admin::vitrine._seo', ['titre' => "Politique d'utilisation · Selflow", 'description' => "Politique d'utilisation de Selflow, logiciel de facturation FNE de DC-Knowing : compte, données, facture normalisée, conservation des pièces et abonnement.", 'chemin' => '/politique-utilisation'])
 <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/selflow/favicon-32.png') }}">
 <link rel="stylesheet" href="{{ asset('vendor/inter/inter.css') }}">
 <style>

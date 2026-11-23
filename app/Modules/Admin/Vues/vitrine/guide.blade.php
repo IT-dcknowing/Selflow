@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Guide d'utilisation · Selflow</title>
-<meta name="description" content="Guide d'utilisation de Selflow : compte, paramétrage, points de vente, ventes, FNE, achats, stock, trésorerie, comptabilité et abonnement.">
+@include('admin::vitrine._seo', ['titre' => "Guide d'utilisation · Selflow", 'description' => "Guide d'utilisation de Selflow : compte, paramétrage, points de vente, ventes, FNE, achats, stock, trésorerie, comptabilité et abonnement.", 'chemin' => '/guide'])
 <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/selflow/favicon-32.png') }}">
 <link rel="stylesheet" href="{{ asset('vendor/inter/inter.css') }}">
 <link rel="stylesheet" href="{{ asset('vendor/fontawesome/css/all.min.css') }}">

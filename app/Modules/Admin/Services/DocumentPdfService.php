@@ -144,6 +144,12 @@ class DocumentPdfService
         ], 'A4', $entreprise->nom . ' — Inventaire ' . $donnees['site']->nom);
     }
 
+    /** La liste des entreprises du superadministrateur, en A4 paysage (23/11/2026). */
+    public function listeEntreprises(array $donnees): string
+    {
+        return $this->rendre('admin::superadmin.entreprises.export_pdf', $donnees, [297, 210], 'Selflow · Entreprises · ' . now()->format('d/m/Y'));
+    }
+
     /**
      * Le rapport d'activité de l'entreprise, en A4 (23/11/2026), avec les
      * données mêmes de l'écran « Analyse d'activité ».

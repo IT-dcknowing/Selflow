@@ -504,6 +504,22 @@
 
 @section('scripts')
 <script>
+// Prestataires (« Réalisé par »), module de l'espace sur mesure (23/11/2026).
+const INTERVENANTS = @json(\App\Modules\Admin\Modeles\Intervenant::pourLaVente(auth()->user()->entreprise));
+function selecteurIntervenant(id, item) {
+    if (!INTERVENANTS.length) return '';
+    const options = INTERVENANTS.map(i => `<option value="${i.id}" ${String(item.intervenant_id || '') === String(i.id) ? 'selected' : ''}>${i.nom.replace(/</g, '&lt;')}</option>`).join('');
+    return `<label>Réalisé par
+        <select class="form-control form-control-sm" onchange="saisirIntervenant('${id}', this.value)" style="width: 140px;"><option value="">—</option>${options}</select>
+    </label>`;
+}
+function saisirIntervenant(id, val) {
+    if (!panier[id]) return;
+    panier[id].intervenant_id = val;
+    const champ = document.querySelector(`input.article-input[data-intervenant="${id}"]`);
+    if (champ) champ.value = val;
+    if (typeof savePanier === 'function') savePanier();
+}
 // Initialisation du panier pré-rempli avec les détails existants de la vente
 const panier = {
     @foreach($vente->details as $detail)
@@ -517,6 +533,7 @@ const panier = {
                 unite: @js($detail->unite ?? 'Unité'),
                 tva: {{ $detail->produit ? $detail->produit->taux_tva : 18 }},
                 remise_taux: {{ (float) ($detail->remise_taux ?? 0) }},
+                intervenant_id: @js($detail->intervenant_id ?? null),
                 suitLeStock: {{ $detail->produit->estStockable() ? 'true' : 'false' }},
                 isVirtual: false
             },
@@ -530,6 +547,7 @@ const panier = {
                 unite: @js($detail->unite ?? 'Unité'),
                 tva: {{ $detail->montant_tva > 0 ? 18 : 0 }},
                 remise_taux: {{ (float) ($detail->remise_taux ?? 0) }},
+                intervenant_id: @js($detail->intervenant_id ?? null),
                 isVirtual: true
             },
         @endif
@@ -857,6 +875,7 @@ function renderPanier() {
                     <label>TVA
                         ${selecteurCodeTva(id, item)}
                     </label>
+                    ${selecteurIntervenant(id, item)}
                 </div>
                 ${alerteCodeTva(item)}
             </div>
@@ -872,7 +891,7 @@ function renderPanier() {
         container.appendChild(div);
 
         const form = document.getElementById('formVente');
-        ['produit_id', 'quantite', 'libelle_virtuel', 'prix_unitaire', 'unite', 'tva', 'remise_taux'].forEach(field => {
+        ['produit_id', 'quantite', 'libelle_virtuel', 'prix_unitaire', 'unite', 'tva', 'remise_taux', 'intervenant_id'].forEach(field => {
             const input = document.createElement('input');
             input.type = 'hidden';
             input.name = `articles[${idx}][${field}]`;
@@ -885,6 +904,10 @@ function renderPanier() {
                 input.value = item.isVirtual ? item.nom : '';
             } else if (field === 'prix_unitaire') {
                 input.value = item.prix;
+            } else if (field === 'intervenant_id') {
+                if (!INTERVENANTS.length) return;
+                input.value = item.intervenant_id || '';
+                input.dataset.intervenant = id;
             } else if (field === 'unite') {
                 input.value = item.unite || 'Unité';
             } else if (field === 'tva') {

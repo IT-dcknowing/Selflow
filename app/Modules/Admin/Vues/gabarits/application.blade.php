@@ -1075,6 +1075,12 @@
             <a href="{{ route('admin.ventes.portail_fne.index') }}" class="nav-item {{ request()->routeIs('admin.ventes.portail_fne.*') ? 'active' : '' }}">
                 <i class="fas fa-file-import"></i> Factures FNE à intégrer
             </a>
+            @if(\App\Modules\Admin\Modeles\Intervenant::moduleActif(auth()->user()->entreprise))
+            {{-- Les prestataires (« Réalisé par »), module sur mesure (23/11/2026). --}}
+            <a href="{{ route('admin.intervenants.index') }}" class="nav-item {{ request()->routeIs('admin.intervenants.*') ? 'active' : '' }}">
+                <i class="fas fa-scissors"></i> Prestataires
+            </a>
+            @endif
             {{-- Les stickers certifient les factures : la demande vit avec elles.
                  DC-Knowing les achète pour l'entreprise (retest d'octobre 2026). --}}
             @endif

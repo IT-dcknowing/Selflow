@@ -593,7 +593,7 @@
                                 <button type="button" class="btn payment-toggle-btn active" data-mode="Caisse" onclick="selectionnerModePaiement(this)" style="flex:1; justify-content:center; padding:8px 0; font-size:12px; font-weight:700; border-radius:8px;">Caisse</button>
                                 <button type="button" class="btn payment-toggle-btn" data-mode="Banque" onclick="selectionnerModePaiement(this)" style="flex:1; justify-content:center; padding:8px 0; font-size:12px; font-weight:700; border-radius:8px;">Banque</button>
                                 <button type="button" class="btn payment-toggle-btn" data-mode="Mobile Money" onclick="selectionnerModePaiement(this)" style="flex:1.2; justify-content:center; padding:8px 0; font-size:12px; font-weight:700; border-radius:8px; white-space:nowrap;">Mobile Money</button>
-                                <button type="button" class="btn payment-toggle-btn" data-mode="Crédit" onclick="selectionnerModePaiement(this)" style="flex:1; justify-content:center; padding:8px 0; font-size:12px; font-weight:700; border-radius:8px;">Crédit</button>
+                                <button type="button" class="btn payment-toggle-btn" data-mode="Crédit" onclick="selectionnerModePaiement(this)" style="flex:1; justify-content:center; padding:8px 0; font-size:12px; font-weight:700; border-radius:8px;" title="{{ \App\Modules\Admin\Modeles\EspaceSurMesure::pourEntreprise((int) auth()->user()->entreprise_id)?->moduleActif('facture_attente') ? 'La facture est établie maintenant ; le règlement s\'enregistre plus tard (« Encaisser » dans la liste des factures).' : '' }}">{{ \App\Modules\Admin\Modeles\EspaceSurMesure::pourEntreprise((int) auth()->user()->entreprise_id)?->moduleActif('facture_attente') ? 'En attente' : 'Crédit' }}</button>
                             </div>
                         </div>
 
@@ -887,6 +887,22 @@
 
 @section('scripts')
 <script>
+// Prestataires (« Réalisé par »), module de l'espace sur mesure (23/11/2026).
+const INTERVENANTS = @json(\App\Modules\Admin\Modeles\Intervenant::pourLaVente(auth()->user()->entreprise));
+function selecteurIntervenant(id, item) {
+    if (!INTERVENANTS.length) return '';
+    const options = INTERVENANTS.map(i => `<option value="${i.id}" ${String(item.intervenant_id || '') === String(i.id) ? 'selected' : ''}>${i.nom.replace(/</g, '&lt;')}</option>`).join('');
+    return `<label>Réalisé par
+        <select class="form-control form-control-sm" onchange="saisirIntervenant('${id}', this.value)" style="width: 140px;"><option value="">—</option>${options}</select>
+    </label>`;
+}
+function saisirIntervenant(id, val) {
+    if (!panier[id]) return;
+    panier[id].intervenant_id = val;
+    const champ = document.querySelector(`input.article-input[data-intervenant="${id}"]`);
+    if (champ) champ.value = val;
+    if (typeof savePanier === 'function') savePanier();
+}
 const panier = {};
 const stocks = {};
 
@@ -1504,6 +1520,7 @@ function renderPanier() {
                     <label>TVA
                         ${selecteurCodeTva(id, item)}
                     </label>
+                    ${selecteurIntervenant(id, item)}
                 </div>
                 ${alerteCodeTva(item)}
             </div>
@@ -1519,7 +1536,7 @@ function renderPanier() {
         container.appendChild(div);
 
         const form = document.getElementById('formVente');
-        ['produit_id', 'quantite', 'libelle_virtuel', 'prix_unitaire', 'unite', 'tva', 'remise_taux', 'code_tva', 'ajouter_catalogue'].forEach(field => {
+        ['produit_id', 'quantite', 'libelle_virtuel', 'prix_unitaire', 'unite', 'tva', 'remise_taux', 'code_tva', 'ajouter_catalogue', 'intervenant_id'].forEach(field => {
             const input = document.createElement('input');
             input.type = 'hidden';
             input.name = `articles[${idx}][${field}]`;
@@ -1532,6 +1549,10 @@ function renderPanier() {
                 input.value = item.isVirtual ? item.nom : '';
             } else if (field === 'prix_unitaire') {
                 input.value = item.prix;
+            } else if (field === 'intervenant_id') {
+                if (!INTERVENANTS.length) return;
+                input.value = item.intervenant_id || '';
+                input.dataset.intervenant = id;
             } else if (field === 'unite') {
                 input.value = item.unite || 'Unité';
             } else if (field === 'tva') {

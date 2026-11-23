@@ -209,8 +209,14 @@ class DeversementHistoriqueService
             ->map(fn ($lignes, $operationId) => [
                 'operation_id' => (int) $operationId,
                 'motif' => $lignes->pluck('comptaflow_sync_error')->filter()->unique()->implode(' ; ')
-                    ?: 'Échec signalé sans détail par Comptaflow.',
+                    // Pas de motif : un échec de l'ancien envoi ligne à ligne, qui
+                    // n'en notait aucun. Ce n'est pas Comptaflow qui s'est tu.
+                    ?: 'Ancien échec, sans motif enregistré. « Relancer les échecs » le renverra et notera la vraie raison.',
             ])->values()->all();
+
+        // La file d'attente du serveur avance-t-elle ? Des envois en attente
+        // depuis plus de 5 minutes : le planificateur (cron) ne tourne pas.
+        $file = self::etatDeLaFile();
 
         return [
             'total' => $total,
@@ -220,7 +226,25 @@ class DeversementHistoriqueService
             'en_echec' => $enEchec,
             'progression' => $total > 0 ? (int) floor(($recues / $total) * 100) : 100,
             'erreurs' => $erreurs,
+            'file' => $file,
         ];
+    }
+
+    /** @return array{en_attente:int, plus_ancienne_minutes:?int, bloquee:bool} */
+    public static function etatDeLaFile(): array
+    {
+        try {
+            if (config('queue.default') !== 'database' || ! \Illuminate\Support\Facades\Schema::hasTable('jobs')) {
+                return ['en_attente' => 0, 'plus_ancienne_minutes' => null, 'bloquee' => false];
+            }
+            $nombre = \Illuminate\Support\Facades\DB::table('jobs')->count();
+            $plusAncienne = \Illuminate\Support\Facades\DB::table('jobs')->min('created_at');
+            $minutes = $plusAncienne ? (int) floor((time() - (int) $plusAncienne) / 60) : null;
+
+            return ['en_attente' => $nombre, 'plus_ancienne_minutes' => $minutes, 'bloquee' => $nombre > 0 && $minutes !== null && $minutes >= 5];
+        } catch (\Throwable) {
+            return ['en_attente' => 0, 'plus_ancienne_minutes' => null, 'bloquee' => false];
+        }
     }
 
     /**

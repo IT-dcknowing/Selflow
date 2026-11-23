@@ -11422,6 +11422,56 @@ choix du superadmin par entreprise ; les DNS sont gérés par DC-Knowing ;
 - Migration `2026_11_23_000006` (gardée). `SurMesureMetierBeauteTest` (6).
   Suite : 213, identiques à `main`.
 
+
+### Lot 154 — Pages par entreprise, prestataires, facture en attente, exports, SEO, Comptaflow — **TERMINÉ le 23/11/2026**
+
+- **Factures FNE à intégrer** : « Tout intégrer » tourne sur le serveur
+  (`IntegrationPortailEnArrierePlan`, commande `portail-fne:integrer-demandes`
+  chaque minute) : on peut quitter la page, changer d'entreprise ou revenir au
+  superadmin, la barre de progression reprend au retour. Filet : si le
+  planificateur n'a pas touché la demande depuis 90 s, la page ouverte fait
+  avancer un lot. Une page au-delà de la dernière ramène à la dernière (« page
+  5 » vide alors que 84 pièces attendaient).
+- **Comptaflow** (diagnostic) : « Échec signalé sans détail par Comptaflow »
+  n'était pas une réponse de Comptaflow mais des échecs anciens (envoi ligne à
+  ligne) sans motif enregistré : message corrigé, « Relancer les échecs » les
+  renverra. Les 128 « en cours » attendent dans la file `jobs`, que seul
+  `schedule:run` (cron) traite : l'écran le dit désormais quand la file est
+  bloquée depuis 5 min. Corrigés : lignes au statut NULL oubliées par la mise
+  en file ; travail abandonné (délai, tentatives) qui laissait ses lignes « en
+  cours » pour toujours (`failed()` les passe en échec avec la raison).
+- **Paramètres** : raccourcis sur une seule barre collante qui défile de côté ;
+  « Votre configuration » tient sur une ligne, détail repliable.
+- **Sur mesure, onglet « Modules et pages »** : toutes les pages de Selflow par
+  module (catalogue des habilitations) ; décochée, une page disparaît du menu
+  et renvoie 403 pour tous les utilisateurs de l'entreprise, administrateur
+  compris (`pages_retirees`, `Utilisateur::aHabilitation`,
+  `Habilitations::ouvre`, `VerifierHabilitationRoute`).
+- **Adresse créée depuis le superadmin** : `CpanelService` (API cPanel, jeton
+  `CPANEL_*`) crée le sous-domaine ou le domaine propre et demande AutoSSL ;
+  sans jeton, la procédure manuelle reste affichée.
+- **Modules métier indépendants de l'adresse** : seuls l'accueil et la
+  connexion attendent « Espace actif » ; couleurs, fiche client, facture
+  par e-mail, prestataires, facture en attente s'appliquent dès qu'ils sont
+  cochés (`MODULES_D_ADRESSE`).
+- **Module « Prestataires »** (FOR MEN) : table `intervenants`,
+  `vente_details.intervenant_id` ; « Réalisé par » sur chaque ligne de la
+  nouvelle vente et de la modification ; page « Prestataires » (ajout,
+  retrait, prestations, clients et chiffre par période, dernières
+  prestations). Un prestataire d'une autre entreprise n'est jamais écrit.
+- **Module « Facture en attente de règlement »** : « Crédit » devient « En
+  attente » à la vente ; la liste affiche « En attente de règlement » et un
+  bouton « Encaisser » (règlement espèces ou Mobile Money par
+  `enregistrer_reglement`, la banque reste dans Créances & règlements).
+- **Superadmin, Entreprises** : export PDF (A4 paysage) et Excel, avec les
+  filtres de l'écran.
+- **Référencement** : titre et description orientés recherche (« logiciel de
+  facturation FNE Côte d'Ivoire »), mots-clés, canonique, Open Graph,
+  données structurées (Organization, SoftwareApplication avec offres,
+  FAQPage), `sitemap.xml`, `robots.txt` (espaces privés exclus).
+- Migrations `2026_11_23_000007` et `000008` (gardées).
+  `SurMesurePagesPrestatairesTest` (7). Suite : 213, identiques à `main`.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

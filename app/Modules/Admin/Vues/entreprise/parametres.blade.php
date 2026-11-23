@@ -123,24 +123,23 @@
             ],
         ];
     @endphp
-    <nav aria-label="Sections des paramètres"
-         style="display:flex;flex-wrap:wrap;gap:18px 26px;margin-bottom:24px;padding:14px 16px;
-                background:var(--bg3);border:1px solid var(--border);border-radius:12px;">
+    {{-- 23/11/2026 : une seule barre, collée sous l'en-tête, qui défile de
+         côté sur petit écran. Les quatre blocs empilés prenaient un demi-écran. --}}
+    <style>
+        .param-barre { position:sticky; top:var(--topbar-h, 64px); z-index:20; display:flex; align-items:center; gap:4px; overflow-x:auto; scrollbar-width:thin;
+            margin:0 0 18px; padding:8px 10px; background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:0 6px 16px -14px rgba(15,23,42,.4); }
+        .param-barre .famille { font-size:10px; font-weight:800; color:var(--text-3); text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; padding:0 4px 0 8px; }
+        .param-barre .famille:not(:first-child) { border-left:1px solid var(--border); margin-left:4px; padding-left:12px; }
+        .param-barre a { display:inline-flex; align-items:center; gap:5px; padding:5px 9px; border-radius:8px; color:var(--text-2); font-size:12px; font-weight:600; text-decoration:none; white-space:nowrap; }
+        .param-barre a:hover { background:var(--bg3); color:var(--primary); }
+        .param-barre a i { color:var(--primary); font-size:10.5px; }
+    </style>
+    <nav aria-label="Sections des paramètres" class="param-barre">
         @foreach($familles as $famille => $ancres)
-        <div>
-            <div style="font-size:10.5px;font-weight:700;color:var(--text-3);text-transform:uppercase;
-                        letter-spacing:.6px;margin-bottom:8px;">{{ $famille }}</div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px;">
-                @foreach($ancres as $ancre => [$libelle, $icone])
-                <a href="#{{ $ancre }}"
-                   style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;
-                          background:var(--surface);border:1px solid var(--border);color:var(--text-2);
-                          font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;">
-                    <i class="fas {{ $icone }}" style="color:var(--primary);font-size:11px;"></i>{{ $libelle }}
-                </a>
-                @endforeach
-            </div>
-        </div>
+            <span class="famille">{{ $famille }}</span>
+            @foreach($ancres as $ancre => [$libelle, $icone])
+                <a href="#{{ $ancre }}"><i class="fas {{ $icone }}"></i>{{ $libelle }}</a>
+            @endforeach
         @endforeach
     </nav>
 
@@ -151,14 +150,8 @@
          cet écran et souscrire au métier « Boulangerie » dans l'autre, et les
          deux réponses cohabitaient sans que rien ne le signale. Le domaine se
          choisit désormais **au parcours**, et se lit ici. --}}
-    <div class="card" style="padding:22px 24px;margin-bottom:22px;">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap;">
-            <div style="flex:1;min-width:280px;">
-                <div
-                    style="font-size:12px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;display:flex;align-items:center;gap:8px;">
-                    <i class="fas fa-sliders" style="color:var(--primary);"></i> Votre configuration
-                </div>
-
+    {{-- ══ Votre configuration ══ (23/11/2026 : une ligne ; le détail se déplie) --}}
+    <div class="card" style="padding:14px 18px;margin-bottom:22px;">
                 @php
                     // Les noms sont ceux de la barre latérale, pris à la même
                     // source. L'écran fabriquait le sien à partir du code —
@@ -173,26 +166,34 @@
                         ['Modules ouverts', array_map($nommer, $configuration['modules'] ?? [])],
                     ];
                 @endphp
-
-                {{-- Trois lignes, un intitulé et ses valeurs. Elles etaient
-                     posees cote a cote sans largeur commune : les pastilles ne
-                     s'alignaient pas d'une ligne a l'autre, et l'oeil ne
-                     retrouvait pas ou commencait chaque reponse. --}}
+        <details>
+            <summary style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;cursor:pointer;list-style:none;">
+                <span style="font-size:12px;font-weight:800;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;">
+                    <i class="fas fa-sliders" style="color:var(--primary);"></i> Votre configuration
+                </span>
+                <span style="flex:1;min-width:200px;font-size:13px;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                    {{ implode(', ', $configuration['domaines'] ?? []) ?: 'Domaine à choisir' }}
+                    · {{ count($configuration['metiers'] ?? []) }} métier{{ count($configuration['metiers'] ?? []) > 1 ? 's' : '' }}
+                    · {{ count($configuration['modules'] ?? []) }} module{{ count($configuration['modules'] ?? []) > 1 ? 's' : '' }} ouverts
+                </span>
+                <span style="font-size:12px;color:var(--primary);font-weight:700;white-space:nowrap;">Voir le détail <i class="fas fa-chevron-down" style="font-size:10px;"></i></span>
+                <a href="{{ route('admin.souscription.index', ['etape' => 1]) }}" class="btn btn-primary btn-sm" onclick="event.stopPropagation()"
+                   title="Le parcours repart du choix du domaine. Rien de ce que vous avez déjà n'est perdu : ce qui est souscrit revient coché."
+                   style="white-space:nowrap;"><i class="fas fa-plus"></i> Ajouter une configuration</a>
+            </summary>
+            <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
                 <div style="display:grid;grid-template-columns:120px 1fr;gap:10px 14px;align-items:start;">
                     @foreach($lignesConfig as [$intitule, $valeurs])
                         <span style="font-size:12px;color:var(--text-3);padding-top:4px;">{{ $intitule }}</span>
                         <div style="display:flex;flex-wrap:wrap;gap:6px;">
-                                @forelse($valeurs as $valeur)
-                                    <span
-                                        style="display:inline-block;padding:4px 11px;border-radius:20px;background:var(--bg3);border:1px solid var(--border);font-size:12px;font-weight:600;">{{ $valeur }}</span>
-                                @empty
-                                    <span style="font-size:12px;color:var(--text-3);font-style:italic;">— pas encore
-                                        choisi —</span>
-                        @endforelse
+                            @forelse($valeurs as $valeur)
+                                <span style="display:inline-block;padding:3px 10px;border-radius:20px;background:var(--bg3);border:1px solid var(--border);font-size:12px;font-weight:600;">{{ $valeur }}</span>
+                            @empty
+                                <span style="font-size:12px;color:var(--text-3);font-style:italic;">pas encore choisi</span>
+                            @endforelse
                         </div>
                     @endforeach
                 </div>
-
                 @if(!empty($configuration['rouverts']))
                     <p
                         style="margin-top:14px;font-size:12px;line-height:1.6;color:#92400E;background:#FFFBEB;border:1px solid #FCD34D;border-radius:8px;padding:11px 14px;">
@@ -217,32 +218,9 @@
                         menu les écrans où ces données se lisent.
                     </p>
                 @endif
+                <small style="display:block;margin-top:10px;font-size:11px;color:var(--text-3);line-height:1.55;">« Ajouter une configuration » repart du choix du domaine, puis les métiers, les modules, les rayons et les prix. Rien de ce que vous avez déjà n'est perdu.</small>
             </div>
-
-            {{-- Le parcours de configuration n'était accessible qu'une fois, au
-                 démarrage. Une entreprise qui ajoute un métier, ouvre un rayon ou
-                 veut rouvrir un module n'avait plus aucun chemin pour y revenir.
-                 Il se reprend ici, à l'étape qu'on veut : rien n'y est écrasé, et
-                 ce qui a déjà été coché revient coché. --}}
-            <div style="display:flex;flex-direction:column;gap:8px;align-items:stretch;min-width:210px;">
-                {{-- `etape => 1` est indispensable. Sans elle, le parcours
-                     s'ouvre à la dernière étape atteinte — la cinquième pour
-                     une entreprise déjà configurée, c'est-à-dire l'écran des
-                     prix. Le bouton servait donc à tout sauf à ce qu'on lui
-                     demandait : ajouter un domaine ou un métier. --}}
-                <a href="{{ route('admin.souscription.index', ['etape' => 1]) }}" class="btn btn-primary"
-                    style="display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;">
-                    <i class="fas fa-plus"></i>
-                    Ajouter une configuration
-                </a>
-                <small style="font-size:11px;color:var(--text-3);line-height:1.55;">
-                    Le parcours repart du choix du domaine, puis les métiers, les modules, les
-                    rayons et les prix. <strong>Rien de ce que vous avez déjà n'est perdu</strong> :
-                    ajouter un domaine ou un métier n'efface jamais les précédents, et ce qui est
-                    souscrit revient coché.
-                </small>
-            </div>
-        </div>
+        </details>
     </div>
 
     @if(session('succes'))
@@ -1977,11 +1955,16 @@ function afficherEtatDeversement(etat) {
         message.textContent = 'Aucune opération autorisée à déverser pour le moment.';
         message.style.color = '#64748b';
     } else if ((etat.en_echec ?? 0) > 0) {
-        message.textContent = (etat.en_echec) + ' opération(s) en échec. Consultez les motifs ci-dessous ; le transfert n’est pas terminé.';
+        message.textContent = (etat.en_echec) + ' opération(s) en échec. Consultez les motifs ci-dessous ; le transfert n’est pas terminé.'
+            + ((etat.file && etat.file.bloquee) ? ' Par ailleurs, ' + etat.en_cours + ' opération(s) attendent depuis ' + etat.file.plus_ancienne_minutes + ' min dans la file du serveur, qui n’avance pas : le planificateur (cron « php artisan schedule:run ») ne tourne pas.' : '');
         message.style.color = '#b91c1c';
     } else if ((etat.restantes ?? 0) === 0) {
         message.textContent = '✓ Déversement terminé : toutes les opérations autorisées sont reçues par Comptaflow.';
         message.style.color = '#047857';
+    } else if ((etat.en_cours ?? 0) > 0 && etat.file && etat.file.bloquee) {
+        // 23/11/2026 : les envois attendent dans la file du serveur, que rien ne traite.
+        message.textContent = etat.en_cours + ' opération(s) attendent depuis ' + etat.file.plus_ancienne_minutes + ' min dans la file du serveur, qui n’avance pas : le planificateur (tâche cron « php artisan schedule:run », chaque minute) ne tourne pas. Rien n’est encore parti vers Comptaflow.';
+        message.style.color = '#b91c1c';
     } else if ((etat.en_cours ?? 0) > 0) {
         message.textContent = 'Déversement en arrière-plan : ' + etat.recues + ' opération(s) reçue(s), ' + etat.restantes + ' restante(s).';
         message.style.color = '#1d4ed8';

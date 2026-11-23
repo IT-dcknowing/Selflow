@@ -45,6 +45,10 @@ Schedule::command('queue:work --stop-when-empty --max-time=50')
 // Re-synchronisation des écritures COMPTAFLOW échouées (toutes les 5 minutes)
 Schedule::command('selflow:sync-ecritures')->everyFiveMinutes()->withoutOverlapping();
 
+// « Tout intégrer » des factures du portail FNE, en arrière-plan (23/11/2026) :
+// l'écran note la demande, ce passage l'exécute par lots de 20.
+Schedule::command('portail-fne:integrer-demandes')->everyMinute()->withoutOverlapping(10)->runInBackground();
+
 /*
  * Comptabilisation du stock à la périodicité choisie par chaque entreprise.
  *

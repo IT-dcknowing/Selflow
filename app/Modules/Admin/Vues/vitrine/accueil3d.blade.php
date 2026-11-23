@@ -4,8 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="csrf-token" content="{{ csrf_token() }}">
-<title>Selflow · La facture normalisée, sans y penser</title>
-<meta name="description" content="Selflow tient vos ventes, vos achats, votre stock et votre comptabilité, et fait certifier chaque facture par la plateforme FNE de la DGI Côte d'Ivoire.">
+<title>Selflow · Logiciel de facturation FNE et de gestion commerciale en Côte d'Ivoire</title>
+@include('admin::vitrine._seo', [
+    'titre' => 'Selflow · Logiciel de facturation FNE et de gestion commerciale en Côte d\'Ivoire',
+    'description' => 'Selflow, le logiciel de facturation conforme à la facture normalisée électronique (FNE) de la DGI Côte d\'Ivoire : ventes, caisse, stock, achats et comptabilité, chaque facture certifiée avec son code QR.',
+    'chemin' => '/',
+    'jsonld' => true,
+])
 <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/selflow/favicon-32.png') }}">
 <link rel="stylesheet" href="{{ asset('vendor/inter/inter.css') }}">
 <link rel="stylesheet" href="{{ asset('vendor/fontawesome/css/all.min.css') }}">
@@ -176,6 +181,8 @@
     <canvas id="scene" aria-hidden="true"></canvas>
     <div class="conteneur">
         <h1>La facture normalisée, <span class="degrade">sans y penser.</span></h1>
+        {{-- Ce que cherchent les moteurs de recherche, dit en clair (23/11/2026). --}}
+        <p class="chapeau" style="font-size:15px; opacity:.85; margin-bottom:6px;">Logiciel de facturation et de gestion commerciale en Côte d'Ivoire, conforme à la facture normalisée électronique (FNE) de la DGI.</p>
         <p class="chapeau">Vous vendez. Selflow transmet la pièce à la plateforme de la Direction Générale des Impôts, la reçoit certifiée avec son numéro et son code QR, sort la marchandise du stock et passe l'écriture comptable. Une seule saisie, et tout suit.</p>
         <div class="boutons">
             <a href="{{ route('inscription') }}" class="btn btn-plein"><i class="fas fa-rocket"></i> Créer un compte</a>

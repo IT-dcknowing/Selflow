@@ -434,7 +434,7 @@ class VenteControleur
                     'remise_taux' => $remiseLigne,
                     'montant_tva' => $tva,
                     'montant_ttc' => $ht + $tva,
-                ]);
+                ] + self::intervenantDeLaLigne($article));
 
                 // Taxes de la ligne : celles de la fiche produit, ou celles
                 // saisies directement sur une ligne libre.
@@ -1227,7 +1227,7 @@ class VenteControleur
                     'remise_taux' => $remiseLigne,
                     'montant_tva' => $tva,
                     'montant_ttc' => $ht + $tva,
-                ]);
+                ] + self::intervenantDeLaLigne($article));
 
                 self::copierTaxesProduitSurLigne($detail, $produit);
                 if (!$produit) {
@@ -2087,6 +2087,22 @@ class VenteControleur
     /**
      * Passer un devis/commande au statut Envoyé.
      */
+    /**
+     * Qui a réalisé la prestation de cette ligne (module « prestataires » de
+     * l'espace sur mesure, 23/11/2026). Seulement un prestataire de
+     * l'entreprise ; sinon rien n'est écrit.
+     */
+    private static function intervenantDeLaLigne(array $article): array
+    {
+        $entreprise = Auth::user()?->entreprise;
+        if (empty($article['intervenant_id']) || ! \App\Modules\Admin\Modeles\Intervenant::moduleActif($entreprise)) {
+            return [];
+        }
+        $id = \App\Modules\Admin\Modeles\Intervenant::where('entreprise_id', $entreprise->id)->whereKey((int) $article['intervenant_id'])->value('id');
+
+        return $id ? ['intervenant_id' => (int) $id] : [];
+    }
+
     /** La facture envoyée au client par e-mail, en PDF (23/11/2026). */
     public function envoyerParEmail(Vente $vente): RedirectResponse
     {

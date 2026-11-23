@@ -9,9 +9,18 @@
         <h1><i class="fas fa-building"></i> Liste des Entreprises</h1>
         <p>Gérez les comptes clients de la plateforme, les quotas et les modules autorisés</p>
     </div>
-    <a href="{{ route('superadmin.entreprises.creer') }}" class="btn btn-primary">
-        <i class="fas fa-plus"></i> Nouvelle Entreprise
-    </a>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        {{-- Export des entreprises, avec les filtres en cours (23/11/2026). --}}
+        <a href="{{ route('superadmin.entreprises.exporter', ['format' => 'pdf'] + request()->only(['etat', 'entreprise_id', 'ncc'])) }}" class="btn btn-outline">
+            <i class="fas fa-file-pdf" style="color:#dc2626;"></i> PDF
+        </a>
+        <a href="{{ route('superadmin.entreprises.exporter', ['format' => 'excel'] + request()->only(['etat', 'entreprise_id', 'ncc'])) }}" class="btn btn-outline">
+            <i class="fas fa-file-excel" style="color:#16a34a;"></i> Excel
+        </a>
+        <a href="{{ route('superadmin.entreprises.creer') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Nouvelle Entreprise
+        </a>
+    </div>
 </div>
 
 @if(session('succes'))

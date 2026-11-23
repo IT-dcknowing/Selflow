@@ -68,6 +68,7 @@
     <button type="button" data-volet="accueil"><i class="fas fa-house"></i> Page d'accueil</button>
     <button type="button" data-volet="connexion"><i class="fas fa-right-to-bracket"></i> Connexion</button>
     <button type="button" data-volet="modules"><i class="fas fa-toggle-on"></i> Modules</button>
+    <button type="button" data-volet="pages"><i class="fas fa-list-check"></i> Modules et pages</button>
 </div>
 
 <form method="POST" action="{{ route('superadmin.sur_mesure.enregistrer', $entreprise) }}" enctype="multipart/form-data" id="form-sur-mesure">
@@ -107,9 +108,27 @@
             'sousDomaine' => old('sous_domaine', $espace->sous_domaine),
             'domaine' => old('domaine', $espace->domaine),
         ])
-        @if($espace->exists && $espace->adresses())
-            <button type="submit" form="form-verifier" class="btn btn-outline" style="margin-top:14px;"><i class="fas fa-stethoscope"></i> Vérifier les adresses</button>
-        @endif
+        {{-- L'adresse gérée depuis le superadmin, par l'API de cPanel (23/11/2026). --}}
+        <div style="margin-top:16px; padding:14px 16px; border-radius:12px; border:1px solid {{ $cpanel ? '#a7f3d0' : '#e2e8f0' }}; background:{{ $cpanel ? '#ecfdf5' : '#f8fafc' }};">
+            <strong style="font-size:14px;"><i class="fas fa-server"></i> Créer l'adresse sur le serveur, d'ici</strong>
+            @if($cpanel)
+                <p style="font-size:12.5px; color:#475569; margin:4px 0 10px;">Enregistrez d'abord l'adresse, puis, dans l'ordre : créez-la sur le serveur, demandez le certificat, vérifiez. Un domaine propre demande en plus que ses DNS pointent déjà sur le serveur.</p>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    @if($espace->sous_domaine)<button type="submit" form="form-serveur-sous_domaine" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> 1. Créer {{ $espace->sous_domaine }}.{{ $racine }}</button>@endif
+                    @if($espace->domaine)<button type="submit" form="form-serveur-domaine" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> 1. Ajouter {{ $espace->domaine }}</button>@endif
+                    <button type="submit" form="form-serveur-ssl" class="btn btn-outline btn-sm"><i class="fas fa-lock"></i> 2. Demander le certificat HTTPS</button>
+                    @if($espace->exists && $espace->adresses())<button type="submit" form="form-verifier" class="btn btn-outline btn-sm"><i class="fas fa-stethoscope"></i> 3. Vérifier les adresses</button>@endif
+                </div>
+            @else
+                <p style="font-size:12.5px; color:#475569; margin:4px 0 0; line-height:1.7;">
+                    Pour créer les adresses sans passer par cPanel : dans cPanel, <strong>Sécurité › Gérer les jetons d'API</strong>, créer un jeton, puis ajouter dans <code>.env</code> :<br>
+                    <code>CPANEL_HOTE=</code>le serveur cPanel (ex. <code>server123.hebergeur.com</code>), <code>CPANEL_UTILISATEUR=</code>le compte cPanel, <code>CPANEL_JETON=</code>le jeton,
+                    <code>CPANEL_DOSSIER_SELFLOW=</code>la racine du document de selflow.dc-knowing.com (ex. <code>public_html/Selflow/public</code>).
+                    En attendant, suivez la marche à suivre ci-dessus.
+                </p>
+                @if($espace->exists && $espace->adresses())<button type="submit" form="form-verifier" class="btn btn-outline btn-sm" style="margin-top:10px;"><i class="fas fa-stethoscope"></i> Vérifier les adresses</button>@endif
+            @endif
+        </div>
     </div>
 
     {{-- ── Identité : chaque zone numérotée, et l'aperçu qui porte les mêmes numéros ── --}}
@@ -354,6 +373,49 @@
         <small style="display:block; color:#64748b; margin-top:10px;">Seuls les utilisateurs de {{ $entreprise->nom }} (et le superadministrateur) peuvent se connecter à cette adresse. Pas d'inscription ni de connexion Google sur l'espace. « Propulsé par DC-KNOWING » figure sur toutes les pages.</small>
     </div>
 
+    {{-- ── Modules et pages de l'application (23/11/2026) ── --}}
+    @php
+        $retirees = (array) ($espace->pages_retirees ?? []);
+        $modulesOuverts = (array) ($entreprise->modules_actifs ?? []);
+    @endphp
+    <div class="card sm-volet" data-volet="pages" style="padding:20px;">
+        <input type="hidden" name="pages_formulaire" value="1">
+        <h3 style="margin-top:0;">Modules et pages de l'application</h3>
+        <p style="color:#64748b; font-size:13.5px; margin-top:-4px;">
+            Toutes les pages de Selflow, rangées par module. <strong>Cochée</strong> : la page est dans le menu de {{ $entreprise->nom }}.
+            <strong>Décochée</strong> : elle disparaît du menu et ne s'ouvre plus pour aucun de ses utilisateurs, administrateur compris.
+            Rien n'est effacé : recocher la page la remet. S'applique dès l'enregistrement, même si l'espace (ses adresses) n'est pas encore actif.
+        </p>
+        <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-outline btn-sm" onclick="document.querySelectorAll('[data-page]').forEach(c => c.checked = true)">Tout cocher</button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="document.querySelectorAll('[data-page]').forEach(c => c.checked = false)">Tout décocher</button>
+            <a href="{{ route('superadmin.entreprises.modifier', $entreprise) }}" class="btn btn-outline btn-sm" target="_blank"><i class="fas fa-cubes"></i> Ouvrir ou fermer un module de l'entreprise</a>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:12px;">
+            @foreach(\App\Modules\Authentification\Regles\Habilitations::CATALOGUE as $module => $groupes)
+                @php $ouvert = $module === 'principal' || in_array($module, $modulesOuverts, true); @endphp
+                <div style="border:1px solid #e2e8f0; border-radius:12px; padding:12px 14px; {{ $ouvert ? '' : 'background:#f8fafc;' }}">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px;">
+                        <strong style="font-size:14px;">{{ $module === 'principal' ? 'Tableau de bord et rapports' : \App\Modules\Admin\Modeles\Entreprise::libelleModule($module) }}</strong>
+                        <span style="display:flex; gap:6px; align-items:center;">
+                            @if(!$ouvert)<span style="font-size:11px; font-weight:700; color:#b45309;" title="Module non ouvert pour l'entreprise : ses pages n'apparaissent pas, cochées ou non.">module fermé</span>@endif
+                            <label style="font-size:11.5px; color:#475569; display:flex; gap:4px; align-items:center;"><input type="checkbox" onchange="this.closest('div[style]').parentElement.querySelectorAll('[data-page]').forEach(c => c.checked = this.checked)" checked> tout</label>
+                        </span>
+                    </div>
+                    @foreach($groupes as $titre => $droits)
+                        @if(count($groupes) > 1)<div style="font-size:11px; font-weight:800; color:#94a3b8; text-transform:uppercase; margin:8px 0 4px;">{{ $titre }}</div>@endif
+                        @foreach($droits as $cle => $libelle)
+                            <label style="display:flex; gap:8px; align-items:flex-start; font-size:13px; padding:3px 0; cursor:pointer;">
+                                <input type="checkbox" name="pages_gardees[]" value="{{ $cle }}" data-page {{ in_array($cle, $retirees, true) ? '' : 'checked' }} style="margin-top:2px;">
+                                <span>{{ $libelle }}</span>
+                            </label>
+                        @endforeach
+                    @endforeach
+                </div>
+            @endforeach
+        </div>
+    </div>
+
     {{-- ── Modules ── --}}
     <div class="card sm-volet" data-volet="modules" style="padding:20px;">
         <h3 style="margin-top:0;">Modules</h3>
@@ -380,7 +442,7 @@
         <label class="sm-module" style="border-color:#10b981; background:#ecfdf5;">
             <input type="hidden" name="actif" value="0">
             <input type="checkbox" name="actif" value="1" {{ old('actif', $espace->actif) ? 'checked' : '' }}>
-            <span><strong>Espace actif</strong><br><span style="color:#047857; font-size:13px;">Les adresses répondent avec l'habillage de l'entreprise. Désactivé, l'adresse retombe sur Selflow standard.</span></span>
+            <span><strong>Espace actif</strong><br><span style="color:#047857; font-size:13px;">Les adresses de l'entreprise répondent (accueil et connexion personnalisés). Désactivé, l'adresse retombe sur Selflow standard. Les autres modules cochés s'appliquent dans tous les cas.</span></span>
         </label>
     </div>
 
@@ -391,6 +453,11 @@
 
 @if($espace->exists)
     <form method="POST" action="{{ route('superadmin.sur_mesure.verifier', $entreprise) }}" id="form-verifier">@csrf</form>
+    @if($cpanel)
+        @foreach(['sous_domaine', 'domaine', 'ssl'] as $__action)
+            <form method="POST" action="{{ route('superadmin.sur_mesure.serveur', [$entreprise, $__action]) }}" id="form-serveur-{{ $__action }}">@csrf</form>
+        @endforeach
+    @endif
 @endif
 
 <script>

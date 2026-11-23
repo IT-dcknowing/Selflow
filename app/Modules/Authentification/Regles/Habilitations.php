@@ -332,6 +332,8 @@ class Habilitations
         'admin.ventes.portail_fne.index'             => 'factures_vente',
         'admin.ventes.portail_fne.integrer'          => 'factures_vente',
         'admin.ventes.portail_fne.integrer_pretes'   => 'factures_vente',
+        'admin.ventes.portail_fne.arriere_plan'      => 'factures_vente',
+        'admin.ventes.portail_fne.etat'              => 'factures_vente',
         'admin.ventes.portail_fne.ignorer'           => 'factures_vente',
         'admin.ventes.imprimer'                      => 'factures_vente',
         'admin.ventes.ticket'                        => 'factures_vente',
@@ -354,6 +356,9 @@ class Habilitations
         'admin.ventes.facturer'                      => 'factures_vente',
         'admin.ventes.envoyer'                       => 'factures_vente',
         'admin.ventes.envoyer_email'                 => 'factures_vente',
+        'admin.intervenants.index'                   => 'factures_vente',
+        'admin.intervenants.creer'                   => 'factures_vente',
+        'admin.intervenants.basculer'                => 'factures_vente',
         'admin.ventes.convertir.commande'            => 'factures_vente',
         'admin.ventes.convertir.facture'             => 'factures_vente',
         'admin.ventes.convertir_piece'               => 'factures_vente',
@@ -764,8 +769,16 @@ class Habilitations
             return false;
         }
 
-        if ($utilisateur->estSuperAdmin() || $utilisateur->estAdmin()) {
+        if ($utilisateur->estSuperAdmin()) {
             return true;
+        }
+
+        // Une page retirée pour l'entreprise (Selflow sur mesure) ne s'ouvre
+        // pas, même à l'administrateur.
+        if ($utilisateur->estAdmin()) {
+            $cle = self::estClassee($nomRoute) ? self::pour($nomRoute) : null;
+
+            return $cle === null || $utilisateur->aHabilitation($cle);
         }
 
         if (!self::estClassee($nomRoute)) {

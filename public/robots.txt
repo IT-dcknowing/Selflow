@@ -1,2 +1,11 @@
+# Selflow (23/11/2026) : les pages publiques sont indexées, les espaces de travail non.
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /admin
+Disallow: /superadmin
+Disallow: /caissier
+Disallow: /api
+Disallow: /espace/media
+Disallow: /presentation/demo/voir
+
+Sitemap: https://selflow.dc-knowing.com/sitemap.xml

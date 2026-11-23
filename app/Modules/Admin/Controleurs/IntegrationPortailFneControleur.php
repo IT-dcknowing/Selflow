@@ -23,7 +23,7 @@ class IntegrationPortailFneControleur extends Controller
     {
     }
 
-    public function index(): View
+    public function index(): View|RedirectResponse
     {
         $entreprise = Auth::user()->entreprise;
         $toutes = $this->service->enAttente($entreprise);
@@ -31,6 +31,12 @@ class IntegrationPortailFneControleur extends Controller
         // 25 par page : 158 formulaires d'un coup, chacun avec le catalogue
         // entier en liste déroulante, rendaient la page interminable.
         $page = max(1, (int) request('page', 1));
+        // Une page qui n'existe plus (les pièces ont été intégrées entre-temps)
+        // ramène à la dernière, au lieu d'afficher « rien en attente ».
+        $dernierePage = max(1, (int) ceil($toutes->count() / 25));
+        if ($page > $dernierePage) {
+            return redirect()->route('admin.ventes.portail_fne.index', array_merge(request()->except('page'), $dernierePage > 1 ? ['page' => $dernierePage] : []));
+        }
         $factures = new \Illuminate\Pagination\LengthAwarePaginator(
             $toutes->forPage($page, 25)->values(), $toutes->count(), 25, $page,
             ['path' => request()->url(), 'query' => request()->query()]
@@ -41,6 +47,7 @@ class IntegrationPortailFneControleur extends Controller
         ]);
 
         return view('admin::portail-fne.integration', [
+            'arrierePlan'   => \App\Modules\Admin\Services\IntegrationPortailEnArrierePlan::etat($entreprise->id),
             'factures'      => $factures,
             'propositions'  => $propositions,
             'pointsDeVente' => PointDeVente::where('entreprise_id', $entreprise->id)->orderBy('nom')->get(['id', 'nom']),
@@ -79,6 +86,34 @@ class IntegrationPortailFneControleur extends Controller
      * ce qu'il ne reste que des pièces à compléter à la main (23/11/2026 :
      * « 40 par clic, et les autres ? »).
      */
+    /**
+     * « Tout intégrer » en arrière-plan (23/11/2026) : la demande est notée,
+     * un premier lot part tout de suite, le planificateur fait le reste. On
+     * peut quitter la page.
+     */
+    public function lancerEnArrierePlan(Request $request, \App\Modules\Admin\Services\IntegrationPortailEnArrierePlan $arrierePlan): \Illuminate\Http\JsonResponse
+    {
+        $entreprise = Auth::user()->entreprise;
+        $arrierePlan->demander($entreprise, (int) Auth::id(), $request->boolean('reconnus'));
+
+        return response()->json($arrierePlan->lot($entreprise));
+    }
+
+    public function etatArrierePlan(\App\Modules\Admin\Services\IntegrationPortailEnArrierePlan $arrierePlan): \Illuminate\Http\JsonResponse
+    {
+        $entreprise = Auth::user()->entreprise;
+        $etat = \App\Modules\Admin\Services\IntegrationPortailEnArrierePlan::etat((int) $entreprise->id);
+
+        // Filet : si le planificateur n'a pas touché la demande depuis 90 s
+        // (cron arrêté), la page ouverte fait avancer un lot elle-même.
+        if ($etat && $etat['etat'] !== 'termine'
+            && \Illuminate\Support\Carbon::parse($etat['maj_le'])->lt(now()->subSeconds(90))) {
+            $etat = $arrierePlan->lot($entreprise);
+        }
+
+        return response()->json($etat);
+    }
+
     public function integrerPretes(Request $request): RedirectResponse|\Illuminate\Http\JsonResponse
     {
         $entreprise = Auth::user()->entreprise;

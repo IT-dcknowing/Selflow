@@ -44,6 +44,8 @@ Route::prefix('admin')
             // Les factures émises sur le portail FNE, hors de Selflow (23/11/2026).
             Route::get('/portail-fne', [\App\Modules\Admin\Controleurs\IntegrationPortailFneControleur::class, 'index'])->name('portail_fne.index');
             Route::post('/portail-fne/integrer-pretes', [\App\Modules\Admin\Controleurs\IntegrationPortailFneControleur::class, 'integrerPretes'])->name('portail_fne.integrer_pretes');
+            Route::post('/portail-fne/integrer-en-arriere-plan', [\App\Modules\Admin\Controleurs\IntegrationPortailFneControleur::class, 'lancerEnArrierePlan'])->name('portail_fne.arriere_plan');
+            Route::get('/portail-fne/integration-etat', [\App\Modules\Admin\Controleurs\IntegrationPortailFneControleur::class, 'etatArrierePlan'])->name('portail_fne.etat');
             Route::post('/portail-fne/{facture}/integrer', [\App\Modules\Admin\Controleurs\IntegrationPortailFneControleur::class, 'integrer'])->name('portail_fne.integrer');
             Route::post('/portail-fne/{facture}/ignorer', [\App\Modules\Admin\Controleurs\IntegrationPortailFneControleur::class, 'ignorer'])->name('portail_fne.ignorer');
             Route::get('/factures/rechercher', [VenteControleur::class, 'rechercherFacturesPourAvoir'])->name('factures.rechercher');
@@ -532,6 +534,13 @@ Route::prefix('admin')
             });
         });
 
+        // Les prestataires d'une entreprise de service (23/11/2026, module sur mesure).
+        Route::prefix('prestataires')->name('intervenants.')->group(function () {
+            Route::get('/', [\App\Modules\Admin\Controleurs\IntervenantControleur::class, 'index'])->name('index');
+            Route::post('/', [\App\Modules\Admin\Controleurs\IntervenantControleur::class, 'creer'])->name('creer');
+            Route::post('/{intervenant}/basculer', [\App\Modules\Admin\Controleurs\IntervenantControleur::class, 'basculer'])->name('basculer');
+        });
+
         Route::prefix('clients')->name('clients.')->group(function () {
             Route::get('/', [ClientControleur::class, 'index'])->name('index');
             Route::post('/', [ClientControleur::class, 'creer'])->name('creer');
@@ -653,6 +662,8 @@ Route::prefix('superadmin')
     ->group(function () {
         Route::get('/', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'tableauDeBord'])->name('tableau_de_bord');
         Route::get('/entreprises', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'entreprises'])->name('entreprises');
+        Route::get('/entreprises/export/{format}', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'exporterEntreprises'])
+            ->whereIn('format', ['pdf', 'excel'])->name('entreprises.exporter');
         Route::get('/entreprises/creer', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'creerFormulaire'])->name('entreprises.creer');
         Route::post('/entreprises/creer', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'creer'])->name('entreprises.creer.enregistrer');
         Route::get('/entreprises/{entreprise}/modifier', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'modifierFormulaire'])->name('entreprises.modifier');
@@ -819,6 +830,8 @@ Route::prefix('superadmin')
             Route::get('/{entreprise}', [\App\Modules\Admin\Controleurs\EspaceSurMesureControleur::class, 'modifier'])->name('modifier');
             Route::post('/{entreprise}', [\App\Modules\Admin\Controleurs\EspaceSurMesureControleur::class, 'enregistrer'])->name('enregistrer');
             Route::post('/{entreprise}/verifier', [\App\Modules\Admin\Controleurs\EspaceSurMesureControleur::class, 'verifier'])->name('verifier');
+            Route::post('/{entreprise}/serveur/{action}', [\App\Modules\Admin\Controleurs\EspaceSurMesureControleur::class, 'serveur'])
+                ->whereIn('action', ['sous_domaine', 'domaine', 'ssl'])->name('serveur');
             Route::get('/{entreprise}/apercu/{page}', [\App\Modules\Admin\Controleurs\EspaceSurMesureControleur::class, 'apercu'])
                 ->whereIn('page', ['accueil', 'connexion'])->name('apercu');
         });

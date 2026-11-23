@@ -15,6 +15,19 @@ Route::get('/presentation', [\App\Modules\Admin\Controleurs\VitrineControleur::c
     ->name('vitrine');
 
 // La politique d'utilisation et la demande de démo de la page d'accueil (23/11/2026).
+// Le plan du site, pour les moteurs de recherche (23/11/2026).
+Route::get('/sitemap.xml', function () {
+    $base = rtrim((string) config('app.url'), '/');
+    $pages = [['/', '1.0', 'weekly'], ['/presentation', '0.8', 'weekly'], ['/guide', '0.7', 'monthly'],
+        ['/politique-utilisation', '0.3', 'yearly'], ['/inscription', '0.6', 'monthly'], ['/connexion', '0.4', 'yearly']];
+    $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n" . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
+    foreach ($pages as [$chemin, $priorite, $frequence]) {
+        $xml .= '<url><loc>' . e($base . $chemin) . '</loc><lastmod>' . now()->toDateString() . '</lastmod><changefreq>' . $frequence . '</changefreq><priority>' . $priorite . '</priority></url>';
+    }
+
+    return response($xml . '</urlset>', 200, ['Content-Type' => 'application/xml; charset=UTF-8']);
+})->name('sitemap');
+
 Route::get('/politique-utilisation', [\App\Modules\Admin\Controleurs\VitrineControleur::class, 'politique'])
     ->name('vitrine.politique');
 Route::get('/guide', [\App\Modules\Admin\Controleurs\VitrineControleur::class, 'guide'])

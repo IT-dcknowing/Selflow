@@ -41,6 +41,7 @@ class VerifierHabilitationRoute
     private const SUPERADMIN = [
         'superadmin.tableau_de_bord'                  => 'tableau_de_bord_superadmin',
         'superadmin.entreprises'                      => 'gestion_entreprises',
+        'superadmin.entreprises.exporter'             => 'gestion_entreprises',
         'superadmin.entreprises.creer'                => 'gestion_entreprises',
         'superadmin.entreprises.creer.enregistrer'    => 'gestion_entreprises',
         'superadmin.entreprises.modifier'             => 'gestion_entreprises',
@@ -116,6 +117,7 @@ class VerifierHabilitationRoute
         'superadmin.sur_mesure.modifier'    => 'gestion_entreprises',
         'superadmin.sur_mesure.enregistrer' => 'gestion_entreprises',
         'superadmin.sur_mesure.verifier'    => 'gestion_entreprises',
+        'superadmin.sur_mesure.serveur'     => 'gestion_entreprises',
         'superadmin.sur_mesure.apercu'      => 'gestion_entreprises',
         'superadmin.groupes.index'       => 'gestion_entreprises',
         'superadmin.groupes.creer'       => 'gestion_entreprises',
@@ -185,6 +187,13 @@ class VerifierHabilitationRoute
         // Un administrateur d'entreprise possède toutes les habilitations de
         // son entreprise : c'est lui qui les distribue.
         if ($utilisateur->estAdmin()) {
+            // Sauf une page que le superadministrateur a retirée pour
+            // l'entreprise (Selflow sur mesure, 23/11/2026).
+            $cle = Habilitations::estClassee($nomRoute) ? Habilitations::pour($nomRoute) : null;
+            if ($cle !== null && ! $utilisateur->aHabilitation($cle)) {
+                abort(403, 'Cette page n\'est pas ouverte pour votre entreprise.');
+            }
+
             return $next($request);
         }
 

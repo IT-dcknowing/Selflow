@@ -102,6 +102,87 @@ class SuperadminControleur
     /**
      * Liste complète des entreprises.
      */
+    /**
+     * Les entreprises, en PDF ou en Excel (23/11/2026), avec les filtres de
+     * l'écran (état, entreprise, NCC) : on exporte ce qu'on regarde.
+     */
+    public function exporterEntreprises(Request $request, string $format, \App\Modules\Admin\Services\DocumentPdfService $pdf): \Symfony\Component\HttpFoundation\Response
+    {
+        abort_unless(in_array($format, ['pdf', 'excel'], true), 404);
+
+        $etat = (string) $request->query('etat', 'tous');
+        $ncc = trim((string) $request->query('ncc', ''));
+        $requete = Entreprise::horsCorbeille()->with('fneCredential')->withCount(['pointsDeVente', 'utilisateurs', 'produits']);
+        match ($etat) {
+            'confirme' => $requete->where('statut', 'actif'),
+            'cree' => $requete->where('statut', 'en_attente'),
+            'echeances_10' => $requete->whereNotNull('abonnement_expire_le')->whereBetween('abonnement_expire_le', [now(), now()->addDays(10)]),
+            'echus' => $requete->whereNotNull('abonnement_expire_le')->where('abonnement_expire_le', '<', now()),
+            default => null,
+        };
+        if (filled($request->query('entreprise_id'))) {
+            $requete->whereKey($request->query('entreprise_id'));
+        }
+        if ($ncc !== '') {
+            $requete->where(fn ($q) => $q->where('ncc', 'like', '%' . $ncc . '%')
+                ->orWhereHas('fneCredential', fn ($c) => $c->where('ncc_associe', 'like', '%' . $ncc . '%')));
+        }
+
+        $lignes = $requete->orderBy('nom')->get()->values()->map(fn (Entreprise $e, $i) => [
+            'n' => $i + 1,
+            'nom' => $e->nom,
+            'ncc' => $e->ncc ?: '',
+            'rccm' => $e->rccm ?: '',
+            'regime' => $e->regime_imposition ?: '',
+            'gerant' => trim(($e->gerant_prenom ?? '') . ' ' . ($e->gerant_nom ?? '')),
+            'email' => $e->email ?: '',
+            'telephone' => $e->telephone ?: '',
+            'statut' => $e->statut === 'actif' ? 'Validée' : ($e->statut === 'en_attente' ? 'À valider' : ucfirst((string) $e->statut)),
+            'offre' => \App\Modules\Admin\Regles\Abonnements::libelle($e->plan_abonnement),
+            'echeance' => $e->abonnement_expire_le?->format('d/m/Y') ?? '',
+            'sites' => (int) $e->points_de_vente_count,
+            'utilisateurs' => (int) $e->utilisateurs_count,
+            'articles' => (int) $e->produits_count,
+            'fne' => $e->fneCredential ? 'Oui' : 'Non',
+            'creee' => $e->created_at?->format('d/m/Y') ?? '',
+        ]);
+
+        $titres = ['N°', 'Entreprise', 'NCC', 'RCCM', 'Régime', 'Gérant', 'E-mail', 'Téléphone', 'Statut', 'Offre', 'Échéance', 'Sites', 'Utilisateurs', 'Articles', 'Compte FNE', 'Créée le'];
+        $nomFichier = 'Entreprises-Selflow-' . now()->format('Y-m-d');
+
+        if ($format === 'pdf') {
+            return response($pdf->listeEntreprises(['lignes' => $lignes, 'titres' => $titres, 'filtre' => $etat]), 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="' . $nomFichier . '.pdf"',
+            ]);
+        }
+
+        $classeur = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $feuille = $classeur->getActiveSheet();
+        $feuille->setTitle('Entreprises');
+        $feuille->setCellValue('A1', 'ENTREPRISES SELFLOW');
+        $feuille->setCellValue('A2', 'Export du ' . now()->format('d/m/Y à H:i') . ' · ' . $lignes->count() . ' entreprise(s)');
+        $feuille->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $feuille->fromArray($titres, null, 'A4');
+        $feuille->fromArray($lignes->map(fn ($l) => array_values($l))->all(), null, 'A5');
+        $derniere = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($titres));
+        $feuille->getStyle('A4:' . $derniere . '4')->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+        $feuille->getStyle('A4:' . $derniere . '4')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('002B5C');
+        foreach (range(1, count($titres)) as $c) {
+            $feuille->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c))->setAutoSize(true);
+        }
+        // Le NCC et le téléphone restent du texte (zéros de tête).
+        foreach (['C', 'H'] as $col) {
+            $feuille->getStyle($col . '5:' . $col . (4 + max(1, $lignes->count())))->getNumberFormat()->setFormatCode('@');
+        }
+        $feuille->freezePane('C5');
+        $feuille->setAutoFilter('A4:' . $derniere . (4 + max(1, $lignes->count())));
+
+        return response()->streamDownload(function () use ($classeur) {
+            (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($classeur))->save('php://output');
+        }, $nomFichier . '.xlsx', ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+    }
+
     public function entreprises(Request $request): View
     {
         $base = Entreprise::horsCorbeille()->whereNotNull('abonnement_expire_le');

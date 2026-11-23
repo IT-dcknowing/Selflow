@@ -21,6 +21,8 @@ class EspaceSurMesure extends Model
         'connexion' => ['Connexion personnalisée', 'La page de connexion à ses couleurs, réservée à ses utilisateurs.'],
         'couleurs'  => ['Couleurs et logo dans l\'application', 'Le menu, les boutons et le logo de l\'application une fois connecté.'],
         'fiche_client' => ['Fiche client enrichie', 'Sur la fiche du client : style habituel, type de cheveux ou de peau, prestataire préféré, date d\'anniversaire, remarques.'],
+        'prestataires' => ['Prestataires (« Réalisé par »)', 'Sur chaque ligne de vente : qui a réalisé la prestation (coiffeur, esthéticienne…). Une page « Prestataires » donne le nombre de prestations et le chiffre de chacun.'],
+        'facture_attente' => ['Facture en attente de règlement', 'La facture s\'établit d\'abord (bouton « En attente » à la place de « Crédit ») ; le règlement s\'enregistre plus tard, d\'un clic « Encaisser » dans la liste des factures.'],
         'facture_email' => ['Facture envoyée au client par e-mail', 'La facture part en PDF à l\'adresse e-mail du client, à l\'émission ou après sa certification par la DGI.'],
     ];
 
@@ -48,7 +50,7 @@ class EspaceSurMesure extends Model
         'couleur_principale', 'couleur_secondaire', 'logo', 'logo_blanc', 'icone', 'image_fond',
         'modele_accueil', 'modele_connexion', 'titre_accueil', 'sous_titre_accueil', 'presentation',
         'atouts', 'message_connexion', 'telephone', 'email', 'adresse',
-        'couleur_menu', 'couleur_menu_accent', 'facture_email_moment',
+        'couleur_menu', 'couleur_menu_accent', 'facture_email_moment', 'pages_retirees',
     ];
 
     protected function casts(): array
@@ -57,6 +59,7 @@ class EspaceSurMesure extends Model
             'actif' => 'boolean',
             'modules' => 'array',
             'atouts' => 'array',
+            'pages_retirees' => 'array',
             'domaine_verifie_le' => 'datetime',
         ];
     }
@@ -75,9 +78,23 @@ class EspaceSurMesure extends Model
         return $this->belongsTo(Entreprise::class);
     }
 
+    /** Les modules qui tiennent à l'adresse : ils attendent que l'espace soit actif. */
+    public const MODULES_D_ADRESSE = ['accueil', 'connexion'];
+
+    /**
+     * Un module coché. L'accueil et la connexion tiennent à l'adresse et
+     * attendent « Espace actif » ; les autres (couleurs, fiche client,
+     * prestataires, facture en attente, facture par e-mail) s'appliquent dès
+     * qu'ils sont cochés, que l'entreprise arrive par son adresse ou par
+     * celle de Selflow (23/11/2026).
+     */
     public function moduleActif(string $module): bool
     {
-        return $this->actif && in_array($module, (array) ($this->modules ?? []), true);
+        if (in_array($module, self::MODULES_D_ADRESSE, true) && ! $this->actif) {
+            return false;
+        }
+
+        return in_array($module, (array) ($this->modules ?? []), true);
     }
 
     /** Zone ① : le fond du menu latéral (réglé, sinon tiré de la couleur principale). */
@@ -139,13 +156,51 @@ class EspaceSurMesure extends Model
         return $espace?->moduleActif('couleurs') ? $espace : null;
     }
 
-    /** L'espace actif d'une entreprise, en cache comme les adresses. */
+    /**
+     * Les pages (habilitations) que le superadministrateur a retirées pour
+     * cette entreprise (23/11/2026). Elles disparaissent du menu et ne
+     * s'ouvrent plus, pour tous ses utilisateurs, administrateur compris.
+     * Vaut même avant que l'espace (ses adresses) soit actif.
+     *
+     * @return string[]
+     */
+    public static function pagesRetireesPour(int $entrepriseId): array
+    {
+        if ($entrepriseId <= 0) {
+            return [];
+        }
+        $version = (int) Cache::get('espaces_sur_mesure_version', 0);
+        $cle = $version . '_' . $entrepriseId;
+
+        // Mémoire de la requête (dans le conteneur, pas en statique : elle ne
+        // survit pas à la requête) : la liste est lue à chaque lien du menu.
+        if (! app()->bound('espace.pages_memo')) {
+            app()->instance('espace.pages_memo', new \ArrayObject());
+        }
+        $memo = app('espace.pages_memo');
+        if (isset($memo[$cle])) {
+            return $memo[$cle];
+        }
+
+        return $memo[$cle] = Cache::rememberForever('espace_pages_' . $cle, function () use ($entrepriseId) {
+            try {
+                $valeur = self::query()->where('entreprise_id', $entrepriseId)->value('pages_retirees');
+                $liste = is_string($valeur) ? json_decode($valeur, true) : $valeur;
+
+                return array_values(array_filter((array) $liste, 'is_string'));
+            } catch (\Throwable) {
+                return [];
+            }
+        });
+    }
+
+    /** L'espace d'une entreprise (actif ou non), en cache comme les adresses. */
     public static function pourEntreprise(int $entrepriseId): ?self
     {
         $version = (int) Cache::get('espaces_sur_mesure_version', 0);
         $id = Cache::rememberForever('espace_entreprise_' . $version . '_' . $entrepriseId, function () use ($entrepriseId) {
             try {
-                return (int) (self::query()->where('entreprise_id', $entrepriseId)->where('actif', true)->value('id') ?? 0);
+                return (int) (self::query()->where('entreprise_id', $entrepriseId)->value('id') ?? 0);
             } catch (\Throwable) {
                 return 0;
             }

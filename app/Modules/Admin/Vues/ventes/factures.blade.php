@@ -9,6 +9,9 @@
     $estDevisOuBC = in_array($etapeActive, ['Devis', 'Bon de commande']);
     $estBL        = $etapeActive === 'Bon de livraison';
     $nbBL         = $nbBL ?? 0;
+    // Facture en attente de règlement (module sur mesure, 23/11/2026).
+    $factureAttente = (bool) \App\Modules\Admin\Modeles\EspaceSurMesure::pourEntreprise((int) auth()->user()->entreprise_id)?->moduleActif('facture_attente');
+    $routeReglement = $isCaissier ? 'caissier.comptabilite.enregistrer_reglement' : 'admin.comptabilite.enregistrer_reglement';
 @endphp
 
 <div class="page-header">
@@ -489,9 +492,16 @@
                             @elseif($vente->statut === 'Payé')
                                 <span style="background:#e6fdf5; color:#0f766e; padding:4px 10px; border-radius:20px; font-weight:700;">Payé</span>
                             @elseif($vente->statut === 'Crédit')
-                                <span style="background:#fef2f2; color:#991b1b; padding:4px 10px; border-radius:20px; font-weight:700;">Crédit</span>
+                                <span style="background:#fef2f2; color:#991b1b; padding:4px 10px; border-radius:20px; font-weight:700;">{{ $factureAttente ? 'En attente de règlement' : 'Crédit' }}</span>
                             @else
                                 <span style="background:#fffbeb; color:#92400e; padding:4px 10px; border-radius:20px; font-weight:700;">Avance</span>
+                            @endif
+                            @if($factureAttente && in_array($vente->statut, ['Crédit', 'Avance', 'Partiel'], true) && $vente->client_id && $vente->etape === 'Facture' && \Illuminate\Support\Facades\Route::has($routeReglement))
+                                <button type="button" class="btn btn-sm btn-encaisser" style="margin-top:6px; background:#16a34a; color:#fff; border:none; padding:4px 10px; font-size:11px;"
+                                        data-client="{{ $vente->client_id }}" data-numero="{{ $vente->numero_facture }}" data-nom="{{ $vente->client?->nom }}"
+                                        data-montant="{{ $vente->statut === 'Crédit' ? round((float) $vente->montant_ttc + (float) ($vente->montant_autres_taxes ?? 0)) : '' }}">
+                                    <i class="fas fa-hand-holding-dollar"></i> Encaisser
+                                </button>
                             @endif
                         @endif
                     </td>
@@ -1921,4 +1931,46 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
+
+@if($factureAttente && \Illuminate\Support\Facades\Route::has($routeReglement))
+{{-- Encaisser une facture en attente, sans quitter la liste (23/11/2026). --}}
+<div class="modal-overlay" id="modalEncaisser">
+    <div class="modal" style="max-width:440px;">
+        <div class="modal-header"><h3 style="margin:0;"><i class="fas fa-hand-holding-dollar"></i> Encaisser la facture</h3><button class="modal-close" data-modal-close>✕</button></div>
+        <form method="POST" action="{{ route($routeReglement) }}">
+            @csrf
+            <input type="hidden" name="type" value="client">
+            <input type="hidden" name="tier_id" id="encaisserClient">
+            <input type="hidden" name="numero_facture" id="encaisserNumero">
+            <div class="modal-body" style="display:grid; gap:12px;">
+                <div id="encaisserLibelle" style="font-size:13px; color:var(--text-2);"></div>
+                <label class="form-label" style="margin:0;">Montant reçu (F)<input type="number" name="montant" id="encaisserMontant" class="form-control" min="1" step="1" required></label>
+                <label class="form-label" style="margin:0;">Mode de paiement
+                    <select name="mode_paiement" class="form-control" required>
+                        <option value="Caisse">Espèces (caisse)</option>
+                        <option value="Mobile Money">Mobile Money</option>
+                    </select>
+                </label>
+                <label class="form-label" style="margin:0;">Date<input type="date" name="date_operation" class="form-control" value="{{ date('Y-m-d') }}" required></label>
+                <small style="color:var(--text-3);">Pour un paiement par banque (carte, virement, chèque), passez par « Créances &amp; règlements ».</small>
+            </div>
+            <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:8px;">
+                <button type="button" class="btn btn-outline" data-modal-close>Annuler</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Enregistrer le règlement</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+document.querySelectorAll('.btn-encaisser').forEach(function (b) {
+    b.addEventListener('click', function () {
+        document.getElementById('encaisserClient').value = b.dataset.client;
+        document.getElementById('encaisserNumero').value = b.dataset.numero;
+        document.getElementById('encaisserMontant').value = b.dataset.montant || '';
+        document.getElementById('encaisserLibelle').textContent = 'Facture ' + b.dataset.numero + (b.dataset.nom ? ' · ' + b.dataset.nom : '');
+        document.getElementById('modalEncaisser').classList.add('open');
+    });
+});
+</script>
+@endif
 @endsection

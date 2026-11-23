@@ -202,6 +202,13 @@ class Utilisateur extends Authenticatable
      */
     public function aHabilitation(string $page): bool
     {
+        // Selflow sur mesure (23/11/2026) : une page retirée pour l'entreprise
+        // par le superadministrateur ne s'ouvre à personne, administrateur compris.
+        if (! $this->estSuperAdmin() && $this->entreprise_id
+            && in_array($page, \App\Modules\Admin\Modeles\EspaceSurMesure::pagesRetireesPour((int) $this->entreprise_id), true)) {
+            return false;
+        }
+
         if ($this->estSuperAdmin() || $this->estAdmin()) {
             return true;
         }

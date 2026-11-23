@@ -53,6 +53,7 @@ class EspaceSurMesureControleur extends Controller
             'racine' => EspaceSurMesure::domaineRacine(),
             'ipServeur' => config('selflow.sur_mesure.ip_serveur'),
             'cibleCname' => config('selflow.sur_mesure.cible_cname'),
+            'cpanel' => \App\Modules\Admin\Services\CpanelService::configure(),
         ]);
     }
 
@@ -148,6 +149,17 @@ class EspaceSurMesureControleur extends Controller
                 ->values()->all(),
         ]);
 
+        // Les pages retirées pour l'entreprise (onglet « Modules et pages »).
+        // Ce qui n'est pas coché est retiré ; rien n'est touché si l'onglet
+        // n'a pas été envoyé.
+        if ($request->boolean('pages_formulaire') && \Illuminate\Support\Facades\Schema::hasColumn('espaces_sur_mesure', 'pages_retirees')) {
+            $toutes = collect(\App\Modules\Authentification\Regles\Habilitations::CATALOGUE)
+                ->flatMap(fn ($groupes) => collect($groupes)->flatMap(fn ($droits) => array_keys($droits)))
+                ->unique()->values();
+            $gardees = collect((array) $request->input('pages_gardees', []))->filter(fn ($c) => is_string($c));
+            $espace->pages_retirees = $toutes->diff($gardees)->values()->all();
+        }
+
         // Les colonnes du lot 153 : seulement si la migration est jouée.
         if (\Illuminate\Support\Facades\Schema::hasColumn('espaces_sur_mesure', 'couleur_menu')) {
             $espace->couleur_menu = $request->boolean('menu_auto') ? null : (isset($donnees['couleur_menu']) ? strtolower($donnees['couleur_menu']) : null);
@@ -208,6 +220,28 @@ class EspaceSurMesureControleur extends Controller
         }
 
         return back()->with($toutBon ? 'success' : 'error', implode(' · ', $rapport));
+    }
+
+    /**
+     * Créer l'adresse sur le serveur, depuis le superadmin (23/11/2026) :
+     * le sous-domaine, le domaine propre, puis le certificat HTTPS.
+     */
+    public function serveur(Entreprise $entreprise, string $action, \App\Modules\Admin\Services\CpanelService $cpanel): RedirectResponse
+    {
+        abort_unless(\App\Modules\Admin\Services\CpanelService::configure(), 404);
+        $espace = EspaceSurMesure::where('entreprise_id', $entreprise->id)->firstOrFail();
+
+        [$ok, $message] = match ($action) {
+            'sous_domaine' => $espace->sous_domaine
+                ? $cpanel->creerSousDomaine($espace->sous_domaine, EspaceSurMesure::domaineRacine())
+                : [false, 'Saisissez et enregistrez d\'abord le sous-domaine.'],
+            'domaine' => $espace->domaine
+                ? $cpanel->ajouterDomaine($espace->domaine)
+                : [false, 'Saisissez et enregistrez d\'abord le domaine propre.'],
+            'ssl' => $cpanel->lancerAutoSsl(),
+        };
+
+        return back()->with($ok ? 'success' : 'error', $message);
     }
 
     /** Aperçu d'une page, même tant que l'espace n'est pas actif. */

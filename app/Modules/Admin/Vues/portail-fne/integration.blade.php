@@ -30,33 +30,55 @@
  * montre où il en est. Il s'arrête quand il ne reste que des pièces à
  * compléter à la main (point de vente à choisir, facture d'origine absente).
  */
+// « Tout intégrer » tourne sur le serveur (23/11/2026) : on peut quitter
+// la page, changer d'entreprise ; la progression se relit au retour.
+function afficherEtat(e) {
+    const zone = document.getElementById('progression-integration');
+    if (!e) return;
+    zone.style.display = 'block';
+    const total = e.faites + e.restantes + e.a_la_main.length;
+    const pct = total ? Math.round(100 * (e.faites + e.a_la_main.length) / total) : 100;
+    if (e.etat === 'termine') {
+        zone.innerHTML = '<strong>' + e.faites + ' pièce(s) intégrée(s).</strong>' + (e.a_la_main.length ? ' ' + e.a_la_main.length + ' restent à compléter à la main ci-dessous.' : ' Tout est dans Selflow.');
+        return;
+    }
+    zone.innerHTML = '<div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;"><strong><i class="fas fa-spinner fa-spin"></i> Intégration en cours sur le serveur</strong><span>' + e.faites + ' intégrée(s) · ' + e.restantes + ' restante(s)</span></div>'
+        + '<div style="height:8px; background:var(--border); border-radius:6px; margin-top:8px; overflow:hidden;"><div style="height:100%; width:' + pct + '%; background:var(--primary); transition:width .4s;"></div></div>'
+        + '<div style="font-size:12px; color:var(--text-3); margin-top:6px;">Vous pouvez quitter cette page ou changer d\'entreprise : le travail continue, et cette barre reprend à votre retour.</div>';
+}
+let suivi = null;
+function suivre() {
+    clearInterval(suivi);
+    suivi = setInterval(async function () {
+        try {
+            const r = await fetch(@json(route('admin.ventes.portail_fne.etat')), { headers: { 'Accept': 'application/json' } });
+            const e = await r.json();
+            afficherEtat(e);
+            if (!e || e.etat === 'termine') { clearInterval(suivi); setTimeout(() => window.location.reload(), 2500); }
+        } catch (err) { /* réseau : on réessaie au tour suivant */ }
+    }, 4000);
+}
 async function toutIntegrer(reconnus) {
     const bouton = document.getElementById(reconnus ? 'btn-reconnus' : 'btn-tout-integrer');
-    const zone = document.getElementById('progression-integration');
     bouton.disabled = true;
-    zone.style.display = 'block';
-    let faites = 0, aLaMain = [];
     try {
-        for (;;) {
-            zone.textContent = 'Intégration en cours… ' + faites + ' pièce(s) intégrée(s).';
-            const reponse = await fetch(@json(route('admin.ventes.portail_fne.integrer_pretes')), {
-                method: 'POST',
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': window.__csrf || '' },
-                body: JSON.stringify({ a_la_main: aLaMain, reconnus: !!reconnus })
-            });
-            if (!reponse.ok) throw new Error('echec');
-            const r = await reponse.json();
-            faites += r.faites; aLaMain = aLaMain.concat(r.a_la_main);
-            if (r.restantes === 0 || (r.faites === 0 && r.a_la_main.length === 0)) break;
-        }
-        zone.textContent = faites + ' pièce(s) intégrée(s).' + (aLaMain.length ? ' ' + aLaMain.length + ' restent à compléter à la main ci-dessous.' : ' Tout est dans Selflow.');
-        setTimeout(() => window.location.reload(), 2000);
+        const reponse = await fetch(@json(route('admin.ventes.portail_fne.arriere_plan')), {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': window.__csrf || '' },
+            body: JSON.stringify({ reconnus: !!reconnus })
+        });
+        if (!reponse.ok) throw new Error('echec');
+        afficherEtat(await reponse.json());
+        suivre();
     } catch (e) {
-        zone.style.display = 'none';
         bouton.disabled = false;
         if (window.selflowErreurTache) window.selflowErreurTache();
     }
 }
+document.addEventListener('DOMContentLoaded', function () {
+    const etat = @json($arrierePlan);
+    if (etat && etat.etat !== 'termine') { afficherEtat(etat); suivre(); }
+});
 </script>
 
 @if($factures->isEmpty())

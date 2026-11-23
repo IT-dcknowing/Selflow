@@ -106,7 +106,8 @@ class MettreEnFileDeversementComptaflow implements ShouldQueue, ShouldBeUnique
 
         EcritureComptable::withoutGlobalScopes()
             ->whereIn('operation_id', $operations)
-            ->where('comptaflow_sync_status', '!=', 'synced')
+            // `!= 'synced'` laissait de côté les lignes au statut NULL (23/11/2026).
+            ->where(fn ($q) => $q->whereNull('comptaflow_sync_status')->orWhere('comptaflow_sync_status', '!=', 'synced'))
             ->update([
                 'comptaflow_sync_status' => 'pending',
                 'comptaflow_sync_error' => null,

@@ -431,4 +431,20 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
 
         return null;
     }
+
+    /**
+     * Le travail abandonné (délai dépassé, tentatives épuisées) : ses lignes
+     * restaient « en cours » pour toujours (23/11/2026). Elles passent en échec,
+     * avec la raison, et « Relancer les échecs » les renverra.
+     */
+    public function failed(?\Throwable $e): void
+    {
+        \App\Modules\Admin\Modeles\EcritureComptable::withoutGlobalScopes()
+            ->where('operation_id', $this->operationId)
+            ->whereIn('comptaflow_sync_status', ['pending', 'sending'])
+            ->update([
+                'comptaflow_sync_status' => 'failed',
+                'comptaflow_sync_error' => mb_substr('Envoi interrompu côté Selflow : ' . ($e?->getMessage() ?: 'délai dépassé') . '.', 0, 500),
+            ]);
+    }
 }
