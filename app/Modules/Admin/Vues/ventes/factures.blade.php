@@ -47,7 +47,11 @@
 @include('admin::partials.kpi-factures', ['kpiFactures' => $kpiFactures ?? []])
 
 @if($etapeActive === 'Facture' && $type !== 'avoir' && ($facturesFnePortail ?? collect())->isNotEmpty())
-@php($aIntegrer = $facturesFnePortail->filter(fn ($document) => !$document->vente_locale)->count())
+@php
+    // Forme bloc : la forme courte, sur une ligne, avalait le bloc suivant
+    // de la vue, et `$statutsFiltre` n'était plus défini (panne du 23/11/2026).
+    $aIntegrer = $facturesFnePortail->filter(fn ($document) => !$document->vente_locale)->count();
+@endphp
 @if($aIntegrer > 0)
 {{-- Les factures du portail ne sont plus un registre à part (23/11/2026) :
      intégrées, ce sont des ventes de la liste, normalisées. --}}
