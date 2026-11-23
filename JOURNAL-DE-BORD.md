@@ -11235,6 +11235,26 @@ rangées par nature :
   passage automatique qui relève tous les types puis les répartit. Les
   relevés fonctionnent ; on n'y touche pas tant que ce n'est pas nécessaire.
 
+### Lot 147 — « Tout intégrer », groupes d'entreprises — **TERMINÉ le 23/11/2026**
+
+- **Factures FNE à intégrer** : plus de boîte de confirmation ; « Tout
+  intégrer » enchaîne les lots de 20 côté serveur jusqu'au bout, montre la
+  progression, et s'arrête sur ce qui reste à compléter à la main. Le bouton
+  « Factures » devient « Retour aux factures de vente ». La liste défile
+  dans un panneau.
+- **Groupes d'entreprises** (`superadmin/groupes`, habilitation
+  `gestion_entreprises`) : le superadmin lie des entreprises, coche les
+  **administrateurs** autorisés (d'une entreprise du groupe), et active le
+  groupe. L'administrateur autorisé voit « Changer d'entreprise » dans son
+  menu de profil ; changer bascule son compte (`entreprise_id`), son site
+  (le seul de l'entreprise, sinon à choisir) et vide la période et le site
+  de la session. Un compte = une adresse : c'est le compte qui change
+  d'entreprise, pas un second compte. Migration `2026_11_23_000004`.
+- Accueil : la pastille « Conforme à la FNE de la DGI Côte d'Ivoire » est
+  retirée.
+
+- `GroupesEntreprisesTest` (4).
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

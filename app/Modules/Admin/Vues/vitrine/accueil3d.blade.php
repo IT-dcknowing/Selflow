@@ -175,7 +175,6 @@
 <section class="ouverture">
     <canvas id="scene" aria-hidden="true"></canvas>
     <div class="conteneur">
-        <span class="pastille"><span class="point"></span> Conforme à la FNE de la DGI Côte d'Ivoire</span>
         <h1>La facture normalisée, <span class="degrade">sans y penser.</span></h1>
         <p class="chapeau">Vous vendez. Selflow transmet la pièce à la plateforme de la Direction Générale des Impôts, la reçoit certifiée avec son numéro et son code QR, sort la marchandise du stock et passe l'écriture comptable. Une seule saisie, et tout suit.</p>
         <div class="boutons">

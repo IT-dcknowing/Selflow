@@ -823,6 +823,9 @@
             <a href="{{ route('superadmin.switch.index') }}" class="nav-item {{ request()->routeIs('superadmin.switch*') ? 'active' : '' }}">
                 <i class="fas fa-right-left"></i> Switch entreprise
             </a>
+            <a href="{{ route('superadmin.groupes.index') }}" class="nav-item {{ request()->routeIs('superadmin.groupes*') ? 'active' : '' }}">
+                <i class="fas fa-diagram-project"></i> Groupes d'entreprises
+            </a>
             @php $__enCorbeille = \App\Modules\Admin\Modeles\Entreprise::enCorbeille()->count(); @endphp
             <a href="{{ route('superadmin.corbeille') }}" class="nav-item {{ request()->routeIs('superadmin.corbeille*') ? 'active' : '' }}">
                 <i class="fas fa-trash-can"></i> Corbeille
@@ -1574,6 +1577,23 @@
                 <a href="{{ route('admin.entreprise.parametres') }}" style="display:flex; align-items:center; gap:8px; padding:8px 14px; font-size:12.5px; color:var(--text); text-decoration:none; transition:background 0.15s;" onmouseover="this.style.background='#F1F5F9'" onmouseout="this.style.background='none'">
                     <i class="fas fa-gear" style="width:14px; color:var(--text-2);"></i> Paramètres
                 </a>
+                @endif
+                {{-- Changer d'entreprise : groupes activés par le superadmin (23/11/2026). --}}
+                @php
+                    $__autres = \App\Modules\Admin\Modeles\GroupeEntreprises::entreprisesAccessibles(auth()->user())
+                        ->where('id', '!=', auth()->user()->entreprise_id);
+                @endphp
+                @if($__autres->isNotEmpty() && \Illuminate\Support\Facades\Route::has('admin.entreprise.changer'))
+                    <div style="padding:6px 14px 2px; font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.4px;">Changer d'entreprise</div>
+                    @foreach($__autres as $__e)
+                        <form method="POST" action="{{ route('admin.entreprise.changer', $__e) }}" style="margin:0;">
+                            @csrf
+                            <button type="submit" style="width:100%; display:flex; align-items:center; gap:8px; padding:7px 14px; font-size:12.5px; color:var(--text); border:none; background:none; cursor:pointer; text-align:left; font-family:inherit;" onmouseover="this.style.background='#F1F5F9'" onmouseout="this.style.background='none'">
+                                <i class="fas fa-building" style="width:14px; color:var(--text-2);"></i> {{ $__e->nom }}
+                            </button>
+                        </form>
+                    @endforeach
+                    <div style="border-top:1px solid var(--border); margin:4px 0;"></div>
                 @endif
                 <a href="{{ route('vitrine.guide') }}" target="_blank" rel="noopener" style="display:flex; align-items:center; gap:8px; padding:8px 14px; font-size:12.5px; color:var(--text); text-decoration:none;" onmouseover="this.style.background='#F1F5F9'" onmouseout="this.style.background='none'">
                     <i class="fas fa-book-open" style="width:14px; color:var(--text-2);"></i> Guide d'utilisation

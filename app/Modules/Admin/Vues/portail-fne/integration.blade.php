@@ -10,16 +10,51 @@
            ce sont des ventes, des achats et des avoirs comme les autres : ils comptent dans les listes, les soldes des tiers et la comptabilité.
            Ce que Selflow a déjà enregistré n'est jamais repris.</p>
     </div>
-    <div style="display:flex; gap:8px;">
-        <a href="{{ route('admin.ventes.factures') }}" class="btn btn-outline"><i class="fas fa-list"></i> Factures</a>
+    <div style="display:flex; gap:8px; align-items:flex-start;">
+        <a href="{{ route('admin.ventes.factures') }}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Retour aux factures de vente</a>
         @if($factures->isNotEmpty())
-        <form method="POST" action="{{ route('admin.ventes.portail_fne.integrer_pretes') }}" onsubmit="return confirm('Intégrer toutes les factures dont le point de vente est reconnu ?');">
-            @csrf
-            <button class="btn btn-primary"><i class="fas fa-check-double"></i> Intégrer celles qui sont prêtes (40 par clic)</button>
-        </form>
+        <button type="button" class="btn btn-primary" id="btn-tout-integrer" onclick="toutIntegrer()">
+            <i class="fas fa-check-double"></i> Tout intégrer
+        </button>
         @endif
     </div>
 </div>
+<div id="progression-integration" style="display:none; margin:0 0 14px; padding:12px 16px; border-radius:10px; background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; font-size:14px;"></div>
+
+<script>
+/*
+ * « Tout intégrer » enchaîne les lots de 20 sans boîte de confirmation, et
+ * montre où il en est. Il s'arrête quand il ne reste que des pièces à
+ * compléter à la main (point de vente à choisir, facture d'origine absente).
+ */
+async function toutIntegrer() {
+    const bouton = document.getElementById('btn-tout-integrer');
+    const zone = document.getElementById('progression-integration');
+    bouton.disabled = true;
+    zone.style.display = 'block';
+    let faites = 0, aLaMain = [];
+    try {
+        for (;;) {
+            zone.textContent = 'Intégration en cours… ' + faites + ' pièce(s) intégrée(s).';
+            const reponse = await fetch(@json(route('admin.ventes.portail_fne.integrer_pretes')), {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': window.__csrf || '' },
+                body: JSON.stringify({ a_la_main: aLaMain })
+            });
+            if (!reponse.ok) throw new Error('echec');
+            const r = await reponse.json();
+            faites += r.faites; aLaMain = aLaMain.concat(r.a_la_main);
+            if (r.restantes === 0 || (r.faites === 0 && r.a_la_main.length === 0)) break;
+        }
+        zone.textContent = faites + ' pièce(s) intégrée(s).' + (aLaMain.length ? ' ' + aLaMain.length + ' restent à compléter à la main ci-dessous.' : ' Tout est dans Selflow.');
+        setTimeout(() => window.location.reload(), 2000);
+    } catch (e) {
+        zone.style.display = 'none';
+        bouton.disabled = false;
+        if (window.selflowErreurTache) window.selflowErreurTache();
+    }
+}
+</script>
 
 @if($factures->isEmpty())
     <div class="card" style="padding:24px; text-align:center; color:var(--text-3);">
@@ -31,6 +66,7 @@
 @if($factures->total() > 0)
 <p style="color:var(--text-3); font-size:13px; margin:0 0 8px;">{{ $factures->total() }} pièce(s) en attente.</p>
 @endif
+<div style="max-height:calc(100vh - 260px); overflow-y:auto; padding-right:6px; border-top:1px solid var(--border);">
 @foreach($factures->getCollection()->groupBy(fn ($f) => $propositions[$f->id]['nature']) as $nature => $groupe)
 <h2 style="font-size:16px; margin:24px 0 10px;">{{ \App\Modules\Admin\Services\IntegrationFacturePortailService::LIBELLES[$nature] ?? 'Autres pièces' }} <span style="color:var(--text-3); font-weight:400;">({{ $groupe->count() }})</span></h2>
 @foreach($groupe as $facture)
@@ -140,5 +176,6 @@
     </form>
 @endforeach
 @endforeach
+</div>
 <div style="margin-top:12px;">{{ $factures->links() }}</div>
 @endsection

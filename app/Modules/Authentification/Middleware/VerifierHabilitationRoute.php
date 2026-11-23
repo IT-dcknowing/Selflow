@@ -107,6 +107,11 @@ class VerifierHabilitationRoute
         'superadmin.tracabilite.debloquer' => 'administration_interne',
         'superadmin.tracabilite.basculer'  => 'administration_interne',
         // L'assistance : entrer dans l'espace d'une entreprise.
+        'superadmin.groupes.index'       => 'gestion_entreprises',
+        'superadmin.groupes.creer'       => 'gestion_entreprises',
+        'superadmin.groupes.enregistrer' => 'gestion_entreprises',
+        'superadmin.groupes.basculer'    => 'gestion_entreprises',
+        'superadmin.groupes.supprimer'   => 'gestion_entreprises',
         'superadmin.switch.index'    => 'gestion_entreprises',
         'superadmin.switch.acceder'  => 'gestion_entreprises',
         'superadmin.switch.entreprise' => 'gestion_entreprises',

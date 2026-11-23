@@ -74,33 +74,42 @@ class IntegrationPortailFneControleur extends Controller
         return back()->with('succes', "Facture {$facture->reference} intégrée comme {$vente->numero_facture}.");
     }
 
-    /** Intègre d'un coup toutes celles dont le point de vente est connu. */
-    public function integrerPretes(): RedirectResponse
+    /**
+     * « Tout intégrer » : un lot par appel. L'écran rappelle tout seul jusqu'à
+     * ce qu'il ne reste que des pièces à compléter à la main (23/11/2026 :
+     * « 40 par clic, et les autres ? »).
+     */
+    public function integrerPretes(Request $request): RedirectResponse|\Illuminate\Http\JsonResponse
     {
         $entreprise = Auth::user()->entreprise;
-        $faites = 0;
-        $restes = 0;
+        $ecartees = collect((array) $request->input('a_la_main', []))->map(fn ($id) => (int) $id);
 
-        // Par lots de 40 : chaque intégration écrit une vente et ses écritures,
+        // 20 par appel : chaque intégration écrit une pièce et ses écritures,
         // et l'hébergement coupe une requête trop longue.
-        $lot = $this->service->enAttente($entreprise)->take(40);
-        $restantes = max(0, $this->service->enAttente($entreprise)->count() - $lot->count());
+        $lot = $this->service->enAttente($entreprise)->reject(fn ($f) => $ecartees->contains($f->id))->take(20);
+        $faites = 0;
+        $aLaMain = [];
 
         foreach ($lot as $facture) {
             try {
                 $this->service->integrer($facture, $entreprise, Auth::id());
                 $faites++;
             } catch (\DomainException) {
-                $restes++;
+                $aLaMain[] = $facture->id;
             } catch (\Throwable $e) {
                 Log::error('[portail FNE] intégration impossible de ' . $facture->reference . ' : ' . $e->getMessage());
-                $restes++;
+                $aLaMain[] = $facture->id;
             }
         }
 
-        return back()->with('succes', "{$faites} pièce(s) intégrée(s)"
-            . ($restes ? ", {$restes} à compléter à la main" : '')
-            . ($restantes ? ". Il en reste {$restantes} : cliquez de nouveau." : '.'));
+        $restantes = $this->service->enAttente($entreprise)
+            ->reject(fn ($f) => $ecartees->contains($f->id) || in_array($f->id, $aLaMain, true))->count();
+
+        if ($request->expectsJson()) {
+            return response()->json(['faites' => $faites, 'a_la_main' => $aLaMain, 'restantes' => $restantes]);
+        }
+
+        return back()->with('succes', "{$faites} pièce(s) intégrée(s)" . ($aLaMain ? ', ' . count($aLaMain) . ' à compléter à la main.' : '.'));
     }
 
     public function ignorer(Request $request, PortailFneFactureRecue $facture): RedirectResponse

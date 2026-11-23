@@ -26,6 +26,9 @@ Route::prefix('admin')
     ->middleware(['auth', 'role:admin', 'habilitation', 'apercu.readonly', 'periode', 'abonnement.actif', 'piece.unique', 'piece.du_site'])
     ->name('admin.')
     ->group(function () {
+        // Changer d'entreprise dans un groupe activé (23/11/2026).
+        Route::post('/entreprise/changer/{entreprise}', [\App\Modules\Admin\Controleurs\GroupeEntreprisesControleur::class, 'changer'])->name('entreprise.changer');
+
 
         // Tableau de bord
         Route::get('/', [AdminControleur::class, 'tableauDeBord'])->name('tableau_de_bord');
@@ -790,6 +793,15 @@ Route::prefix('superadmin')
             Route::post('/assistance', [\App\Modules\Admin\Controleurs\SuperadminPanneControleur::class, 'assistance'])->name('assistance');
             Route::post('/hors-ligne', [\App\Modules\Admin\Controleurs\SuperadminPanneControleur::class, 'horsLigne'])->name('hors_ligne');
             Route::post('/{panne}/corriger', [\App\Modules\Admin\Controleurs\SuperadminPanneControleur::class, 'corriger'])->name('corriger');
+        });
+
+        // ── Groupes d'entreprises (23/11/2026) ──
+        Route::prefix('groupes')->name('groupes.')->group(function () {
+            Route::get('/', [\App\Modules\Admin\Controleurs\GroupeEntreprisesControleur::class, 'index'])->name('index');
+            Route::post('/', [\App\Modules\Admin\Controleurs\GroupeEntreprisesControleur::class, 'creer'])->name('creer');
+            Route::post('/{groupe}', [\App\Modules\Admin\Controleurs\GroupeEntreprisesControleur::class, 'enregistrer'])->name('enregistrer');
+            Route::post('/{groupe}/basculer', [\App\Modules\Admin\Controleurs\GroupeEntreprisesControleur::class, 'basculer'])->name('basculer');
+            Route::delete('/{groupe}', [\App\Modules\Admin\Controleurs\GroupeEntreprisesControleur::class, 'supprimer'])->name('supprimer');
         });
 
         // ── Demandes de démo de la page d'accueil (23/11/2026) ──
