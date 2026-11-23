@@ -19,6 +19,12 @@ class ConnexionControleur
      */
     public function afficher(): View
     {
+        // Selflow sur mesure (23/11/2026) : la page de connexion de l'entreprise.
+        $espace = \App\Modules\Admin\Modeles\EspaceSurMesure::courant();
+        if ($espace?->moduleActif('connexion')) {
+            return view('admin::sur-mesure.connexion', ['espace' => $espace]);
+        }
+
         return view('authentification::connexion');
     }
 
@@ -71,6 +77,18 @@ class ConnexionControleur
             Auth::logout();
             throw ValidationException::withMessages([
                 'connexion_erreur' => 'Votre inscription est en attente de validation par notre équipe.',
+            ]);
+        }
+
+        // Selflow sur mesure (23/11/2026) : à l'adresse d'une entreprise, seuls
+        // ses utilisateurs (et le superadministrateur) entrent. Même message
+        // qu'un mot de passe faux : l'adresse ne dit pas qui a un compte ailleurs.
+        $espace = \App\Modules\Admin\Modeles\EspaceSurMesure::courant();
+        if ($espace && ! Auth::user()->estSuperAdmin() && (int) Auth::user()->entreprise_id !== (int) $espace->entreprise_id) {
+            Auth::logout();
+            RateLimiter::hit($this->cléThrottling($request));
+            throw ValidationException::withMessages([
+                'connexion_erreur' => 'Les informations de connexion saisies sont incorrectes.',
             ]);
         }
 

@@ -55,6 +55,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->appendToGroup('web', \App\Http\Middleware\BloquerSiHorsLigne::class);
         $middleware->appendToGroup('api', \App\Http\Middleware\BloquerSiHorsLigne::class);
 
+        // Selflow sur mesure (23/11/2026) : l'adresse désigne l'entreprise.
+        $middleware->appendToGroup('web', \App\Http\Middleware\ReconnaitreEspaceSurMesure::class);
+
         // Traçabilité du trafic (16/10/2026) : en dernier, après la réponse.
         $middleware->appendToGroup('web', \App\Http\Middleware\JournaliserVisite::class);
 

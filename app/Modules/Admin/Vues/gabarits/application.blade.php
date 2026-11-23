@@ -649,14 +649,38 @@
 </div>
 @endif
 
+@php
+    // Selflow sur mesure (23/11/2026) : à l'adresse d'une entreprise dont le
+    // module « couleurs » est actif, l'application prend ses couleurs et son logo.
+    $__espaceHabille = (isset($espaceSurMesure) && $espaceSurMesure && $espaceSurMesure->moduleActif('couleurs')) ? $espaceSurMesure : null;
+@endphp
+@if($__espaceHabille)
+<style>
+    :root {
+        --primary: {{ $__espaceHabille->couleur_principale }};
+        --primary-d: {{ $__espaceHabille->ombre($__espaceHabille->couleur_principale, .22) }};
+        --bg3: {{ $__espaceHabille->teinte($__espaceHabille->couleur_principale, .9) }};
+    }
+    .sidebar { background: {{ $__espaceHabille->ombre($__espaceHabille->couleur_principale, .45) }} !important; }
+</style>
+@endif
+
 <!-- ────────────────── SIDEBAR ────────────────── -->
 <aside class="sidebar">
     <div class="sidebar-logo">
+        @if($__espaceHabille)
+            <div class="logo-icon"><img src="{{ $__espaceHabille->media('logo_blanc') ?: ($__espaceHabille->media('icone') ?: asset('images/selflow/logo-blanc.png')) }}" alt="" style="width:30px;height:30px;object-fit:contain;"></div>
+            <div style="min-width:0;">
+                <div class="logo-text" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ $__espaceHabille->entreprise?->nom }}</div>
+                <div class="logo-sub">Propulsé par DC-KNOWING</div>
+            </div>
+        @else
         <div class="logo-icon"><img src="{{ asset('images/selflow/logo-blanc.png') }}" alt="" style="width:30px;height:30px;object-fit:contain;"></div>
         <div>
             <div class="logo-text">Selflow</div>
             <div class="logo-sub">Gestion commerciale</div>
         </div>
+        @endif
     </div>
 
     @php
@@ -825,6 +849,9 @@
             </a>
             <a href="{{ route('superadmin.groupes.index') }}" class="nav-item {{ request()->routeIs('superadmin.groupes*') ? 'active' : '' }}">
                 <i class="fas fa-diagram-project"></i> Groupes d'entreprises
+            </a>
+            <a href="{{ route('superadmin.sur_mesure.index') }}" class="nav-item {{ request()->routeIs('superadmin.sur_mesure*') ? 'active' : '' }}">
+                <i class="fas fa-wand-magic-sparkles"></i> Selflow sur mesure
             </a>
             @php $__enCorbeille = \App\Modules\Admin\Modeles\Entreprise::enCorbeille()->count(); @endphp
             <a href="{{ route('superadmin.corbeille') }}" class="nav-item {{ request()->routeIs('superadmin.corbeille*') ? 'active' : '' }}">
@@ -1586,7 +1613,7 @@
                     $__autres = \App\Modules\Admin\Modeles\GroupeEntreprises::entreprisesAccessibles(auth()->user())
                         ->where('id', '!=', auth()->user()->entreprise_id);
                 @endphp
-                @if($__autres->isNotEmpty() && \Illuminate\Support\Facades\Route::has('admin.entreprise.changer'))
+                @if(empty($__espaceHabille) && !(isset($espaceSurMesure) && $espaceSurMesure) && $__autres->isNotEmpty() && \Illuminate\Support\Facades\Route::has('admin.entreprise.changer'))
                     <div style="padding:6px 14px 2px; font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.4px;">Changer d'entreprise</div>
                     @foreach($__autres as $__e)
                         <form method="POST" action="{{ route('admin.entreprise.changer', $__e) }}" style="margin:0;">

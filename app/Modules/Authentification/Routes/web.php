@@ -42,6 +42,12 @@ Route::get('/presentation/demo/voir', [\App\Modules\Admin\Controleurs\DemoContro
  * d'articles, avatars — restent derrière `admin.media`, qui vérifie
  * désormais à qui le fichier appartient.
  */
+// Les images d'un espace sur mesure, publiques comme celles de la vitrine (23/11/2026).
+Route::get('/espace/media/{espace}/{fichier}', [\App\Modules\Admin\Controleurs\EspaceSurMesureControleur::class, 'media'])
+    ->whereNumber('espace')
+    ->where('fichier', '[A-Za-z0-9._-]+')
+    ->name('espace.media');
+
 Route::get('/presentation/media/{fichier}', [\App\Modules\Admin\Controleurs\VitrineControleur::class, 'servirUnMedia'])
     ->where('fichier', '.*')
     ->name('vitrine.media');
@@ -129,6 +135,15 @@ Route::get('/', function () {
     // menait — il fallait connaître l'adresse pour la lire, ce qui est le
     // contraire d'une vitrine.
     if (! auth()->check()) {
+        // Selflow sur mesure (23/11/2026) : à l'adresse d'une entreprise, sa
+        // page d'accueil ; sans ce module, directement sa page de connexion.
+        $espace = \App\Modules\Admin\Modeles\EspaceSurMesure::courant();
+        if ($espace) {
+            return $espace->moduleActif('accueil')
+                ? app(\App\Modules\Admin\Controleurs\EspaceSurMesureControleur::class)->accueil($espace)
+                : redirect()->route('connexion');
+        }
+
         return app(\App\Modules\Admin\Controleurs\VitrineControleur::class)->accueil();
     }
 

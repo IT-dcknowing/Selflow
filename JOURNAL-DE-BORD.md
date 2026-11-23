@@ -11295,6 +11295,42 @@ rangées par nature :
   échecs/erreurs, exactement ceux de `main` (la référence comptait jusqu'ici
   les seuls « failures », 175 ; les 38 « errors » y étaient déjà).
 
+### Lot 150 — Selflow sur mesure — **TERMINÉ le 23/11/2026** (branche `application-sur-mesure`)
+
+Décisions du propriétaire : sous-domaine Selflow **et** domaine propre, au
+choix du superadmin par entreprise ; les DNS sont gérés par DC-Knowing ;
+« Propulsé par DC-KNOWING » sur toutes les pages de l'espace.
+
+- **Pas de redirection** : l'adresse de l'entreprise pointe sur le serveur
+  (cPanel : domaine ajouté vers le dossier `public` de Selflow ; une fois pour
+  toutes `*.selflow.ci` pour les sous-domaines ; AutoSSL). Le middleware
+  `ReconnaitreEspaceSurMesure` (groupe web) reconnaît l'entreprise à l'hôte,
+  correspondance en cache (`espace_hote_*`, versionnée, effacée à chaque
+  enregistrement), table absente = Selflow standard.
+- Table `espaces_sur_mesure` (migration `2026_11_23_000005`, gardée), modèle
+  `EspaceSurMesure` : adresses, couleurs, logos, image de fond, modèles,
+  textes, atouts, coordonnées, modules (`accueil`, `connexion`, `couleurs`).
+- **Accueil** : modèles Horizon, Immersion, Épure, ou « Sur mesure » (vue
+  dédiée `Vues/sur-mesure/espaces/entreprise-{id}.blade.php`). Sans le module
+  accueil, l'adresse ouvre la connexion.
+- **Connexion** : modèles Panneau, Plein écran, Carte. Pas d'inscription ni de
+  Google sur l'espace. Seuls les utilisateurs de l'entreprise et le
+  superadmin entrent (même message qu'un mot de passe faux) ; un compte d'une
+  autre entreprise déjà connecté est déconnecté.
+- **Couleurs dans l'application** : `--primary`, menu latéral, logo et nom de
+  l'entreprise, « Propulsé par DC-KNOWING ». « Changer d'entreprise » masqué
+  sur une adresse sur mesure.
+- **Superadmin, « Selflow sur mesure »** (habilitation `gestion_entreprises`) :
+  liste avec recherche, fiche à onglets Domaine (instructions DNS, bouton
+  « Vérifier les adresses »), Identité, Page d'accueil, Connexion, Modules
+  (dont « Espace actif »), aperçus des deux pages même inactif.
+- Images servies par `espace.media` (public, sans SVG).
+- Configuration : `SELFLOW_DOMAINE_RACINE` (défaut selflow.ci),
+  `SELFLOW_IP_SERVEUR`, `SELFLOW_CIBLE_CNAME`. `SESSION_DOMAIN` doit rester
+  vide (sinon la session se partagerait entre sous-domaines).
+- La FNE n'est pas touchée.
+- `EspaceSurMesureTest` (7). Suite : 213, identiques à `main`.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

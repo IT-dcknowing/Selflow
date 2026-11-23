@@ -809,6 +809,16 @@ Route::prefix('superadmin')
             Route::delete('/{groupe}', [\App\Modules\Admin\Controleurs\GroupeEntreprisesControleur::class, 'supprimer'])->name('supprimer');
         });
 
+        // ── Selflow sur mesure (23/11/2026) ──
+        Route::prefix('sur-mesure')->name('sur_mesure.')->group(function () {
+            Route::get('/', [\App\Modules\Admin\Controleurs\EspaceSurMesureControleur::class, 'index'])->name('index');
+            Route::get('/{entreprise}', [\App\Modules\Admin\Controleurs\EspaceSurMesureControleur::class, 'modifier'])->name('modifier');
+            Route::post('/{entreprise}', [\App\Modules\Admin\Controleurs\EspaceSurMesureControleur::class, 'enregistrer'])->name('enregistrer');
+            Route::post('/{entreprise}/verifier', [\App\Modules\Admin\Controleurs\EspaceSurMesureControleur::class, 'verifier'])->name('verifier');
+            Route::get('/{entreprise}/apercu/{page}', [\App\Modules\Admin\Controleurs\EspaceSurMesureControleur::class, 'apercu'])
+                ->whereIn('page', ['accueil', 'connexion'])->name('apercu');
+        });
+
         // ── Demandes de démo de la page d'accueil (23/11/2026) ──
         Route::prefix('demos')->name('demos.')->group(function () {
             Route::get('/', [\App\Modules\Admin\Controleurs\DemoControleur::class, 'index'])->name('index');

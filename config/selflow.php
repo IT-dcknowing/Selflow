@@ -14,6 +14,17 @@ return [
     'assistance_telephone' => env('SELFLOW_ASSISTANCE_TELEPHONE', '07 67 13 19 93'),
 
     /*
+    | Selflow sur mesure (23/11/2026) : les sous-domaines se créent sous
+    | `domaine_racine` ; `ip_serveur` et `cible_cname` sont ce qu'on inscrit
+    | dans les DNS d'un domaine propre, et ce que vérifie le superadmin.
+    */
+    'sur_mesure' => [
+        'domaine_racine' => env('SELFLOW_DOMAINE_RACINE', 'selflow.ci'),
+        'ip_serveur'     => env('SELFLOW_IP_SERVEUR'),
+        'cible_cname'    => env('SELFLOW_CIBLE_CNAME', env('SELFLOW_DOMAINE_RACINE', 'selflow.ci')),
+    ],
+
+    /*
     |--------------------------------------------------------------------------
     | URL de l'API COMPTAFLOW
     |--------------------------------------------------------------------------
