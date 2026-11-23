@@ -319,9 +319,48 @@ function armerLaMinuterie(script) {
   minuterie.unref();
 }
 
+/*
+ * Les profils que Chromium laisse dans /tmp quand il est tué avant d'avoir
+ * fermé proprement : 154 sur le serveur le 23/11/2026. On ne retire que les
+ * siens, vieux de plus d'une heure — un profil récent peut appartenir au
+ * scraper qui vient de rendre la main.
+ */
+function nettoyerLesProfilsAbandonnes() {
+  const racine = require('os').tmpdir();
+  const avant = Date.now() - 60 * 60 * 1000;
+  let entrees = [];
+  try { entrees = fs.readdirSync(racine); } catch (_) { return; }
+
+  for (const nom of entrees) {
+    if (!nom.startsWith('playwright_chromiumdev_profile-')) continue;
+    const chemin = path.join(racine, nom);
+    try {
+      const info = fs.statSync(chemin);
+      if (typeof process.getuid === 'function' && info.uid !== process.getuid()) continue;
+      if (info.mtimeMs > avant) continue;
+      fs.rmSync(chemin, { recursive: true, force: true });
+    } catch (_) { /* déjà parti, ou pas à nous */ }
+  }
+}
+
+/*
+ * Les options de Chromium se règlent sans toucher au code :
+ * FNE_CHROMIUM_ARGS="--no-sandbox --no-zygote" remplace celles du script.
+ * `--single-process` (15/09/2026) n'est pas pris en charge par Playwright et
+ * peut faire avorter ou figer Chromium ; depuis que les scrapers passent un
+ * par un, il se peut qu'il ne soit plus nécessaire. À éprouver sur le
+ * serveur avant de le retirer du code.
+ */
+function optionsDuNavigateur(options) {
+  const choisies = String(process.env.FNE_CHROMIUM_ARGS || '').trim();
+  return choisies ? { ...options, args: choisies.split(/\s+/) } : options;
+}
+
 async function lancerNavigateur(script, options) {
   const relacher = await prendreLeNavigateur(script);
   armerLaMinuterie(script);
+  nettoyerLesProfilsAbandonnes();
+  options = optionsDuNavigateur(options);
   let derniere = null;
 
   for (let essai = 1; essai <= ESSAIS_LANCEMENT; essai++) {
