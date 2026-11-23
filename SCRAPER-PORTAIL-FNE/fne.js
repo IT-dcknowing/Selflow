@@ -301,8 +301,27 @@ async function prendreLeNavigateur(script) {
  * Le verrou est rendu à la fermeture du navigateur, ou à la sortie du
  * processus si le scraper meurt avant de le fermer.
  */
+const DUREE_MAX_RELEVE_MS = Number(process.env.FNE_DUREE_MAX_RELEVE_MS || 8 * 60 * 1000);
+
+/*
+ * Un relevé figé ne doit pas tenir le navigateur indéfiniment. Constaté le
+ * 23/11/2026 : Chromium démarre, puis plus rien — pas même « Connexion... » —,
+ * et le scraper suivant attend son tour sans fin. Passé ce délai, le
+ * processus sort en erreur : Playwright ferme Chromium à la sortie, le verrou
+ * est rendu, et Selflow lit un relevé interrompu.
+ */
+function armerLaMinuterie(script) {
+  const minuterie = setTimeout(() => {
+    journaliser(script, 'ERREUR', `Releve fige depuis ${Math.round(DUREE_MAX_RELEVE_MS / 60000)} min : arret force (FNE_DUREE_MAX_RELEVE_MS).`);
+    process.exit(1);
+  }, DUREE_MAX_RELEVE_MS);
+  // Un relevé fini ne doit pas attendre la minuterie pour rendre la main.
+  minuterie.unref();
+}
+
 async function lancerNavigateur(script, options) {
   const relacher = await prendreLeNavigateur(script);
+  armerLaMinuterie(script);
   let derniere = null;
 
   for (let essai = 1; essai <= ESSAIS_LANCEMENT; essai++) {
