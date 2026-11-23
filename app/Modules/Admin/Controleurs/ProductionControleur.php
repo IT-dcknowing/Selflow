@@ -238,10 +238,20 @@ class ProductionControleur extends Controller
         // La colonne s'appelle `quantite_disponible` ; `quantite`
         // n'existe pas et n'est pas dans `$fillable`, si bien que la
         // valeur passait à la trappe sans que rien ne le signale.
+        // Référencé sur le seul site actif (audit du 23/11/2026) : référencé
+        // partout, le produit fini apparaissait dans la caisse et le stock de
+        // chaque site. Les autres sites gardent une fiche non référencée,
+        // qu'un transfert ou une production y activera.
+        $siteActif = (int) (\App\Modules\Admin\Modeles\Produit::getActivePdvId() ?: 0);
+        $parReference = \Illuminate\Support\Facades\Schema::hasColumn('stocks', 'reference');
         foreach (PointDeVente::where('entreprise_id', $entrepriseId)->get() as $pdv) {
+            $valeurs = ['quantite_disponible' => 0];
+            if ($parReference && $siteActif) {
+                $valeurs['reference'] = (int) $pdv->id === $siteActif;
+            }
             Stock::firstOrCreate(
                 ['point_de_vente_id' => $pdv->id, 'produit_id' => $produit->id],
-                ['quantite_disponible' => 0]
+                $valeurs
             );
         }
 
@@ -445,7 +455,9 @@ class ProductionControleur extends Controller
         $query = OrdreProduction::with(['produitFini', 'pointDeVente'])
             ->where('entreprise_id', $entrepriseId);
 
-        $siteId = Auth::user()->estCaissier()
+        // Tout membre affecté — caissier ou responsable — ne voit que les
+        // ordres de son site (audit du 23/11/2026 : le responsable voyait tout).
+        $siteId = Auth::user()->estAffecteAUnSite()
             ? Auth::user()->point_de_vente_id
             : ($pdvs->contains('id', (int) $request->input('site')) ? (int) $request->input('site') : null);
 

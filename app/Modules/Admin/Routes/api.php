@@ -14,7 +14,7 @@ use App\Modules\Admin\Controleurs\Api\EntrepriseApiControleur;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')
-    ->middleware(['auth.api', 'role:admin'])
+    ->middleware(['auth.api', 'role:admin', 'piece.du_site'])
     ->group(function () {
 
         // Tableau de bord

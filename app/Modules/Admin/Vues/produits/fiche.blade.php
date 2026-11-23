@@ -187,8 +187,9 @@
             <i class="fas fa-boxes"></i> Stock (point de vente actif)
         </h3>
         @php
-            $stock      = $produit->stocks->where('point_de_vente_id', session('point_de_vente_actif_id'))->first()
-                       ?? $produit->stocks->first();
+            // Plus de repli sur la première fiche venue : elle était celle d'un
+            // autre site, affichée comme celle du site actif (audit du 23/11/2026).
+            $stock      = $produit->stocks->where('point_de_vente_id', session('point_de_vente_actif_id'))->first();
             $qteDisp    = $stock?->quantite_disponible ?? 0;
             $qteCmd     = $produit->quantite_commandee ?? 0;
             $qteRecp    = $produit->quantite_a_receptionner ?? 0;
@@ -270,7 +271,10 @@
      on l'en retire. Tous les sites de l'entreprise figurent, même ceux où
      l'article n'a jamais eu de fiche. --}}
 @php
-    $__sites = \App\Modules\Admin\Modeles\PointDeVente::where('entreprise_id', $produit->entreprise_id)->orderBy('nom')->get();
+    // Un membre affecté ne voit que son site (audit du 23/11/2026).
+    $__sites = \App\Modules\Admin\Modeles\PointDeVente::where('entreprise_id', $produit->entreprise_id)
+        ->when(auth()->user()->estAffecteAUnSite(), fn ($q) => $q->whereKey(auth()->user()->point_de_vente_id))
+        ->orderBy('nom')->get();
     $__fiches = $produit->stocks->keyBy('point_de_vente_id');
     $__affecte = auth()->user()->estAffecteAUnSite();
 @endphp

@@ -123,6 +123,10 @@ class RapportControleur
 
         // ─── Liste des points de vente de l'entreprise (via cache Section 18.4) ─────────────────────
         $pointsDeVente = CacheService::pointsDeVente($entreprise->id);
+        // Un membre affecté ne voit que l'activité de son site (audit du 23/11/2026).
+        if ($site = \App\Modules\Admin\Services\SiteAutorise::siteImpose()) {
+            $pointsDeVente = $pointsDeVente->where('id', $site)->values();
+        }
         $pdvIds        = $pointsDeVente->pluck('id');
 
         // ─── VENTES (période active via PeriodeScope) ─────────────────────────

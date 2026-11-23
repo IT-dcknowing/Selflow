@@ -47,6 +47,14 @@ class SiteAutorise
         return (int) $demande;
     }
 
+    /** Le site auquel les listes sont limitées : celui du membre affecté, sinon aucun. */
+    public static function siteImpose(): ?int
+    {
+        $utilisateur = Auth::user();
+
+        return $utilisateur && $utilisateur->estAffecteAUnSite() ? (int) $utilisateur->point_de_vente_id : null;
+    }
+
     /** Refuse un site hors de l'entreprise, ou hors de l'affectation du membre. */
     public static function verifier(?int $pointDeVenteId): void
     {

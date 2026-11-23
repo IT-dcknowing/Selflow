@@ -56,7 +56,7 @@
                 <label class="form-label">Entrepôt Source <span style="color:var(--danger)">*</span></label>
                 <select name="point_de_vente_source_id" class="form-control" required>
                     <option value="">-- Sélectionner --</option>
-                    @foreach($pointsDeVente as $pdv)
+                    @foreach($pointsDeVente->when($siteSource ?? null, fn ($liste, $site) => $liste->where('id', $site)) as $pdv)
                         <option value="{{ $pdv->id }}" {{ session('point_de_vente_actif_id') == $pdv->id ? 'selected' : '' }}>
                             {{ $pdv->nom }}
                         </option>

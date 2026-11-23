@@ -190,6 +190,16 @@ class AdminControleur
         $pdvFiltre      = $request->query('pdv_id', 'tous');
         $pointDeVenteId = ($pdvFiltre && $pdvFiltre !== 'tous') ? (int) $pdvFiltre : null;
 
+        // Un membre affecté ne voit que son site, quoi que dise `pdv_id`, que
+        // le middleware ne réécrivait pas (audit du 23/11/2026). Le filtre
+        // d'un administrateur reste borné aux sites de son entreprise.
+        if ($site = \App\Modules\Admin\Services\SiteAutorise::siteImpose()) {
+            $pointDeVenteId = $site;
+            $pdvIds = collect([$site]);
+        } elseif ($pointDeVenteId && !$pdvIds->contains($pointDeVenteId)) {
+            $pointDeVenteId = null;
+        }
+
         // ── CA global ─────────────────────────────────────────────────
         // `sansDoublonRecu` ecarte les recus deja remplaces par leur facture, et
         // `etape = Facture` ecarte devis et bons de commande : sans ces deux
@@ -275,7 +285,20 @@ class AdminControleur
 
         $nbProduitsEnAlerte = (clone $requeteAlertes)->count();
 
-        $produitsEnAlerte = $requeteAlertes->with(['stocks'])->limit(8)->get();
+        $produitsEnAlerte = $requeteAlertes->with(['stocks.pointDeVente'])->limit(8)->get();
+
+        // La quantité affichée est celle du site où l'alerte se déclenche, et
+        // non celle du site de la session (audit du 23/11/2026).
+        $produitsEnAlerte->each(function (Produit $p) use ($pointDeVenteId) {
+            $fiche = $p->stocks
+                ->when($pointDeVenteId, fn ($c) => $c->where('point_de_vente_id', $pointDeVenteId))
+                ->filter(fn ($st) => $st->reference && $st->quantite_disponible <= $st->stock_minimum)
+                ->sortBy('quantite_disponible')
+                ->first();
+            $p->setAttribute('alerte_quantite', $fiche?->quantite_disponible ?? 0);
+            $p->setAttribute('alerte_minimum', $fiche?->stock_minimum ?? 0);
+            $p->setAttribute('alerte_site', $fiche?->pointDeVente?->nom);
+        });
 
         // ── Solde trésorerie global ───────────────────────────────────────────
         // Il ignorait le filtre, la ou la Situation Generale l'applique : les

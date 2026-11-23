@@ -389,10 +389,10 @@
                 <tr>
                     <td style="font-weight:600;">{{ $p->nom }}</td>
                     <td style="color:var(--text-3);">{{ $p->reference ?? '—' }}</td>
-                    <td class="{{ $p->stock_actuel <= 0 ? 'stock-alerte' : 'stock-warning' }}" style="font-weight:700;">{{ $p->stock_actuel }}</td>
-                    <td style="color:var(--text-3);">{{ $p->stock_minimum }}</td>
+                    <td class="{{ $p->alerte_quantite <= 0 ? 'stock-alerte' : 'stock-warning' }}" style="font-weight:700;">{{ $p->alerte_quantite }}@if($p->alerte_site) <small style="color:var(--text-3); font-weight:400;">({{ $p->alerte_site }})</small>@endif</td>
+                    <td style="color:var(--text-3);">{{ $p->alerte_minimum }}</td>
                     <td>
-                        @if($p->stock_actuel <= 0)
+                        @if($p->alerte_quantite <= 0)
                             <span class="badge badge-danger">Rupture</span>
                         @else
                             <span class="badge badge-warning">Faible</span>

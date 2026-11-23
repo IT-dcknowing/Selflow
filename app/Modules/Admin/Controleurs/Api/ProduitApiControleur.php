@@ -46,21 +46,30 @@ class ProduitApiControleur
             ['entreprise_id' => $entreprise->id]
         ));
 
-        // Initialisation automatique des stocks par point de vente
+        // Le site vérifié (audit du 23/11/2026) : l'article n'est référencé
+        // que sur ce site, et sa quantité de départ entre par un mouvement,
+        // au lieu d'être écrite sur la fiche sans trace.
         $pdvs = $entreprise->pointsDeVente;
-        $defaultPdvId = session('point_de_vente_actif_id') 
-            ?? auth()->user()->point_de_vente_id 
+        $defaultPdvId = \App\Modules\Admin\Services\SiteAutorise::pourRequete($request)
             ?? ($pdvs->first()->id ?? null);
+        $parReference = \Illuminate\Support\Facades\Schema::hasColumn('stocks', 'reference');
 
         foreach ($pdvs as $pdv) {
             $isDefault = ($pdv->id == $defaultPdvId);
-            \App\Modules\Admin\Modeles\Stock::create([
+            \App\Modules\Admin\Modeles\Stock::create(array_filter([
                 'produit_id'          => $produit->id,
                 'point_de_vente_id'   => $pdv->id,
-                'quantite_disponible' => $isDefault ? $request->input('stock_actuel', 0) : 0,
+                'quantite_disponible' => 0,
                 'stock_minimum'       => $isDefault ? $request->input('stock_minimum', 5) : 5,
                 'stock_maximum'       => 100,
-            ]);
+                'reference'           => $parReference ? $isDefault : null,
+            ], fn ($v) => $v !== null));
+        }
+
+        $initial = (float) $request->input('stock_actuel', 0);
+        if ($defaultPdvId && $initial > 0 && $produit->estStockable()) {
+            \App\Modules\Admin\Services\StockService::entree($produit, (int) $defaultPdvId, $initial,
+                \App\Modules\Admin\Modeles\MouvementStock::ENTREE_DIVERSE, ['cout_unitaire' => (float) $produit->prix_achat]);
         }
 
         return response()->json([

@@ -9,6 +9,8 @@ use App\Modules\Admin\Modeles\PointDeVente;
 use App\Modules\Admin\Modeles\Produit;
 use App\Modules\Admin\Modeles\PropositionStock;
 use App\Modules\Admin\Modeles\Stock;
+use App\Modules\Admin\Modeles\Vente;
+use App\Modules\Admin\Modeles\VenteDetail;
 use App\Modules\Admin\Services\StockService;
 use App\Modules\Authentification\Modeles\Utilisateur;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -101,5 +103,33 @@ class CloisonnementStockEntreSitesTest extends TestCase
 
         $this->expectException(\DomainException::class);
         StockService::entree($a, $siteAutre->id, 5, MouvementStock::ENTREE_DIVERSE, ['cout_unitaire' => 1]);
+    }
+
+    public function test_une_livraison_d_un_autre_site_n_est_ni_listee_ni_ouvrable(): void
+    {
+        $a = $this->article($this->plateau, 'Secret Plateau', 10);
+        $vente = Vente::create(['point_de_vente_id' => $this->plateau->id, 'numero_facture' => 'BC-PLATEAU', 'date_vente' => now()->toDateString(),
+            'mode_paiement' => 'Crédit', 'montant_ht' => 1500, 'montant_tva' => 270, 'montant_ttc' => 1770, 'etape' => 'Bon de commande', 'statut' => 'Crédit']);
+        VenteDetail::create(['vente_id' => $vente->id, 'produit_id' => $a->id, 'quantite' => 2, 'quantite_livree' => 0, 'prix_unitaire' => 1500, 'montant_tva' => 0, 'montant_ttc' => 3000]);
+
+        $this->actingAs($this->responsable)->get(route('admin.stock.livraisons'))->assertOk()->assertDontSee('BC-PLATEAU');
+        $this->actingAs($this->responsable)->get(route('admin.stock.livraisons.fiche', $vente))->assertForbidden();
+        $this->actingAs($this->responsable)->post(route('admin.stock.livraisons.valider', $vente))->assertForbidden();
+    }
+
+    public function test_la_fiche_d_un_article_d_un_autre_site_est_fermee(): void
+    {
+        $a = $this->article($this->plateau, 'Secret Plateau', 10);
+        Stock::where('produit_id', $a->id)->where('point_de_vente_id', '!=', $this->plateau->id)->update(['reference' => false]);
+
+        $this->actingAs($this->responsable)->get(route('admin.produits.fiche', $a))->assertNotFound();
+    }
+
+    public function test_les_transferts_ne_montrent_pas_les_articles_d_un_autre_site(): void
+    {
+        $a = $this->article($this->plateau, 'Secret Plateau', 10);
+        Stock::where('produit_id', $a->id)->where('point_de_vente_id', '!=', $this->plateau->id)->update(['reference' => false]);
+
+        $this->actingAs($this->responsable)->get(route('admin.stock.transferts.index'))->assertOk()->assertDontSee('Secret Plateau');
     }
 }

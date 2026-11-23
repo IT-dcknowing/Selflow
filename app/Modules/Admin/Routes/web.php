@@ -23,7 +23,7 @@ use App\Modules\Admin\Controleurs\SuperadminNettoyageControleur;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')
-    ->middleware(['auth', 'role:admin', 'habilitation', 'apercu.readonly', 'periode', 'abonnement.actif', 'piece.unique'])
+    ->middleware(['auth', 'role:admin', 'habilitation', 'apercu.readonly', 'periode', 'abonnement.actif', 'piece.unique', 'piece.du_site'])
     ->name('admin.')
     ->group(function () {
 
@@ -824,7 +824,7 @@ Route::prefix('superadmin')
 // Routes pour l'interface Caissier (Point de Vente)
 // ───────────────────────────────────────────────────────────────────────
 Route::prefix('caissier')
-    ->middleware(['auth', 'role:admin,caissier', 'caissier.acces', 'habilitation', 'apercu.readonly', 'periode', 'abonnement.actif', 'piece.unique'])
+    ->middleware(['auth', 'role:admin,caissier', 'caissier.acces', 'habilitation', 'apercu.readonly', 'periode', 'abonnement.actif', 'piece.unique', 'piece.du_site'])
     ->name('caissier.')
     ->group(function () {
         // Le tableau de bord du caissier est l'écran de caisse/nouvelle vente

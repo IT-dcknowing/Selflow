@@ -27,21 +27,29 @@ class TransfertStockControleur
         $entreprise = Auth::user()->entreprise;
 
         // Liste des produits actifs
+        // Un membre affecté ne transfère que depuis son site, et ne voit que
+        // les articles et les transferts qui le concernent (audit du 23/11/2026).
+        // La source est par ailleurs ramenée sur son site par le middleware.
+        $site = \App\Modules\Admin\Services\SiteAutorise::siteImpose();
+
         $produits = Produit::where('entreprise_id', $entreprise->id)
             ->where('statut', 'actif')
+            ->when($site, fn ($q) => $q->visiblesAuSite($site))
             ->orderBy('nom')
             ->get();
 
         // Liste des points de vente de l'entreprise
         $pointsDeVente = $entreprise->pointsDeVente()->orderBy('nom')->get();
+        $siteSource = $site;
 
         // Récupérer l'historique des transferts
         $transferts = TransfertStock::with(['produit', 'source', 'destination', 'demandeur', 'approbateur'])
             ->whereHas('produit', fn($q) => $q->where('entreprise_id', $entreprise->id))
+            ->when($site, fn ($q) => $q->where(fn ($t) => $t->where('point_de_vente_source_id', $site)->orWhere('point_de_vente_destination_id', $site)))
             ->latest()
             ->paginate(20);
 
-        return view('admin::stock.transfert', compact('produits', 'pointsDeVente', 'transferts'));
+        return view('admin::stock.transfert', compact('produits', 'pointsDeVente', 'transferts', 'siteSource'));
     }
 
     /**

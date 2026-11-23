@@ -159,7 +159,7 @@
                         </span>
                         <span style="color:var(--text-3); font-size:11px;"> {{ $p->unite }}</span>
                     </td>
-                    <td style="color:var(--text-3);">{{ $p->stock_minimum }}</td>
+                    <td style="color:var(--text-3);">{{ $p->minimum_affiche ?? $p->stock_minimum }}@if($p->site_en_alerte_nom ?? null)<br><small style="color:var(--warning); font-weight:600;">alerte à {{ $p->site_en_alerte_nom }}</small>@endif</td>
                     <td>
                         @if($p->stock_actuel == 0)
                             <span class="badge badge-danger"><i class="fas fa-circle-xmark"></i> Rupture</span>

@@ -28,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'abonnement.actif' => \App\Modules\Authentification\Middleware\VerifierAbonnementActif::class,
             // Une pièce ne se transforme qu'une fois à la fois (26/10/2026).
             'piece.unique' => \App\Http\Middleware\UnTraitementParPiece::class,
+            'piece.du_site' => \App\Http\Middleware\PieceDuSiteAffecte::class,
             // Les écrans comptables ne s'ouvrent qu'à qui a demandé la
             // comptabilité, ou à qui le superadministrateur l'a accordée.
             'comptabilite'    => \App\Modules\Authentification\Middleware\VerifierComptabiliteOuverte::class,

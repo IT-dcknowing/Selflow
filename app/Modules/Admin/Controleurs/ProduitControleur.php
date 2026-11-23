@@ -572,6 +572,11 @@ class ProduitControleur
     {
         abort_unless($produit->entreprise_id === Auth::user()->entreprise_id, 404);
 
+        // Un membre affecté n'ouvre que les articles de son site (audit du 23/11/2026).
+        if ($site = \App\Modules\Admin\Services\SiteAutorise::siteImpose()) {
+            abort_unless(Produit::whereKey($produit->id)->visiblesAuSite($site)->exists(), 404);
+        }
+
         $produit->load(['category', 'sousCategorieRelation', 'stocks.pointDeVente', 'detailsLibres']);
 
         // Les comptes proposés à l'exception (chantier 6.4), comme sur la

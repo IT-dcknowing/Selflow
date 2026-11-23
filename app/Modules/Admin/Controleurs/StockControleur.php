@@ -79,10 +79,18 @@ class StockControleur
         // Surcharger stock_actuel et stock_minimum pour la compatibilité avec la vue
         foreach ($produits as $p) {
             if ($pointDeVenteId === 'tout') {
+                // La quantité se somme ; les seuils, non. Additionner les
+                // minimums laissait un site en rupture (0 sur 5) caché par un
+                // autre bien fourni (100 sur 5) : l'article est en alerte dès
+                // qu'un site référencé l'est (audit du 23/11/2026).
+                $references = $p->stocks->filter(fn ($st) => $st->reference ?? true);
                 $totalStock = $p->stocks->sum('quantite_disponible');
-                $totalMin = $p->stocks->sum('stock_minimum');
+                $enAlerte = $references->first(fn ($st) => $st->quantite_disponible <= $st->stock_minimum);
                 $p->setAttribute('stock_actuel', $totalStock);
-                $p->setAttribute('stock_minimum', $totalMin);
+                $p->setAttribute('stock_minimum', $enAlerte ? $totalStock : $references->max('stock_minimum'));
+                $p->setAttribute('site_en_alerte', $enAlerte?->point_de_vente_id);
+                $p->setAttribute('minimum_affiche', $p->stocks->sum('stock_minimum'));
+                $p->setAttribute('site_en_alerte_nom', $enAlerte ? \App\Modules\Admin\Modeles\PointDeVente::whereKey($enAlerte->point_de_vente_id)->value('nom') : null);
             } else {
                 $stockObj = $p->stocks->where('point_de_vente_id', $pointDeVenteId)->first();
                 $p->setAttribute('stock_actuel', $stockObj ? $stockObj->quantite_disponible : 0);
@@ -95,7 +103,9 @@ class StockControleur
         // « Commandé », « à réceptionner » et « prévisionnel », lus par la vue
         // sur chaque ligne : deux requêtes pour tout le tableau, au lieu de
         // quatre par article. Même site que les accesseurs qu'ils remplacent.
-        Produit::prechargerEngagements($produits, Produit::getActivePdvId());
+        // Les engagements du site affiché, ou de toute l'entreprise en vue
+        // « tous » (null), et non du site de la session.
+        Produit::prechargerEngagements($produits, $pointDeVenteId === 'tout' ? null : (int) $pointDeVenteId);
 
         // Compteurs interactifs Odoo filtrés par point de vente actif
         /*
@@ -822,6 +832,8 @@ class StockControleur
 
         $achats = Achat::with(['fournisseur', 'pointDeVente', 'details.produit'])
             ->whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entreprise->id))
+            // Un membre affecté ne voit que la file de son site (audit du 23/11/2026).
+            ->when(\App\Modules\Admin\Services\SiteAutorise::siteImpose(), fn ($q, $site) => $q->where('point_de_vente_id', $site))
             ->whereIn('etape', ['Bon de commande', 'Facture'])
             ->where(fn ($a) => $a->whereNull('statut')->orWhere('statut', '!=', 'Annulée'))
             // Même règle que le compteur : une commande de services n'a rien
@@ -941,6 +953,8 @@ class StockControleur
 
         $ventes = Vente::with(['client', 'pointDeVente', 'details.produit'])
             ->whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entreprise->id))
+            // Un membre affecté ne voit que la file de son site (audit du 23/11/2026).
+            ->when(\App\Modules\Admin\Services\SiteAutorise::siteImpose(), fn ($q, $site) => $q->where('point_de_vente_id', $site))
             ->whereIn('etape', ['Bon de commande', 'Facture'])
             ->where(fn ($a) => $a->whereNull('statut')->orWhere('statut', '!=', 'Annulée'))
             // Même règle qu'à la réception : une prestation de service ne se

@@ -35,6 +35,8 @@ class ConsignationControleur extends Controller
         $consignations = Consignation::with(['client', 'fournisseur', 'produit', 'pointDeVente'])
             ->where('entreprise_id', $entrepriseId)
             ->where('sens', $sens)
+            // Un membre affecté ne voit que les consignations de son site (audit du 23/11/2026).
+            ->when(\App\Modules\Admin\Services\SiteAutorise::siteImpose(), fn ($q, $site) => $q->where('point_de_vente_id', $site))
             ->when($request->input('etat') === 'en_retard', fn ($q) => $q->enRetard())
             ->when($request->input('etat') === 'en_cours', fn ($q) => $q->enCours())
             ->when($request->input('etat') === 'closes',
@@ -51,7 +53,7 @@ class ConsignationControleur extends Controller
             'consignations' => $consignations,
             'sens'          => $sens,
             'etat'          => $request->input('etat', 'en_cours'),
-            'dehors'        => ConsignationService::ceQuiEstDehors($entrepriseId, $sens),
+            'dehors'        => ConsignationService::ceQuiEstDehors($entrepriseId, $sens, \App\Modules\Admin\Services\SiteAutorise::siteImpose()),
             'emballages'    => Produit::where('entreprise_id', $entrepriseId)
                 ->selectionnables()
                 ->whereNotNull('prix_consignation')
