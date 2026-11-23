@@ -398,7 +398,7 @@
                                 </div>
                             </div>
                             @endif
-                            <div style="padding:11px 13px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12.5px;color:#1e40af;line-height:1.65;">
+                            <div style="padding:11px 13px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12.5px;color:var(--marque-800, #1e40af);line-height:1.65;">
                                 <i class="fas fa-rotate"></i>
                                 <strong>L'enregistrement des champs grisés se fera automatiquement</strong>, avec les
                                 informations exactes de votre espace FNE. Veuillez bien remplir ce qui reste.
@@ -407,7 +407,7 @@
 
                         {{-- « Je n'en ai pas encore » : les informations fiscales, seulement celles qui manquent. --}}
                         <div data-volet-fne="non" style="display:{{ $aCompteFne === false ? 'block' : 'none' }};">
-                            <div style="padding:12px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12.5px;color:#1e40af;line-height:1.7;margin-bottom:14px;">
+                            <div style="padding:12px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12.5px;color:var(--marque-800, #1e40af);line-height:1.7;margin-bottom:14px;">
                                 <strong>Renseignez vos informations fiscales</strong> dans les sections ci-dessous :
                                 ce sont celles que la DGI exige pour ouvrir un compte. Nous nous chargeons
                                 ensuite de l'inscription, sans démarche de votre côté.
@@ -974,7 +974,7 @@
 
                     <div
                         style="font-size:12px;color:var(--text-3);line-height:1.6;margin-bottom:14px;padding:10px 12px;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe;">
-                        <i class="fas fa-circle-info" style="color:#2563eb;"></i>
+                        <i class="fas fa-circle-info" style="color:var(--marque-600, #2563eb);"></i>
                         Ces options se règlent sur la <strong>plateforme FNE</strong>, et c'est
                         là qu'elles s'appliquent. Reportez ici l'état que vous y avez
                         constaté : le système de la DGI ne le communique pas encore.

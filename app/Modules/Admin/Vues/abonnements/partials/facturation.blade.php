@@ -57,7 +57,7 @@
     @endif
 
     @if($entreprise->abonnement_demande)
-        <div style="background:#EFF6FF; border:1px solid #BFDBFE; color:#1E40AF; border-radius:10px; padding:10px 14px; font-size:12.5px; margin-bottom:16px;">
+        <div style="background:#EFF6FF; border:1px solid #BFDBFE; color:var(--marque-800, #1e40af); border-radius:10px; padding:10px 14px; font-size:12.5px; margin-bottom:16px;">
             <i class="fas fa-hourglass-half"></i>
             Demande « {{ Abonnements::libelle($entreprise->abonnement_demande) }} » du {{ $entreprise->abonnement_demande_le?->format('d/m/Y') }} :
             en attente du règlement. Le paiement en ligne arrive bientôt ; DC-Knowing confirme d'ici là.

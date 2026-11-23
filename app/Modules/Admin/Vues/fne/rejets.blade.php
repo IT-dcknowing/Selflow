@@ -166,7 +166,7 @@
 
         .cause-locale {
             background: #eff6ff;
-            color: #1d4ed8;
+            color: var(--marque-700, #1d4ed8);
             border: 1px solid #bfdbfe;
         }
 
@@ -285,7 +285,7 @@
 
         .v-portail {
             background: #eff6ff;
-            color: #1d4ed8;
+            color: var(--marque-700, #1d4ed8);
         }
 
         .msg-dgi {
@@ -504,7 +504,7 @@
 
     @if($causeActive === 'locale' && $filtresCause['locale']['total'] > 0)
         <div
-            style="display:flex;gap:12px;padding:14px 18px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;margin-bottom:20px;color:#1e40af;font-size:13px;line-height:1.6;">
+            style="display:flex;gap:12px;padding:14px 18px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;margin-bottom:20px;color:var(--marque-800, #1e40af);font-size:13px;line-height:1.6;">
             <i class="fas fa-screwdriver-wrench" style="font-size:16px;margin-top:2px;"></i>
             <div>
                 <strong>Ces pièces ne sont jamais parties : Selflow a refusé de les envoyer.</strong>
@@ -747,7 +747,7 @@
                     @foreach($ecartsFiche as $nom => $ecart)
                         <tr>
                             <td style="font-family:monospace;font-weight:700;">{{ $nom }}</td>
-                            <td style="font-weight:700;color:#1d4ed8;">
+                            <td style="font-weight:700;color:var(--marque-700, #1d4ed8);">
                                 {{ is_bool($ecart['portail']) ? ($ecart['portail'] ? 'oui' : 'non') : $ecart['portail'] }}
                             </td>
                             <td style="color:var(--text-2);">

@@ -48,8 +48,8 @@
 
             {{-- Info + lien exemple --}}
             <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#eff6ff;border-radius:10px;border:1px solid #bfdbfe;margin-bottom:18px;">
-                <i class="fas fa-info-circle" style="color:#1d4ed8;font-size:16px;flex-shrink:0;"></i>
-                <div style="font-size:13px;color:#1e40af;line-height:1.4;">
+                <i class="fas fa-info-circle" style="color:var(--marque-700, #1d4ed8);font-size:16px;flex-shrink:0;"></i>
+                <div style="font-size:13px;color:var(--marque-800, #1e40af);line-height:1.4;">
                     Téléchargez le fichier modèle à compléter :
                     <a href="{{ $routeExemple }}" style="font-weight:700;text-decoration:underline;margin:0 4px;" download>
                         <i class="fas fa-download"></i> Modèle CSV

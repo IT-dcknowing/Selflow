@@ -255,7 +255,7 @@
                             <th>Référence pièce</th>
                             <th>N° Compte Général</th>
                             <th>Titre / Libellé</th>
-                            <th style="text-align: right; color:#1e3a8a;">Montant Débit</th>
+                            <th style="text-align: right; color:var(--marque-900, #1e3a8a);">Montant Débit</th>
                             <th style="text-align: right; color:#7f1d1d;">Montant Crédit</th>
                             <th>N° Compte Tiers</th>
                             <th>Point de Vente</th>
@@ -297,7 +297,7 @@
                                     {{ $ecr->libelle }}
                                 @endif
                             </td>
-                            <td style="text-align: right; font-weight: 700; color: #1e3a8a;">
+                            <td style="text-align: right; font-weight: 700; color: var(--marque-900, #1e3a8a);">
                                 {{ $ecr->debit > 0 ? number_format($ecr->debit, 0, ',', ' ') . ' F' : '—' }}
                             </td>
                             <td style="text-align: right; font-weight: 700; color: #7f1d1d;">

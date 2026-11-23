@@ -94,6 +94,7 @@ class VerifierHabilitationRoute
         // tableau de bord doit voir ce qui tombe.
         'superadmin.paiements.index'   => 'gestion_entreprises',
         'superadmin.paiements.traiter' => 'gestion_entreprises',
+        'superadmin.paiements.prolonger' => 'gestion_entreprises',
         'superadmin.integrations.paiements.index' => 'gestion_entreprises',
         'superadmin.integrations.paiements.enregistrer' => 'gestion_entreprises',
         'superadmin.pannes.index'      => 'tableau_de_bord_superadmin',
@@ -111,6 +112,7 @@ class VerifierHabilitationRoute
         'superadmin.tracabilite.basculer'  => 'administration_interne',
         // L'assistance : entrer dans l'espace d'une entreprise.
         'superadmin.sur_mesure.index'       => 'gestion_entreprises',
+        'superadmin.sur_mesure.procedure'   => 'gestion_entreprises',
         'superadmin.sur_mesure.modifier'    => 'gestion_entreprises',
         'superadmin.sur_mesure.enregistrer' => 'gestion_entreprises',
         'superadmin.sur_mesure.verifier'    => 'gestion_entreprises',

@@ -59,9 +59,9 @@
 </form>
 
 @if(!$modeTous && !$pointDeVenteId)
-    <div class="alert alert-info" style="padding:14px 16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; color:#1e40af; display:flex; align-items:center; gap:10px;"><i class="fas fa-circle-info"></i><span>Choisissez un point de vente ou « Tous les points de vente » pour afficher les articles.</span></div>
+    <div class="alert alert-info" style="padding:14px 16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; color:var(--marque-800, #1e40af); display:flex; align-items:center; gap:10px;"><i class="fas fa-circle-info"></i><span>Choisissez un point de vente ou « Tous les points de vente » pour afficher les articles.</span></div>
 @elseif($produits->isEmpty())
-    <div class="alert alert-info" style="padding:14px 16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; color:#1e40af; display:flex; align-items:center; gap:10px;">
+    <div class="alert alert-info" style="padding:14px 16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; color:var(--marque-800, #1e40af); display:flex; align-items:center; gap:10px;">
         <i class="fas fa-circle-info"></i>
         <span>Aucun article stockable n'est référencé sur ce point de vente. Faites d'abord référencer les articles souhaités sur ce site depuis leur fiche produit.</span>
     </div>

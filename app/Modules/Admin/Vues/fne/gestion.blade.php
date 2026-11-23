@@ -217,7 +217,7 @@
                 <div>
                     <div class="lbl-main">
                         <i class="fas fa-money-bill" style="color:#10b981;margin-right:6px;"></i>TDT — Taxe sur les Droits de Timbre
-                        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#1d4ed8;background:#dbeafe;border-radius:4px;padding:1px 6px;margin-left:6px;">Informatif</span>
+                        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--marque-700, #1d4ed8);background:#dbeafe;border-radius:4px;padding:1px 6px;margin-left:6px;">Informatif</span>
                     </div>
                     {{-- Ce reglage ne declenche ni ne calcule quoi que ce soit : le
                          timbre est applique par la DGI seule, a la normalisation, et

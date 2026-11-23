@@ -45,7 +45,7 @@
                 @endphp
                 <tr style="cursor:pointer;{{ $nonLu ? ' background:#f8fbff;' : '' }}" onclick="window.location='{{ route($routeVoir, $neg) }}'">
                     <td style="font-weight:{{ $nonLu ? 800 : 600 }};">
-                        @if($nonLu)<span title="Nouveau depuis votre dernière visite" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#2563eb; margin-right:6px;"></span>@endif
+                        @if($nonLu)<span title="Nouveau depuis votre dernière visite" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--marque-600, #2563eb); margin-right:6px;"></span>@endif
                         {{ $autre?->nom }}
                         <div style="font-size:10.5px; color:var(--text-3);">NCC {{ $autre?->ncc }}</div>
                     </td>

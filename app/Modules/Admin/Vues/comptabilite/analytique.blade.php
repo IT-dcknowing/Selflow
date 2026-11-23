@@ -25,7 +25,7 @@
     </div>
 </div>
 
-<div style="margin-bottom:18px; padding:14px 18px; background:#eff6ff; border:1px solid #93c5fd; border-radius:10px; color:#1e3a8a;">
+<div style="margin-bottom:18px; padding:14px 18px; background:#eff6ff; border:1px solid #93c5fd; border-radius:10px; color:var(--marque-900, #1e3a8a);">
     <strong><i class="fas fa-circle-info"></i> Ce que cet écran ventile, et ce qu'il ne ventile pas.</strong>
     <div style="font-size:12.5px; margin-top:6px; line-height:1.6;">
         Chaque écriture porte le site où sa pièce a été établie. Les produits (classe 7)

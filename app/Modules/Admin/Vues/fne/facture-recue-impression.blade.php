@@ -30,7 +30,7 @@
 
     .tete { display:flex; justify-content:space-between; gap:30px; border-bottom:2px solid #0D1B3E; padding-bottom:18px; margin-bottom:24px; }
     .tete h1 { font-size:20px; margin:0 0 4px; color:#0D1B3E; letter-spacing:.02em; }
-    .tete .ref { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:15px; font-weight:700; color:#1d4ed8; }
+    .tete .ref { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:15px; font-weight:700; color:var(--marque-700, #1d4ed8); }
 
     .parties { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:26px; }
     .partie { border:1px solid var(--border); border-radius:10px; padding:14px 16px; }

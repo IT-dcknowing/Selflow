@@ -131,4 +131,52 @@ class EspaceSurMesureTest extends TestCase
             $this->assertStringContainsString('Bonjour', $controleur->apercu($this->sotra, 'connexion')->render());
         }
     }
+
+    public function test_l_application_prend_les_couleurs_de_l_entreprise_meme_a_l_adresse_de_selflow(): void
+    {
+        view()->share('errors', new \Illuminate\Support\ViewErrorBag());
+        $ama = Utilisateur::where('email', 'ama@sotra.ci')->first();
+        $yao = Utilisateur::where('email', 'yao@autre.ci')->first();
+
+        $this->assertSame($this->espace->id, EspaceSurMesure::habillagePour(null, $ama)?->id);
+        $this->assertNull(EspaceSurMesure::habillagePour(null, $yao), 'Une entreprise sans espace garde Selflow.');
+
+        Auth::login($ama);
+        $html = app(EspaceSurMesureControleur::class)->procedure()->render();
+        $this->assertStringContainsString('--primary: #c2410c', $html);
+        $this->assertStringContainsString('--sidebar-bg:', $html);
+        $this->assertStringContainsString('Propulsé par DC-KNOWING', $html);
+        $this->assertStringContainsString('Sous-domaine ou domaine propre', $html);
+
+        $this->espace->update(['modules' => ['accueil']]);
+        $this->assertNull(EspaceSurMesure::habillagePour(null, $ama), 'Sans le module couleurs, pas d\'habillage.');
+    }
+
+    public function test_un_abonnement_se_prolonge_ou_se_met_a_jour_avant_son_terme(): void
+    {
+        view()->share('errors', new \Illuminate\Support\ViewErrorBag());
+        Auth::login(Utilisateur::where('email', 'ama@sotra.ci')->first());
+        $echeance = now()->addDays(5)->endOfDay();
+        $this->sotra->forceFill(['plan_abonnement' => 'BUSINESS', 'abonnement_statut' => 'actif', 'abonnement_expire_le' => $echeance])->save();
+        $this->autre->forceFill(['plan_abonnement' => 'SOLO', 'abonnement_statut' => 'actif', 'abonnement_expire_le' => now()->subDays(3)])->save();
+
+        $controleur = app(\App\Modules\Admin\Controleurs\SuperadminPaiementControleur::class);
+        $html = $controleur->index(Request::create('/'))->render();
+        $this->assertStringContainsString('Bientôt à terme', $html);
+        $this->assertStringContainsString('SOTRA Distribution', $html);
+        $this->assertStringContainsString('Prolonger / mettre à jour', $html);
+
+        $controleur->prolonger(Request::create('/', 'POST', ['offre' => 'BUSINESS', 'mois' => 2]), $this->sotra);
+        $this->assertSame($echeance->copy()->addMonthsNoOverflow(2)->toDateString(), $this->sotra->fresh()->abonnement_expire_le->toDateString(),
+            'Les mois s\'ajoutent à l\'échéance qui court encore.');
+        $this->assertDatabaseHas('paiements_abonnements', ['entreprise_id' => $this->sotra->id, 'mois' => 2, 'montant' => 50000, 'statut' => 'active']);
+
+        $controleur->prolonger(Request::create('/', 'POST', ['offre' => 'SOLO', 'mois' => 1]), $this->autre);
+        $this->assertSame(now()->addMonthNoOverflow()->toDateString(), $this->autre->fresh()->abonnement_expire_le->toDateString(),
+            'Un abonnement échu repart d\'aujourd\'hui.');
+
+        $controleur->prolonger(Request::create('/', 'POST', ['offre' => 'PREMIUM', 'mois' => 0, 'echeance' => now()->addDays(90)->toDateString()]), $this->autre);
+        $this->assertSame('PREMIUM', $this->autre->fresh()->plan_abonnement);
+        $this->assertSame(now()->addDays(90)->toDateString(), $this->autre->fresh()->abonnement_expire_le->toDateString());
+    }
 }

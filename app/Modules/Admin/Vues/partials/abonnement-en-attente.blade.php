@@ -14,7 +14,7 @@
 <div id="voile-abonnement-a-terme" class="voile-abonnement-en-attente" role="alertdialog" aria-modal="true" aria-labelledby="titre-abonnement-en-attente"
      data-statut="{{ $echec ? 'echec' : 'en_attente' }}">
     <div class="boite">
-        <div style="width:58px; height:58px; border-radius:14px; background:{{ $echec ? '#FEE2E2' : '#DBEAFE' }}; color:{{ $echec ? '#DC2626' : '#1D4ED8' }}; display:inline-flex; align-items:center; justify-content:center; font-size:24px; margin-bottom:16px;">
+        <div style="width:58px; height:58px; border-radius:14px; background:{{ $echec ? '#FEE2E2' : '#DBEAFE' }}; color:{{ $echec ? '#DC2626' : 'var(--marque-700, #1d4ed8)' }}; display:inline-flex; align-items:center; justify-content:center; font-size:24px; margin-bottom:16px;">
             <i class="fas {{ $echec ? 'fa-circle-exclamation' : 'fa-hourglass-half fa-spin' }}" @unless($echec) style="animation-duration:3s;" @endunless></i>
         </div>
         <h2 id="titre-abonnement-en-attente" style="font-size:20px; font-weight:800; color:#1E293B; margin-bottom:8px;">
@@ -41,7 +41,7 @@
         </div>
         @if(auth()->user()->role === 'admin')
             <a href="{{ route('admin.entreprise.parametres') }}#facturation" id="btn-facturation-en-attente"
-               style="display:flex; justify-content:center; align-items:center; gap:8px; padding:13px; background:#002B5C; color:#fff; border-radius:10px; font-weight:700; text-decoration:none;">
+               style="display:flex; justify-content:center; align-items:center; gap:8px; padding:13px; background:var(--primary, #002B5C); color:#fff; border-radius:10px; font-weight:700; text-decoration:none;">
                 {{ $echec ? 'Saisir une nouvelle référence' : 'Voir la facturation' }} <i class="fas fa-arrow-right"></i>
             </a>
         @else

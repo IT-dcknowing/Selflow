@@ -100,7 +100,7 @@
                             {{ $ligne['credit'] > 0 ? number_format($ligne['credit'], 2, ',', ' ') : '—' }}
                         </td>
                         <td style="padding:9px 14px; text-align:right; font-weight:700;
-                                   color:{{ $ligne['solde'] >= 0 ? 'var(--text-1)' : 'var(--primary, #002B5C)' }};">
+                                   color:{{ $ligne['solde'] >= 0 ? 'var(--text-1)' : 'var(--primary, var(--primary, #002B5C))' }};">
                             {{ number_format(abs($ligne['solde']), 2, ',', ' ') }}
                             <span style="font-size:11px; font-weight:400; color:var(--text-3);">
                                 {{ $ligne['solde'] >= 0 ? 'D' : 'C' }}

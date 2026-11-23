@@ -159,7 +159,7 @@
                         <td>{{ \Carbon\Carbon::parse($op['date'])->format('d/m/Y') }}</td>
                         <td style="font-weight: 700; color: var(--primary);">{{ $op['piece'] }}</td>
                         <td style="font-weight: 600;">{{ $op['libelle'] }}</td>
-                        <td style="text-align: right; color: #1e3a8a; font-weight: 600;">
+                        <td style="text-align: right; color: var(--marque-900, #1e3a8a); font-weight: 600;">
                             {{ $op['debit'] > 0 ? number_format($op['debit'], 0, ',', ' ') . ' F' : '—' }}
                         </td>
                         <td style="text-align: right; color: #0f766e; font-weight: 600;">

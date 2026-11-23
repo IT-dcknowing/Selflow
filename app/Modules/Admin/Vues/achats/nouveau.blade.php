@@ -23,9 +23,9 @@
         transition: all 0.15s;
     }
     .payment-toggle-btn.active {
-        background: #002B5C !important;
+        background: var(--primary, #002B5C) !important;
         color: #ffffff !important;
-        border-color: #002B5C !important;
+        border-color: var(--primary, #002B5C) !important;
     }
 </style>
 @endsection

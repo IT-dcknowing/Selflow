@@ -150,13 +150,13 @@
     .fne-option { display:flex; align-items:flex-start; gap:10px; padding:12px 14px;
                   border:1px solid #E5E7EB; border-radius:10px; cursor:pointer;
                   background:#fff; transition:border-color .15s, background .15s; }
-    .fne-option:hover { border-color:#002B5C; background:#F8FAFF; }
-    .fne-option input { margin-top:3px; flex-shrink:0; accent-color:#002B5C; }
+    .fne-option:hover { border-color:var(--primary, #002B5C); background:#F8FAFF; }
+    .fne-option input { margin-top:3px; flex-shrink:0; accent-color:var(--primary, #002B5C); }
     .fne-option strong { display:block; font-size:13px; color:#111827; font-weight:600; }
     .fne-option small { display:block; font-size:11.5px; color:#9CA3AF; margin-top:2px; line-height:1.5; }
     .fne-volet { margin-top:14px; }
     .fne-note { display:flex; gap:9px; align-items:flex-start; font-size:12px; line-height:1.6;
-                color:#1E40AF; background:#EFF6FF; border:1px solid #BFDBFE;
+                color:var(--marque-800, #1e40af); background:#EFF6FF; border:1px solid #BFDBFE;
                 border-radius:8px; padding:11px 13px; margin-bottom:14px; }
     .fne-note i { flex-shrink:0; margin-top:1px; font-size:14px; }
     .bloc-fne .erreur { color:#DC2626; font-size:11.5px; display:block; margin-top:4px; }
@@ -169,8 +169,8 @@
     .bloc-fne .champ label { font-size:11.5px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:.03em; }
     .bloc-fne .champ input, .bloc-fne .champ select { width:100%; height:40px; padding:8px 12px; font-size:13.5px; font-family:inherit;
                   border:1px solid #E2E8F0; border-radius:8px; background:#fff; color:#1E293B; }
-    .bloc-fne .champ input:focus, .bloc-fne .champ select:focus { outline:none; border-color:#002B5C; box-shadow:0 0 0 3px rgba(0,43,92,.1); }
-    .fne-option:has(input:checked) { border-color:#002B5C; background:#EFF6FF; }
+    .bloc-fne .champ input:focus, .bloc-fne .champ select:focus { outline:none; border-color:var(--primary, #002B5C); box-shadow:0 0 0 3px rgba(0,43,92,.1); }
+    .fne-option:has(input:checked) { border-color:var(--primary, #002B5C); background:#EFF6FF; }
     .fne-retirer { display:block; font-size:11px; color:#64748B; margin-top:6px; }
     .fne-regime-notice { display:block; font-size:11.5px; color:#6B7280; line-height:1.55; margin-top:5px; }
 </style>

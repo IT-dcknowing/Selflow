@@ -92,7 +92,7 @@
                                 @php $tf = $c->type_facturation; @endphp
                                 <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;
                                     background:{{ $tf==='B2B' ? '#eff6ff' : ($tf==='B2C' ? '#f0fdf4' : ($tf==='B2G' ? '#fffbeb' : '#faf5ff')) }};
-                                    color:{{ $tf==='B2B' ? '#1d4ed8' : ($tf==='B2C' ? '#15803d' : ($tf==='B2G' ? '#b45309' : '#7c3aed')) }};
+                                    color:{{ $tf==='B2B' ? 'var(--marque-700, #1d4ed8)' : ($tf==='B2C' ? '#15803d' : ($tf==='B2G' ? '#b45309' : '#7c3aed')) }};
                                     border:1px solid {{ $tf==='B2B' ? '#bfdbfe' : ($tf==='B2C' ? '#bbf7d0' : ($tf==='B2G' ? '#fde68a' : '#ddd6fe')) }};">{{ $tf }}</span>
                             @else
                                 <span style="color:var(--text-3);font-size:12px;">—</span>
@@ -194,7 +194,7 @@
     @else
         <div style="background: linear-gradient(135deg, #eff6ff, #f0fdf4); border: 1px solid #bfdbfe; border-radius: 12px; padding: 16px; margin-bottom: 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
             <div>
-                <p style="font-weight:700; color:#1e40af; margin-bottom:4px;"><i class="fas fa-link"></i> Clients synchronisés depuis COMPTAFLOW</p>
+                <p style="font-weight:700; color:var(--marque-800, #1e40af); margin-bottom:4px;"><i class="fas fa-link"></i> Clients synchronisés depuis COMPTAFLOW</p>
                 <p style="font-size: 13px; color: #64748b; margin-bottom:0;">
                     Leurs informations COMPTAFLOW (nom, numéro de tiers, compte collectif) sont protégées en écriture, mais vous pouvez compléter leurs données Selflow manquantes ci-dessous.
                 </p>

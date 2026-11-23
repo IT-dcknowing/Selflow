@@ -12,7 +12,7 @@
 
 {{-- La raison d'être de l'écran. Sans elle, un comptable qui l'ouvre ne voit
      que six champs à remplir sans savoir pourquoi ils existent. --}}
-<div style="margin-bottom:18px; padding:14px 18px; background:#eff6ff; border:1px solid #93c5fd; border-radius:10px; color:#1e3a8a;">
+<div style="margin-bottom:18px; padding:14px 18px; background:#eff6ff; border:1px solid #93c5fd; border-radius:10px; color:var(--marque-900, #1e3a8a);">
     <strong><i class="fas fa-circle-info"></i> Le compte dit ce qu'il est ; le libellé doit dire ce que l'opération a été.</strong>
     <div style="font-size:12.5px; margin-top:6px; line-height:1.6;">
         Jusqu'ici, une facture de vente portait pour libellé « Vente de marchandises » —

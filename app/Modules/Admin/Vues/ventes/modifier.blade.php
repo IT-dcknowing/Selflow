@@ -150,13 +150,13 @@
         transition: all 0.15s;
     }
     .payment-toggle-btn.active {
-        background: #002B5C !important;
+        background: var(--primary, #002B5C) !important;
         color: #ffffff !important;
-        border-color: #002B5C !important;
+        border-color: var(--primary, #002B5C) !important;
     }
 
     .btn-info { background: var(--info); color: #fff; }
-    .btn-info:hover { background: #2563eb; }
+    .btn-info:hover { background: var(--marque-600, #2563eb); }
 
     @keyframes slideIn {
         from { transform: translateX(-100%); opacity: 0; }

@@ -9,7 +9,7 @@
 <div class="page-header" style="margin-bottom:12px;">
     <div>
         <h1 style="font-size:22px; font-weight:800; display:flex; align-items:center; gap:10px;">
-            <span style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#002B5C,#0ea5e9);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:18px;">
+            <span style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--primary, #002B5C),#0ea5e9);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:18px;">
                 <i class="fas fa-building"></i>
             </span>
             Tableau de bord général
@@ -77,7 +77,7 @@
         <i class="fas fa-rotate-left"></i> Reset
     </button>
 
-    <span id="tdb-filtre-badge" style="display:none;background:#EFF6FF;color:#1D4ED8;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;border:1px solid #BFDBFE;">
+    <span id="tdb-filtre-badge" style="display:none;background:#EFF6FF;color:var(--marque-700, #1d4ed8);font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;border:1px solid #BFDBFE;">
         <i class="fas fa-circle-dot" style="font-size:8px;margin-right:4px;"></i>
         <span id="tdb-filtre-label"></span>
     </span>

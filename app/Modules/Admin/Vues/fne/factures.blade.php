@@ -118,7 +118,7 @@
  */
 function badgeOrigine(origine) {
     if (origine === 'portail') {
-        return '<span title="Relevée au portail de la DGI, pas encore rattachée à un achat de Selflow" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:2px 7px; border-radius:12px; font-size:10px; font-weight:700; margin-left:6px; white-space:nowrap;"><i class="fas fa-cloud-arrow-down"></i> Portail DGI</span>';
+        return '<span title="Relevée au portail de la DGI, pas encore rattachée à un achat de Selflow" style="background:#eff6ff; color:var(--marque-700, #1d4ed8); border:1px solid #bfdbfe; padding:2px 7px; border-radius:12px; font-size:10px; font-weight:700; margin-left:6px; white-space:nowrap;"><i class="fas fa-cloud-arrow-down"></i> Portail DGI</span>';
     }
     if (origine === 'selflow_dgi') {
         return '<span title="Saisie dans Selflow et retrouvée au portail de la DGI" style="background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; padding:2px 7px; border-radius:12px; font-size:10px; font-weight:700; margin-left:6px; white-space:nowrap;"><i class="fas fa-link"></i> Rapprochée</span>';

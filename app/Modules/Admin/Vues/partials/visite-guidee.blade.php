@@ -106,7 +106,7 @@
         transition:top .28s ease, left .28s ease;
     }
     .vg-progres { height:3px; background:#e2e8f0; }
-    .vg-barre { display:block; height:100%; width:0; background:var(--primary, #002B5C); transition:width .28s ease; }
+    .vg-barre { display:block; height:100%; width:0; background:var(--primary, var(--primary, #002B5C)); transition:width .28s ease; }
 
     .vg-corps { padding:20px 22px 6px; }
     .vg-compteur { font-size:11px; font-weight:700; letter-spacing:.6px; text-transform:uppercase;
@@ -121,9 +121,9 @@
     .vg-passer:hover { color:#475569; }
     .vg-nav { margin-left:auto; display:flex; gap:8px; }
     .vg-precedent { background:#fff; border-color:#e2e8f0; color:#475569; }
-    .vg-suivant { background:var(--primary, #002B5C); color:#fff; }
+    .vg-suivant { background:var(--primary, var(--primary, #002B5C)); color:#fff; }
     .vg-suivant:hover { filter:brightness(1.12); }
-    button:focus-visible { outline:2px solid var(--primary, #002B5C); outline-offset:2px; }
+    button:focus-visible { outline:2px solid var(--primary, var(--primary, #002B5C)); outline-offset:2px; }
 
     .vg-main { position:absolute; font-size:30px; pointer-events:none;
                transition:top .28s ease, left .28s ease; animation:vg-tape 1.5s ease-in-out infinite; }

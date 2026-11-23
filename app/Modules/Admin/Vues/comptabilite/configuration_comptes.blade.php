@@ -15,7 +15,7 @@
 {{-- La page en un tableau par niveau (26/10/2026) : vente, achat et variation
      de stock ensemble. Chaque compte en deux cases : le proposé, et le
      personnalisé qui passe devant. --}}
-<div style="margin-bottom:18px; padding:14px 18px; background:#eff6ff; border:1px solid #93c5fd; border-radius:10px; color:#1e3a8a; font-size:12.5px; line-height:1.6;">
+<div style="margin-bottom:18px; padding:14px 18px; background:#eff6ff; border:1px solid #93c5fd; border-radius:10px; color:var(--marque-900, #1e3a8a); font-size:12.5px; line-height:1.6;">
     <strong><i class="fas fa-circle-info"></i> Proposé, personnalisé : le personnalisé l'emporte.</strong>
     <strong>Proposé</strong> : le compte que Selflow donne de lui-même (le défaut, la famille du référentiel, le compte
     habituel du type, ou ce dont l'article hérite). <strong>Personnalisé</strong> : le compte que vous imposez ; vide, le

@@ -56,7 +56,7 @@
 {{-- Les factures du portail ne sont plus un registre à part (23/11/2026) :
      intégrées, ce sont des ventes de la liste, normalisées. --}}
 <div style="margin:16px 0; padding:12px 16px; border:1px solid #bfdbfe; border-radius:10px; background:#eff6ff; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-    <span style="color:#1e40af;"><i class="fas fa-file-import"></i>
+    <span style="color:var(--marque-800, #1e40af);"><i class="fas fa-file-import"></i>
         <strong>{{ $aIntegrer }} facture(s) émise(s) sur le portail FNE</strong> attendent d'être intégrées dans Selflow.</span>
     <a href="{{ route('admin.ventes.portail_fne.index') }}" class="btn btn-primary btn-sm">Intégrer</a>
 </div>

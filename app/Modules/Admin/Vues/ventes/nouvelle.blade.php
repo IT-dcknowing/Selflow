@@ -151,13 +151,13 @@
         transition: all 0.15s;
     }
     .payment-toggle-btn.active {
-        background: #002B5C !important;
+        background: var(--primary, #002B5C) !important;
         color: #ffffff !important;
-        border-color: #002B5C !important;
+        border-color: var(--primary, #002B5C) !important;
     }
 
     .btn-info { background: var(--info); color: #fff; }
-    .btn-info:hover { background: #2563eb; }
+    .btn-info:hover { background: var(--marque-600, #2563eb); }
 
     @keyframes slideIn {
         from { transform: translateX(-100%); opacity: 0; }
@@ -557,7 +557,7 @@
                              même sticker —, et rien ne le retient. Le texte est
                              resté, et disait à l'utilisateur que ses reçus
                              n'étaient pas certifiés alors qu'ils l'étaient. --}}
-                        <div id="noteRecu" style="margin-top:8px; padding:10px 12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; font-size:11px; color:#1e40af; line-height:1.5;">
+                        <div id="noteRecu" style="margin-top:8px; padding:10px 12px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; font-size:11px; color:var(--marque-800, #1e40af); line-height:1.5;">
                             <i class="fas fa-circle-info"></i>
                             <strong>Une seule pièce, deux documents.</strong>
                             Le reçu reprend les informations de la facture : un seul envoi

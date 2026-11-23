@@ -82,7 +82,7 @@
                         <td style="font-weight:500;">
                             {{ $code->intitule }}
                             @if(isset($code->source) && $code->source === 'comptaflow')
-                                <span style="display:inline-flex; align-items:center; gap:4px; background:#dbeafe; color:#1d4ed8; padding:2px 7px; border-radius:20px; font-size:10px; font-weight:700; margin-left:6px; vertical-align:middle;">
+                                <span style="display:inline-flex; align-items:center; gap:4px; background:#dbeafe; color:var(--marque-700, #1d4ed8); padding:2px 7px; border-radius:20px; font-size:10px; font-weight:700; margin-left:6px; vertical-align:middle;">
                                     <i class="fas fa-sync" style="font-size:8px;"></i> COMPTAFLOW
                                 </span>
                             @endif

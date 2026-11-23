@@ -22,7 +22,7 @@
         @endif
     </div>
 </div>
-<div id="progression-integration" style="display:none; margin:0 0 14px; padding:12px 16px; border-radius:10px; background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; font-size:14px;"></div>
+<div id="progression-integration" style="display:none; margin:0 0 14px; padding:12px 16px; border-radius:10px; background:#eff6ff; border:1px solid #bfdbfe; color:var(--marque-800, #1e40af); font-size:14px;"></div>
 
 <script>
 /*

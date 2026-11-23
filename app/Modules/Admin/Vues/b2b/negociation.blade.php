@@ -54,7 +54,7 @@
     </div>
     <span style="padding:8px 14px; border-radius:20px; font-weight:800; font-size:13px;
         background:{{ ['a_faire' => '#fef3c7', 'attente' => '#eff6ff', 'fait' => '#ecfdf5', 'clos' => '#f1f5f9'][$negociation->tonStatut($role)] }};
-        color:{{ ['a_faire' => '#92400e', 'attente' => '#1d4ed8', 'fait' => '#047857', 'clos' => '#64748b'][$negociation->tonStatut($role)] }};">
+        color:{{ ['a_faire' => '#92400e', 'attente' => 'var(--marque-700, #1d4ed8)', 'fait' => '#047857', 'clos' => '#64748b'][$negociation->tonStatut($role)] }};">
         {{ $negociation->libelleStatut($role) }}
     </span>
 </div>

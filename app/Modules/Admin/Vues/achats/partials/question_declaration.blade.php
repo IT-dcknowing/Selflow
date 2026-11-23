@@ -4,7 +4,7 @@
     et passe en écriture. Saisie aussi ici, elle passerait deux fois.
 --}}
 <div style="margin-bottom:18px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:14px 16px;">
-    <label style="font-weight:700; font-size:12.5px; color:#1e3a8a; display:block; margin-bottom:8px;">
+    <label style="font-weight:700; font-size:12.5px; color:var(--marque-900, #1e3a8a); display:block; margin-bottom:8px;">
         Cette facture sera-t-elle déclarée par le fournisseur sur la plateforme FNE ? <span style="color:#dc2626">*</span>
     </label>
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -17,7 +17,7 @@
             <strong>Non</strong> — facture non normalisée
         </label>
     </div>
-    <p style="font-size:11.5px; color:#1d4ed8; margin:8px 0 0; line-height:1.5;">
+    <p style="font-size:11.5px; color:var(--marque-700, #1d4ed8); margin:8px 0 0; line-height:1.5;">
         <strong>Oui</strong> : cette saisie reste informative ; l'écriture comptable sera passée à partir de la facture
         certifiée récupérée de la FNE. Le règlement, lui, s'écrit dès maintenant.
         <strong>Non</strong> : l'écriture est passée tout de suite.

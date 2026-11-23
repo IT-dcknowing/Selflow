@@ -582,7 +582,7 @@
 .rapport-header-left { display: flex; align-items: center; gap: 16px; }
 .rapport-icon-wrap {
     width: 52px; height: 52px; border-radius: 14px;
-    background: linear-gradient(135deg, #002B5C, #1e40af);
+    background: linear-gradient(135deg, var(--primary, #002B5C), var(--marque-800, #1e40af));
     display: flex; align-items: center; justify-content: center;
     color: #fff; font-size: 22px;
     box-shadow: 0 4px 16px rgba(0,43,92,0.3);
@@ -592,7 +592,7 @@
 .rapport-subtitle { font-size: 13px; color: var(--text-2); margin-top:4px; }
 
 .kpi-badge { display:flex; align-items:center; gap:7px; padding:8px 14px; border-radius:30px; font-size:12.5px; font-weight:600; }
-.kpi-badge-blue { background:#EBF5FF; color:#1d4ed8; border:1px solid #bfdbfe; }
+.kpi-badge-blue { background:#EBF5FF; color:var(--marque-700, #1d4ed8); border:1px solid #bfdbfe; }
 
 /* ── Onglets ── */
 .rapport-tabs {

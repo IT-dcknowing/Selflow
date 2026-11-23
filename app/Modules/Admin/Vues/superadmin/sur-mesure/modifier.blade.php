@@ -101,21 +101,12 @@
             </div>
         </div>
 
-        <h4 style="margin:22px 0 8px;">Ce que nous inscrivons dans les DNS</h4>
-        <div class="sm-dns">
-            @if($ipServeur)
-                <div>{{ old('domaine', $espace->domaine) ?: 'gestion.entreprise.ci' }}&nbsp;&nbsp;A&nbsp;&nbsp;{{ $ipServeur }}</div>
-            @else
-                <div>{{ old('domaine', $espace->domaine) ?: 'gestion.entreprise.ci' }}&nbsp;&nbsp;CNAME&nbsp;&nbsp;{{ $cibleCname }}.</div>
-            @endif
-            <div style="color:#94a3b8;">*.{{ $racine }}&nbsp;&nbsp;{{ $ipServeur ? 'A  ' . $ipServeur : 'CNAME  ' . $racine . '.' }}&nbsp;&nbsp;(une seule fois, pour tous les sous-domaines)</div>
-        </div>
-        <ol style="font-size:13px; color:#475569; line-height:1.8; padding-left:18px; margin:12px 0 0;">
-            <li>cPanel, <strong>Domaines</strong> : ajouter le domaine de l'entreprise avec comme racine le dossier <code>public</code> de Selflow (le même que {{ $racine }}). Pour les sous-domaines, ajouter une seule fois <code>*.{{ $racine }}</code> vers ce même dossier.</li>
-            <li>Inscrire l'enregistrement ci-dessus dans la zone DNS du domaine.</li>
-            <li>cPanel, <strong>SSL/TLS Status</strong> : lancer AutoSSL pour obtenir le certificat HTTPS.</li>
-            <li>Revenir ici, <strong>Vérifier les adresses</strong>, puis activer l'espace dans l'onglet Modules.</li>
-        </ol>
+        <h4 style="margin:22px 0 10px;">Marche à suivre <a href="{{ route('superadmin.sur_mesure.procedure') }}" target="_blank" style="font-size:12px; font-weight:600; margin-left:6px;">procédure complète et différences</a></h4>
+        @include('admin::superadmin.sur-mesure._procedure', [
+            'compact' => true,
+            'sousDomaine' => old('sous_domaine', $espace->sous_domaine),
+            'domaine' => old('domaine', $espace->domaine),
+        ])
         @if($espace->exists && $espace->adresses())
             <button type="submit" form="form-verifier" class="btn btn-outline" style="margin-top:14px;"><i class="fas fa-stethoscope"></i> Vérifier les adresses</button>
         @endif

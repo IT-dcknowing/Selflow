@@ -25,7 +25,29 @@ class SuperadminPaiementControleur
     {
         $statut = array_key_exists((string) $request->query('statut'), PaiementAbonnement::STATUTS) ? $request->query('statut') : null;
 
+        // Abonnement / réabonnement (23/11/2026) : la page montre aussi les
+        // abonnements en cours, bientôt à terme et à terme, et chacun se
+        // prolonge ou se met à jour à tout moment, sans attendre l'échéance.
+        $vue = $request->query('vue') === 'paiements' || $statut ? 'paiements' : 'abonnements';
+        $entreprises = \App\Modules\Admin\Modeles\Entreprise::query()->horsCorbeille()
+            ->whereNotNull('abonnement_expire_le')
+            ->orderBy('abonnement_expire_le')
+            ->get(['id', 'uuid', 'nom', 'ncc', 'plan_abonnement', 'abonnement_statut', 'abonnement_expire_le']);
+        $maintenant = now();
+        $abonnements = [
+            'a_terme' => $entreprises->filter(fn ($e) => $e->abonnement_expire_le->lt($maintenant))->values(),
+            'bientot' => $entreprises->filter(fn ($e) => $e->abonnement_expire_le->gte($maintenant) && $e->abonnement_expire_le->lte($maintenant->copy()->addDays(10)))->values(),
+            'en_cours' => $entreprises->filter(fn ($e) => $e->abonnement_expire_le->gt($maintenant->copy()->addDays(10)))->values(),
+        ];
+
         return view('admin::superadmin.paiements.index', [
+            'vue'         => $vue,
+            'aConfirmer'  => PaiementAbonnement::with(['entreprise', 'utilisateur', 'traitePar'])
+                ->where(fn ($q) => $q->whereIn('statut', PaiementAbonnement::A_TRAITER)
+                    ->orWhere(fn ($e) => $e->where('statut', 'echec')->where('updated_at', '>=', now()->subDays(30))))
+                ->latest()->limit(50)->get(),
+            'abonnements' => $abonnements,
+            'sansEcheance' => \App\Modules\Admin\Modeles\Entreprise::query()->horsCorbeille()->whereNull('abonnement_expire_le')->count(),
             'paiements' => PaiementAbonnement::with(['entreprise', 'utilisateur', 'traitePar'])
                 ->when($statut, fn ($q) => $q->where('statut', $statut))
                 ->orderByRaw("CASE WHEN statut IN ('recu','en_cours') THEN 0 ELSE 1 END")
@@ -104,6 +126,81 @@ class SuperadminPaiementControleur
         });
 
         return back()->with('succes', $entreprise->nom . ' : abonnement réactivé pour ' . $mois . ' mois.');
+    }
+
+    /**
+     * Prolonger ou mettre à jour un abonnement à tout moment (23/11/2026) :
+     * changer d'offre, ajouter des mois (à partir de l'échéance en cours si
+     * elle n'est pas passée), ou fixer une échéance précise.
+     */
+    public function prolonger(Request $request, \App\Modules\Admin\Modeles\Entreprise $entreprise): RedirectResponse
+    {
+        $donnees = $request->validate([
+            'offre' => ['required', Rule::in([Abonnements::SOLO, Abonnements::BUSINESS, Abonnements::PREMIUM, Abonnements::SUR_MESURE])],
+            'mois' => ['nullable', 'integer', 'between:0,36'],
+            'echeance' => ['nullable', 'date', 'after:today'],
+            'montant_total' => ['nullable', 'numeric', 'min:0'],
+        ], ['echeance.after' => 'L\'échéance fixée doit être postérieure à aujourd\'hui.']);
+
+        $mois = (int) ($donnees['mois'] ?? 0);
+        $offre = $donnees['offre'];
+        $echeance = $donnees['echeance'] ?? null;
+
+        if ($mois === 0 && ! $echeance && $offre === $entreprise->plan_abonnement) {
+            return back()->with('erreur', $entreprise->nom . ' : rien à modifier. Choisissez une autre offre, un nombre de mois ou une échéance.');
+        }
+
+        // Le montant saisi l'emporte ; sinon, le tarif de l'offre fois les mois.
+        $tarif = Abonnements::offres()[$offre]['prix'] ?? null;
+        $montant = (float) ($donnees['montant_total'] ?? 0) ?: (float) ($tarif ?? 0) * $mois;
+        if ($mois > 0 && $montant <= 0) {
+            return back()->with('erreur', 'Indiquez le montant réglé pour une offre sur mesure.');
+        }
+
+        DB::transaction(function () use ($entreprise, $offre, $mois, $echeance, $montant) {
+            $entreprise = \App\Modules\Admin\Modeles\Entreprise::whereKey($entreprise->id)->lockForUpdate()->firstOrFail();
+
+            if ($entreprise->plan_abonnement !== $offre) {
+                Abonnements::appliquer($entreprise, $offre);
+                $entreprise->refresh();
+            }
+
+            $nouvelleEcheance = $entreprise->abonnement_expire_le;
+            if ($echeance) {
+                $nouvelleEcheance = \Illuminate\Support\Carbon::parse($echeance)->endOfDay();
+            } elseif ($mois > 0) {
+                $depart = $entreprise->abonnement_expire_le?->isFuture() ? $entreprise->abonnement_expire_le->copy() : now();
+                $nouvelleEcheance = $depart->addMonthsNoOverflow($mois)->endOfDay();
+            }
+
+            $entreprise->forceFill([
+                'abonnement_statut' => Abonnements::STATUT_ACTIF,
+                'abonnement_expire_le' => $nouvelleEcheance,
+                'abonnement_demande' => null,
+                'abonnement_demande_le' => null,
+            ])->save();
+
+            if ($mois > 0) {
+                PaiementAbonnement::create([
+                    'entreprise_id' => $entreprise->id,
+                    'utilisateur_id' => null,
+                    'offre' => $offre,
+                    'nature' => 'renouvellement',
+                    'mois' => $mois,
+                    'montant' => $montant,
+                    'operateur_paiement' => 'superadmin',
+                    'reference_paiement' => 'PROLONGATION-SUPERADMIN-' . $entreprise->id . '-' . now()->format('YmdHis'),
+                    'statut' => 'active',
+                    'active_le' => now(),
+                    'traite_par' => Auth::id(),
+                ] + (PaiementAbonnement::colonnesEnPlace() ? ['bloquant' => false, 'confirmation_vue_le' => now()] : []));
+            }
+        });
+
+        $entreprise->refresh();
+
+        return back()->with('succes', $entreprise->nom . ' : ' . Abonnements::libelle($entreprise->plan_abonnement)
+            . ', échéance au ' . $entreprise->abonnement_expire_le?->format('d/m/Y') . '.');
     }
 
     public function traiter(Request $request, PaiementAbonnement $paiement): RedirectResponse

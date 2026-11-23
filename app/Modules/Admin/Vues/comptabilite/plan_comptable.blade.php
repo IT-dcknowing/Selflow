@@ -91,7 +91,7 @@
                         </td>
                         <td>
                             @if(isset($compte->source) && $compte->source === 'comptaflow')
-                                <span style="display:inline-flex; align-items:center; gap:5px; background:#dbeafe; color:#1d4ed8; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700;">
+                                <span style="display:inline-flex; align-items:center; gap:5px; background:#dbeafe; color:var(--marque-700, #1d4ed8); padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700;">
                                     <i class="fas fa-sync" style="font-size:9px;"></i> COMPTAFLOW
                                 </span>
                             @else

@@ -45,7 +45,7 @@
         /* ── SIDEBAR ─────────────────────────────── */
         .sidebar {
             position: fixed; top: 0; left: 0; width: var(--sidebar-w); height: 100vh;
-            background: #002B5C; border-right: none;
+            background: var(--sidebar-bg, var(--primary, #002B5C)); border-right: none;
             display: flex; flex-direction: column; z-index: 100;
             overflow-y: auto; overflow-x: hidden;
             transition: transform 0.3s ease, width 0.3s ease;
@@ -72,7 +72,7 @@
             border-radius: 10px; padding: 10px 14px; font-size: 12px;
         }
         .sidebar-pdv .pdv-label { color: rgba(255, 255, 255, 0.5); margin-bottom: 3px; text-transform: uppercase; letter-spacing:.5px; font-size: 10px; }
-        .sidebar-pdv .pdv-name  { color: #FFC107; font-weight: 600; }
+        .sidebar-pdv .pdv-name  { color: var(--sidebar-accent, #FFC107); font-weight: 600; }
 
         .sidebar-nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 2px; }
 
@@ -93,7 +93,7 @@
             background: rgba(255, 255, 255, 0.15);
             color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.25);
         }
-        .nav-item.active i { color: #FFC107; }
+        .nav-item.active i { color: var(--sidebar-accent, #FFC107); }
         .nav-item i { width: 18px; text-align: center; font-size: 14px; }
 
         /* ── Sections dépliables ──────────────────────────────────────
@@ -131,7 +131,7 @@
         /* Replier la section où l'on se trouve ferait perdre de vue l'écran
            courant : seul son chevron passe alors en ambre — l'état se marque,
            le titre ne change pas de style. */
-        .js-nav .nav-section.contient-actif[aria-expanded="false"] .nav-chevron { color: #FFC107; }
+        .js-nav .nav-section.contient-actif[aria-expanded="false"] .nav-chevron { color: var(--sidebar-accent, #FFC107); }
 
         .js-nav .nav-groupe { display: flex; flex-direction: column; gap: 2px; }
         .js-nav .nav-section[aria-expanded="false"] + .nav-groupe { display: none; }
@@ -312,7 +312,7 @@
         .toast.t-succes        { border-left-color: #10b981; } .toast.t-succes .ic        { color: #10b981; } .toast.t-succes .ti        { color: #065f46; }
         .toast.t-avertissement { border-left-color: #f59e0b; } .toast.t-avertissement .ic { color: #f59e0b; } .toast.t-avertissement .ti { color: #92400e; }
         .toast.t-erreur        { border-left-color: #ef4444; } .toast.t-erreur .ic        { color: #ef4444; } .toast.t-erreur .ti        { color: #991b1b; }
-        .toast.t-info          { border-left-color: #3b82f6; } .toast.t-info .ic          { color: #3b82f6; } .toast.t-info .ti          { color: #1e3a8a; }
+        .toast.t-info          { border-left-color: #3b82f6; } .toast.t-info .ic          { color: #3b82f6; } .toast.t-info .ti          { color: var(--marque-900, #1e3a8a); }
         /* ── Liste sélective des points de vente dans le pop-up ── */
         .toast-pdv-list {
             display: flex; flex-direction: column; gap: 8px; margin-top: 14px;
@@ -335,12 +335,12 @@
             display: inline-flex; align-items: center; gap: 6px;
             padding: 6px 14px; border-radius: 8px; cursor: pointer;
             font-size: 12.5px; font-weight: 700; text-decoration: none;
-            color: #fff; background: #2563eb; border: none;
+            color: #fff; background: var(--marque-600, #2563eb); border: none;
             box-shadow: 0 2px 6px rgba(37, 99, 235, .25);
             transition: all .15s ease; flex-shrink: 0;
         }
         .toast-pdv-btn:hover {
-            background: #1d4ed8; transform: translateY(-1px);
+            background: var(--marque-700, #1d4ed8); transform: translateY(-1px);
             box-shadow: 0 4px 10px rgba(37, 99, 235, .35);
         }
         @keyframes toast-in  { from { opacity: 0; transform: scale(.90); } to { opacity: 1; transform: scale(1); } }
@@ -378,7 +378,7 @@
         .stat-icon.red    { background: rgba(239,68,68,.1);  color: var(--danger);  }
         .stat-icon.blue   { background: rgba(59,130,246,.1); color: var(--info);    }
         .stat-icon.yellow { background: rgba(245,158,11,.1); color: var(--warning); }
-        .stat-icon.purple { background: rgba(0,43,92,.1);    color: var(--primary); }
+        .stat-icon.purple { background: var(--primary-pale, rgba(0,43,92,.1));    color: var(--primary); }
         .stat-value { font-size: 22px; font-weight: 800; line-height: 1.2; color: var(--text); }
         .stat-label { font-size: 12px; color: var(--text-2); margin-top: 3px; }
         .stat-change { font-size: 11px; margin-top: 5px; }
@@ -407,8 +407,8 @@
         .badge-success { background: rgba(16,185,129,.1); color: #065f46; }
         .badge-warning { background: rgba(245,158,11,.1);  color: #92400e; }
         .badge-danger  { background: rgba(239,68,68,.1);   color: #991b1b; }
-        .badge-info    { background: rgba(59,130,246,.1);  color: #1e3a8a; }
-        .badge-purple  { background: rgba(0,43,92,.1);     color: #002b5c; }
+        .badge-info    { background: rgba(59,130,246,.1);  color: var(--marque-900, #1e3a8a); }
+        .badge-purple  { background: var(--primary-pale, rgba(0,43,92,.1));     color: var(--primary, #002B5C); }
         .badge-gray    { background: rgba(100,116,139,.1); color: #475569; }
 
         /* ── BUTTONS ─────────────────────────────── */
@@ -439,7 +439,7 @@
             font-size: 13px; font-family: 'Inter', sans-serif;
             transition: border-color .15s, box-shadow .15s; outline: none;
         }
-        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0, 43, 92, 0.15); }
+        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-halo, rgba(0, 43, 92, 0.15)); }
         .form-control::placeholder { color: var(--text-3); }
         .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
@@ -650,18 +650,43 @@
 @endif
 
 @php
-    // Selflow sur mesure (23/11/2026) : à l'adresse d'une entreprise dont le
-    // module « couleurs » est actif, l'application prend ses couleurs et son logo.
-    $__espaceHabille = (isset($espaceSurMesure) && $espaceSurMesure && $espaceSurMesure->moduleActif('couleurs')) ? $espaceSurMesure : null;
+    // Selflow sur mesure (23/11/2026) : une entreprise dont l'espace est actif
+    // avec le module « couleurs » voit l'application à ses couleurs, qu'elle
+    // arrive par son adresse ou par celle de Selflow. Tout ce qui porte la
+    // marque passe par ces variables (voir JOURNAL, lot 151) : menu latéral,
+    // boutons, liens, onglets, en-têtes, focus, pastilles, titres des pages.
+    $__espaceHabille = \App\Modules\Admin\Modeles\EspaceSurMesure::habillagePour(
+        (isset($espaceSurMesure) ? $espaceSurMesure : null),
+        auth()->user()
+    );
 @endphp
 @if($__espaceHabille)
+@php
+    $__p = $__espaceHabille->couleur_principale;
+    $__s = $__espaceHabille->couleur_secondaire;
+@endphp
 <style>
     :root {
-        --primary: {{ $__espaceHabille->couleur_principale }};
-        --primary-d: {{ $__espaceHabille->ombre($__espaceHabille->couleur_principale, .22) }};
-        --bg3: {{ $__espaceHabille->teinte($__espaceHabille->couleur_principale, .9) }};
+        --primary: {{ $__p }};
+        --primary-d: {{ $__espaceHabille->ombre($__p, .22) }};
+        --primary-pale: {{ $__espaceHabille->teinte($__p, .88) }};
+        --primary-halo: {{ $__espaceHabille->teinte($__p, .75) }};
+        --bg3: {{ $__espaceHabille->teinte($__p, .92) }};
+        --info: {{ $__p }};
+        --marque-600: {{ $__p }};
+        --marque-700: {{ $__espaceHabille->ombre($__p, .12) }};
+        --marque-800: {{ $__espaceHabille->ombre($__p, .25) }};
+        --marque-900: {{ $__espaceHabille->ombre($__p, .38) }};
+        --sidebar-bg: {{ $__espaceHabille->ombre($__p, .45) }};
+        --sidebar-accent: {{ $__espaceHabille->teinte($__p, .55) }};
+        --titre-page: {{ $__s }};
     }
-    .sidebar { background: {{ $__espaceHabille->ombre($__espaceHabille->couleur_principale, .45) }} !important; }
+    .page-header h1 { color: var(--titre-page); }
+    .page-header h1 i { color: var(--primary); }
+    .table thead th { background: var(--bg3); }
+    .nav-item.active { box-shadow: inset 3px 0 0 var(--sidebar-accent); }
+    .pagination .active > *, .page-item.active .page-link { background: var(--primary) !important; border-color: var(--primary) !important; }
+    input[type=checkbox], input[type=radio], progress { accent-color: var(--primary); }
 </style>
 @endif
 
@@ -725,9 +750,9 @@
             $__peutGerer = \App\Modules\Authentification\Regles\Habilitations::ouvre(auth()->user(), 'admin.pdv.index');
         @endphp
         @if($__peutGerer)
-        <a href="{{ route('admin.pdv.index', $__aDesSites ? [] : ['nouveau' => 1]) }}" class="sidebar-pdv sidebar-pdv-vide" style="display:block; text-decoration:none; border:1px dashed #FFC107;">
+        <a href="{{ route('admin.pdv.index', $__aDesSites ? [] : ['nouveau' => 1]) }}" class="sidebar-pdv sidebar-pdv-vide" style="display:block; text-decoration:none; border:1px dashed var(--sidebar-accent, #FFC107);">
         @else
-        <div class="sidebar-pdv sidebar-pdv-vide" style="border:1px dashed #FFC107;">
+        <div class="sidebar-pdv sidebar-pdv-vide" style="border:1px dashed var(--sidebar-accent, #FFC107);">
         @endif
             <div class="pdv-label"><i class="fas fa-store-slash"></i> Aucun point de vente actif</div>
             <div class="pdv-name">
@@ -780,7 +805,7 @@
     <!-- Sélecteur d'exercice/période -->
     <div class="sidebar-periode" style="margin: 10px 12px 0; position: relative;">
         <button onclick="togglePeriodeDropdown(event)" style="width: 100%; display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 10px 14px; color: #ffffff; cursor: pointer; text-align: left; transition: all 0.2s; outline: none;">
-            <i class="far fa-calendar-alt" style="font-size: 16px; color: #FFC107;"></i>
+            <i class="far fa-calendar-alt" style="font-size: 16px; color: var(--sidebar-accent, #FFC107);"></i>
             <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 <div style="font-size: 10px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.5px;">Période en cours</div>
                 <div style="font-size: 13px; font-weight: 600;">{{ session('active_periode_nom', 'Non défini') }}</div>
@@ -850,9 +875,6 @@
             <a href="{{ route('superadmin.groupes.index') }}" class="nav-item {{ request()->routeIs('superadmin.groupes*') ? 'active' : '' }}">
                 <i class="fas fa-diagram-project"></i> Groupes d'entreprises
             </a>
-            <a href="{{ route('superadmin.sur_mesure.index') }}" class="nav-item {{ request()->routeIs('superadmin.sur_mesure*') ? 'active' : '' }}">
-                <i class="fas fa-wand-magic-sparkles"></i> Selflow sur mesure
-            </a>
             @php $__enCorbeille = \App\Modules\Admin\Modeles\Entreprise::enCorbeille()->count(); @endphp
             <a href="{{ route('superadmin.corbeille') }}" class="nav-item {{ request()->routeIs('superadmin.corbeille*') ? 'active' : '' }}">
                 <i class="fas fa-trash-can"></i> Corbeille
@@ -887,7 +909,7 @@
             @if(auth()->user()->aHabilitation('gestion_entreprises'))
             @php $__paiementsOuverts = \App\Modules\Admin\Modeles\PaiementAbonnement::whereIn('statut', \App\Modules\Admin\Modeles\PaiementAbonnement::A_TRAITER)->count(); @endphp
             <a href="{{ route('superadmin.paiements.index') }}" class="nav-item {{ request()->routeIs('superadmin.paiements*') ? 'active' : '' }}">
-                <i class="fas fa-money-check-dollar"></i> Paiements d'abonnement
+                <i class="fas fa-money-check-dollar"></i> Abonnement / réabonnement
                 @if($__paiementsOuverts)<span style="margin-left:auto; background:#ef4444; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700;">{{ $__paiementsOuverts }}</span>@endif
             </a>
             @endif
@@ -938,6 +960,17 @@
                  elle est fixe. Le superadmin y gère les demandes de démo. --}}
             <a href="{{ route('superadmin.demos.index') }}" class="nav-item {{ request()->routeIs('superadmin.demos*') ? 'active' : '' }}">
                 <i class="fas fa-circle-play"></i> Demandes de démo
+            </a>
+            @endif
+
+            @if(auth()->user()->aHabilitation('gestion_entreprises'))
+            {{-- Selflow sur mesure : sa propre section (23/11/2026). --}}
+            <div class="nav-section"><span>SUR MESURE</span></div>
+            <a href="{{ route('superadmin.sur_mesure.index') }}" class="nav-item {{ request()->routeIs('superadmin.sur_mesure.index', 'superadmin.sur_mesure.modifier', 'superadmin.sur_mesure.apercu') ? 'active' : '' }}">
+                <i class="fas fa-wand-magic-sparkles"></i> Espaces sur mesure
+            </a>
+            <a href="{{ route('superadmin.sur_mesure.procedure') }}" class="nav-item {{ request()->routeIs('superadmin.sur_mesure.procedure') ? 'active' : '' }}">
+                <i class="fas fa-list-check"></i> Mise en ligne : procédure
             </a>
             @endif
         @elseif(request()->routeIs('caissier.*'))
@@ -1055,7 +1088,7 @@
             <a href="{{ route('admin.b2b.negociations.fournisseur') }}" class="nav-item {{ request()->routeIs('admin.b2b.negociations.fournisseur*', 'admin.b2b.fournisseur.*') ? 'active' : '' }}">
                 <i class="fas fa-handshake"></i> Demandes B2B reçues
                 @php $__b2b = \App\Modules\Admin\Modeles\B2bNegotiation::nonLuesPour((int) auth()->user()->entreprise_id, 'fournisseur')->count(); @endphp
-                @if($__b2b)<span title="Réponses ou commandes à voir" style="margin-left:auto; background:#2563eb; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700;">{{ $__b2b }}</span>@endif
+                @if($__b2b)<span title="Réponses ou commandes à voir" style="margin-left:auto; background:var(--marque-600, #2563eb); color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700;">{{ $__b2b }}</span>@endif
             </a>
             @endif
             @endif
@@ -1087,7 +1120,7 @@
             <a href="{{ route('admin.b2b.negociations.client') }}" class="nav-item {{ request()->routeIs('admin.b2b.negociations.client*', 'admin.b2b.client.*') ? 'active' : '' }}">
                 <i class="fas fa-comments-dollar"></i> Négociations B2B (Achats)
                 @php $__b2b = \App\Modules\Admin\Modeles\B2bNegotiation::nonLuesPour((int) auth()->user()->entreprise_id, 'client')->count(); @endphp
-                @if($__b2b)<span title="Réponses ou commandes à voir" style="margin-left:auto; background:#2563eb; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700;">{{ $__b2b }}</span>@endif
+                @if($__b2b)<span title="Réponses ou commandes à voir" style="margin-left:auto; background:var(--marque-600, #2563eb); color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700;">{{ $__b2b }}</span>@endif
             </a>
             @endif
             @endif
@@ -1885,20 +1918,20 @@
             && !request()->routeIs('admin.souscription.*'))
             <div data-visite-banniere
                  style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;
-                        background:#EFF6FF; border:1px solid #BFDBFE; border-radius:12px;
+                        background:var(--bg3, #EFF6FF); border:1px solid var(--primary-halo, #BFDBFE); border-radius:12px;
                         padding:16px 20px; margin-bottom:20px;">
                 <div style="flex:1; min-width:260px;">
-                    <div style="font-weight:700; font-size:14px; color:#1E3A8A; margin-bottom:3px;">
+                    <div style="font-weight:700; font-size:14px; color:var(--marque-900, #1e3a8a); margin-bottom:3px;">
                         Configurez votre métier en cinq minutes
                     </div>
-                    <div style="font-size:13px; color:#1D4ED8; line-height:1.55;">
+                    <div style="font-size:13px; color:var(--marque-700, #1d4ed8); line-height:1.55;">
                         Selflow remplira votre catalogue, votre plan comptable et vos journaux
                         à partir de votre activité. Il vous restera à saisir vos prix &mdash;
                         eux seuls varient selon la zone et la période, nous ne pouvons pas les deviner.
                     </div>
                 </div>
                 <a href="{{ route('admin.souscription.index') }}"
-                   style="white-space:nowrap; background:#1D4ED8; color:#fff; padding:9px 16px;
+                   style="white-space:nowrap; background:var(--marque-700, #1d4ed8); color:#fff; padding:9px 16px;
                           border-radius:8px; font-weight:600; font-size:13px; text-decoration:none;">
                     Commencer
                 </a>
@@ -1914,7 +1947,7 @@
         @if($__suspens && !$__surFacturation)
             @include('admin::partials.abonnement-en-attente', ['paiement' => $__suspens])
         @elseif($__suspens)
-            <div id="bandeau-a-terme" style="{{ $__suspens->statut === 'echec' ? '' : 'background:#1E40AF;' }}">
+            <div id="bandeau-a-terme" style="{{ $__suspens->statut === 'echec' ? '' : 'background:var(--marque-800, #1e40af);' }}">
                 <i class="fas {{ $__suspens->statut === 'echec' ? 'fa-circle-exclamation' : 'fa-hourglass-half' }}"></i>
                 {{ $__suspens->statut === 'echec' ? 'Paiement non confirmé — saisissez une nouvelle référence dans la section Facturation.' : 'En attente de confirmation de l\'abonnement — seule la section Facturation est disponible.' }}
             </div>
@@ -1935,7 +1968,7 @@
                     </p>
                     @if(auth()->user()->role === 'admin')
                         <a href="{{ route('admin.entreprise.parametres') }}#facturation" id="btn-continuer-a-terme"
-                           style="display:flex; justify-content:center; align-items:center; gap:8px; padding:13px; background:#002B5C; color:#fff; border-radius:10px; font-weight:700; text-decoration:none;">
+                           style="display:flex; justify-content:center; align-items:center; gap:8px; padding:13px; background:var(--primary, #002B5C); color:#fff; border-radius:10px; font-weight:700; text-decoration:none;">
                             Continuer <i class="fas fa-arrow-right"></i>
                         </a>
                     @else
@@ -2083,7 +2116,7 @@
 @if(Auth::check() && Auth::user()->entreprise && Auth::user()->entreprise->nom === '[PENDING_ONBOARDING]')
 <div id="onboarding-nom-modal" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); backdrop-filter:blur(10px); z-index:99999; display:flex; align-items:center; justify-content:center; padding:20px;">
     <div style="background:#ffffff; border-radius:16px; width:100%; max-width:480px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); padding:36px; border:1px solid rgba(226,232,240,0.8); text-align:center; animation: onboardingScaleUp 0.3s ease-out;">
-        <div style="width:60px; height:60px; border-radius:14px; background:#EFF6FF; color:#1D4ED8; display:inline-flex; align-items:center; justify-content:center; font-size:26px; margin-bottom:20px; box-shadow:0 4px 10px rgba(29,78,216,0.15);">
+        <div style="width:60px; height:60px; border-radius:14px; background:#EFF6FF; color:var(--marque-700, #1d4ed8); display:inline-flex; align-items:center; justify-content:center; font-size:26px; margin-bottom:20px; box-shadow:0 4px 10px rgba(29,78,216,0.15);">
             <i class="fas fa-building"></i>
         </div>
         <h2 style="font-size:22px; font-weight:800; color:#1E293B; margin-bottom:8px; font-family:'Inter', sans-serif;">Bienvenue sur Selflow 👋</h2>
@@ -2095,7 +2128,7 @@
                 <label style="display:block; font-size:11px; font-weight:700; color:#64748B; text-transform:uppercase; margin-bottom:8px; letter-spacing:0.8px; font-family:'Inter', sans-serif;">Nom de votre entreprise</label>
                 <input type="text" name="nom_entreprise" required placeholder="Ex: Commerce Général Ivoirien SARL" style="width:100%; padding:12px 16px; border:1.5px solid #E2E8F0; border-radius:10px; font-size:14px; font-family:inherit; color:#1E293B; outline:none; transition:all 0.2s;" onfocus="this.style.borderColor='#1D4ED8'; this.style.boxShadow='0 0 0 3px rgba(29,78,216,0.1)'" onblur="this.style.borderColor='#E2E8F0'; this.style.boxShadow='none'">
             </div>
-            <button type="submit" style="width:100%; padding:13px; background:#002B5C; color:#ffffff; font-weight:600; border:none; border-radius:10px; font-size:14px; cursor:pointer; transition:all 0.2s; font-family:'Inter', sans-serif; display:flex; align-items:center; justify-content:center; gap:8px;" onmouseover="this.style.background='#001F42'" onmouseout="this.style.background='#002B5C'">
+            <button type="submit" style="width:100%; padding:13px; background:var(--primary, #002B5C); color:#ffffff; font-weight:600; border:none; border-radius:10px; font-size:14px; cursor:pointer; transition:all 0.2s; font-family:'Inter', sans-serif; display:flex; align-items:center; justify-content:center; gap:8px;" onmouseover="this.style.background='#001F42'" onmouseout="this.style.background='#002B5C'">
                 Accéder à l'application <i class="fas fa-arrow-right"></i>
             </button>
         </form>
@@ -2156,7 +2189,7 @@
                     default           => route('admin.entreprise.parametres') . '#' . $premier,
                 };
             @endphp
-            <a href="{{ $destination }}" style="flex:1; padding:12px; background:#002B5C; color:#ffffff; font-weight:600; border:none; border-radius:10px; font-size:14px; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; font-family:'Inter', sans-serif;" onmouseover="this.style.background='#001F42'" onmouseout="this.style.background='#002B5C'">
+            <a href="{{ $destination }}" style="flex:1; padding:12px; background:var(--primary, #002B5C); color:#ffffff; font-weight:600; border:none; border-radius:10px; font-size:14px; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; transition:all 0.15s; font-family:'Inter', sans-serif;" onmouseover="this.style.background='#001F42'" onmouseout="this.style.background='#002B5C'">
                 {{ ($manquants[0]['ou'] ?? '') === 'points_de_vente' ? 'Créer mon point de vente' : 'Compléter' }}
             </a>
         </div>
@@ -2199,7 +2232,7 @@ window.afficherNormalisationImpossible = function (manquants, piece) {
       + '<ul style="text-align:left;margin:0 0 22px;padding:12px 16px 12px 34px;background:#FEF3C7;border:1px solid #FCD34D;border-radius:10px;color:#92400E;font-size:13.5px;line-height:1.8;">' + liste + '</ul>'
       + '<div style="display:flex;gap:12px;">'
       + '<button type="button" id="btn-fermer-normalisation-impossible" style="flex:1;padding:12px;background:#F1F5F9;color:#475569;font-weight:600;border:none;border-radius:10px;font-size:14px;cursor:pointer;">Fermer</button>'
-      + '<a href="' + lien + '" id="btn-remplir-normalisation-impossible" style="flex:1;padding:12px;background:#002B5C;color:#fff;font-weight:600;border-radius:10px;font-size:14px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;"><i class="fas fa-pen"></i> Remplir</a>'
+      + '<a href="' + lien + '" id="btn-remplir-normalisation-impossible" style="flex:1;padding:12px;background:var(--primary, #002B5C);color:#fff;font-weight:600;border-radius:10px;font-size:14px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;"><i class="fas fa-pen"></i> Remplir</a>'
       + '</div></div>';
     document.body.appendChild(fond);
     fond.querySelector('#btn-fermer-normalisation-impossible').onclick = function () { fond.remove(); };

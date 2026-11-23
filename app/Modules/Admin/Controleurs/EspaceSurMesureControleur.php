@@ -33,6 +33,16 @@ class EspaceSurMesureControleur extends Controller
         return view('admin::superadmin.sur-mesure.index', compact('entreprises', 'espaces'));
     }
 
+    /** La procédure de mise en ligne, pour un sous-domaine et pour un domaine propre. */
+    public function procedure(): View
+    {
+        return view('admin::superadmin.sur-mesure.procedure', [
+            'racine' => EspaceSurMesure::domaineRacine(),
+            'ipServeur' => config('selflow.sur_mesure.ip_serveur'),
+            'cibleCname' => config('selflow.sur_mesure.cible_cname'),
+        ]);
+    }
+
     public function modifier(Entreprise $entreprise): View
     {
         $espace = EspaceSurMesure::firstOrNew(['entreprise_id' => $entreprise->id]);

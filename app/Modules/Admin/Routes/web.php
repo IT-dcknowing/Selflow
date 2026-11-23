@@ -780,6 +780,7 @@ Route::prefix('superadmin')
         Route::prefix('paiements')->name('paiements.')->group(function () {
             Route::get('/', [\App\Modules\Admin\Controleurs\SuperadminPaiementControleur::class, 'index'])->name('index');
             Route::put('/{paiement}', [\App\Modules\Admin\Controleurs\SuperadminPaiementControleur::class, 'traiter'])->name('traiter');
+            Route::post('/entreprises/{entreprise}/prolonger', [\App\Modules\Admin\Controleurs\SuperadminPaiementControleur::class, 'prolonger'])->name('prolonger');
         });
 
         // ── Configuration des passerelles de paiement ──
@@ -812,6 +813,7 @@ Route::prefix('superadmin')
         // ── Selflow sur mesure (23/11/2026) ──
         Route::prefix('sur-mesure')->name('sur_mesure.')->group(function () {
             Route::get('/', [\App\Modules\Admin\Controleurs\EspaceSurMesureControleur::class, 'index'])->name('index');
+            Route::get('/procedure', [\App\Modules\Admin\Controleurs\EspaceSurMesureControleur::class, 'procedure'])->name('procedure');
             Route::get('/{entreprise}', [\App\Modules\Admin\Controleurs\EspaceSurMesureControleur::class, 'modifier'])->name('modifier');
             Route::post('/{entreprise}', [\App\Modules\Admin\Controleurs\EspaceSurMesureControleur::class, 'enregistrer'])->name('enregistrer');
             Route::post('/{entreprise}/verifier', [\App\Modules\Admin\Controleurs\EspaceSurMesureControleur::class, 'verifier'])->name('verifier');

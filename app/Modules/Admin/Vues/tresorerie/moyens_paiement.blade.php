@@ -60,7 +60,7 @@
                         <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;
                                      font-size:11px;font-weight:700;
                                      background:{{ $moyen->type === 'Caisse' ? '#fffbeb' : '#eff6ff' }};
-                                     color:{{ $moyen->type === 'Caisse' ? '#92400e' : '#1e40af' }};">
+                                     color:{{ $moyen->type === 'Caisse' ? '#92400e' : 'var(--marque-800, #1e40af)' }};">
                             <i class="fas {{ $moyen->type === 'Caisse' ? 'fa-cash-register' : ($moyen->estMobileMoney() ? 'fa-mobile-screen' : 'fa-building-columns') }}"></i>
                             {{ $moyen->estMobileMoney() ? 'Mobile Money' : $moyen->type }}
                         </span>

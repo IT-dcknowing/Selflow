@@ -254,7 +254,18 @@ class Utilisateur extends Authenticatable
         }
         $initials = htmlspecialchars($initials, ENT_XML1 | ENT_QUOTES, 'UTF-8');
 
-        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><rect width="128" height="128" fill="#002B5C"/><text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" font-family="system-ui, -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif" font-size="48" font-weight="800" fill="#FFFFFF">' . $initials . '</text></svg>';
+        // Selflow sur mesure (23/11/2026) : les initiales prennent la couleur
+        // de l'entreprise quand son espace habille l'application.
+        $fond = '#002B5C';
+        try {
+            $espace = \App\Modules\Admin\Modeles\EspaceSurMesure::habillagePour(\App\Modules\Admin\Modeles\EspaceSurMesure::courant(), $this);
+            if ($espace && preg_match('/^#[0-9a-f]{6}$/i', (string) $espace->couleur_principale)) {
+                $fond = $espace->couleur_principale;
+            }
+        } catch (\Throwable) {
+        }
+
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><rect width="128" height="128" fill="' . $fond . '"/><text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" font-family="system-ui, -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif" font-size="48" font-weight="800" fill="#FFFFFF">' . $initials . '</text></svg>';
     }
 
     /**

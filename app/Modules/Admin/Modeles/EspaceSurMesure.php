@@ -99,6 +99,40 @@ class EspaceSurMesure extends Model
         return app()->bound('espace.sur_mesure') ? app('espace.sur_mesure') : null;
     }
 
+    /**
+     * L'habillage de l'application : celui de l'adresse, sinon celui de
+     * l'entreprise de l'utilisateur connecté (le superadministrateur garde
+     * Selflow, sauf à l'adresse d'un espace).
+     */
+    public static function habillagePour(?self $espaceDeLAdresse, $utilisateur): ?self
+    {
+        if ($espaceDeLAdresse) {
+            return $espaceDeLAdresse->moduleActif('couleurs') ? $espaceDeLAdresse : null;
+        }
+        if (! $utilisateur || ! $utilisateur->entreprise_id || (method_exists($utilisateur, 'estSuperAdmin') && $utilisateur->estSuperAdmin())) {
+            return null;
+        }
+
+        $espace = self::pourEntreprise((int) $utilisateur->entreprise_id);
+
+        return $espace?->moduleActif('couleurs') ? $espace : null;
+    }
+
+    /** L'espace actif d'une entreprise, en cache comme les adresses. */
+    public static function pourEntreprise(int $entrepriseId): ?self
+    {
+        $version = (int) Cache::get('espaces_sur_mesure_version', 0);
+        $id = Cache::rememberForever('espace_entreprise_' . $version . '_' . $entrepriseId, function () use ($entrepriseId) {
+            try {
+                return (int) (self::query()->where('entreprise_id', $entrepriseId)->where('actif', true)->value('id') ?? 0);
+            } catch (\Throwable) {
+                return 0;
+            }
+        });
+
+        return $id ? self::find($id) : null;
+    }
+
     /** L'espace qui répond à cette adresse, ou rien. */
     public static function pourHote(?string $hote): ?self
     {

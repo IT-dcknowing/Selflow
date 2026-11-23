@@ -26,7 +26,7 @@
 @endif
 
 @if($pointDeVenteId === 'tout')
-    <div class="alert alert-info" style="margin-bottom:20px; padding:12px 16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; color:#1e40af; display:flex; align-items:center; gap:10px;">
+    <div class="alert alert-info" style="margin-bottom:20px; padding:12px 16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; color:var(--marque-800, #1e40af); display:flex; align-items:center; gap:10px;">
         <i class="fas fa-circle-info"></i>
         <span>Veuillez filtrer par site spécifique sur la page principale de l'inventaire pour pouvoir jeter un article d'un entrepôt en particulier.</span>
     </div>

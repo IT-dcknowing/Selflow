@@ -11331,6 +11331,42 @@ choix du superadmin par entreprise ; les DNS sont gérés par DC-Knowing ;
 - La FNE n'est pas touchée.
 - `EspaceSurMesureTest` (7). Suite : 213, identiques à `main`.
 
+### Lot 151 — Habillage complet, section « Sur mesure », Abonnement / réabonnement — **TERMINÉ le 23/11/2026**
+
+- **L'entreprise est habillée à ses couleurs partout**, qu'elle arrive par son
+  adresse ou par celle de Selflow (module « couleurs », espace actif ;
+  `EspaceSurMesure::habillagePour`, en cache). Le superadmin garde Selflow,
+  sauf à l'adresse d'un espace.
+- **Les endroits fixes qui changent** passent tous par des variables CSS,
+  avec la valeur Selflow en repli (aucun changement pour les autres
+  entreprises) : `--primary`, `--primary-d`, `--primary-pale`,
+  `--primary-halo`, `--bg3`, `--info`, `--marque-600/700/800/900`,
+  `--sidebar-bg`, `--sidebar-accent`, `--titre-page`. Menu latéral (fond,
+  élément actif, point de vente, période), boutons, liens, onglets, en-têtes
+  de tableaux, focus, pastilles, titres de pages, bandeaux, pagination,
+  cases à cocher, initiales de l'avatar. Les 37 écrans de l'application qui
+  portaient le bleu en dur (`#002B5C`, `#001F42`, `#1e3a8a`, `#1e40af`,
+  `#1d4ed8`, `#2563eb`) les lisent désormais, **dans les styles seulement**
+  (les couleurs des graphiques, en JavaScript, restent). Exclus : factures,
+  documents imprimés et PDF (gelés ou sans habillage), vitrine, superadmin.
+  Règle pour la suite : une couleur de marque s'écrit `var(--primary, #002B5C)`.
+- **Section « SUR MESURE »** dans le menu du superadmin : « Espaces sur
+  mesure » et « Mise en ligne : procédure » (`superadmin.sur_mesure.procedure`).
+- **Procédure explicite**, différente pour le sous-domaine (tout chez nous :
+  cPanel, Domaines, AutoSSL) et le domaine propre (zone DNS de l'entreprise
+  d'abord, A ou CNAME, propagation, puis cPanel et AutoSSL après
+  propagation ; domaine nu = A obligatoire, MX à ne pas toucher). Tableau des
+  différences ; la fiche de l'entreprise reprend les deux marches à suivre avec
+  ses propres valeurs.
+- **« Paiements d'abonnement » devient « Abonnement / réabonnement »** :
+  onglet Abonnements (à terme, bientôt à terme sous 10 jours, en cours, et les
+  paiements à confirmer en tête) et onglet Paiements reçus. Chaque abonnement
+  se **prolonge ou se met à jour à tout moment** (`superadmin.paiements.prolonger`) :
+  changer d'offre, ajouter des mois (depuis l'échéance qui court encore, sinon
+  aujourd'hui) ou fixer une échéance précise ; chaque prolongation est inscrite
+  aux paiements.
+- Tests : 2 ajoutés à `EspaceSurMesureTest` (9). Suite : 213, identiques à `main`.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

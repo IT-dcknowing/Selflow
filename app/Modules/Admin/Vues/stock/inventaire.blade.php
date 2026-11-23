@@ -63,12 +63,12 @@
 </form>
 
 @if(!$pointDeVenteId)
-    <div class="alert alert-info" style="padding:14px 16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; color:#1e40af; display:flex; align-items:center; gap:10px;">
+    <div class="alert alert-info" style="padding:14px 16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; color:var(--marque-800, #1e40af); display:flex; align-items:center; gap:10px;">
         <i class="fas fa-circle-info"></i>
         <span>Choisissez le site où le comptage a lieu.</span>
     </div>
 @elseif($produits->isEmpty())
-    <div class="alert alert-info" style="padding:14px 16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; color:#1e40af; display:flex; align-items:center; gap:10px;">
+    <div class="alert alert-info" style="padding:14px 16px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; color:var(--marque-800, #1e40af); display:flex; align-items:center; gap:10px;">
         <i class="fas fa-circle-info"></i>
         <span>Aucun article qui se compte dans votre catalogue. Les prestations ne s'inventorient pas.</span>
     </div>

@@ -17,7 +17,7 @@
         : null;
 @endphp
 @if($__paiementEnAttente)
-<div style="background:#EFF6FF; border:1px solid #BFDBFE; color:#1E40AF; border-radius:10px; padding:11px 16px; margin:0 0 16px; font-size:13px; line-height:1.6; display:flex; gap:10px; align-items:flex-start;">
+<div style="background:#EFF6FF; border:1px solid #BFDBFE; color:var(--marque-800, #1e40af); border-radius:10px; padding:11px 16px; margin:0 0 16px; font-size:13px; line-height:1.6; display:flex; gap:10px; align-items:flex-start;">
     <i class="fas fa-hourglass-half" style="margin-top:2px;"></i>
     <div>
         <strong>Renouvellement en cours de vérification.</strong>

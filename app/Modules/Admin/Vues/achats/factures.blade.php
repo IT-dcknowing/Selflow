@@ -105,7 +105,7 @@
         le déclarez à la DGI. Vérifiez que l'option BAPA est cochée sur votre
         espace FNE, sans quoi la plateforme le refusera.
     @elseif($section === 'dgi')
-        <i class="fas fa-circle-info" style="color:#1d4ed8;"></i>
+        <i class="fas fa-circle-info" style="color:var(--marque-700, #1d4ed8);"></i>
         <strong>Ces factures viennent du portail de la DGI.</strong>
         Vos fournisseurs les ont établies et certifiées ; le relevé les rapporte.
         Il n'y a rien à leur faire — seulement à les rapprocher de vos achats.
@@ -126,7 +126,7 @@
             </div>
         @endif
     @elseif($section === 'avoirs_fournisseur')
-        <i class="fas fa-circle-info" style="color:#1d4ed8;"></i>
+        <i class="fas fa-circle-info" style="color:var(--marque-700, #1d4ed8);"></i>
         <strong>Ces avoirs ont été émis et certifiés par vos fournisseurs sur la FNE.</strong>
         Ils sont déjà normalisés par la DGI : Selflow les récupère, les affiche et permet de les rapprocher de la facture d'achat d'origine. Aucun avoir n'est normalisé ni aucune écriture créée par ce relevé.
         <div style="margin-top:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
@@ -352,7 +352,7 @@
                         <i class="fas fa-cloud-arrow-down" style="color:#3b82f6;" title="Relevée au portail de la DGI — la normalisation groupée ne la concerne pas"></i>
                     </td>
                     @endif
-                    <td style="font-weight:700; color:#1d4ed8;">
+                    <td style="font-weight:700; color:var(--marque-700, #1d4ed8);">
                         {{ $recue->reference }}
                         <span style="display:block; font-size:10px; font-weight:700; color:#3b82f6; text-transform:uppercase; letter-spacing:.03em;">Portail DGI</span>
                     </td>
@@ -374,7 +374,7 @@
                             <form method="POST" action="{{ route('admin.achats.factures_recues.affecter', $recue) }}" style="margin:0;">
                                 @csrf
                                 <select name="point_de_vente_id" onchange="this.form.submit()"
-                                        style="font-size:11px; padding:3px 6px; border:1px solid #bfdbfe; border-radius:6px; background:#fff; color:#1d4ed8; font-weight:600; max-width:160px;"
+                                        style="font-size:11px; padding:3px 6px; border:1px solid #bfdbfe; border-radius:6px; background:#fff; color:var(--marque-700, #1d4ed8); font-weight:600; max-width:160px;"
                                         title="Ranger cette facture sous un site : le portail ne le dit pas.">
                                     <option value="">à affecter…</option>
                                     @foreach($sitesDisponibles as $site)
@@ -390,14 +390,14 @@
                     <td style="font-weight:700; color:var(--danger);">{{ number_format($recue->montant_ttc, 0, ',', ' ') }} F</td>
                     <td>{{ $recue->moyen_paiement ?: '—' }}</td>
                     <td>
-                        <span class="badge" style="background:#eff6ff; color:#1d4ed8; padding:4px 10px; border-radius:20px; font-weight:700; border:1px solid #bfdbfe;">
+                        <span class="badge" style="background:#eff6ff; color:var(--marque-700, #1d4ed8); padding:4px 10px; border-radius:20px; font-weight:700; border:1px solid #bfdbfe;">
                             {{ $recue->libelleDuSousType() }}
                         </span>
                     </td>
                     <td style="text-align: center;">
                         {{-- Certifiée, mais par le fournisseur. L'afficher « en
                              cours » laisserait croire qu'un envoi nous incombe. --}}
-                        <span style="background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; padding:4px 10px; border-radius:20px; font-weight:800; font-size:12px; display:inline-flex; align-items:center; gap:5px;" title="Pièce certifiée par le fournisseur et détenue par la DGI">
+                        <span style="background:#dbeafe; color:var(--marque-800, #1e40af); border:1px solid #93c5fd; padding:4px 10px; border-radius:20px; font-weight:800; font-size:12px; display:inline-flex; align-items:center; gap:5px;" title="Pièce certifiée par le fournisseur et détenue par la DGI">
                             <i class="fas fa-check-circle"></i> Fournisseur
                         </span>
                     </td>
@@ -564,7 +564,7 @@
                         @elseif($achat->etape === 'Demande de prix')
                             <span class="badge" style="background:#fffbeb; color:#d97706; padding:4px 10px; border-radius:20px; font-weight:700;">Demande de prix</span>
                         @elseif($achat->etape === 'Bon de commande')
-                            <span class="badge" style="background:#eff6ff; color:#2563eb; padding:4px 10px; border-radius:20px; font-weight:700;">Bon de commande</span>
+                            <span class="badge" style="background:#eff6ff; color:var(--marque-600, #2563eb); padding:4px 10px; border-radius:20px; font-weight:700;">Bon de commande</span>
                         @else
                             <span class="badge" style="background:#e6fdf5; color:#059669; padding:4px 10px; border-radius:20px; font-weight:700;">Facture</span>
                         @endif
@@ -689,7 +689,7 @@
                             @endif
 
                             @if($achat->etape === 'Facture' && $achat->estInformative())
-                                <span style="font-size:11px; color:#1d4ed8; font-weight:700;" title="Facture déclarée par le fournisseur : l'écriture vient de la facture certifiée récupérée de la FNE.">
+                                <span style="font-size:11px; color:var(--marque-700, #1d4ed8); font-weight:700;" title="Facture déclarée par le fournisseur : l'écriture vient de la facture certifiée récupérée de la FNE.">
                                     <i class="fas fa-circle-info"></i> Informative
                                 </span>
                             @endif
