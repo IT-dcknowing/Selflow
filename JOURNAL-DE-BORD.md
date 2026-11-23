@@ -6,8 +6,9 @@ et ce fichier. Tout ce qui a été décidé, tout ce qui a été écarté et pou
 tout ce qui reste à faire doit donc figurer ici — et y être tenu à jour à chaque
 lot terminé.
 
-Dernière mise à jour : 23 novembre 2026 — lot 138 : relevé des ventes FNE,
-le verrou rendu à la fin du scraper et ses échecs écrits. Avant : 26 octobre 2026 — lot 134 (URGENT) : plus de
+Dernière mise à jour : 23 novembre 2026 — lots 138 et 139 : relevé des
+ventes FNE (Node 22, verrou rendu, un seul Chromium à la fois, message
+d'assistance à l'écran) ; tableau de bord du Hub repris du serveur. Avant : 26 octobre 2026 — lot 134 (URGENT) : plus de
 factures en double (double envoi, numérotation) ; `selflow:doublons-factures`
 pour recenser l'existant. Lot 133 : exports de l'inventaire
 mis en forme, filigrane SELFLOW sur le PDF et l'Excel. Lots 128 à 132 : configuration des
@@ -10927,6 +10928,70 @@ rend visible.
   échouaient de la même façon, et sont réparés du même coup.
 - **Ne pas revenir à Node 18**, et vérifier la version de Node avant toute
   montée de version de Playwright.
+
+**Ensuite, le même jour : deux retours du propriétaire.**
+
+1. *« L'utilisateur ne doit pas voir cette erreur. »* L'écran affichait « le
+   scraper s'est arrêté sans terminer… consultez storage/logs/… ».
+   - Tout échec d'un relevé (ventes, achats, avoirs fournisseurs, avoirs) ne
+     rend plus à l'écran qu'un pop-up : *« Une erreur s'est produite. Veuillez
+     réessayer plus tard ou contacter le service assistance au 07 67 13 19
+     93. »* Il s'efface après **10 s**. La demande disait « qui disparaît
+     en… » sans la durée : 10 s est un choix, à corriger s'il le faut
+     (`duree` dans `window.selflowErreurTache`, gabarit `application`).
+   - Le numéro vient de `SELFLOW_ASSISTANCE_TELEPHONE` (défaut ci-dessus).
+   - Le détail part au journal (`[relevé FNE] …`, avec l'utilisateur et
+     l'entreprise) par `FneDashboardControleur::erreurReleve()`.
+   - Le pop-up « Relevé non reçu » du rejet de normalisation, qui parlait du
+     scraper, prend le même message.
+2. *Chromium avorte au démarrage* (« Received signal 6 », 02:05, alors que
+   02:00 était passé). Les relevés des achats et des ventes partent tous deux
+   à `*/5`, **à la même minute** : deux Chromium ensemble sur un compte
+   plafonné en processus (constat du 15/09/2026).
+   - `fne.js` exporte `lancerNavigateur()` : un verrou de fichier
+     (`storage/app/portail-fne/navigateur.lock`, pid dedans) fait passer les
+     scrapers **l'un après l'autre**. Le suivant attend jusqu'à 4 min
+     (`FNE_ATTENTE_NAVIGATEUR_MS`). Un verrou laissé par un processus mort est
+     repris.
+   - Un lancement qui avorte est retenté : 3 essais à 15 s d'écart
+     (`FNE_ESSAIS_LANCEMENT`, `FNE_PAUSE_ENTRE_ESSAIS_MS`).
+   - Éprouvé ici avec un vrai Chromium : deux scrapers lancés ensemble passent
+     à 6 s d'écart, le verrou est rendu, un verrou orphelin est repris.
+
+- `ReleveDesVentesVerrouTest` (+1 : l'écran ne montre que le message de
+  l'assistance). Suite : 1 975 épreuves, 1 757 passantes, mêmes 175 échecs
+  qu'avant le lot.
+
+### Lot 139 — Le tableau de bord du Hub, repris du serveur — **TERMINÉ le 23/11/2026**
+
+Branche `tableau-de-bord-api-mobile`. Le serveur de production avait 54
+commits que GitHub n'avait pas : des fusions de `git pull`, les 19 anciens
+commits de mel (déjà dans IT), une migration pivot en double sans effet
+(`2026_11_11_000004`, la table est posée par `2026_11_10_000002`), et deux
+commits faits sur place :
+
+- `9fe7a41` (22/10/2026) : `DashboardApiController`, l'API que lit le
+  FlowHub. **Repris** (auteur d'origine conservé). Le chiffre d'affaires
+  écarte devis et bons de commande, déduit les avoirs, ne compte pas deux
+  fois un reçu remplacé ; « payée » suit les statuts Crédit / Avance ; blocs
+  fiscalité, trésorerie, créances, dettes, stock, CA par site, vendeurs ; un
+  bloc qui échoue est signalé dans `avertissements` sans faire tomber les
+  autres. Les clés lues par l'ancien Hub sont gardées.
+- `48f90d9` (27/10/2026) : « sauvegarde locale » — `comptes-selflow.json`
+  (**empreintes bcrypt des comptes**), `error_log`, un `.php.old`. **Non
+  repris** ; ces fichiers sont désormais dans `.gitignore`. **Ne jamais faire
+  `git push` depuis le `main` du serveur.**
+- Non repris : `Operation.php` (une requête ajoutée et jamais lue, reste de
+  fusion) et `LiaisonComptaflowService.php` (remise en forme seule).
+
+Le serveur reçoit le code par `git fetch` / `git merge` ; le compte GitHub
+du serveur (`bleibaulouh`) n'a pas l'écriture sur IT, et il est recommandé de
+lui donner une clé de déploiement **en lecture seule**. Une fois ces deux
+branches dans `main`, réaligner le serveur sur `origin/main` (avec une
+branche de sauvegarde).
+
+- `TableauDeBordApiHubTest` (5). Suite sur la branche : 1 974 épreuves,
+  1 756 passantes, mêmes 175 échecs qu'avant.
 
 - `ReleveDesVentesVerrouTest` (5). Suite : 1 974 épreuves, 1 756 passantes,
   175 en échec, 5 ignorées. **Les 175 échecs existaient avant ce lot**
