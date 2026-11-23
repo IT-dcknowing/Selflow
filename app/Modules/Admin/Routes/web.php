@@ -38,6 +38,11 @@ Route::prefix('admin')
             Route::get('/derniere-facture', [VenteControleur::class, 'derniereFacture'])->name('derniere');
             Route::post('/enregistrer', [VenteControleur::class, 'enregistrer'])->name('enregistrer');
             Route::get('/factures', [VenteControleur::class, 'factures'])->name('factures');
+            // Les factures émises sur le portail FNE, hors de Selflow (23/11/2026).
+            Route::get('/portail-fne', [\App\Modules\Admin\Controleurs\IntegrationPortailFneControleur::class, 'index'])->name('portail_fne.index');
+            Route::post('/portail-fne/integrer-pretes', [\App\Modules\Admin\Controleurs\IntegrationPortailFneControleur::class, 'integrerPretes'])->name('portail_fne.integrer_pretes');
+            Route::post('/portail-fne/{facture}/integrer', [\App\Modules\Admin\Controleurs\IntegrationPortailFneControleur::class, 'integrer'])->name('portail_fne.integrer');
+            Route::post('/portail-fne/{facture}/ignorer', [\App\Modules\Admin\Controleurs\IntegrationPortailFneControleur::class, 'ignorer'])->name('portail_fne.ignorer');
             Route::get('/factures/rechercher', [VenteControleur::class, 'rechercherFacturesPourAvoir'])->name('factures.rechercher');
             Route::post('/factures/fne/actualiser', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'actualiserVentes'])->name('factures.fne.actualiser');
             Route::get('/factures/fne/actualiser/statut', [\App\Modules\Admin\Controleurs\FneDashboardControleur::class, 'statutActualisationVentes'])->name('factures.fne.actualiser.statut');
@@ -150,6 +155,10 @@ Route::prefix('admin')
         Route::prefix('stock')->name('stock.')->middleware('modules:stock')->group(function () {
             Route::get('/', [StockControleur::class, 'index'])->name('index');
             Route::get('/mouvements', [StockControleur::class, 'mouvements'])->name('mouvements');
+            // Les mouvements qu'appellent les factures reprises du portail FNE.
+            Route::get('/propositions', [\App\Modules\Admin\Controleurs\PropositionStockControleur::class, 'index'])->name('propositions');
+            Route::post('/propositions/{proposition}/valider', [\App\Modules\Admin\Controleurs\PropositionStockControleur::class, 'valider'])->name('propositions.valider');
+            Route::post('/propositions/{proposition}/refuser', [\App\Modules\Admin\Controleurs\PropositionStockControleur::class, 'refuser'])->name('propositions.refuser');
             Route::get('/rebut', [StockControleur::class, 'rebut'])->name('rebut');
 
             // Inventaire physique : le comptage, et l'ecart qu'il produit.

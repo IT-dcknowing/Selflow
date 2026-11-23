@@ -329,6 +329,10 @@ class Habilitations
         'admin.ventes.derniere'                      => 'nouvelle_vente',
         'admin.ventes.enregistrer'                   => 'nouvelle_vente',
         'admin.ventes.factures'                      => 'factures_vente',
+        'admin.ventes.portail_fne.index'             => 'factures_vente',
+        'admin.ventes.portail_fne.integrer'          => 'factures_vente',
+        'admin.ventes.portail_fne.integrer_pretes'   => 'factures_vente',
+        'admin.ventes.portail_fne.ignorer'           => 'factures_vente',
         'admin.ventes.imprimer'                      => 'factures_vente',
         'admin.ventes.ticket'                        => 'factures_vente',
         // Le PDF veritable : meme piece, meme droit. Ce qui change est le
@@ -406,6 +410,9 @@ class Habilitations
         // ── Stock ──
         'admin.stock.index'                  => 'stock_articles',
         'admin.stock.mouvements'             => 'stock_mouvements',
+        'admin.stock.propositions'           => 'stock_mouvements',
+        'admin.stock.propositions.valider'   => 'stock_mouvements',
+        'admin.stock.propositions.refuser'   => 'stock_mouvements',
         'admin.stock.rebut'                  => 'stock_articles',
         'admin.stock.rebut.retirer'          => 'stock_articles',
         'admin.stock.inventaire'             => 'stock_articles',

@@ -47,79 +47,16 @@
 @include('admin::partials.kpi-factures', ['kpiFactures' => $kpiFactures ?? []])
 
 @if($etapeActive === 'Facture' && $type !== 'avoir' && ($facturesFnePortail ?? collect())->isNotEmpty())
-@php
-    $facturesFneExternes = $facturesFnePortail->filter(fn ($document) => !$document->vente_locale)->values();
-    $nbFacturesFneDansSelflow = $facturesFnePortail->count() - $facturesFneExternes->count();
-@endphp
-<div style="margin:16px 0; padding:14px 16px; border:1px solid #bfdbfe; border-radius:10px; background:#eff6ff;">
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
-        <div>
-            <strong style="color:#1e40af;">Factures de vente récupérées sur le portail FNE — {{ now()->year }}</strong>
-            <div style="font-size:12px; color:#475569; margin-top:3px;">
-                Registre documentaire : aucune facture n'est créée dans Selflow et aucune normalisation n'est déclenchée.
-            </div>
-        </div>
-        <span style="font-size:12px; font-weight:700; color:#1e40af;">{{ $nbFacturesFneDansSelflow }} déjà dans Selflow · {{ $facturesFneExternes->count() }} hors Selflow</span>
-    </div>
-    @if($facturesFnePortail->isNotEmpty())
-    <div style="overflow-x:auto;">
-        <table style="width:100%; background:#fff;">
-            <thead>
-                <tr>
-                    <th>Date</th><th>Référence FNE</th><th>Client indiqué par la FNE</th>
-                    <th style="text-align:right;">HT</th><th style="text-align:right;">TVA</th><th style="text-align:right;">TTC</th>
-                    <th>Origine</th><th>Vente Selflow correspondante</th><th>Document</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($facturesFnePortail as $documentFne)
-                    @php
-                        $brutFne = is_array($documentFne->contenu_brut) ? $documentFne->contenu_brut : [];
-                        $clientFne = $brutFne['clientCompany']['name'] ?? $brutFne['customer']['name'] ?? $brutFne['client']['name'] ?? '—';
-                        $urlFne = $documentFne->urlDeVerification();
-                    @endphp
-                    <tr>
-                        <td>{{ $documentFne->date_facture?->format('d/m/Y') ?? '—' }}</td>
-                        <td style="font-weight:700;">{{ $documentFne->reference }}</td>
-                        <td>{{ $clientFne }}</td>
-                        <td style="text-align:right;">{{ number_format((float) $documentFne->montant_ht, 0, ',', ' ') }} F</td>
-                        <td style="text-align:right;">{{ number_format((float) $documentFne->montant_tva, 0, ',', ' ') }} F</td>
-                        <td style="text-align:right; font-weight:700;">{{ number_format((float) $documentFne->montant_ttc, 0, ',', ' ') }} F</td>
-                        <td>
-                            @if($documentFne->vente_locale)
-                                <span style="color:#047857; font-weight:700;">Déjà enregistrée dans Selflow</span>
-                            @else
-                                <span style="color:#1d4ed8; font-weight:700;">Émise hors Selflow</span>
-                            @endif
-                        </td>
-                        <td>
-                            @if($documentFne->vente_locale)
-                                <a href="{{ route($isCaissier ? 'caissier.ventes.imprimer' : 'admin.ventes.imprimer', $documentFne->vente_locale) }}">
-                                    {{ $documentFne->vente_locale->numero_facture }}
-                                </a>
-                            @else
-                                <span style="color:var(--text-3);">Aucune correspondance locale</span>
-                            @endif
-                        </td>
-                        <td>
-                            @if($urlFne)
-                                <a href="{{ $urlFne }}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Consulter FNE</a>
-                            @else
-                                <span style="color:var(--text-3);">Non disponible</span>
-                            @endif
-                        </td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
-    @endif
-    @if($facturesFneExternes->isEmpty())
-        <div style="padding:10px 12px; background:#fff; border-radius:8px; color:#047857; font-size:12px; font-weight:600;">
-            Toutes les factures FNE récupérées correspondent déjà à des ventes présentes dans Selflow.
-        </div>
-    @endif
+@php($aIntegrer = $facturesFnePortail->filter(fn ($document) => !$document->vente_locale)->count())
+@if($aIntegrer > 0)
+{{-- Les factures du portail ne sont plus un registre à part (23/11/2026) :
+     intégrées, ce sont des ventes de la liste, normalisées. --}}
+<div style="margin:16px 0; padding:12px 16px; border:1px solid #bfdbfe; border-radius:10px; background:#eff6ff; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+    <span style="color:#1e40af;"><i class="fas fa-file-import"></i>
+        <strong>{{ $aIntegrer }} facture(s) émise(s) sur le portail FNE</strong> attendent d'être intégrées dans Selflow.</span>
+    <a href="{{ route('admin.ventes.portail_fne.index') }}" class="btn btn-primary btn-sm">Intégrer</a>
 </div>
+@endif
 @endif
 
 {{-- Onglets du workflow vente --}}

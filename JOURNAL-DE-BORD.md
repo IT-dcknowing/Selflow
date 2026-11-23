@@ -6,7 +6,8 @@ et ce fichier. Tout ce qui a été décidé, tout ce qui a été écarté et pou
 tout ce qui reste à faire doit donc figurer ici — et y être tenu à jour à chaque
 lot terminé.
 
-Dernière mise à jour : 23 novembre 2026 — lots 138 et 139 : relevé des
+Dernière mise à jour : 23 novembre 2026 — lots 138 à 141 (factures du
+portail intégrées en ventes, trois passages par jour, test/production) ; lots 138 et 139 : relevé des
 ventes FNE (Node 22, verrou rendu, un seul Chromium à la fois, message
 d'assistance à l'écran) ; tableau de bord du Hub repris du serveur. Avant : 26 octobre 2026 — lot 134 (URGENT) : plus de
 factures en double (double envoi, numérotation) ; `selflow:doublons-factures`
@@ -10997,6 +10998,86 @@ branche de sauvegarde).
   175 en échec, 5 ignorées. **Les 175 échecs existaient avant ce lot**
   (1 969 / 1 751 / 175 sur `main`, mêmes épreuves) : la suite n'est pas verte
   sur `main` depuis les commits des 19-20/11 ; `FnePayloadTest` passe.
+
+### Lot 140 — Portail FNE : trois passages par jour, 5 min entre deux actualisations — **TERMINÉ le 23/11/2026**
+
+Branche `releve-ventes-fne-verrou`. Demandes du propriétaire, le 23/11/2026.
+
+- **Trois passages automatiques par jour** (`PORTAIL_FNE_PASSAGES`, défaut
+  `01:00,13:00,20:00`). À chacun : la fiche, les ventes, les achats, les
+  avoirs, à 5 min d'écart. Plus de relevé toutes les 5 min, plus de fiche
+  chaque heure, plus de relevé à la connexion
+  (`PORTAIL_FNE_RELEVE_A_LA_CONNEXION` passe à `false`). Raison : un seul
+  Chromium suffit à saturer le compte mutualisé (« fork: Resource
+  temporarily unavailable »). Les imports (PHP seul) gardent leur pas.
+- **Cinq minutes entre deux actualisations**, par entreprise, tous boutons
+  confondus : le serveur répond 429 et l'écran affiche le temps restant,
+  décompté à la seconde, pendant 3 s.
+- **« Actualiser » des écrans Gestion FNE, Situation générale et Factures &
+  Reçus** relève tout le portail (ventes, achats, avoirs), range, puis
+  rafraîchit (`fne.actualiser_tout`). Il ne faisait que relire la base.
+- **Test ou production selon l'accès de l'entreprise**
+  (`AdressePortailFne`) : la règle de `FneService` — relue, pas modifiée —
+  vaut désormais pour le scraper (`FNE_URL` passé au processus) et pour les
+  liens « Consulter FNE ». **`FNE_API_URL_PRODUCTION` doit être posée** dans
+  le `.env` du serveur ; `FNE_PORTAIL_URL_PRODUCTION` si l'hôte du portail
+  diffère de celui de l'API. Sans elle, tout reste sur le test, comme la
+  certification.
+- **Une seule entreprise par relevé** (`EntreprisePortailFne`) : celle dont
+  les accès FNE sont autorisés au téléchargement, et non la première qui
+  porte le NCC. Deux « DC-KNOWING CGA » (n° 10 et 29) partageaient
+  `1864699A` ; la n° 10 est devenue « DC-KNOWING TEST », et les 29 factures
+  ont été déplacées vers la n° 29 à la main.
+- Message d'assistance : **3 s**. La section « Fiscalité & DGI » devient
+  **« FNE DGI »** (menu, paramètres, habilitations, modules).
+- Scrapers : un relevé figé est arrêté au bout de 8 min
+  (`FNE_DUREE_MAX_RELEVE_MS`), le suivant attend jusqu'à 12 min
+  (`FNE_ATTENTE_NAVIGATEUR_MS`), les profils Chromium abandonnés sont
+  nettoyés, les options se règlent par `FNE_CHROMIUM_ARGS`.
+
+### Lot 141 — Les factures émises sur le portail FNE deviennent des ventes — **TERMINÉ le 23/11/2026**
+
+Branche `integration-factures-fne-portail`. **Exception n° 3 de `CLAUDE.md`,
+sur demande explicite du propriétaire** : « faire comme si on avait
+normalisé depuis Selflow ». Rien ne part à la DGI ; `FneService`, les
+payloads, le QR et le timbre ne sont ni appelés ni modifiés. On écrit sur la
+vente ce que la plateforme a déjà certifié : `normalise`, `numero_fne`,
+`fne_invoice_id`, lien de vérification, montants et timbre de la DGI.
+
+- **Page « Factures FNE à intégrer »** (Ventes). Pour chaque facture relevée :
+  - point de vente : `clientPointOfSale` de la facture (« PDV-marcory »),
+    rapproché par le nom ; à choisir sinon ;
+  - client : `clientNcc` / `clientCompanyName`, retrouvé ou créé ; un
+    « Client de passage » reste sans fiche ;
+  - chaque ligne : article par code (`reference`) puis par libellé ;
+  - « Intégrer comme vente normalisée », « Écarter », et « Intégrer celles
+    qui sont prêtes ».
+- **Jamais de doublon** : une facture dont le numéro FNE existe sur une vente
+  d'une entreprise du même NCC est rapprochée, jamais reprise. Le 23/11, 12
+  des 29 factures avaient été normalisées depuis Selflow sous la n° 10.
+- **L'encadré documentaire disparaît** de « Factures vente » : un bandeau
+  renvoie à la page d'intégration tant qu'il en reste.
+- **Comptes** : article reconnu → la chaîne habituelle (exception, config
+  globale, famille, défaut). Ligne hors catalogue → compte saisissable sur
+  la page, proposé ainsi : configuration globale générale, sinon
+  **706000** pour une entreprise de services (secteur de sa fiche DGI),
+  **701000** sinon. Il est gardé sur la ligne (`vente_details.compte_vente`).
+  Par la même occasion, une ligne libre d'une vente ordinaire suit désormais
+  la configuration globale de l'entreprise au lieu de tomber en 701000.
+- **Règlement** : `paymentMethod` `deferred` → Crédit (créance) ; les autres
+  → Payé, avec écriture de règlement et trésorerie, comme une vente saisie.
+- **Page « Proposition entrée/sortie »** (Stock) : chaque ligne stockable
+  d'une facture intégrée y devient une sortie proposée, **Valider** (sortie
+  au CUMP — Coût Unitaire Moyen Pondéré —, refusée si le stock manque) ou
+  **Refuser** (rien ne bouge). Table `propositions_stock`.
+- **Au déploiement : `php artisan migrate --force`**
+  (`2026_11_23_000001`). Avant la migration, les pages ne tombent pas : la
+  proposition de stock est simplement sautée, et la colonne de compte
+  ignorée.
+
+- `IntegrationFacturesPortailFneTest` (5), `EntreprisePortailFneTest` (3),
+  `AdressePortailFneTest` (4), `ReleveDesVentesVerrouTest` (8). Suite :
+  1 989 épreuves, 1 771 passantes, mêmes 175 échecs qu'avant ces lots.
 
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 

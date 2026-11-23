@@ -1004,6 +1004,9 @@
             <a href="{{ route('admin.ventes.factures', ['type' => 'avoir']) }}" class="nav-item {{ request()->routeIs('admin.ventes.factures') && request('type') === 'avoir' ? 'active' : '' }}">
                 <i class="fas fa-file-circle-minus" style="color:#e17055;"></i> Avoirs clients
             </a>
+            <a href="{{ route('admin.ventes.portail_fne.index') }}" class="nav-item {{ request()->routeIs('admin.ventes.portail_fne.*') ? 'active' : '' }}">
+                <i class="fas fa-file-import"></i> Factures FNE à intégrer
+            </a>
             {{-- Les stickers certifient les factures : la demande vit avec elles.
                  DC-Knowing les achète pour l'entreprise (retest d'octobre 2026). --}}
             @endif
@@ -1090,6 +1093,9 @@
             @if(auth()->user()->aHabilitation('stock_mouvements'))
             <a href="{{ route('admin.stock.mouvements') }}" class="nav-item {{ request()->routeIs('admin.stock.mouvements') ? 'active' : '' }}">
                 <i class="fas fa-arrows-up-down"></i> Mouvements
+            </a>
+            <a href="{{ route('admin.stock.propositions') }}" class="nav-item {{ request()->routeIs('admin.stock.propositions*') ? 'active' : '' }}">
+                <i class="fas fa-right-left"></i> Proposition entrée/sortie
             </a>
             <a href="{{ route('admin.stock.inventaire') }}" class="nav-item {{ request()->routeIs('admin.stock.inventaire*') ? 'active' : '' }}">
                 <i class="fas fa-clipboard-check"></i> Inventaire physique

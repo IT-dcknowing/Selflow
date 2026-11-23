@@ -105,6 +105,7 @@ return [
         'client_collectif'      => '411000', // Clients
         'fournisseur_collectif' => '401000', // Fournisseurs
         'vente_defaut'          => '701000', // Ventes (compte générique si le produit n'a pas de compte dédié)
+        'service_defaut'        => '706000', // Services vendus : ligne hors catalogue d'une entreprise de services
         'achat_defaut'          => '601000', // Achats (compte générique si le produit n'a pas de compte dédié)
         // La TVA collectée se range selon ce qui a été vendu : la marchandise
         // et le produit fini en 4431, la prestation de services en 4432, les

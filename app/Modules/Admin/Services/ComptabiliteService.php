@@ -1048,7 +1048,11 @@ class ComptabiliteService
             // un article cree apres la souscription tombait sur le
             // compte generique 701000. La balance d'un magasin qui a
             // reparti ses rayons n'avait alors qu'une ligne de ventes.
-            $compte = ImputationService::compteVente($detail->produit);
+            // Une ligne hors catalogue peut porter son compte, choisi à son
+            // intégration depuis le portail FNE (23/11/2026) ; sinon la chaîne,
+            // configuration globale de l'entreprise comprise.
+            $compte = trim((string) ($detail->compte_vente ?? ''))
+                ?: ImputationService::compteVente($detail->produit, $vente->pointDeVente?->entreprise_id);
 
             if ($ht > 0) {
                 if (!isset($comptes[$compte])) {
