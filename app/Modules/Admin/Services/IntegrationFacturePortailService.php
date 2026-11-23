@@ -365,22 +365,30 @@ class IntegrationFacturePortailService
         }
 
         $nom = self::cle($brut['clientCompanyName'] ?? '');
-        if (in_array($nom, self::CLIENTS_DE_PASSAGE, true)) {
+        if ($ncc === '' && in_array($nom, self::CLIENTS_DE_PASSAGE, true)) {
             return null;
         }
 
-        return $clients->first(fn (Client $c) => self::cle($c->nom) === $nom);
+        return $nom === '' ? null : $clients->first(fn (Client $c) => self::cle($c->nom) === $nom);
     }
 
-    /** Un client nommé par la facture et inconnu de Selflow est créé ; un passage reste sans client. */
+    /**
+     * Le client inconnu de Selflow est créé normalement (23/11/2026, propriétaire) :
+     * dès qu'il porte un NCC, même si le portail l'appelle « Client de passage »,
+     * ou dès qu'il a un vrai nom. Seule une vente sans NCC ni nom reste de passage.
+     */
     private function creerClient(Entreprise $entreprise, array $brut): ?Client
     {
         $nom = trim((string) ($brut['clientCompanyName'] ?? ''));
-        if (in_array(self::cle($nom), self::CLIENTS_DE_PASSAGE, true)) {
+        $ncc = trim((string) ($brut['clientNcc'] ?? ''));
+
+        if ($ncc === '' && in_array(self::cle($nom), self::CLIENTS_DE_PASSAGE, true)) {
             return null;
         }
 
-        $ncc = trim((string) ($brut['clientNcc'] ?? ''));
+        if ($ncc !== '' && in_array(self::cle($nom), self::CLIENTS_DE_PASSAGE, true)) {
+            $nom = 'Client NCC ' . $ncc;
+        }
 
         return Client::create(array_filter([
             'entreprise_id'    => $entreprise->id,

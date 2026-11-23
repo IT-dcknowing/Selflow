@@ -173,4 +173,15 @@ class IntegrationFacturesPortailFneTest extends TestCase
         $html = app(PropositionStockControleur::class)->index()->render();
         $this->assertStringContainsString('Proposition entrée/sortie', $html);
     }
+
+    public function test_un_client_qui_porte_un_ncc_est_cree_meme_appele_de_passage(): void
+    {
+        $f = $this->facture('REF-NCC', ['clientCompanyName' => 'Client de passage', 'clientNcc' => '9901234Z'],
+            [['description' => 'Conseil', 'quantity' => 1, 'amount' => 1000]]);
+
+        $vente = $this->service->integrer($f, $this->entreprise, Auth::id());
+
+        $this->assertNotNull($vente->client, 'Un client identifié par son NCC n’est pas un passage.');
+        $this->assertSame('9901234Z', $vente->client->ncc);
+    }
 }

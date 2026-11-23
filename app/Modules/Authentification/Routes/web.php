@@ -14,6 +14,16 @@ use Illuminate\Support\Facades\Route;
 Route::get('/presentation', [\App\Modules\Admin\Controleurs\VitrineControleur::class, 'accueil'])
     ->name('vitrine');
 
+// La politique d'utilisation et la demande de démo de la page d'accueil (23/11/2026).
+Route::get('/politique-utilisation', [\App\Modules\Admin\Controleurs\VitrineControleur::class, 'politique'])
+    ->name('vitrine.politique');
+Route::post('/presentation/demo', [\App\Modules\Admin\Controleurs\DemoControleur::class, 'demander'])
+    ->middleware('throttle:5,1')
+    ->name('vitrine.demo');
+Route::get('/presentation/demo/voir', [\App\Modules\Admin\Controleurs\DemoControleur::class, 'voir'])
+    ->middleware('signed')
+    ->name('vitrine.demo.voir');
+
 /*
  * Les images de la vitrine, servies quand `public/storage` n'est pas
  * utilisable.

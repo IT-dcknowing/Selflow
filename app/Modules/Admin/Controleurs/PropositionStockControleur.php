@@ -22,11 +22,14 @@ class PropositionStockControleur extends Controller
     public function index(): View
     {
         $entrepriseId = Auth::user()->entreprise_id;
+        // Un membre affecté ne voit que les propositions de son site (audit du 23/11/2026).
+        $site = Auth::user()->estAffecteAUnSite() ? (int) Auth::user()->point_de_vente_id : null;
 
         $enAttente = PropositionStock::disponible()
             ? PropositionStock::with(['produit:id,nom,unite', 'vente:id,numero_facture,numero_fne,date_vente', 'pointDeVente:id,nom'])
                 ->where('entreprise_id', $entrepriseId)
                 ->where('statut', PropositionStock::PROPOSEE)
+                ->when($site, fn ($q) => $q->where('point_de_vente_id', $site))
                 ->orderBy('id')
                 ->get()
             : collect();
@@ -35,6 +38,7 @@ class PropositionStockControleur extends Controller
             ? PropositionStock::with(['produit:id,nom', 'vente:id,numero_facture'])
                 ->where('entreprise_id', $entrepriseId)
                 ->where('statut', '!=', PropositionStock::PROPOSEE)
+                ->when($site, fn ($q) => $q->where('point_de_vente_id', $site))
                 ->latest('traite_le')
                 ->limit(30)
                 ->get()
@@ -96,5 +100,7 @@ class PropositionStockControleur extends Controller
     private function appartient(PropositionStock $proposition): void
     {
         abort_unless((int) $proposition->entreprise_id === (int) Auth::user()->entreprise_id, 404);
+        abort_unless($proposition->point_de_vente_id, 404);
+        \App\Modules\Admin\Services\SiteAutorise::verifier((int) $proposition->point_de_vente_id);
     }
 }

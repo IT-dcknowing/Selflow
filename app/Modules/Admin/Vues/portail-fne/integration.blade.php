@@ -64,7 +64,7 @@
                 <span style="color:var(--text-3);">
                     @if($p['client'])
                         Client existant de Selflow.
-                    @elseif(in_array(\Illuminate\Support\Str::lower($p['client_nom']), ['client de passage', 'passage'], true))
+                    @elseif($p['client_ncc'] === '' && in_array(\Illuminate\Support\Str::lower($p['client_nom']), ['client de passage', 'passage'], true))
                         Vente de passage, sans fiche client.
                     @else
                         Sera créé à l’intégration.

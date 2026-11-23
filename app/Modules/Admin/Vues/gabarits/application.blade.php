@@ -901,8 +901,10 @@
             @endif
 
             @if(auth()->user()->aHabilitation('gestion_vitrine'))
-            <a href="{{ route('superadmin.vitrine.index') }}" class="nav-item {{ request()->routeIs('superadmin.vitrine*') ? 'active' : '' }}">
-                <i class="fas fa-window-maximize"></i> Vitrine publique
+            {{-- La page d'accueil n'est plus composée depuis cet écran (23/11/2026) :
+                 elle est fixe. Le superadmin y gère les demandes de démo. --}}
+            <a href="{{ route('superadmin.demos.index') }}" class="nav-item {{ request()->routeIs('superadmin.demos*') ? 'active' : '' }}">
+                <i class="fas fa-circle-play"></i> Demandes de démo
             </a>
             @endif
         @elseif(request()->routeIs('caissier.*'))

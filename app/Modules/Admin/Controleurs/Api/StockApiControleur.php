@@ -10,11 +10,15 @@ use Illuminate\Support\Facades\Auth;
 
 class StockApiControleur
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         $entreprise = Auth::user()->entreprise;
+        // Le site vérifié (audit du 23/11/2026) : un membre affecté ne voit que
+        // les articles de son point de vente.
+        $site = \App\Modules\Admin\Services\SiteAutorise::pourRequete($request);
         // Le stock mobile rendait aussi les prestations, toutes en « Rupture ».
         $produits   = Produit::where('produits.entreprise_id', $entreprise->id)
+            ->when($site, fn ($q) => $q->visiblesAuSite($site))
             ->stockables()
             ->with(['stocks'])
             ->leftJoin('categories', 'produits.categorie_id', '=', 'categories.id')
@@ -39,11 +43,13 @@ class StockApiControleur
         ]);
     }
 
-    public function mouvements(): JsonResponse
+    public function mouvements(Request $request): JsonResponse
     {
         $entreprise  = Auth::user()->entreprise;
+        $site        = \App\Modules\Admin\Services\SiteAutorise::pourRequete($request);
         $mouvements  = MouvementStock::with(['produit', 'pointDeVente'])
             ->whereHas('pointDeVente', fn($q) => $q->where('entreprise_id', $entreprise->id))
+            ->when($site, fn ($q) => $q->where('point_de_vente_id', $site))
             ->latest()
             ->paginate(30);
 

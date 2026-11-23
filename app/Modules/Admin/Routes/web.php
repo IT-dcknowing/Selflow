@@ -791,6 +791,13 @@ Route::prefix('superadmin')
             Route::post('/{panne}/corriger', [\App\Modules\Admin\Controleurs\SuperadminPanneControleur::class, 'corriger'])->name('corriger');
         });
 
+        // ── Demandes de démo de la page d'accueil (23/11/2026) ──
+        Route::prefix('demos')->name('demos.')->group(function () {
+            Route::get('/', [\App\Modules\Admin\Controleurs\DemoControleur::class, 'index'])->name('index');
+            Route::post('/deposer', [\App\Modules\Admin\Controleurs\DemoControleur::class, 'deposer'])->name('deposer');
+            Route::post('/{demande}/transmettre', [\App\Modules\Admin\Controleurs\DemoControleur::class, 'transmettre'])->name('transmettre');
+        });
+
         // ── Vitrine publique (contenu de la page de presentation) ──
         Route::prefix('vitrine')->name('vitrine.')->group(function () {
             Route::get('/', [\App\Modules\Admin\Controleurs\VitrineControleur::class, 'index'])->name('index');

@@ -11079,6 +11079,67 @@ vente ce que la plateforme a déjà certifié : `normalise`, `numero_fne`,
   `AdressePortailFneTest` (4), `ReleveDesVentesVerrouTest` (8). Suite :
   1 989 épreuves, 1 771 passantes, mêmes 175 échecs qu'avant ces lots.
 
+### Lot 142 — Page d'accueil 3D, « Voir une démo », politique d'utilisation — **TERMINÉ le 23/11/2026**
+
+Branche `integration-factures-fne-portail`. Demandes du propriétaire.
+
+- **La page d'accueil est refaite, fixe** (`vitrine/accueil3d.blade.php`) et
+  centrée sur la normalisation. La scène 3D (three.js r128, **servi par le
+  domaine** dans `public/vendor/three` : la CSP refuse tout CDN) montre des
+  factures qui partent des points de vente, traversent l'anneau de la DGI et
+  en ressortent certifiées (code QR, « CERTIFIÉE FNE ») vers la pile
+  comptable. Sections : parcours d'une facture, conformité, gestion,
+  points de vente, applications DC-Knowing. Mouvement réduit respecté.
+- **Retirés** : « Voir la documentation » (il n'y en a pas), la section de
+  l'équipe et celle du directeur. Plus de tiret long ni de souligné dans le
+  texte visible (une épreuve le tient).
+- **« Voir une démo »** : adresse, numéro WhatsApp, deux cases (chef
+  d'entreprise, employé). Table `demandes_demo` (migration
+  `2026_11_23_000002`). Le superadmin a une page **« Demandes de démo »**
+  (à la place de « Vitrine publique », même habilitation `gestion_vitrine`) :
+  les demandes rangées par client, la démo à déposer (fichier ou lien, avec
+  son message), et « Transmettre la démo » qui l'envoie **par courriel** et
+  **sur WhatsApp** (par le relais des alertes s'il est configuré, sinon
+  `wa.me` ouvre la conversation avec le message déjà écrit). Le fichier est
+  servi par un lien signé de 30 jours.
+- **Politique d'utilisation** publique (`/politique-utilisation`), écrite
+  d'après l'application : compte et accès, FNE (pièce certifiée non
+  modifiable, avoir, nom du point de vente, accès FNE chiffrés), données et
+  cloisonnement, loi n° 2013-450, conservation, abonnement, bon usage,
+  assistance. **À faire relire par un juriste.**
+- L'écran superadmin de composition de la vitrine n'est plus au menu ; son
+  code et ses épreuves de gestion restent, les épreuves de rendu public des
+  sections sont retirées avec la page qu'elles décrivaient.
+
+### Lot 143 — Cloisonnement du stock entre sites : les fuites de l'API fermées — **EN COURS**
+
+Audit du 23/11/2026 (lecture du code et preuve par épreuves). **Fermé** :
+
+- l'API prenait le site dans `X-Point-De-Vente-Id` sans le vérifier : un
+  responsable écrivait un mouvement sur le site **d'une autre entreprise**.
+  `SiteAutorise::pourRequete()` (entreprise + affectation) dans les API
+  vente, achat, admin et stock ; `StockService::mouvementer` refuse un site
+  qui n'est pas de l'entreprise de l'article ;
+- l'API des mouvements et du stock montrait tous les sites à un membre
+  affecté ;
+- « Proposition entrée/sortie » : liste et validation limitées au site ;
+- le middleware du site ramène aussi `pdv_id`, `site`,
+  `point_de_vente_source_id`.
+
+**Reste ouvert** (lu dans le code, à corriger au lot suivant) :
+réceptions et livraisons (listes et validation sans filtre de site),
+`BonLivraisonControleur`, `facturerLaCommande` / `annuler`, transferts (liste
+et source libres, quantité d'un autre site révélée), fiche article (stock de
+tous les sites, repli `stocks->first()`), production (ordres d'autres sites,
+fiche technique référencée partout), tableau de bord général (`pdv_id`),
+agrégat « Tous » de l'écran Stock (seuils additionnés), consignations,
+`analyseActivite`, `ProduitApi::creer`. Règle à suivre : `SiteAutorise::verifier()`
+sur toute action par identifiant de pièce.
+
+- `CloisonnementStockEntreSitesTest` (4), `AccueilEtDemoTest` (5),
+  `IntegrationFacturesPortailFneTest` (+1 : un client avec NCC est créé même
+  « de passage »). Suite : 1 989 épreuves, 1 771 passantes, mêmes 175 échecs.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

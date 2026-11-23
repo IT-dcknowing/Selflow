@@ -133,9 +133,7 @@ class AdminApiControleur
      */
     private function obtenirPointDeVenteId(Request $request)
     {
-        return $request->header('X-Point-De-Vente-Id') 
-            ?? $request->query('point_de_vente_id') 
-            ?? session('point_de_vente_actif_id') 
-            ?? Auth::user()->point_de_vente_id;
+        // Vérifié : entreprise, et affectation du membre (audit du 23/11/2026).
+        return \App\Modules\Admin\Services\SiteAutorise::pourRequete($request);
     }
 }

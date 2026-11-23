@@ -32,11 +32,17 @@ class VitrineControleur
      */
     public function accueil(): View
     {
-        $sections = VitrineSection::publiees()
-            ->with('cartesPubliees')
-            ->get();
+        // La page d'accueil en 3D (23/11/2026) : fixe, écrite d'après ce que
+        // fait l'application, et non plus composée de sections en base. Les
+        // sections « équipe », « cabinet » et « documentation » sont retirées
+        // à la demande du propriétaire.
+        return view('admin::vitrine.accueil3d');
+    }
 
-        return view('admin::vitrine.publique', compact('sections'));
+    /** La politique d'utilisation, publique. */
+    public function politique(): View
+    {
+        return view('admin::vitrine.politique');
     }
 
     /**

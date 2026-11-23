@@ -197,7 +197,8 @@ class Retest2Test extends TestCase
         $html = $this->get(route('vitrine'))->assertOk()->getContent();
 
         // Des entrées courtes : le titre entier s'empilait sur trois lignes.
-        $this->assertMatchesRegularExpression('/<a href="#produits" title="[^"]*">Applications<\/a>/', $html);
+        // La page d'accueil 3D (23/11/2026) garde un menu court.
+        $this->assertStringContainsString('<a href="#parcours">La normalisation</a>', $html);
         $this->assertStringNotContainsString('>Ce que la normalisation change pour vous</a>', $html);
 
         $this->assertStringContainsString('https://selflow.dc-knowing.com/', $html);

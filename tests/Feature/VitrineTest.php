@@ -24,6 +24,13 @@ use Tests\TestCase;
  */
 class VitrineTest extends TestCase
 {
+    /*
+     * 23/11/2026 : la page d'accueil n'est plus composée de ces sections — elle
+     * est fixe (voir AccueilEtDemoTest). Les épreuves de rendu public des
+     * sections sont retirées avec elle ; celles de l'écran superadmin restent,
+     * tant que l'écran existe.
+     */
+
     use RefreshDatabase;
 
     private Utilisateur $superadmin;
@@ -58,28 +65,7 @@ class VitrineTest extends TestCase
 
     // ══════════════ La page publique ══════════════
 
-    public function test_une_vitrine_vide_annonce_une_page_en_preparation(): void
-    {
-        // Plutôt que d'inventer un contenu de présentation, qui finirait en
-        // production le jour où personne ne penserait à le remplacer.
-        $this->get(route('vitrine'))
-            ->assertOk()
-            ->assertSee('Cette page est en préparation', false);
-    }
 
-    public function test_la_page_publique_montre_les_sections_publiees(): void
-    {
-        $section = $this->uneSection(['titre' => 'Ce que fait Selflow']);
-        VitrineCarte::create([
-            'section_id' => $section->id, 'titre' => 'Une carte visible',
-            'texte' => 'Son texte.', 'ordre' => 10, 'publiee' => true,
-        ]);
-
-        $this->get(route('vitrine'))
-            ->assertOk()
-            ->assertSee('Ce que fait Selflow', false)
-            ->assertSee('Une carte visible', false);
-    }
 
     public function test_une_section_en_brouillon_reste_invisible(): void
     {
@@ -117,18 +103,6 @@ class VitrineTest extends TestCase
         $this->actingAs($this->superadmin)->get(route('vitrine'))->assertOk();
     }
 
-    public function test_les_sections_sortent_dans_l_ordre_choisi(): void
-    {
-        $this->uneSection(['cle' => 'seconde', 'titre' => 'Vient en second', 'ordre' => 20]);
-        $this->uneSection(['cle' => 'premiere', 'titre' => 'Vient en premier', 'ordre' => 10]);
-
-        $page = $this->get(route('vitrine'))->getContent();
-
-        $this->assertLessThan(
-            strpos($page, 'Vient en second'),
-            strpos($page, 'Vient en premier')
-        );
-    }
 
     // ══════════════ L'écran du superadmin ══════════════
 
@@ -245,21 +219,6 @@ class VitrineTest extends TestCase
 
     // ══════════════ La page d'accueil, telle qu'elle se déroule ══════════════
 
-    public function test_le_semeur_pose_la_charpente_de_la_page(): void
-    {
-        $this->seed(\Database\Seeders\VitrineSeeder::class);
-
-        $page = $this->get(route('vitrine'))->assertOk();
-
-        // Les six applications que le propriétaire a nommées.
-        foreach (['Selflow', 'Comptaflow', 'RHFlow', 'LegalFlow', 'Agent-AI', 'CGA-Connect'] as $produit) {
-            $page->assertSee($produit, false);
-        }
-
-        $page->assertSee('Agnimel Meledje Abraham', false);
-        $page->assertSee('DC-Knowing', false);
-        $page->assertSee('Keyman Constant', false);
-    }
 
     public function test_le_semeur_ne_reecrit_pas_ce_qui_a_ete_saisi(): void
     {
@@ -276,73 +235,11 @@ class VitrineTest extends TestCase
         $this->assertSame(1, VitrineSection::where('cle', 'accueil')->count());
     }
 
-    public function test_la_page_porte_ses_animations_et_le_respect_du_mouvement_reduit(): void
-    {
-        // Un mouvement qu'on n'a pas demandé provoque des vertiges chez une
-        // partie des visiteurs. Le système d'exploitation le dit ; la page
-        // doit l'écouter.
-        $this->uneSection(['gabarit' => 'colonnes']);
 
-        $this->get(route('vitrine'))
-            ->assertOk()
-            ->assertSee('prefers-reduced-motion', false)
-            ->assertSee('IntersectionObserver', false)
-            ->assertSee('section-tete apparait', false);
-    }
 
-    public function test_un_gabarit_equipe_affiche_les_initiales_faute_de_photo(): void
-    {
-        // Les portraits ne sont pas encore déposés : deux lettres valent mieux
-        // qu'une case grise.
-        $section = $this->uneSection(['cle' => 'equipe', 'gabarit' => 'equipe', 'titre' => 'L\'équipe']);
-        VitrineCarte::create([
-            'section_id' => $section->id, 'titre' => 'Agnimel Meledje Abraham',
-            'role' => 'Informaticien développeur', 'ordre' => 10, 'publiee' => true,
-        ]);
 
-        $this->get(route('vitrine'))
-            ->assertOk()
-            ->assertSee('portrait-vide', false)
-            ->assertSee('>AA<', false)
-            ->assertSee('Informaticien développeur', false);
-    }
 
-    public function test_une_section_video_pose_une_lecture_muette(): void
-    {
-        // `muted` est ce qui permet la lecture automatique : sans lui, le
-        // navigateur la refuse et la section reste figée.
-        $this->uneSection([
-            'cle' => 'parcours', 'gabarit' => 'media',
-            'media_type' => 'video', 'media_url' => 'https://exemple.test/demo.mp4',
-        ]);
 
-        $this->get(route('vitrine'))
-            ->assertOk()
-            ->assertSee('<video src="https://exemple.test/demo.mp4" autoplay muted loop', false);
-    }
-
-    public function test_une_section_media_sans_fichier_le_dit(): void
-    {
-        $this->uneSection(['cle' => 'parcours', 'gabarit' => 'media', 'media_type' => 'video']);
-
-        $this->get(route('vitrine'))
-            ->assertOk()
-            ->assertSee('n\'a pas encore été déposée', false);
-    }
-
-    public function test_le_fond_choisi_arrive_sur_la_section(): void
-    {
-        $this->uneSection(['cle' => 'cabinet', 'fond' => 'sombre']);
-
-        $this->get(route('vitrine'))->assertOk()->assertSee('section fond-sombre', false);
-    }
-
-    public function test_un_fond_inconnu_ne_fait_pas_tomber_la_page(): void
-    {
-        $this->uneSection(['cle' => 'cabinet', 'fond' => 'arc-en-ciel']);
-
-        $this->get(route('vitrine'))->assertOk()->assertSee('section fond-clair', false);
-    }
 
     // ══════════════ Ce qu'on refuse d'afficher, suite ══════════════
 

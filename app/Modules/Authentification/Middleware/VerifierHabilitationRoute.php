@@ -127,6 +127,9 @@ class VerifierHabilitationRoute
         'superadmin.secteurs_modules.sauvegarder' => 'gestion_secteurs_modules',
 
         // La vitrine publique : ce que le monde entier lit de DC-Knowing.
+        'superadmin.demos.index'               => 'gestion_vitrine',
+        'superadmin.demos.deposer'             => 'gestion_vitrine',
+        'superadmin.demos.transmettre'         => 'gestion_vitrine',
         'superadmin.vitrine.index'             => 'gestion_vitrine',
         'superadmin.vitrine.sections.creer'    => 'gestion_vitrine',
         'superadmin.vitrine.sections.modifier' => 'gestion_vitrine',

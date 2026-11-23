@@ -245,6 +245,15 @@ class StockService
             );
         }
 
+        // Un article ne bouge que dans un site de sa propre entreprise. L'API
+        // laissait écrire un mouvement sur le site d'une autre entreprise
+        // (audit du 23/11/2026) : la dernière porte se ferme ici, quel que
+        // soit l'appelant.
+        $entrepriseDuSite = \App\Modules\Admin\Modeles\PointDeVente::whereKey($pointDeVenteId)->value('entreprise_id');
+        if ($entrepriseDuSite === null || (int) $entrepriseDuSite !== (int) $produit->entreprise_id) {
+            throw new \DomainException("Le point de vente n° {$pointDeVenteId} n'appartient pas à l'entreprise de l'article « {$produit->nom} ».");
+        }
+
         $quantite = round($quantite, Stock::DECIMALES);
 
         if ($quantite <= 0) {

@@ -39,7 +39,8 @@ class ImposerLeSiteDeTravail
                     session(['point_de_vente_actif_id' => $site->id, 'point_de_vente_actif_nom' => $site->nom]);
                 }
 
-                foreach (['point_de_vente_id', 'site_id'] as $champ) {
+                // `pdv_id`, `site` et la source d'un transfert passaient tels quels (audit du 23/11/2026).
+                foreach (['point_de_vente_id', 'site_id', 'pdv_id', 'site', 'point_de_vente_source_id'] as $champ) {
                     if ($request->filled($champ) && (string) $request->input($champ) !== (string) $site->id) {
                         $request->merge([$champ => $site->id]);
                         $request->query->set($champ, $site->id);
