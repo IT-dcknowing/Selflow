@@ -11496,6 +11496,18 @@ choix du superadmin par entreprise ; les DNS sont gérés par DC-Knowing ;
   « Tout marquer comme lu » et bouton de fermeture.
 - `StockAilleursEtNotificationsTest` (2). Suite : 213, identiques à `main`.
 
+
+### Lot 156 — Connexion au portail : la vraie raison de l'échec — **TERMINÉ le 23/11/2026**
+
+- Nouvelle entreprise 2196217J : « page.waitForURL: Timeout 30000ms exceeded »
+  en attendant `/dashboard`. `seConnecter` (fne.js) rapporte désormais ce que
+  le portail a montré : message d'erreur de la page de connexion, changement
+  de mot de passe exigé (première connexion), page restée sur la connexion,
+  ou autre adresse.
+- `selflow:diagnostic-stock` lancé avant la mise à jour : Artisan avait pris
+  l'abréviation de `selflow:diagnostic-stock-sites` (« Entreprise
+  introuvable »). Rien à corriger.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

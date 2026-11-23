@@ -542,10 +542,32 @@ async function seConnecter(page, login, motDePasse) {
   await page.waitForTimeout(800);
   await page.fill('#username', login);
   await page.fill('#password', motDePasse);
-  await Promise.all([
-    page.waitForURL('**/dashboard', { timeout: 30000 }),
-    page.click('button:has-text("Connexion")'),
-  ]);
+  await page.click('button:has-text("Connexion")');
+  try {
+    await page.waitForURL('**/dashboard', { timeout: 30000 });
+  } catch (e) {
+    // 23/11/2026 : « Timeout 30000ms exceeded » ne disait rien. On rapporte ce
+    // que le portail a réellement montré : un message d'erreur sur la page de
+    // connexion (identifiants refusés), une autre page (changement de mot de
+    // passe exigé à la première connexion, compte à activer…), ou rien.
+    const adresse = page.url();
+    const message = await page
+      .locator('[role="alert"], .alert, .error, .text-red-500, .text-danger, .ant-message, .toast, [class*="error"], [class*="Error"]')
+      .allInnerTexts()
+      .then(textes => textes.map(t => t.trim()).filter(Boolean).join(' | ').slice(0, 300))
+      .catch(() => '');
+    let cause;
+    if (/password|mot-de-passe|reset|change/i.test(adresse)) {
+      cause = 'le portail demande de changer le mot de passe (première connexion ?) : connectez-vous une fois à la main sur le portail FNE, puis mettez le nouveau mot de passe dans Selflow';
+    } else if (message) {
+      cause = `le portail a refusé la connexion : « ${message} »`;
+    } else if (/login|connexion|signin|auth/i.test(adresse) || adresse === process.env.FNE_URL) {
+      cause = 'le portail est resté sur la page de connexion : identifiant ou mot de passe probablement refusé';
+    } else {
+      cause = `le portail a ouvert une autre page que le tableau de bord (${adresse})`;
+    }
+    throw new Error(`Connexion impossible pour ${login} : ${cause}.`);
+  }
 }
 
 /** Navigation vers « Paramétrage » depuis le tableau de bord. */
