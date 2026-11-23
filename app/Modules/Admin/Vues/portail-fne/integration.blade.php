@@ -15,7 +15,7 @@
         @if($factures->isNotEmpty())
         <form method="POST" action="{{ route('admin.ventes.portail_fne.integrer_pretes') }}" onsubmit="return confirm('Intégrer toutes les factures dont le point de vente est reconnu ?');">
             @csrf
-            <button class="btn btn-primary"><i class="fas fa-check-double"></i> Intégrer celles qui sont prêtes</button>
+            <button class="btn btn-primary"><i class="fas fa-check-double"></i> Intégrer celles qui sont prêtes (40 par clic)</button>
         </form>
         @endif
     </div>
@@ -28,7 +28,10 @@
     </div>
 @endif
 
-@foreach($factures->groupBy(fn ($f) => $propositions[$f->id]['nature']) as $nature => $groupe)
+@if($factures->total() > 0)
+<p style="color:var(--text-3); font-size:13px; margin:0 0 8px;">{{ $factures->total() }} pièce(s) en attente.</p>
+@endif
+@foreach($factures->getCollection()->groupBy(fn ($f) => $propositions[$f->id]['nature']) as $nature => $groupe)
 <h2 style="font-size:16px; margin:24px 0 10px;">{{ \App\Modules\Admin\Services\IntegrationFacturePortailService::LIBELLES[$nature] ?? 'Autres pièces' }} <span style="color:var(--text-3); font-weight:400;">({{ $groupe->count() }})</span></h2>
 @foreach($groupe as $facture)
     @php
@@ -137,4 +140,5 @@
     </form>
 @endforeach
 @endforeach
+<div style="margin-top:12px;">{{ $factures->links() }}</div>
 @endsection

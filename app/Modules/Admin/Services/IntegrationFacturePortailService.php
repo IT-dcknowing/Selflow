@@ -102,7 +102,12 @@ class IntegrationFacturePortailService
                 ->orWhereNotIn('statut_rapprochement', [PortailFneFactureRecue::RAPPROCHEE, PortailFneFactureRecue::ECARTEE]))
             ->orderBy('date_facture')
             ->get()
-            ->reject(fn (PortailFneFactureRecue $f) => EcritureFactureRecueService::estNotrePropreBapa($f))
+            // Seule une pièce REÇUE peut être notre propre BAPA revenu par le
+            // relevé. Sur une pièce émise, l'émetteur est toujours notre NCC :
+            // le test l'écartait, et la page restait vide alors que 158
+            // factures attendaient (23/11/2026).
+            ->reject(fn (PortailFneFactureRecue $f) => $f->liste_portail === 'received'
+                && EcritureFactureRecueService::estNotrePropreBapa($f))
             ->values();
     }
 

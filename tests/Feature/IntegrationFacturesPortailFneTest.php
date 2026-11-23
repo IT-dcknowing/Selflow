@@ -244,4 +244,14 @@ class IntegrationFacturesPortailFneTest extends TestCase
         $this->assertSame($achat->id, $avoir->parent_id);
         $this->assertSame($achat->fournisseur_id, $avoir->fournisseur_id);
     }
+
+    public function test_une_facture_emise_par_notre_ncc_reste_proposee(): void
+    {
+        // Sur une pièce émise, l'émetteur est notre propre NCC : elle ne doit
+        // pas être prise pour notre BAPA (page vide du 23/11/2026).
+        $this->facture('1864699A26000000150', [], [['description' => 'Conseil', 'quantity' => 1, 'amount' => 1000]], 'Commerce',
+            ['emetteur_ncc' => '1864699A', 'emetteur_nom' => 'DC-KNOWING CGA']);
+
+        $this->assertCount(1, $this->service->enAttente($this->entreprise));
+    }
 }

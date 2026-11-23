@@ -26,9 +26,17 @@ class IntegrationPortailFneControleur extends Controller
     public function index(): View
     {
         $entreprise = Auth::user()->entreprise;
-        $factures = $this->service->enAttente($entreprise);
+        $toutes = $this->service->enAttente($entreprise);
 
-        $propositions = $factures->mapWithKeys(fn (PortailFneFactureRecue $f) => [
+        // 25 par page : 158 formulaires d'un coup, chacun avec le catalogue
+        // entier en liste déroulante, rendaient la page interminable.
+        $page = max(1, (int) request('page', 1));
+        $factures = new \Illuminate\Pagination\LengthAwarePaginator(
+            $toutes->forPage($page, 25)->values(), $toutes->count(), 25, $page,
+            ['path' => request()->url(), 'query' => request()->query()]
+        );
+
+        $propositions = $factures->getCollection()->mapWithKeys(fn (PortailFneFactureRecue $f) => [
             $f->id => $this->service->proposer($f, $entreprise),
         ]);
 
@@ -73,7 +81,12 @@ class IntegrationPortailFneControleur extends Controller
         $faites = 0;
         $restes = 0;
 
-        foreach ($this->service->enAttente($entreprise) as $facture) {
+        // Par lots de 40 : chaque intégration écrit une vente et ses écritures,
+        // et l'hébergement coupe une requête trop longue.
+        $lot = $this->service->enAttente($entreprise)->take(40);
+        $restantes = max(0, $this->service->enAttente($entreprise)->count() - $lot->count());
+
+        foreach ($lot as $facture) {
             try {
                 $this->service->integrer($facture, $entreprise, Auth::id());
                 $faites++;
@@ -85,7 +98,9 @@ class IntegrationPortailFneControleur extends Controller
             }
         }
 
-        return back()->with('succes', "{$faites} facture(s) intégrée(s)" . ($restes ? ", {$restes} à compléter à la main." : '.'));
+        return back()->with('succes', "{$faites} pièce(s) intégrée(s)"
+            . ($restes ? ", {$restes} à compléter à la main" : '')
+            . ($restantes ? ". Il en reste {$restantes} : cliquez de nouveau." : '.'));
     }
 
     public function ignorer(Request $request, PortailFneFactureRecue $facture): RedirectResponse
