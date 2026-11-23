@@ -81,4 +81,20 @@ class GroupesEntreprisesTest extends TestCase
 
         $this->assertTrue(GroupeEntreprises::entreprisesAccessibles($caissier)->isEmpty());
     }
+
+    public function test_les_pages_d_un_administrateur_membre_d_un_groupe_s_affichent(): void
+    {
+        // SF-261123-EED9CF : le menu « Changer d'entreprise » construisait ses
+        // liens avec des entreprises chargées sans leur uuid, et toute page
+        // de l'administrateur tombait en panne.
+        $pdv = PointDeVente::create(['entreprise_id' => $this->a->id, 'nom' => 'Siège CGA', 'ville' => 'Abidjan', 'commune' => 'Plateau']);
+        $this->dirigeant->forceFill(['point_de_vente_id' => $pdv->id])->save();
+
+        $this->actingAs($this->dirigeant)->get('/admin')->assertOk()
+            ->assertSee(route('admin.entreprise.changer', $this->b), false);
+
+        $partielle = Entreprise::query()->whereKey($this->b->id)->first(['id', 'nom']);
+        $this->assertSame($this->b->uuid, $partielle->getRouteKey());
+        $this->assertFalse($partielle->isDirty(), 'Aller chercher l\'uuid ne modifie pas le modèle.');
+    }
 }
