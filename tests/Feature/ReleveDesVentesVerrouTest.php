@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Modules\Admin\Controleurs\FneDashboardControleur;
 use App\Modules\Admin\Modeles\Entreprise;
 use App\Modules\Admin\Modeles\FneCredential;
 use App\Modules\Admin\Services\ScraperPortailFneService;
+use App\Modules\Authentification\Modeles\Utilisateur;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
@@ -37,6 +40,7 @@ class ReleveDesVentesVerrouTest extends TestCase
 
     private string $dossier;
     private string $journal;
+    private Entreprise $entreprise;
 
     protected function setUp(): void
     {
@@ -66,6 +70,8 @@ class ReleveDesVentesVerrouTest extends TestCase
             'secteur_activite' => ['Commerce'],
             'modules_actifs' => ['principal', 'ventes', 'achats'],
         ]);
+
+        $this->entreprise = $entreprise;
 
         FneCredential::create([
             'entreprise_id'        => $entreprise->id,
@@ -197,5 +203,26 @@ class ReleveDesVentesVerrouTest extends TestCase
         $suivi = Cache::get(ScraperPortailFneService::verrouVentes(self::NCC));
         $this->assertIsInt($suivi['pid'] ?? null, 'Sans numéro de processus, une mort silencieuse reste invisible.');
         $this->assertArrayHasKey('lance_a', $suivi);
+    }
+
+    public function test_l_ecran_ne_montre_que_le_message_de_l_assistance(): void
+    {
+        config(['selflow.assistance_telephone' => '07 67 13 19 93']);
+        $this->unSuivi(['pid' => $this->unProcessusMort()]);
+
+        Auth::login(Utilisateur::create([
+            'nom' => 'Yao', 'prenom' => 'Adjoua', 'email' => 'adjoua@exemple.ci',
+            'password' => bcrypt('secret-de-test'), 'role' => 'admin',
+            'entreprise_id' => $this->entreprise->id,
+        ]));
+
+        $reponse = app(FneDashboardControleur::class)->statutActualisationVentes();
+        $message = $reponse->getData(true)['message'] ?? '';
+
+        $this->assertSame(502, $reponse->getStatusCode());
+        $this->assertStringContainsString('Une erreur s’est produite', $message);
+        $this->assertStringContainsString('07 67 13 19 93', $message);
+        $this->assertStringNotContainsString('scraper', $message, "Le détail technique n'a rien à faire à l'écran.");
+        $this->assertStringNotContainsString('storage/logs', $message);
     }
 }
