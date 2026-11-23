@@ -11295,6 +11295,27 @@ rangées par nature :
   échecs/erreurs, exactement ceux de `main` (la référence comptait jusqu'ici
   les seuls « failures », 175 ; les 38 « errors » y étaient déjà).
 
+### Lot 152 — Panne SF-261123-EED9CF sur `/admin` — **TERMINÉ le 23/11/2026**
+
+- **Cause** : la référence se calcule sur classe, fichier et ligne ; recherchée
+  dans le code, elle désigne une `ViewException` née de
+  `UrlGenerationException` (« Missing required parameter »). Le menu
+  « Changer d'entreprise » (lot 147) chargeait les entreprises du groupe en
+  `entreprises:id,nom`, sans `uuid` : dès qu'un administrateur appartenait à
+  un groupe actif, **toutes ses pages** tombaient en panne.
+- **Correctif** : `uuid` chargé dans `GroupeEntreprises::entreprisesAccessibles`,
+  et surtout `IdentifiantOpaque::getRouteKey()` va chercher l'`uuid` d'un
+  modèle chargé sans lui (sans le marquer modifié) : la même erreur ne peut plus
+  faire tomber une page, sur aucun des 23 modèles concernés.
+- Le 403 « Vous n'avez pas les droits nécessaires pour cette page » sur
+  `/admin` pour un compte superadmin est normal : l'espace `/admin` est
+  réservé aux administrateurs d'entreprise (`role:admin`).
+- Méthode à retenir : une référence SF-… se retrouve hors ligne en calculant
+  `crc32b(classe|chemin serveur|ligne)` sur les fichiers du dépôt et les vues
+  compilées.
+- Test ajouté à `GroupesEntreprisesTest` (échoue sans le correctif). Suite : 213,
+  identiques à `main`.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

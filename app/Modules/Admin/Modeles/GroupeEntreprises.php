@@ -55,7 +55,7 @@ class GroupeEntreprises extends Model
             ->where('actif', true)
             ->whereHas('utilisateurs', fn ($q) => $q->whereKey($utilisateur->id))
             ->whereHas('entreprises', fn ($q) => $q->whereKey($utilisateur->entreprise_id))
-            ->with('entreprises:id,nom')
+            ->with('entreprises:id,uuid,nom')
             ->get()
             ->flatMap(fn (self $g) => $g->entreprises)
             ->unique('id')

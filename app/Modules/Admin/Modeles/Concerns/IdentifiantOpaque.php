@@ -59,6 +59,32 @@ trait IdentifiantOpaque
     }
 
     /**
+     * L'`uuid`, même quand la requête ne l'a pas chargé (23/11/2026).
+     *
+     * Une liste chargée en colonnes choisies (`with('entreprises:id,nom')`,
+     * `get(['id', 'nom'])`) donnait des modèles sans `uuid` : le premier
+     * `route(…, $modele)` levait « Missing required parameter » et **toute la
+     * page tombait en panne** (SF-261123-EED9CF : le menu « Changer
+     * d'entreprise » d'un administrateur membre d'un groupe). Le modèle va
+     * chercher son identifiant lui-même, une fois, plutôt que de compter sur
+     * chaque appelant.
+     */
+    public function getRouteKey()
+    {
+        $cle = $this->getAttribute($this->getRouteKeyName());
+
+        if (($cle === null || $cle === '') && $this->exists && $this->getKey() !== null
+            && ! array_key_exists($this->getRouteKeyName(), $this->getAttributes())) {
+            $cle = static::query()->withoutGlobalScopes()->whereKey($this->getKey())->value($this->getRouteKeyName());
+            // Posé comme valeur d'origine : le modèle ne devient pas « modifié ».
+            $this->attributes[$this->getRouteKeyName()] = $cle;
+            $this->original[$this->getRouteKeyName()] = $cle;
+        }
+
+        return $cle;
+    }
+
+    /**
      * Une copie n'hérite pas de l'identifiant de l'original.
      *
      * `replicate()` recopie tous les attributs non exclus, et l'`uuid` en fait
