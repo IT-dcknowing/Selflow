@@ -1575,6 +1575,9 @@
                     <i class="fas fa-gear" style="width:14px; color:var(--text-2);"></i> Paramètres
                 </a>
                 @endif
+                <a href="{{ route('vitrine.guide') }}" target="_blank" rel="noopener" style="display:flex; align-items:center; gap:8px; padding:8px 14px; font-size:12.5px; color:var(--text); text-decoration:none;" onmouseover="this.style.background='#F1F5F9'" onmouseout="this.style.background='none'">
+                    <i class="fas fa-book-open" style="width:14px; color:var(--text-2);"></i> Guide d'utilisation
+                </a>
                 {{-- Revoir la visite guidée : un formulaire, pas un script, pour
                      qu'elle se relance même quand le JavaScript a échoué. --}}
                 <form method="POST" action="{{ route('admin.visite.rejouer') }}" style="margin:0;">

@@ -17,6 +17,8 @@ Route::get('/presentation', [\App\Modules\Admin\Controleurs\VitrineControleur::c
 // La politique d'utilisation et la demande de démo de la page d'accueil (23/11/2026).
 Route::get('/politique-utilisation', [\App\Modules\Admin\Controleurs\VitrineControleur::class, 'politique'])
     ->name('vitrine.politique');
+Route::get('/guide', [\App\Modules\Admin\Controleurs\VitrineControleur::class, 'guide'])
+    ->name('vitrine.guide');
 Route::post('/presentation/demo', [\App\Modules\Admin\Controleurs\DemoControleur::class, 'demander'])
     ->middleware('throttle:5,1')
     ->name('vitrine.demo');

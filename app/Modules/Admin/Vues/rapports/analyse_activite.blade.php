@@ -22,6 +22,9 @@
             </div>
         </div>
         <div class="rapport-header-right">
+            <a href="{{ route('admin.rapports.analyse_activite.pdf') }}" class="btn btn-outline" data-envoi-libre>
+                <i class="fas fa-file-pdf"></i> Exporter en PDF
+            </a>
             <a href="{{ route('admin.rapports.analyse_prix') }}" class="btn btn-primary">
                 <i class="fas fa-tags"></i> Analyse des prix par produit et vendeur
             </a>

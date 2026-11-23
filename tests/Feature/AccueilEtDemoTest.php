@@ -35,7 +35,7 @@ class AccueilEtDemoTest extends TestCase
 
     public function test_le_texte_visible_n_a_ni_tiret_long_ni_souligne(): void
     {
-        foreach ([route('vitrine'), route('vitrine.politique')] as $adresse) {
+        foreach ([route('vitrine'), route('vitrine.politique'), route('vitrine.guide')] as $adresse) {
             $html = $this->get($adresse)->assertOk()->getContent();
             $texte = strip_tags(preg_replace('#<(script|style)\b.*?</\1>#s', '', $html));
 

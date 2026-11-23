@@ -333,4 +333,27 @@ class RapportControleur
             'soldeTresorerie'
         ));
     }
+
+    /**
+     * Le rapport d'activité en PDF (23/11/2026) : les données de l'écran,
+     * rendues par la vue de l'écran puis mises en page pour l'impression.
+     */
+    public function exporterActivite(Request $request, \App\Modules\Admin\Services\DocumentPdfService $pdf): \Symfony\Component\HttpFoundation\Response
+    {
+        $donnees = $this->analyseActivite($request)->getData();
+
+        $periode = session('active_periode_id')
+            ? \App\Modules\Admin\Modeles\Periode::find(session('active_periode_id'))
+            : null;
+        $donnees['libellePeriode'] = $periode
+            ? 'Période : ' . $periode->nom
+            : 'Toutes périodes';
+
+        $nom = 'rapport-activite-' . \Illuminate\Support\Str::slug($donnees['entreprise']->nom) . '-' . now()->format('Ymd') . '.pdf';
+
+        return response($pdf->rapportActivite($donnees), 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $nom . '"',
+        ]);
+    }
 }

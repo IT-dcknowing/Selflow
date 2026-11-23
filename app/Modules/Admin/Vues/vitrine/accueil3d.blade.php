@@ -11,88 +11,88 @@
 <link rel="stylesheet" href="{{ asset('vendor/fontawesome/css/all.min.css') }}">
 <style>
     :root {
-        --nuit: #050b1f; --nuit-2: #0b1736; --bleu: #2563eb; --cyan: #22d3ee; --vert: #10b981;
-        --or: #f59e0b; --texte: #e6edf7; --texte-2: #9fb0cc; --carte: rgba(255,255,255,.04);
-        --bord: rgba(148,163,184,.18); --clair: #f6f8fc; --encre: #0f172a; --encre-2: #475569;
+        --nuit: #062456; --nuit-2: #0a3a85; --bleu: #0b4aa2; --cyan: #7cc4ff; --vert: #16a34a;
+        --or: #f08a1c; --texte: #ffffff; --texte-2: #c9dbf5; --carte: #ffffff;
+        --bord: rgba(255,255,255,.22); --clair: #f3f5f9; --encre: #0f172a; --encre-2: #475569;
     }
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
-    body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: var(--nuit); color: var(--texte); overflow-x: hidden; }
+    body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: var(--clair); color: var(--encre); overflow-x: hidden; }
     a { color: inherit; text-decoration: none; }
     .conteneur { width: min(1180px, 100% - 32px); margin: 0 auto; }
 
     /* En-tête */
     .entete { position: fixed; inset: 0 0 auto 0; z-index: 30; transition: background .3s, backdrop-filter .3s; }
-    .entete.defile { background: rgba(5,11,31,.78); backdrop-filter: blur(14px); border-bottom: 1px solid var(--bord); }
+    .entete { color: #fff; }
+    .entete.defile { background: rgba(6,36,86,.94); backdrop-filter: blur(14px); box-shadow: 0 6px 20px -10px rgba(6,36,86,.5); }
     .entete .conteneur { display: flex; align-items: center; justify-content: space-between; height: 70px; gap: 16px; }
     .marque { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; }
     .marque img { height: 34px; }
-    .menu { display: flex; gap: 26px; font-size: 14px; color: var(--texte-2); }
+    .menu { display: flex; gap: 26px; font-size: 14px; color: #d6e4f8; }
     .menu a:hover { color: #fff; }
     .actions-entete { display: flex; gap: 10px; }
     .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px; border-radius: 12px; font-weight: 700; font-size: 14px; border: 1px solid transparent; cursor: pointer; transition: transform .2s, box-shadow .2s, background .2s; font-family: inherit; }
     .btn:hover { transform: translateY(-2px); }
-    .btn-plein { background: linear-gradient(135deg, var(--bleu), #4f46e5); color: #fff; box-shadow: 0 10px 30px -10px rgba(37,99,235,.8); }
+    .btn-plein { background: #ffffff; color: var(--nuit); box-shadow: 0 10px 30px -12px rgba(0,0,0,.35); }
+    .clair .btn-plein, .fenetre .btn-plein { background: var(--nuit); color: #fff; }
     .btn-verre { background: rgba(255,255,255,.06); color: #fff; border-color: var(--bord); }
-    .btn-vert { background: linear-gradient(135deg, var(--vert), #059669); color: #fff; box-shadow: 0 10px 30px -10px rgba(16,185,129,.8); }
+    .btn-vert { background: #ffffff; color: var(--nuit); box-shadow: 0 10px 30px -12px rgba(0,0,0,.35); }
     @media (max-width: 900px) { .menu { display: none; } }
     @media (max-width: 520px) { .actions-entete .btn-verre { display: none; } }
 
     /* Ouverture 3D */
-    .ouverture { position: relative; min-height: 100vh; display: flex; align-items: center; overflow: hidden; }
+    .ouverture { position: relative; min-height: 100vh; display: flex; align-items: center; overflow: hidden; color: #fff; background: linear-gradient(135deg, #041b45 0%, #062e6f 45%, #0b4aa2 100%); }
     #scene { position: absolute; inset: 0; width: 100%; height: 100%; }
-    .ouverture::after { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 20% 50%, rgba(5,11,31,.92) 0%, rgba(5,11,31,.55) 45%, rgba(5,11,31,0) 70%); pointer-events: none; }
+    .ouverture::after { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 18% 50%, rgba(4,27,69,.85) 0%, rgba(4,27,69,.35) 45%, rgba(4,27,69,0) 70%); pointer-events: none; }
     .ouverture .conteneur { position: relative; z-index: 2; padding: 120px 0 80px; }
-    @media (max-width: 900px) { #scene { opacity: .3; } .ouverture::after { background: rgba(5,11,31,.35); } }
-    .pastille { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px; background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.35); color: #6ee7b7; font-size: 13px; font-weight: 700; }
+    @media (max-width: 900px) { #scene { opacity: .3; } .ouverture::after { background: rgba(4,27,69,.35); } }
+    .pastille { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.3); color: #fff; font-size: 13px; font-weight: 700; }
     .pastille .point { width: 8px; height: 8px; border-radius: 50%; background: var(--vert); box-shadow: 0 0 0 0 rgba(16,185,129,.7); animation: pouls 2s infinite; }
     @keyframes pouls { 70% { box-shadow: 0 0 0 10px rgba(16,185,129,0); } 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); } }
     h1 { font-size: clamp(38px, 6vw, 72px); line-height: 1.04; margin: 22px 0 18px; letter-spacing: -.02em; max-width: 680px; }
-    h1 .degrade { background: linear-gradient(90deg, var(--cyan), #818cf8 50%, var(--vert)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    h1 .degrade { color: #9fd3ff; }
     .chapeau { font-size: clamp(16px, 1.6vw, 19px); color: var(--texte-2); max-width: 560px; line-height: 1.65; }
     .boutons { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
     .preuves { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 34px; }
-    .preuve { font-size: 12.5px; color: var(--texte-2); padding: 8px 12px; border: 1px solid var(--bord); border-radius: 10px; background: rgba(255,255,255,.03); }
+    .preuve { font-size: 12.5px; color: #e2ecfb; padding: 8px 12px; border: 1px solid var(--bord); border-radius: 10px; background: rgba(255,255,255,.08); }
     .preuve i { color: var(--cyan); margin-right: 6px; }
-    .defiler { position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 2; color: var(--texte-2); font-size: 12px; text-align: center; }
+    .defiler { position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 2; color: #c9dbf5; font-size: 12px; text-align: center; }
     .defiler i { display: block; margin-top: 6px; animation: flotte 1.8s ease-in-out infinite; }
     @keyframes flotte { 50% { transform: translateY(6px); } }
 
     /* Sections */
     section.bloc { padding: 110px 0; position: relative; }
     .clair { background: var(--clair); color: var(--encre); }
-    .surtitre { font-size: 13px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--cyan); }
+    .surtitre { font-size: 13px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--bleu); }
     .clair .surtitre { color: var(--bleu); }
     h2 { font-size: clamp(28px, 4vw, 46px); line-height: 1.12; margin: 12px 0 16px; letter-spacing: -.015em; }
-    .intro { font-size: 17px; color: var(--texte-2); max-width: 680px; line-height: 1.65; }
+    .intro { font-size: 17px; color: var(--encre-2); max-width: 680px; line-height: 1.65; }
     .clair .intro { color: var(--encre-2); }
 
     /* Le parcours : cartes en perspective */
     .parcours { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-top: 56px; perspective: 1200px; }
     @media (max-width: 1000px) { .parcours { grid-template-columns: 1fr 1fr; } }
     @media (max-width: 560px) { .parcours { grid-template-columns: 1fr; } }
-    .etape { position: relative; padding: 26px 22px; border-radius: 20px; background: linear-gradient(160deg, rgba(37,99,235,.16), rgba(255,255,255,.03)); border: 1px solid var(--bord); transform-style: preserve-3d; transition: transform .5s cubic-bezier(.2,.8,.2,1), border-color .3s; }
-    .etape:hover { border-color: rgba(34,211,238,.6); }
-    .etape .num { position: absolute; top: 16px; right: 18px; font-size: 44px; font-weight: 800; color: rgba(255,255,255,.06); transform: translateZ(30px); }
-    .etape .icone { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; font-size: 22px; background: rgba(34,211,238,.12); color: var(--cyan); transform: translateZ(40px); }
-    .etape.dgi .icone { background: rgba(245,158,11,.14); color: var(--or); }
-    .etape.ok .icone { background: rgba(16,185,129,.14); color: var(--vert); }
+    .etape { position: relative; padding: 26px 22px; border-radius: 20px; background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(15,23,42,.05); transform-style: preserve-3d; transition: transform .5s cubic-bezier(.2,.8,.2,1), box-shadow .3s; }
+    .etape:hover { box-shadow: 0 30px 60px -25px rgba(11,74,162,.35); }
+    .etape .num { position: absolute; top: 16px; right: 18px; font-size: 44px; font-weight: 800; color: #e8eef8; transform: translateZ(30px); }
+    .etape .icone { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; font-size: 22px; background: #eaf2ff; color: var(--bleu); transform: translateZ(40px); }
+    .etape.dgi .icone { background: #fff4e6; color: var(--or); }
+    .etape.ok .icone { background: #eaf8ef; color: var(--vert); }
     .etape h3 { font-size: 17px; margin: 18px 0 8px; transform: translateZ(25px); }
-    .etape p { font-size: 14px; color: var(--texte-2); line-height: 1.6; margin: 0; transform: translateZ(15px); }
-    .fil { height: 2px; margin-top: 26px; background: linear-gradient(90deg, var(--cyan), var(--or), var(--vert)); border-radius: 2px; opacity: .6; }
+    .etape p { font-size: 14px; color: var(--encre-2); line-height: 1.6; margin: 0; transform: translateZ(15px); }
+    .fil { height: 3px; margin-top: 26px; background: linear-gradient(90deg, var(--bleu), var(--or), var(--vert)); border-radius: 2px; opacity: .7; }
 
     /* Cartes de fonctionnalités */
     .grille { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 48px; perspective: 1200px; }
     @media (max-width: 900px) { .grille { grid-template-columns: 1fr 1fr; } }
     @media (max-width: 560px) { .grille { grid-template-columns: 1fr; } }
     .carte { padding: 26px; border-radius: 20px; background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(15,23,42,.04); transform-style: preserve-3d; transition: transform .4s cubic-bezier(.2,.8,.2,1), box-shadow .4s; }
-    .carte:hover { box-shadow: 0 30px 60px -25px rgba(37,99,235,.35); }
-    .carte .icone { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: #eff6ff; color: var(--bleu); font-size: 19px; transform: translateZ(30px); }
+    .carte:hover { box-shadow: 0 30px 60px -25px rgba(11,74,162,.35); }
+    .carte .icone { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: #eaf2ff; color: var(--bleu); font-size: 19px; transform: translateZ(30px); }
     .carte h3 { font-size: 17px; margin: 16px 0 8px; transform: translateZ(20px); }
     .carte p { font-size: 14.5px; color: var(--encre-2); line-height: 1.6; margin: 0; }
-    .sombre .carte { background: var(--carte); border-color: var(--bord); }
-    .sombre .carte p { color: var(--texte-2); }
-    .sombre .carte .icone { background: rgba(34,211,238,.1); color: var(--cyan); }
+    .sombre { background: #e9f0fb; }
 
     /* Points de vente : maquette isométrique */
     .deux-colonnes { display: grid; grid-template-columns: 1.05fr 1fr; gap: 60px; align-items: center; }
@@ -111,17 +111,18 @@
     .liste-points i { color: var(--vert); margin-top: 4px; }
 
     /* Applications */
-    .appli .role { font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--cyan); }
-    .appli a.lien { display: inline-flex; gap: 6px; align-items: center; margin-top: 14px; font-weight: 700; font-size: 14px; color: #93c5fd; }
+    .appli .role { font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--bleu); }
+    .appli a.lien { display: inline-flex; gap: 6px; align-items: center; margin-top: 14px; font-weight: 700; font-size: 14px; color: var(--bleu); }
 
     /* Appel final */
-    .appel { text-align: center; padding: 90px 24px; border-radius: 30px; background: radial-gradient(circle at 30% 0%, rgba(37,99,235,.45), transparent 60%), radial-gradient(circle at 80% 100%, rgba(16,185,129,.35), transparent 55%), var(--nuit-2); border: 1px solid var(--bord); }
+    .appel { text-align: center; padding: 90px 24px; border-radius: 30px; color: #fff; background: linear-gradient(135deg, #041b45, #0b4aa2); }
+    .appel .surtitre { color: #9fd3ff; } .appel .intro { color: #d6e4f8; }
     .appel .boutons { justify-content: center; }
 
-    footer { padding: 46px 0 60px; color: var(--texte-2); font-size: 14px; border-top: 1px solid var(--bord); }
+    footer { padding: 46px 0 60px; color: var(--encre-2); font-size: 14px; border-top: 1px solid #e2e8f0; background: #fff; }
     footer .conteneur { display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-between; align-items: center; }
     footer nav { display: flex; flex-wrap: wrap; gap: 22px; }
-    footer a:hover { color: #fff; }
+    footer a:hover { color: var(--bleu); }
 
     /* Apparition au défilement */
     .apparait { opacity: 0; transform: translateY(30px); transition: opacity .8s ease, transform .8s cubic-bezier(.2,.8,.2,1); }
@@ -308,6 +309,7 @@
     <div class="conteneur">
         <span>&copy; {{ date('Y') }} DC-Knowing. Selflow est une application de DC-Knowing.</span>
         <nav>
+            <a href="{{ route('vitrine.guide') }}">Guide d'utilisation</a>
             <a href="{{ route('vitrine.politique') }}">Politique d'utilisation</a>
             <a href="{{ route('offres') }}">Offres</a>
             <a href="{{ route('contact.info') }}">Contact</a>
@@ -375,7 +377,7 @@
     var rendu = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
     rendu.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     var scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x050b1f, 0.045);
+    scene.fog = new THREE.FogExp2(0x062e6f, 0.03);
     var camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
     camera.position.set(0, 1.2, 13);
 
@@ -386,27 +388,51 @@
     var groupe = new THREE.Group(); groupe.position.x = 3.2; scene.add(groupe);
 
     // L'anneau de la DGI
-    var anneau = new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.07, 24, 120), new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xf59e0b, emissiveIntensity: 0.9, metalness: .4, roughness: .3 }));
+    var anneau = new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.07, 24, 120), new THREE.MeshStandardMaterial({ color: 0xf08a1c, emissive: 0xf08a1c, emissiveIntensity: 0.8, metalness: .4, roughness: .3 }));
     anneau.rotation.y = Math.PI / 2; groupe.add(anneau);
-    var halo = new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.32, 16, 120), new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.08 }));
+    var halo = new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.32, 16, 120), new THREE.MeshBasicMaterial({ color: 0xf08a1c, transparent: true, opacity: 0.08 }));
     halo.rotation.y = Math.PI / 2; groupe.add(halo);
 
     // Textures dessinées : la facture avant et après certification
+    // La facture, dessinée d'après une vraie pièce certifiée par la DGI :
+    // l'encadré de l'émetteur, le numéro, le code QR et le logo FNE, le
+    // tableau des lignes et les totaux.
     function texture(certifiee) {
-        var c = document.createElement('canvas'); c.width = 256; c.height = 340;
+        var c = document.createElement('canvas'); c.width = 300; c.height = 400;
         var g = c.getContext('2d');
-        g.fillStyle = '#ffffff'; g.fillRect(0, 0, 256, 340);
-        g.fillStyle = '#1e3a8a'; g.font = 'bold 22px sans-serif'; g.fillText('FACTURE', 20, 40);
-        g.fillStyle = '#94a3b8'; g.font = '13px sans-serif'; g.fillText('Selflow', 20, 62);
-        g.fillStyle = '#e2e8f0';
-        for (var i = 0; i < 7; i++) { g.fillRect(20, 90 + i * 22, 216 - (i % 3) * 30, 9); }
-        g.fillStyle = '#0f172a'; g.font = 'bold 16px sans-serif'; g.fillText('Total TTC', 20, 268);
+        g.fillStyle = '#ffffff'; g.fillRect(0, 0, 300, 400);
+        g.strokeStyle = '#1f2937'; g.lineWidth = 1.5;
+        g.strokeRect(14, 14, 150, 58);
+        g.fillStyle = '#111827'; g.font = 'bold 12px sans-serif'; g.fillText('DC-KNOWING CGA', 22, 32);
+        g.font = '10px sans-serif'; g.fillText('NCC : 1864699A', 22, 47); g.fillText('Régime : TEE', 22, 61);
+        g.fillStyle = '#0b4aa2'; g.font = 'bold 13px sans-serif'; g.fillText('Selflow', 214, 34);
+        g.fillStyle = '#111827'; g.font = 'bold 10px sans-serif'; g.fillText('Facture de vente N°', 176, 92);
+        g.font = '10px sans-serif'; g.fillText(certifiee ? '1864699A26000000122' : 'VTE-01-161026-002', 176, 106);
         if (certifiee) {
-            for (var x = 0; x < 9; x++) for (var y = 0; y < 9; y++) {
-                if (((x * 7 + y * 3 + x * y) % 3) !== 0 || (x < 3 && y < 3) || (x > 5 && y < 3) || (x < 3 && y > 5)) { g.fillStyle = '#0f172a'; g.fillRect(168 + x * 8, 250 + y * 8, 8, 8); }
+            for (var x = 0; x < 11; x++) for (var y = 0; y < 11; y++) {
+                var coin = (x < 3 && y < 3) || (x > 7 && y < 3) || (x < 3 && y > 7);
+                if (coin || ((x * 5 + y * 3 + x * y) % 3) === 0) { g.fillStyle = '#111827'; g.fillRect(176 + x * 5, 116 + y * 5, 5, 5); }
             }
-            g.strokeStyle = '#10b981'; g.lineWidth = 4; g.strokeRect(12, 288, 140, 36);
-            g.fillStyle = '#10b981'; g.font = 'bold 15px sans-serif'; g.fillText('CERTIFIÉE FNE', 20, 312);
+            g.lineWidth = 4; g.strokeStyle = '#f08a1c'; g.beginPath(); g.arc(262, 143, 21, 0, Math.PI * 2); g.stroke();
+            g.fillStyle = '#16a34a'; g.font = 'bold 14px sans-serif'; g.fillText('fe', 253, 148);
+            g.fillStyle = '#16a34a'; g.font = 'bold 7px sans-serif'; g.fillText('FACTURE NORMALISÉE', 229, 178);
+        } else {
+            g.strokeStyle = '#cbd5e1'; g.setLineDash([4, 3]); g.strokeRect(176, 116, 100, 56); g.setLineDash([]);
+            g.fillStyle = '#94a3b8'; g.font = '9px sans-serif'; g.fillText('en attente de la DGI', 184, 148);
+        }
+        g.fillStyle = '#111827'; g.font = '10px sans-serif';
+        g.fillText('Nom du PDV : PDV-marcory', 14, 92); g.fillText('Date : 16/10/2026', 14, 106); g.fillText('Client : Client de passage', 14, 120);
+        g.strokeStyle = '#1f2937'; g.lineWidth = 1; g.strokeRect(14, 196, 272, 22); g.strokeRect(14, 218, 272, 26);
+        g.font = 'bold 9px sans-serif'; g.fillText('Désignation', 20, 211); g.fillText('Qté', 150, 211); g.fillText('P.U HT', 178, 211); g.fillText('Montant HT', 230, 211);
+        g.font = '9px sans-serif'; g.fillText('Casier sucrerie 30 cl', 20, 235); g.fillText('1', 154, 235); g.fillText('40 000', 178, 235); g.fillText('40 000', 240, 235);
+        var lignes = [['TOTAL HT', '40 000'], ['TVA 18 %', '7 200'], ['TOTAL TTC', '47 200'], ['TOTAL A PAYER', '47 200']];
+        lignes.forEach(function (l, k) {
+            g.strokeRect(126, 252 + k * 22, 160, 22);
+            g.font = (k === 3 ? 'bold ' : '') + '9px sans-serif'; g.fillText(l[0], 132, 267 + k * 22); g.fillText(l[1], 244, 267 + k * 22);
+        });
+        if (certifiee) {
+            g.strokeStyle = '#16a34a'; g.lineWidth = 3; g.strokeRect(14, 352, 150, 32);
+            g.fillStyle = '#16a34a'; g.font = 'bold 12px sans-serif'; g.fillText('CERTIFIÉE FNE', 26, 373);
         }
         var t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t;
     }
@@ -429,7 +455,7 @@
     var factures = [];
     for (var n = 0; n < 7; n++) {
         var mat = new THREE.MeshBasicMaterial({ map: avant, side: THREE.DoubleSide, fog: false });
-        var f = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.46), mat);
+        var f = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.6), mat);
         f.userData = { t: n / 7, site: sites[n % sites.length] };
         groupe.add(f); factures.push(f);
     }
@@ -438,7 +464,7 @@
     var etoiles = new THREE.BufferGeometry(), pos = [];
     for (var e = 0; e < 600; e++) { pos.push((Math.random() - .5) * 40, (Math.random() - .5) * 24, (Math.random() - .5) * 30 - 6); }
     etoiles.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    scene.add(new THREE.Points(etoiles, new THREE.PointsMaterial({ color: 0x93c5fd, size: 0.05, transparent: true, opacity: .7 })));
+    scene.add(new THREE.Points(etoiles, new THREE.PointsMaterial({ color: 0xffffff, size: 0.05, transparent: true, opacity: .55 })));
 
     function trajectoire(f, t) {
         var d = f.userData.site.position;

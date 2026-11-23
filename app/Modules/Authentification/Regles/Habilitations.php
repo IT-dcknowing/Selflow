@@ -597,6 +597,7 @@ class Habilitations
         'admin.fournisseurs.supprimer' => 'tiers_fournisseurs',
 
         'admin.rapports.analyse_activite' => 'rapports_analyse',
+        'admin.rapports.analyse_activite.pdf' => 'rapports_analyse',
         'admin.rapports.analyse_prix'     => 'rapports_analyse',
 
         // ── Import ──

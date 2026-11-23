@@ -584,6 +584,7 @@ Route::prefix('admin')
         // ── Rapports ──
         Route::prefix('rapports')->name('rapports.')->group(function () {
             Route::get('/analyse-activite', [RapportControleur::class, 'analyseActivite'])->name('analyse_activite');
+            Route::get('/analyse-activite/pdf', [RapportControleur::class, 'exporterActivite'])->name('analyse_activite.pdf');
             Route::get('/analyse-prix', [RapportControleur::class, 'analysePrix'])->name('analyse_prix');
         });
     });

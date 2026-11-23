@@ -11111,7 +11111,7 @@ Branche `integration-factures-fne-portail`. Demandes du propriétaire.
   code et ses épreuves de gestion restent, les épreuves de rendu public des
   sections sont retirées avec la page qu'elles décrivaient.
 
-### Lot 143 — Cloisonnement du stock entre sites : les fuites de l'API fermées — **EN COURS**
+### Lot 143 — Cloisonnement du stock entre sites — **TERMINÉ le 23/11/2026**
 
 Audit du 23/11/2026 (lecture du code et preuve par épreuves). **Fermé** :
 
@@ -11126,7 +11126,19 @@ Audit du 23/11/2026 (lecture du code et preuve par épreuves). **Fermé** :
 - le middleware du site ramène aussi `pdv_id`, `site`,
   `point_de_vente_source_id`.
 
-**Reste ouvert** (lu dans le code, à corriger au lot suivant) :
+**Fermé ensuite, le même jour** : middleware `piece.du_site`
+(`PieceDuSiteAffecte`) sur admin, caissier et API, qui refuse à un membre
+affecté toute pièce de l'adresse portant un autre site (un transfert passe
+s'il part de son site ou y arrive) ; listes limitées au site du membre
+(réceptions, livraisons, transferts, ordres de production, consignations,
+analyse d'activité, tableau de bord général) ; fiche article d'un seul site,
+sans repli sur la fiche d'un autre ; source d'un transfert imposée ; produit
+fini d'une fiche technique référencé sur le seul site actif ; vue « tous les
+sites » qui ne masque plus une rupture par la somme des seuils ; alertes au
+stock du site concerné ; `ProduitApi::creer` référencé sur un site, quantité
+de départ par mouvement. `CloisonnementStockEntreSitesTest` : 7 épreuves.
+
+**Restait ouvert au premier passage** (désormais fermé, voir ci-dessus) :
 réceptions et livraisons (listes et validation sans filtre de site),
 `BonLivraisonControleur`, `facturerLaCommande` / `annuler`, transferts (liste
 et source libres, quantité d'un autre site révélée), fiche article (stock de
@@ -11139,6 +11151,30 @@ sur toute action par identifiant de pièce.
 - `CloisonnementStockEntreSitesTest` (4), `AccueilEtDemoTest` (5),
   `IntegrationFacturesPortailFneTest` (+1 : un client avec NCC est créé même
   « de passage »). Suite : 1 989 épreuves, 1 771 passantes, mêmes 175 échecs.
+
+### Lot 144 — Panne des factures de vente, accueil clair, rapport PDF, guide — **TERMINÉ le 23/11/2026**
+
+- **Panne** « Undefined variable $statutsFiltre » (factures de vente, 04:43) :
+  la forme courte de `@php`, sur une ligne, avalait le bloc `@php` suivant de
+  la vue (lot 141). Forme bloc, et `VuesSansPhpCourtMelangeTest` interdit le
+  mélange dans toutes les vues.
+- **Accueil** : les couleurs de l'application (bleu marine et blanc, comme
+  la page des offres) au lieu du fond sombre ; la facture de la scène 3D
+  reprend la mise en page d'une vraie pièce certifiée (encadré de l'émetteur,
+  numéro, code QR, logo FNE, tableau, totaux) ; l'anneau prend l'orange du
+  logo FNE.
+- **Rapport d'activité en PDF** : bouton « Exporter en PDF » sur l'analyse
+  d'activité, A4 avec logo et filigrane, chiffres clés, graphique des ventes
+  et achats sur douze mois, points de vente, articles, vendeurs, modes de
+  paiement, dépenses. Rendu à partir des données mêmes de l'écran.
+- **Guide d'utilisation** public (`/guide`), lié depuis l'accueil et le menu
+  du profil. Points à confirmer relevés en le rédigeant : la saisie d'un
+  acompte sur devis (le bloc de paiement est masqué à la saisie), l'écran
+  d'arrivée d'un responsable de point de vente à la connexion, et la page
+  des points de vente qui parle encore d'un « relevé chaque nuit ».
+
+- `RapportActivitePdfTest` (1). Suite : 1 994 épreuves, 1 776 passantes,
+  mêmes 175 échecs qu'avant.
 
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 

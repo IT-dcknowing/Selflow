@@ -144,6 +144,20 @@ class DocumentPdfService
         ], 'A4', $entreprise->nom . ' — Inventaire ' . $donnees['site']->nom);
     }
 
+    /**
+     * Le rapport d'activité de l'entreprise, en A4 (23/11/2026), avec les
+     * données mêmes de l'écran « Analyse d'activité ».
+     */
+    public function rapportActivite(array $donnees): string
+    {
+        $entreprise = $donnees['entreprise'];
+
+        return $this->rendre('admin::rapports.activite_pdf', $donnees + [
+            'logo'      => $this->logo($entreprise),
+            'filigrane' => FiligraneService::dataUri(),
+        ], 'A4', $entreprise->nom . ' · Rapport d\'activité');
+    }
+
     public static function nomDuFichier(Vente|Achat $piece, string $suffixe = ''): string
     {
         $base = $piece->numero_fne ?: $piece->numero_facture;

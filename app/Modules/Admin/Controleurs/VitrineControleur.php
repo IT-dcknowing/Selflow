@@ -39,6 +39,12 @@ class VitrineControleur
         return view('admin::vitrine.accueil3d');
     }
 
+    /** Le guide d'utilisation, public (23/11/2026). */
+    public function guide(): View
+    {
+        return view('admin::vitrine.guide');
+    }
+
     /** La politique d'utilisation, publique. */
     public function politique(): View
     {
