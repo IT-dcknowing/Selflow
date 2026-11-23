@@ -57,6 +57,13 @@ class DiagnosticStock extends Command
             }
             $this->table(['Site', 'Stock (fiche)', 'Entrées − sorties', 'Utilisateurs affectés'], $lignes->all());
 
+            $this->line('Utilisateurs de l\'entreprise (le site où ils vendent) :');
+            $this->table(['Utilisateur', 'Rôle', 'Site affecté', 'Site actif mémorisé'],
+                Utilisateur::where('entreprise_id', $produit->entreprise_id)->get()
+                    ->map(fn ($u) => [trim($u->prenom . ' ' . $u->nom) . ' <' . $u->email . '>', $u->role,
+                        $u->point_de_vente_id ? '#' . $u->point_de_vente_id . ($sites->firstWhere('id', $u->point_de_vente_id) ? '' : ' (pas un site de l\'entreprise !)') : 'aucun',
+                        (string) ($u->point_de_vente_actif_id ?? '')])->all());
+
             $this->line('Dix derniers mouvements :');
             $this->table(['Date', 'Site', 'Type', 'Quantité', 'Avant → après', 'Pièce'],
                 MouvementStock::withoutGlobalScopes()->where('produit_id', $produit->id)->latest('id')->limit(10)->get()

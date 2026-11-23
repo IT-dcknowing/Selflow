@@ -348,6 +348,26 @@ class ScraperPortailFneService
     }
 
     /** NCC autorisés par le superadministrateur et disposant d'un mot de passe. */
+    /**
+     * La dernière connexion du robot au portail pour ce login (23/11/2026),
+     * écrite par fne.js : statut ok | identifiants | portail | mot_de_passe |
+     * autre, message, date, adresse du portail.
+     */
+    public static function etatConnexion(?string $login): ?array
+    {
+        $login = preg_replace('/[^A-Za-z0-9]/', '', (string) $login);
+        if ($login === '') {
+            return null;
+        }
+        $fichier = base_path('SCRAPER-PORTAIL-FNE/etat-connexion/' . $login . '.json');
+        if (! is_file($fichier)) {
+            return null;
+        }
+        $etat = json_decode((string) @file_get_contents($fichier), true);
+
+        return is_array($etat) ? $etat + ['login' => $login] : null;
+    }
+
     private static function loginsAutorises(): array
     {
         return FneCredential::query()

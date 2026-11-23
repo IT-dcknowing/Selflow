@@ -28,7 +28,12 @@ class SynchronisationPortailFneService
      */
     public static function reprendre(Entreprise $entreprise): array
     {
-        if ($entreprise->possede_compte_fne !== true) {
+        // Un compte FNE déclaré, ou un relevé autorisé par le superadmin (NCC et
+        // mot de passe fournis, téléchargement activé) : dans les deux cas,
+        // l'entreprise a un espace FNE, et ce qu'il déclare fait foi (23/11/2026).
+        $releveAutorise = (bool) \App\Modules\Admin\Modeles\FneCredential::where('entreprise_id', $entreprise->id)
+            ->where('telechargement_actif', true)->exists();
+        if ($entreprise->possede_compte_fne !== true && ! $releveAutorise) {
             return [];
         }
 

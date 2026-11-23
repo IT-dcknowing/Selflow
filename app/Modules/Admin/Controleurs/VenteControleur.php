@@ -39,18 +39,7 @@ class VenteControleur
     public function nouvelle(): View
     {
         $entreprise = Auth::user()->entreprise;
-        $pointDeVenteId = Auth::user()->estCaissier()
-            ? Auth::user()->point_de_vente_id
-            // La caisse creait un point de vente « Siege » a Abidjan, commune
-            // Cocody, responsable « Superviseur », des qu'aucun n'etait actif.
-            // Trois informations inventees — et le nom du point de vente est ce
-            // que la plateforme de la DGI recoit : elle refuse la piece s'il ne
-            // correspond a aucun site declare sur l'espace FNE. On ouvrait donc
-            // en silence un magasin qui n'existe nulle part, et la premiere
-            // facture partait a son nom.
-            : (session('point_de_vente_actif_id')
-                ?? Auth::user()->pointDeVenteDOuverture()
-                ?? PointDeVente::where('entreprise_id', $entreprise->id)->orderBy('nom')->value('id'));
+        $pointDeVenteId = self::siteDeVente($entreprise);
         $clients = Client::obtenirClientsPrioritaires($entreprise->id, (int) $pointDeVenteId ?: null);
         $gestionApporteurs = $entreprise->aAttribution('apporteurs');
         $apporteurs = $gestionApporteurs
@@ -83,18 +72,7 @@ class VenteControleur
     {
         $entreprise = Auth::user()->entreprise;
         $gestionApporteurs = $entreprise->aAttribution('apporteurs');
-        $pointDeVenteId = Auth::user()->estCaissier()
-            ? Auth::user()->point_de_vente_id
-            // La caisse creait un point de vente « Siege » a Abidjan, commune
-            // Cocody, responsable « Superviseur », des qu'aucun n'etait actif.
-            // Trois informations inventees — et le nom du point de vente est ce
-            // que la plateforme de la DGI recoit : elle refuse la piece s'il ne
-            // correspond a aucun site declare sur l'espace FNE. On ouvrait donc
-            // en silence un magasin qui n'existe nulle part, et la premiere
-            // facture partait a son nom.
-            : (session('point_de_vente_actif_id')
-                ?? Auth::user()->pointDeVenteDOuverture()
-                ?? PointDeVente::where('entreprise_id', $entreprise->id)->orderBy('nom')->value('id'));
+        $pointDeVenteId = self::siteDeVente($entreprise);
 
         $request->validate(array_merge([
             'client_id' => ['nullable', 'integer', Appartenance::a('clients', 'id')],
@@ -2102,6 +2080,42 @@ class VenteControleur
         $id = \App\Modules\Admin\Modeles\Intervenant::where('entreprise_id', $entreprise->id)->whereKey((int) $article['intervenant_id'])->value('id');
 
         return $id ? ['intervenant_id' => (int) $id] : [];
+    }
+
+    /**
+     * Le site où se fait la vente (23/11/2026, O'Super prix).
+     *
+     * La fiche article disait 13 sacs, la vente « disponible 0 » : le site de
+     * la vente n'était pas un vrai site. Un caissier sans affectation n'en
+     * avait aucun ; un administrateur en affichage « Tous les sites » vendait
+     * sur le site « tout ». Le stock se cherchait donc là où il n'y en a pas.
+     *
+     * Ordre : le site du membre affecté ; sinon le site actif s'il est un vrai
+     * site de l'entreprise ; sinon le site d'ouverture ; sinon, s'il n'y en a
+     * qu'un, le seul site de l'entreprise ; sinon le premier par nom (jamais un
+     * site inventé : son nom part à la DGI).
+     */
+    private static function siteDeVente($entreprise): ?int
+    {
+        $utilisateur = Auth::user();
+        $sites = PointDeVente::where('entreprise_id', $entreprise->id);
+        $estDeLEntreprise = fn ($id) => $id && is_numeric($id) && (clone $sites)->whereKey((int) $id)->exists();
+
+        if ($utilisateur->estCaissier() || $utilisateur->estAffecteAUnSite()) {
+            if ($estDeLEntreprise($utilisateur->point_de_vente_id)) {
+                return (int) $utilisateur->point_de_vente_id;
+            }
+        } else {
+            foreach ([session('point_de_vente_actif_id'), $utilisateur->pointDeVenteDOuverture()] as $candidat) {
+                if ($estDeLEntreprise($candidat)) {
+                    return (int) $candidat;
+                }
+            }
+        }
+
+        $id = (clone $sites)->orderBy('nom')->value('id');
+
+        return $id ? (int) $id : null;
     }
 
     /**

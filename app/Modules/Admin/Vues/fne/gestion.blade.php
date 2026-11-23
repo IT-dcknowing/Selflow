@@ -58,6 +58,32 @@
 
 @section('contenu')
 
+{{-- La dernière connexion du robot au portail FNE (23/11/2026). --}}
+@if(!empty($connexionPortail) && ($connexionPortail['statut'] ?? 'ok') !== 'ok')
+    @php
+        $__cx = $connexionPortail;
+        [$__titre, $__fond, $__bord, $__texte] = match ($__cx['statut']) {
+            'identifiants' => ['Accès de connexion FNE incorrects', '#fef2f2', '#fecaca', '#991b1b'],
+            'mot_de_passe' => ['Le portail FNE demande de changer le mot de passe', '#fffbeb', '#fde68a', '#92400e'],
+            'portail' => ['Le portail FNE de la DGI est en erreur', '#fffbeb', '#fde68a', '#92400e'],
+            default => ['Connexion au portail FNE impossible', '#fffbeb', '#fde68a', '#92400e'],
+        };
+    @endphp
+    <div style="margin-bottom:14px; padding:12px 16px; border-radius:12px; background:{{ $__fond }}; border:1px solid {{ $__bord }}; color:{{ $__texte }}; font-size:13px; line-height:1.6;">
+        <strong><i class="fas fa-plug-circle-xmark"></i> {{ $__titre }}</strong>
+        <span style="opacity:.8;"> · {{ \Illuminate\Support\Carbon::parse($__cx['quand'])->timezone(config('app.timezone'))->format('d/m/Y à H:i') }} · compte {{ $__cx['login'] }}</span><br>
+        @if($__cx['statut'] === 'identifiants')
+            Le NCC et le mot de passe enregistrés ne permettent pas d'entrer sur le portail. Vérifiez-les (ils doivent être exactement ceux de votre espace FNE), puis enregistrez-les de nouveau.
+        @elseif($__cx['statut'] === 'mot_de_passe')
+            Connectez-vous une fois vous-même sur le portail FNE, changez le mot de passe, puis enregistrez le nouveau dans Selflow.
+        @elseif($__cx['statut'] === 'portail')
+            Le serveur de la DGI a répondu « problème de notre côté ». Ce n'est pas lié à vos accès : le relevé sera retenté au prochain passage.
+        @else
+            {{ $__cx['message'] }}
+        @endif
+    </div>
+@endif
+
 {{-- ── Barre filtres + bouton Configuration Fiscale ── --}}
 @include('admin::fne.partials.filtre-periode', [
     'onChange' => 'rafraichirFneGestion()',

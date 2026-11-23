@@ -315,6 +315,21 @@ class ImportPortailFneService
                 SynchronisationPortailFneService::reprendre($entreprise->fresh());
             }
 
+            // 23/11/2026 (propriétaire) : le paramétrage du portail passe
+            // directement dans Selflow. Les points de facturation déclarés au
+            // portail et absents de Selflow y sont créés (dans la limite de
+            // l'offre), sans attendre qu'on ouvre l'écran des points de vente.
+            // Seulement quand le superadmin a activé le téléchargement : sans
+            // lui, l'écran des points de vente propose, l'entreprise valide.
+            if ($entreprise && $type !== PortailFneImport::TYPE_FICHE
+                && \App\Modules\Admin\Modeles\FneCredential::where('entreprise_id', $entreprise->id)->where('telechargement_actif', true)->exists()) {
+                try {
+                    app(PointsDeVentePortailService::class)->importer($entreprise->fresh());
+                } catch (Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('[portail FNE] points de vente non repris', ['entreprise' => $entreprise->id, 'erreur' => $e->getMessage()]);
+                }
+            }
+
             return $resultat;
         } catch (Throwable $e) {
             // La trace du fichier fautif survit à l'échec, hors transaction :

@@ -11508,6 +11508,31 @@ choix du superadmin par entreprise ; les DNS sont gérés par DC-Knowing ;
   l'abréviation de `selflow:diagnostic-stock-sites` (« Entreprise
   introuvable »). Rien à corriger.
 
+
+### Lot 157 — Le site de la vente, connexion au portail lisible, paramétrage repris — **TERMINÉ le 23/11/2026**
+
+- **O'Super prix (cause trouvée)** : `selflow:diagnostic-stock` montre un seul
+  site (#49, 13 sacs) et aucun membre affecté. La vente prenait pour site la
+  session (`'tout'` en affichage « Tous les sites ») ou, pour un caissier, son
+  `point_de_vente_id` (vide) : le stock se cherchait sur un site inexistant.
+  `VenteControleur::siteDeVente()` : site du membre affecté s'il est de
+  l'entreprise, sinon site actif réel, sinon site d'ouverture, sinon le seul
+  (ou premier) site. Le diagnostic liste aussi les utilisateurs et leur site.
+- **Connexion au portail** : « Il y a eu un problème de notre côté » est une
+  erreur du serveur de la DGI, pas un refus d'accès. `seConnecter` classe la
+  cause (identifiants, portail, mot de passe à changer, autre), retente une
+  fois après une erreur du portail, cite l'adresse du portail utilisée, et
+  écrit `etat-connexion/<login>.json` ; « Gestion FNE » affiche « Accès de
+  connexion FNE incorrects » ou « Le portail FNE de la DGI est en erreur ».
+- **Paramétrage repris** : la fiche du portail est reprise dès que le
+  téléchargement est activé (plus seulement « possède un compte FNE ») ; avec
+  le téléchargement activé, les points de facturation du portail absents de
+  Selflow y sont créés à l'import, sans passer par l'écran.
+- **Comptaflow** : le motif réel est enfin lisible : « Les exercices ne se
+  recouvrent pas : Selflow 2026, Comptaflow 2025 ». À régler dans Comptaflow
+  (exercice 2026 par défaut), puis « Relancer les échecs ».
+- `SiteDeVenteEtPortailTest` (4). Suite : 213, identiques à `main`.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

@@ -66,6 +66,9 @@ class FneDashboardControleur
             'pointsDeVente' => $pointsDeVente,
             'taxConfig'     => $taxConfig,
             'kpis'          => $this->calculerKpisGestionFne($request, $entreprise->id),
+            'connexionPortail' => \App\Modules\Admin\Services\ScraperPortailFneService::etatConnexion(
+                \App\Modules\Admin\Modeles\FneCredential::where('entreprise_id', $entreprise->id)->value('ncc_associe') ?: $entreprise->ncc
+            ),
         ]);
     }
 

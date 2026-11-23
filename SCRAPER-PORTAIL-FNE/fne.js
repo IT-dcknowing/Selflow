@@ -531,8 +531,23 @@ function resoudreTaches() {
 
 /* --------------------------------- Le portail ----------------------------- */
 
-/** Connexion à la plateforme. */
-async function seConnecter(page, login, motDePasse) {
+/**
+ * L'état de la dernière connexion d'un login, lu par Selflow (23/11/2026) :
+ * `etat-connexion/<login>.json` = { quand, statut, message, portail }.
+ * statut : 'ok' | 'identifiants' (accès FNE incorrects) | 'portail' (erreur
+ * du serveur de la DGI) | 'mot_de_passe' (changement exigé) | 'autre'.
+ */
+function noterConnexion(login, statut, message) {
+  try {
+    const dossier = path.join(__dirname, 'etat-connexion');
+    fs.mkdirSync(dossier, { recursive: true });
+    fs.writeFileSync(path.join(dossier, `${String(login).replace(/[^A-Za-z0-9]/g, '')}.json`),
+      JSON.stringify({ quand: new Date().toISOString(), statut, message, portail: process.env.FNE_URL || '' }));
+  } catch (e) { /* l'état est un plus : il ne doit jamais faire échouer le relevé */ }
+}
+
+/** Un essai de connexion ; rend null si le tableau de bord est atteint, sinon la cause. */
+async function essayerDeSeConnecter(page, login, motDePasse) {
   await page.goto(process.env.FNE_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
   // L'application (Next.js) doit terminer son hydratation avant que le clic sur
   // « Connexion » soit intercepté en JS ; sans cette attente, le navigateur
@@ -545,29 +560,40 @@ async function seConnecter(page, login, motDePasse) {
   await page.click('button:has-text("Connexion")');
   try {
     await page.waitForURL('**/dashboard', { timeout: 30000 });
+    return null;
   } catch (e) {
-    // 23/11/2026 : « Timeout 30000ms exceeded » ne disait rien. On rapporte ce
-    // que le portail a réellement montré : un message d'erreur sur la page de
-    // connexion (identifiants refusés), une autre page (changement de mot de
-    // passe exigé à la première connexion, compte à activer…), ou rien.
     const adresse = page.url();
     const message = await page
       .locator('[role="alert"], .alert, .error, .text-red-500, .text-danger, .ant-message, .toast, [class*="error"], [class*="Error"]')
       .allInnerTexts()
-      .then(textes => textes.map(t => t.trim()).filter(Boolean).join(' | ').slice(0, 300))
+      .then(textes => textes.map(t => t.trim()).filter(t => t && t !== '*').join(' | ').slice(0, 300))
       .catch(() => '');
-    let cause;
-    if (/password|mot-de-passe|reset|change/i.test(adresse)) {
-      cause = 'le portail demande de changer le mot de passe (première connexion ?) : connectez-vous une fois à la main sur le portail FNE, puis mettez le nouveau mot de passe dans Selflow';
-    } else if (message) {
-      cause = `le portail a refusé la connexion : « ${message} »`;
-    } else if (/login|connexion|signin|auth/i.test(adresse) || adresse === process.env.FNE_URL) {
-      cause = 'le portail est resté sur la page de connexion : identifiant ou mot de passe probablement refusé';
-    } else {
-      cause = `le portail a ouvert une autre page que le tableau de bord (${adresse})`;
-    }
-    throw new Error(`Connexion impossible pour ${login} : ${cause}.`);
+    if (/password|mot-de-passe|reset|change/i.test(adresse)) return { statut: 'mot_de_passe', message: 'le portail demande de changer le mot de passe (première connexion ?)' };
+    if (/notre côté|notre cote|travaillons|erreur serveur|server error|500|indisponible|réessayer/i.test(message)) return { statut: 'portail', message: `le portail de la DGI a répondu par une erreur de son côté (« ${message} »)` };
+    if (/incorrect|invalide|erron|mauvais|inexistant|wrong|invalid/i.test(message)) return { statut: 'identifiants', message: `accès de connexion FNE incorrects (« ${message} »)` };
+    if (message) return { statut: 'autre', message: `le portail a affiché : « ${message} »` };
+    if (/login|connexion|signin|auth/i.test(adresse) || adresse === process.env.FNE_URL) return { statut: 'identifiants', message: 'accès de connexion FNE incorrects : le portail est resté sur la page de connexion' };
+    return { statut: 'autre', message: `le portail a ouvert une autre page que le tableau de bord (${adresse})` };
   }
+}
+
+/**
+ * Connexion à la plateforme. Une erreur du serveur de la DGI se retente une
+ * fois, 20 secondes plus tard ; des identifiants refusés, jamais (le compte
+ * risquerait d'être bloqué).
+ */
+async function seConnecter(page, login, motDePasse) {
+  let cause = await essayerDeSeConnecter(page, login, motDePasse);
+  if (cause && cause.statut === 'portail') {
+    await page.waitForTimeout(20000);
+    cause = await essayerDeSeConnecter(page, login, motDePasse);
+  }
+  if (!cause) {
+    noterConnexion(login, 'ok', '');
+    return;
+  }
+  noterConnexion(login, cause.statut, cause.message);
+  throw new Error(`Connexion impossible pour ${login} sur ${process.env.FNE_URL} : ${cause.message}.`);
 }
 
 /** Navigation vers « Paramétrage » depuis le tableau de bord. */
