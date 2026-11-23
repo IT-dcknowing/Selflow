@@ -12,22 +12,31 @@
 
 <div class="card" style="padding:18px; margin-bottom:20px;">
     <h3 style="margin:0 0 10px; font-size:16px;"><i class="fas fa-upload"></i> La démo à envoyer</h3>
-    <form method="POST" action="{{ route('superadmin.demos.deposer') }}" enctype="multipart/form-data" style="display:grid; gap:12px; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); align-items:end;">
+    <form method="POST" action="{{ route('superadmin.demos.deposer') }}" enctype="multipart/form-data">
         @csrf
-        <label style="font-size:13px; font-weight:700;">Fichier (vidéo MP4, WebM, MOV ou PDF)
-            <input type="file" name="fichier" class="form-control" accept=".mp4,.webm,.mov,.pdf">
-            <small style="font-weight:400; color:var(--text-3);">
-                @if($fichier) Déposé : {{ basename($fichier) }}. Un nouveau fichier le remplace. @else Aucun fichier déposé. @endif
-            </small>
-        </label>
-        <label style="font-size:13px; font-weight:700;">Ou un lien (YouTube, Drive…)
-            <input type="url" name="lien" class="form-control" value="{{ $lien }}" placeholder="https://">
-            <small style="font-weight:400; color:var(--text-3);">Le fichier passe avant le lien s'il y en a un.</small>
-        </label>
-        <label style="font-size:13px; font-weight:700; grid-column:1 / -1;">Message d'accompagnement
-            <textarea name="message" class="form-control" rows="3" placeholder="Bonjour, voici la démonstration de Selflow…">{{ $texte }}</textarea>
-        </label>
-        <div><button class="btn btn-primary"><i class="fas fa-floppy-disk"></i> Enregistrer la démo</button></div>
+        <div style="display:grid; gap:16px; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); align-items:start;">
+            <div class="form-group" style="margin:0;">
+                <label class="form-label" for="demo-fichier">Fichier : vidéo MP4, WebM, MOV ou PDF</label>
+                {{-- Le champ de fichier natif est masqué : le bouton et le nom du fichier ont la même hauteur que le champ voisin. --}}
+                <label for="demo-fichier" style="display:flex; align-items:center; gap:10px; height:42px; padding:0 12px; border:1px solid var(--border); border-radius:8px; background:#fff; cursor:pointer;">
+                    <span class="btn btn-outline btn-sm" style="pointer-events:none;"><i class="fas fa-upload"></i> Choisir un fichier</span>
+                    <span id="demo-fichier-nom" style="font-size:13px; color:var(--text-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ $fichier ? basename($fichier) : 'Aucun fichier choisi' }}</span>
+                </label>
+                <input type="file" id="demo-fichier" name="fichier" accept=".mp4,.webm,.mov,.pdf" style="position:absolute; width:1px; height:1px; opacity:0;"
+                       onchange="document.getElementById('demo-fichier-nom').textContent = this.files[0] ? this.files[0].name : 'Aucun fichier choisi'">
+                <small style="display:block; margin-top:6px; color:var(--text-3);">@if($fichier) Déposé : {{ basename($fichier) }}. Un nouveau fichier le remplace. @else Aucun fichier déposé. @endif</small>
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label class="form-label" for="demo-lien">Ou un lien : YouTube, Drive…</label>
+                <input type="url" id="demo-lien" name="lien" class="form-control" style="height:42px;" value="{{ $lien }}" placeholder="https://">
+                <small style="display:block; margin-top:6px; color:var(--text-3);">Le fichier passe avant le lien s'il y en a un.</small>
+            </div>
+            <div class="form-group" style="margin:0; grid-column:1 / -1;">
+                <label class="form-label" for="demo-message">Message d'accompagnement</label>
+                <textarea id="demo-message" name="message" class="form-control" rows="3" placeholder="Bonjour, voici la démonstration de Selflow…">{{ $texte }}</textarea>
+            </div>
+        </div>
+        <div style="margin-top:14px;"><button class="btn btn-primary"><i class="fas fa-floppy-disk"></i> Enregistrer la démo</button></div>
     </form>
 </div>
 

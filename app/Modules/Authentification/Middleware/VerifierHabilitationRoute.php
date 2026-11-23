@@ -49,6 +49,7 @@ class VerifierHabilitationRoute
         'superadmin.entreprises.parcours.enregistrer' => 'gestion_entreprises',
         'superadmin.entreprises.toggle_status'        => 'gestion_entreprises',
         'superadmin.entreprises.valider_inscription'  => 'gestion_entreprises',
+        'superadmin.entreprises.valider_inscriptions' => 'gestion_entreprises',
         'superadmin.entreprises.refuser_inscription'   => 'gestion_entreprises',
         'superadmin.entreprises.reactiver_abonnement' => 'gestion_entreprises',
         'superadmin.entreprises.supprimer'            => 'gestion_entreprises',
@@ -96,6 +97,8 @@ class VerifierHabilitationRoute
         'superadmin.integrations.paiements.index' => 'gestion_entreprises',
         'superadmin.integrations.paiements.enregistrer' => 'gestion_entreprises',
         'superadmin.pannes.index'      => 'tableau_de_bord_superadmin',
+        'superadmin.robot.index'       => 'tableau_de_bord_superadmin',
+        'superadmin.robot.donnees'     => 'tableau_de_bord_superadmin',
         'superadmin.pannes.corriger'   => 'tableau_de_bord_superadmin',
         'superadmin.pannes.assistance' => 'tableau_de_bord_superadmin',
         // Couper la plateforme pour tous : réservé à l'administration interne.

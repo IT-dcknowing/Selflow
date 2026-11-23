@@ -49,9 +49,67 @@
     <a class="btn btn-outline" href="{{ route('superadmin.entreprises') }}">Réinitialiser</a>
 </form>
 
-<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:11px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;">
-    <span style="font-size:12px;color:#1d4ed8;font-weight:700;text-transform:uppercase;">Comptes en attente de validation</span>
-    <strong style="font-size:23px;color:#1e40af;">{{ $comptesEnAttenteTotal }}</strong>
+{{-- Ce qui attend le superadministrateur (23/11/2026) : les inscriptions et les
+     paiements se valident ici même ; le reste mène à son écran. --}}
+@php
+    $nbAValider = $comptesEnAttenteTotal + $aValider['paiements']->count() + $aValider['stickers'] + $aValider['liaisons'] + $aValider['exercices'];
+@endphp
+<div class="card" style="padding:16px; margin-bottom:14px; border-left:5px solid {{ $nbAValider ? '#f59e0b' : '#10b981' }};">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+        <strong style="font-size:15px;"><i class="fas fa-list-check"></i> À valider</strong>
+        <span style="background:{{ $nbAValider ? '#f59e0b' : '#10b981' }}; color:#fff; border-radius:20px; padding:3px 12px; font-size:12px; font-weight:800;">{{ $nbAValider }}</span>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; font-size:13px;">
+        <span class="badge-a-valider" style="padding:6px 10px; border-radius:8px; background:#eff6ff; color:#1d4ed8;">Inscriptions : <strong>{{ $comptesEnAttenteTotal }}</strong></span>
+        <span style="padding:6px 10px; border-radius:8px; background:#fef9c3; color:#a16207;">Paiements : <strong>{{ $aValider['paiements']->count() }}</strong></span>
+        <a href="{{ route('superadmin.stickers.index') }}" style="padding:6px 10px; border-radius:8px; background:#fff7ed; color:#c2410c; text-decoration:none;">Stickers : <strong>{{ $aValider['stickers'] }}</strong></a>
+        <a href="{{ route('superadmin.liaisons.index') }}" style="padding:6px 10px; border-radius:8px; background:#f0fdf4; color:#15803d; text-decoration:none;">Liaisons Comptaflow : <strong>{{ $aValider['liaisons'] }}</strong></a>
+        <a href="{{ route('superadmin.exercices_anterieurs.index') }}" style="padding:6px 10px; border-radius:8px; background:#f5f3ff; color:#6d28d9; text-decoration:none;">Exercices antérieurs : <strong>{{ $aValider['exercices'] }}</strong></a>
+    </div>
+
+    @if($aValider['inscriptions']->isNotEmpty())
+        <form method="POST" action="{{ route('superadmin.entreprises.valider_inscriptions') }}">
+            @csrf
+            <div style="font-size:12px; font-weight:700; color:var(--text-2); text-transform:uppercase; margin-bottom:6px;">Inscriptions en attente</div>
+            <div style="max-height:260px; overflow-y:auto; border:1px solid var(--border); border-radius:8px;">
+                @foreach($aValider['inscriptions'] as $inscrite)
+                    @php
+                        $packManquant = $inscrite->plan_abonnement === \App\Modules\Admin\Regles\Abonnements::A_CHOISIR && blank($inscrite->abonnement_demande);
+                        $admin = $inscrite->utilisateurs->first();
+                    @endphp
+                    <label style="display:flex; align-items:center; gap:10px; padding:9px 12px; border-bottom:1px solid var(--border); font-size:13px;">
+                        <input type="checkbox" name="entreprises[]" value="{{ $inscrite->id }}" @disabled($packManquant)>
+                        <span style="flex:1; min-width:0;">
+                            <strong>{{ $inscrite->nom }}</strong>
+                            <span style="color:var(--text-3);">· inscrite le {{ $inscrite->created_at?->format('d/m/Y H:i') }}@if($admin) · {{ $admin->prenom }} {{ $admin->nom }}, {{ $admin->email }}@endif</span>
+                            @if($packManquant)<br><span style="color:#b45309;">Pack à choisir avant validation : ouvrez la fiche.</span>@endif
+                        </span>
+                    </label>
+                @endforeach
+            </div>
+            <div style="display:flex; gap:8px; margin-top:10px;">
+                <button type="button" class="btn btn-outline btn-sm" onclick="this.form.querySelectorAll('input[name=&quot;entreprises[]&quot;]:not(:disabled)').forEach(c => c.checked = true)">Tout cocher</button>
+                <button class="btn btn-primary btn-sm"><i class="fas fa-check"></i> Valider la sélection</button>
+            </div>
+        </form>
+    @endif
+
+    @if($aValider['paiements']->isNotEmpty())
+        <div style="font-size:12px; font-weight:700; color:var(--text-2); text-transform:uppercase; margin:14px 0 6px;">Paiements d'abonnement à confirmer</div>
+        <div style="max-height:220px; overflow-y:auto; border:1px solid var(--border); border-radius:8px;">
+            @foreach($aValider['paiements'] as $paiement)
+                <div style="display:flex; align-items:center; gap:10px; padding:9px 12px; border-bottom:1px solid var(--border); font-size:13px; flex-wrap:wrap;">
+                    <span style="flex:1; min-width:200px;"><strong>{{ $paiement->entreprise?->nom }}</strong>
+                        <span style="color:var(--text-3);">· {{ number_format((float) $paiement->montant, 0, ',', ' ') }} F · {{ $paiement->offre }} · réf. {{ $paiement->reference_paiement }} · {{ $paiement->libelleStatut() }}</span></span>
+                    <form method="POST" action="{{ route('superadmin.paiements.traiter', $paiement) }}" style="margin:0;">
+                        @csrf @method('PUT')
+                        <input type="hidden" name="action" value="activer">
+                        <button class="btn btn-primary btn-sm"><i class="fas fa-check"></i> Confirmer</button>
+                    </form>
+                </div>
+            @endforeach
+        </div>
+    @endif
 </div>
 
 {{-- Synthèse globale des échéances, indépendante de la pagination. --}}

@@ -660,6 +660,7 @@ Route::prefix('superadmin')
         Route::get('/entreprises/{entreprise}/parcours', [\App\Modules\Admin\Controleurs\SouscriptionControleur::class, 'indexPour'])->name('entreprises.parcours');
         Route::post('/entreprises/{entreprise}/parcours/{etape}', [\App\Modules\Admin\Controleurs\SouscriptionControleur::class, 'enregistrerPour'])
             ->whereNumber('etape')->name('entreprises.parcours.enregistrer');
+        Route::post('/entreprises/valider-inscriptions', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'validerInscriptions'])->name('entreprises.valider_inscriptions');
         Route::post('/entreprises/{entreprise}/valider-inscription', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'validerInscription'])->name('entreprises.valider_inscription');
         Route::post('/entreprises/{entreprise}/refuser-inscription', [\App\Modules\Admin\Controleurs\SuperadminControleur::class, 'refuserInscription'])->name('entreprises.refuser_inscription');
         Route::post('/entreprises/{entreprise}/reactiver-abonnement', [\App\Modules\Admin\Controleurs\SuperadminPaiementControleur::class, 'reactiver'])->name('entreprises.reactiver_abonnement');
@@ -794,6 +795,10 @@ Route::prefix('superadmin')
             Route::post('/hors-ligne', [\App\Modules\Admin\Controleurs\SuperadminPanneControleur::class, 'horsLigne'])->name('hors_ligne');
             Route::post('/{panne}/corriger', [\App\Modules\Admin\Controleurs\SuperadminPanneControleur::class, 'corriger'])->name('corriger');
         });
+
+        // ── Le robot du portail FNE, en direct (23/11/2026) ──
+        Route::get('/robot', [\App\Modules\Admin\Controleurs\SuperadminRobotControleur::class, 'index'])->name('robot.index');
+        Route::get('/robot/donnees', [\App\Modules\Admin\Controleurs\SuperadminRobotControleur::class, 'donnees'])->name('robot.donnees');
 
         // ── Groupes d'entreprises (23/11/2026) ──
         Route::prefix('groupes')->name('groupes.')->group(function () {

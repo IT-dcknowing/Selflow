@@ -11255,6 +11255,24 @@ rangées par nature :
 
 - `GroupesEntreprisesTest` (4).
 
+### Lot 148 — « À valider », robot FNE en direct, champs de la démo — **TERMINÉ le 23/11/2026**
+
+- **Superadmin, Entreprises : carte « À valider »** : inscriptions en
+  attente (cochées puis « Valider la sélection », sauf celles dont le pack
+  reste à choisir), paiements d'abonnement à confirmer (« Confirmer » sur
+  la ligne), et les compteurs des stickers, liaisons Comptaflow et
+  exercices antérieurs, qui mènent à leur écran.
+- **Superadmin : « Robot FNE en direct »** (`superadmin/robot`, habilitation
+  `tableau_de_bord_superadmin`) : par entreprise autorisée, l'état des trois
+  relevés (en cours depuis, terminé, en pause après échec avec l'heure du
+  nouvel essai, libre) et le dernier import ; qui tient le navigateur ; les
+  trois prochains passages ; les 80 dernières lignes des journaux, en
+  couleur. Rafraîchi toutes les 3 s (pas quand l'onglet est caché).
+- **Demandes de démo** : le champ de fichier, celui du lien et le message
+  sont alignés, à la même hauteur.
+
+- `SuperadminAValiderEtRobotTest` (2).
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

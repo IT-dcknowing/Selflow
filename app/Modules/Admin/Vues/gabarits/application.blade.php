@@ -865,6 +865,9 @@
             </a>
             @endif
             @php $__pannesOuvertes = \App\Modules\Admin\Modeles\PanneConsignee::ouvertes()->count(); @endphp
+            <a href="{{ route('superadmin.robot.index') }}" class="nav-item {{ request()->routeIs('superadmin.robot*') ? 'active' : '' }}">
+                <i class="fas fa-robot"></i> Robot FNE en direct
+            </a>
             <a href="{{ route('superadmin.pannes.index') }}" class="nav-item {{ request()->routeIs('superadmin.pannes*') ? 'active' : '' }}">
                 <i class="fas fa-bug"></i> Pannes &amp; assistance
                 @if($__pannesOuvertes)<span style="margin-left:auto; background:#ef4444; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700;">{{ $__pannesOuvertes }}</span>@endif

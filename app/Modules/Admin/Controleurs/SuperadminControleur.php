@@ -146,8 +146,20 @@ class SuperadminControleur
         $entreprisesPourFiltre = Entreprise::horsCorbeille()->orderBy('nom')->get(['id', 'nom']);
         $comptesEnAttenteTotal = Entreprise::horsCorbeille()->where('statut', 'en_attente')->count();
 
+        // Ce qui attend le superadministrateur, en un seul endroit (23/11/2026).
+        $aValider = [
+            'inscriptions' => Entreprise::horsCorbeille()->where('statut', 'en_attente')
+                ->with(['utilisateurs' => fn ($q) => $q->where('role', 'admin')->select('id', 'entreprise_id', 'nom', 'prenom', 'email')])
+                ->orderBy('created_at')->limit(30)->get(),
+            'paiements' => \App\Modules\Admin\Modeles\PaiementAbonnement::with('entreprise:id,nom')
+                ->whereIn('statut', \App\Modules\Admin\Modeles\PaiementAbonnement::A_TRAITER)->orderBy('created_at')->limit(30)->get(),
+            'stickers' => \App\Modules\Admin\Modeles\DemandeSticker::whereIn('statut', \App\Modules\Admin\Modeles\DemandeSticker::A_TRAITER)->count(),
+            'liaisons' => Entreprise::horsCorbeille()->where('comptaflow_demande_statut', Entreprise::DEMANDE_EN_ATTENTE)->count(),
+            'exercices' => \App\Modules\Admin\Modeles\DemandeExercicesAnterieurs::where('statut', \App\Modules\Admin\Modeles\DemandeExercicesAnterieurs::EN_ATTENTE)->count(),
+        ];
+
         return view('admin::superadmin.entreprises.index', compact(
-            'entreprises', 'entreprisesPourFiltre', 'comptesEnAttenteTotal',
+            'entreprises', 'entreprisesPourFiltre', 'comptesEnAttenteTotal', 'aValider',
             'etat', 'entrepriseId', 'ncc',
             'abonnementsEchus', 'abonnementsEchusTotal',
             'abonnementsProches', 'abonnementsProchesTotal'
@@ -516,6 +528,31 @@ class SuperadminControleur
     /**
      * Valider une inscription classique ou Google.
      */
+    /** Valider d'un coup les inscriptions cochées (23/11/2026). */
+    public function validerInscriptions(Request $request): RedirectResponse
+    {
+        $ids = collect((array) $request->input('entreprises', []))->map(fn ($id) => (int) $id)->filter();
+        $faites = [];
+        $refusees = [];
+
+        foreach (Entreprise::horsCorbeille()->whereIn('id', $ids)->where('statut', 'en_attente')->get() as $entreprise) {
+            $reponse = $this->validerInscription($entreprise);
+            if (session()->has('erreur')) {
+                $refusees[] = $entreprise->nom;
+                session()->forget('erreur');
+            } else {
+                $faites[] = $entreprise->nom;
+            }
+        }
+
+        $message = count($faites) . ' inscription(s) validée(s).';
+        if ($refusees) {
+            $message .= ' Pack à choisir avant validation : ' . implode(', ', $refusees) . '.';
+        }
+
+        return redirect()->route('superadmin.entreprises')->with($refusees && !$faites ? 'erreur' : 'succes', $message);
+    }
+
     public function validerInscription(Entreprise $entreprise): RedirectResponse
     {
         abort_if($entreprise->estEnCorbeille(), 404);
