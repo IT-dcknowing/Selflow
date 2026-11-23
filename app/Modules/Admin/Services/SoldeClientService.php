@@ -29,7 +29,7 @@ class SoldeClientService
     public static function actif(?\App\Modules\Admin\Modeles\Entreprise $entreprise): bool
     {
         return $entreprise !== null
-            && Schema::hasColumn('entreprises', 'afficher_solde_client_facture')
+            && \App\Support\Structure::aColonne('entreprises', 'afficher_solde_client_facture')
             && (bool) $entreprise->afficher_solde_client_facture;
     }
 

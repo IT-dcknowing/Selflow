@@ -36,7 +36,7 @@ class PropositionStock extends Model
     {
         static $existe = null;
 
-        return $existe ??= Schema::hasTable('propositions_stock');
+        return $existe ??= \App\Support\Structure::aTable('propositions_stock');
     }
 
     public function produit(): BelongsTo

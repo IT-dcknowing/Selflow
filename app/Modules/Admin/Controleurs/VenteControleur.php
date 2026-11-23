@@ -176,6 +176,7 @@ class VenteControleur
                     return back()->withInput()->with(
                         'error',
                         "❌ Stock insuffisant pour « {$produit->nom} » : disponible {$stockDisponible}, demandé {$article['quantite']}."
+                        . self::ouEstLeStock($produit, (int) $pointDeVenteId)
                     );
                 }
 
@@ -1767,7 +1768,7 @@ class VenteControleur
         }
 
         $vente->forceFill(['statut' => Vente::STATUT_ANNULEE]
-            + (\Illuminate\Support\Facades\Schema::hasColumn('ventes', 'motif_annulation') ? ['motif_annulation' => $donnees['motif']] : []))
+            + (\App\Support\Structure::aColonne('ventes', 'motif_annulation') ? ['motif_annulation' => $donnees['motif']] : []))
             ->save();
 
         $this->journaliser('annulation_commande_vente', 'Vente', $vente->id);
@@ -2101,6 +2102,30 @@ class VenteControleur
         $id = \App\Modules\Admin\Modeles\Intervenant::where('entreprise_id', $entreprise->id)->whereKey((int) $article['intervenant_id'])->value('id');
 
         return $id ? ['intervenant_id' => (int) $id] : [];
+    }
+
+    /**
+     * Où se trouve le stock qui manque ici (23/11/2026, O'Super prix) : la
+     * fiche article montrait 13, la vente disait 0. Le stock est tenu par
+     * site ; l'entrée avait été faite sur un autre site que celui de la vente.
+     * Le message le dit, avec le site, pour qu'on sache quoi faire.
+     */
+    private static function ouEstLeStock(Produit $produit, int $pointDeVenteId): string
+    {
+        $site = PointDeVente::whereKey($pointDeVenteId)->value('nom');
+        $ailleurs = \App\Modules\Admin\Modeles\Stock::where('produit_id', $produit->id)
+            ->where('point_de_vente_id', '!=', $pointDeVenteId)
+            ->where('quantite_disponible', '>', 0)
+            ->with('pointDeVente:id,nom')
+            ->get()
+            ->map(fn ($s) => rtrim(rtrim(number_format((float) $s->quantite_disponible, 3, ',', ' '), '0'), ',') . ' sur « ' . ($s->pointDeVente?->nom ?? 'un autre site') . ' »');
+
+        $texte = $site ? " Vente sur le site « {$site} »." : '';
+        if ($ailleurs->isNotEmpty()) {
+            $texte .= ' Le stock est ailleurs : ' . $ailleurs->implode(', ') . '. Faites un transfert vers ce site, ou vendez depuis le site qui a le stock.';
+        }
+
+        return $texte;
     }
 
     /** La facture envoyée au client par e-mail, en PDF (23/11/2026). */

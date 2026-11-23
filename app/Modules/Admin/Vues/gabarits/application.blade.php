@@ -1539,7 +1539,7 @@
             $__notificationsFne = auth()->user()->notifications()->latest()->limit(6)->get();
             $__notificationsFneNonLues = auth()->user()->unreadNotifications()->count();
         @endphp
-        <details style="position:relative;">
+        <details style="position:relative;" id="panneau-notifications">
             <summary style="list-style:none;cursor:pointer;display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--border);border-radius:9px;background:#fff;color:var(--text-2);">
                 <i class="fas fa-bell"></i>
                 @if($__notificationsFneNonLues > 0)
@@ -1547,7 +1547,19 @@
                 @endif
             </summary>
             <div style="position:absolute;right:0;top:calc(100% + 9px);width:min(380px,88vw);max-height:430px;overflow:auto;padding:12px;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 32px rgba(15,23,42,.16);z-index:1200;">
-                <div style="font-weight:800;margin:2px 4px 10px;color:var(--text);">Notifications</div>
+                {{-- 23/11/2026 : tout marquer comme lu, et fermer. --}}
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:2px 4px 10px;">
+                    <span style="font-weight:800;color:var(--text);">Notifications</span>
+                    <span style="display:flex;align-items:center;gap:6px;">
+                        @if($__notificationsFneNonLues > 0)
+                            <form method="POST" action="{{ route('notifications.tout_lire') }}" style="margin:0;">
+                                @csrf
+                                <button type="submit" style="border:1px solid var(--border);background:#fff;color:var(--primary);font-size:11px;font-weight:700;cursor:pointer;border-radius:7px;padding:4px 8px;"><i class="fas fa-check-double"></i> Tout marquer comme lu</button>
+                            </form>
+                        @endif
+                        <button type="button" aria-label="Fermer" onclick="this.closest('details').removeAttribute('open')" style="border:0;background:none;color:var(--text-3);font-size:16px;cursor:pointer;padding:2px 6px;">✕</button>
+                    </span>
+                </div>
                 @forelse($__notificationsFne as $__notification)
                     @php $__donneesNotification = $__notification->data ?? []; @endphp
                     <div style="padding:10px;margin-bottom:7px;border:1px solid var(--border);border-radius:9px;background:{{ $__notification->read_at ? '#fff' : '#eff6ff' }};">
@@ -1580,6 +1592,15 @@
                 @endforelse
             </div>
         </details>
+        <script>
+        // Un clic à côté, ou la touche Échap, referme le panneau (23/11/2026).
+        (function () {
+            var panneau = document.getElementById('panneau-notifications');
+            if (!panneau) return;
+            document.addEventListener('click', function (e) { if (panneau.open && !panneau.contains(e.target)) panneau.removeAttribute('open'); });
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape') panneau.removeAttribute('open'); });
+        })();
+        </script>
 
         @php
             $__utilisateurAlerteAbonnement = auth()->user();

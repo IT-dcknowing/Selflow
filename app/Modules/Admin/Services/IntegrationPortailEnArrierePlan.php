@@ -48,7 +48,7 @@ class IntegrationPortailEnArrierePlan
     }
 
     /** Un lot de 20 pour une entreprise ; rend l'état à jour. */
-    public function lot(Entreprise $entreprise): ?array
+    public function lot(Entreprise $entreprise, int $taille = 20): ?array
     {
         $etat = self::etat($entreprise->id);
         if (! $etat || $etat['etat'] === 'termine') {
@@ -56,7 +56,7 @@ class IntegrationPortailEnArrierePlan
         }
 
         $etat['etat'] = 'en_cours';
-        foreach ($this->candidates($entreprise, $etat['a_la_main'], $etat['reconnus'])->take(20) as $facture) {
+        foreach ($this->candidates($entreprise, $etat['a_la_main'], $etat['reconnus'])->take($taille) as $facture) {
             try {
                 $this->service->integrer($facture, $entreprise, (int) $etat['utilisateur']);
                 $etat['faites']++;
@@ -79,8 +79,8 @@ class IntegrationPortailEnArrierePlan
         return $etat;
     }
 
-    /** Le passage du planificateur : toutes les demandes, pendant au plus ~50 s. */
-    public function traiterLesDemandes(int $secondes = 50): void
+    /** Le passage du planificateur : toutes les demandes, pendant au plus ~25 s (le serveur reste disponible pour les pages). */
+    public function traiterLesDemandes(int $secondes = 25): void
     {
         $fin = microtime(true) + $secondes;
         foreach ((array) Cache::get(self::DEMANDES, []) as $id) {

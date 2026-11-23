@@ -906,7 +906,7 @@ class AchatControleur
         }
 
         $achat->forceFill(['statut' => Achat::STATUT_ANNULEE]
-            + (\Illuminate\Support\Facades\Schema::hasColumn('achats', 'motif_annulation') ? ['motif_annulation' => $donnees['motif']] : []))
+            + (\App\Support\Structure::aColonne('achats', 'motif_annulation') ? ['motif_annulation' => $donnees['motif']] : []))
             ->save();
 
         return back()->with('succes', $achat->etape . ' ' . $achat->numero_facture . ' annulé(e).');

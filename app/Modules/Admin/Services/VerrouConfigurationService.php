@@ -62,7 +62,7 @@ class VerrouConfigurationService
     private static function tracePresente(string $table, string $colonne): bool
     {
         return self::$tracesPresentes["{$table}.{$colonne}"] ??=
-            Schema::hasTable($table) && Schema::hasColumn($table, $colonne);
+            \App\Support\Structure::aTable($table) && \App\Support\Structure::aColonne($table, $colonne);
     }
 
     /**

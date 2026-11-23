@@ -24,7 +24,7 @@ class Intervenant extends Model
     public static function moduleActif(?Entreprise $entreprise): bool
     {
         return $entreprise
-            && Schema::hasTable('intervenants') && Schema::hasColumn('vente_details', 'intervenant_id')
+            && \App\Support\Structure::aTable('intervenants') && \App\Support\Structure::aColonne('vente_details', 'intervenant_id')
             && (bool) EspaceSurMesure::pourEntreprise((int) $entreprise->id)?->moduleActif('prestataires');
     }
 

@@ -110,7 +110,7 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
             $motif = 'Opération déséquilibrée : écart débit/crédit de ' . number_format($solde, 2, ',', ' ') . '.';
             EcritureComptable::withoutGlobalScopes()->where('operation_id', $operation->id)->where('comptaflow_sync_status', '!=', 'synced')
                 ->update(['comptaflow_sync_status' => 'failed', 'comptaflow_sync_error' => $motif]);
-            Log::warning('Opération déséquilibrée non déversée', [
+            self::journal()->warning('Opération déséquilibrée non déversée', [
                 'operation_id' => $operation->id,
                 'solde'        => $solde,
             ]);
@@ -125,7 +125,7 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
         if ($anomalie = self::anomalie($operation->ecritures)) {
             EcritureComptable::withoutGlobalScopes()->where('operation_id', $operation->id)->where('comptaflow_sync_status', '!=', 'synced')
                 ->update(['comptaflow_sync_status' => 'failed', 'comptaflow_sync_error' => $anomalie]);
-            Log::warning('Opération non déversée : contrôle avant envoi', [
+            self::journal()->warning('Opération non déversée : contrôle avant envoi', [
                 'operation_id' => $operation->id,
                 'anomalie'     => $anomalie,
             ]);
@@ -183,8 +183,12 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
                     'comptaflow_sync_error' => empty($refus) ? null : mb_substr($this->formaterRefusComptaflow($refus), 0, 4000),
                 ]);
 
+                if (empty($refus)) {
+                    self::journal()->info('Opération reçue par Comptaflow', ['operation' => $this->operationId, 'lignes' => count($ids)]);
+                }
+
                 if (!empty($refus)) {
-                    Log::warning('Opération partiellement refusée par Comptaflow', [
+                    self::journal()->warning('Opération partiellement refusée par Comptaflow', [
                         'operation_id' => $operation->id,
                         'refus'        => $refus,
                     ]);
@@ -210,7 +214,7 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
                 'comptaflow_sync_error' => $motif,
             ]);
 
-            Log::warning('Opération refusée par Comptaflow', [
+            self::journal()->warning('Opération refusée par Comptaflow', [
                 'operation_id' => $operation->id,
                 'statut'       => $reponse->status(),
                 'corps'        => mb_substr($reponse->body(), 0, 500),
@@ -219,7 +223,7 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
             EcritureComptable::withoutGlobalScope(\App\Modules\Admin\Scopes\PeriodeScope::class)->whereIn('id', $ids)
                 ->update(['comptaflow_sync_status' => 'failed', 'comptaflow_sync_error' => mb_substr($e->getMessage(), 0, 4000)]);
 
-            Log::error('Déversement de l\'opération impossible', [
+            self::journal()->error('Déversement de l\'opération impossible', [
                 'operation_id' => $operation->id,
                 'erreur'       => $e->getMessage(),
             ]);
@@ -324,7 +328,7 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
             );
         }
 
-        Log::info('Justificatif PDF transmis à Comptaflow', [
+        self::journal()->info('Justificatif PDF transmis à Comptaflow', [
             'operation_id' => $operation->id,
             'operation_source' => $operationSource,
             'sha256' => hash('sha256', $pdf),
@@ -439,6 +443,8 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
      */
     public function failed(?\Throwable $e): void
     {
+        self::journal()->error('Envoi de l\'opération abandonné', ['operation' => $this->operationId, 'erreur' => $e?->getMessage()]);
+
         \App\Modules\Admin\Modeles\EcritureComptable::withoutGlobalScopes()
             ->where('operation_id', $this->operationId)
             ->whereIn('comptaflow_sync_status', ['pending', 'sending'])
@@ -446,5 +452,11 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
                 'comptaflow_sync_status' => 'failed',
                 'comptaflow_sync_error' => mb_substr('Envoi interrompu côté Selflow : ' . ($e?->getMessage() ?: 'délai dépassé') . '.', 0, 500),
             ]);
+    }
+
+    /** Le journal du déversement : le fichier général et `logs/comptaflow-deversement.log`. */
+    private static function journal(): \Psr\Log\LoggerInterface
+    {
+        return Log::stack(array_values(array_unique([config('logging.default'), 'comptaflow_deversement'])));
     }
 }

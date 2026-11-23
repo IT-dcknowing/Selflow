@@ -366,7 +366,7 @@ class RapportControleur
         // Le stock valorisé au CUMP (Coût Unitaire Moyen Pondéré), par site.
         $donnees['stockParSite'] = $donnees['pointsDeVente']->map(function ($site) {
             $fiches = Stock::where('point_de_vente_id', $site->id)->whereHas('produit', fn ($q) => $q->stockables());
-            $avecReference = \Illuminate\Support\Facades\Schema::hasColumn('stocks', 'reference');
+            $avecReference = \App\Support\Structure::aColonne('stocks', 'reference');
 
             return [
                 'nom'      => $site->nom,

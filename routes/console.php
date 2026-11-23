@@ -38,12 +38,18 @@ $sortiesPortail = \App\Modules\Admin\Services\ScraperPortailFneService::sorties(
  * (`NormaliserFactureFne` : trois tentatives, trente secondes) : les écrire
  * ici les écraserait.
  */
+// 23/11/2026 : `withoutOverlapping()` sans durée garde son verrou 24 heures.
+// Un passage tué par l'hébergeur (limites LVE) laissait le verrou : plus rien
+// ne vidait la file pendant une journée (128 opérations Comptaflow « en
+// cours », 0 reçue). Le verrou expire maintenant au bout de 2 minutes, et le
+// passage tourne à part pour ne pas retarder les autres tâches de la minute.
 Schedule::command('queue:work --stop-when-empty --max-time=50')
     ->everyMinute()
-    ->withoutOverlapping();
+    ->withoutOverlapping(2)
+    ->runInBackground();
 
 // Re-synchronisation des écritures COMPTAFLOW échouées (toutes les 5 minutes)
-Schedule::command('selflow:sync-ecritures')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('selflow:sync-ecritures')->everyFiveMinutes()->withoutOverlapping(10);
 
 // « Tout intégrer » des factures du portail FNE, en arrière-plan (23/11/2026) :
 // l'écran note la demande, ce passage l'exécute par lots de 20.
@@ -58,7 +64,7 @@ Schedule::command('portail-fne:integrer-demandes')->everyMinute()->withoutOverla
  */
 Schedule::command('selflow:comptabiliser-stock-periodique')
     ->dailyAt('00:10')
-    ->withoutOverlapping();
+    ->withoutOverlapping(30);
 
 /*
  * Ramassage des relevés du portail FNE déposés dans le dossier d'import.
@@ -78,7 +84,7 @@ Schedule::command('selflow:comptabiliser-stock-periodique')
  */
 Schedule::command('portail-fne:importer')
     ->hourly()
-    ->withoutOverlapping()
+    ->withoutOverlapping(30)
     ->appendOutputTo($sortiesPortail);
 
 /*
@@ -108,7 +114,7 @@ $pasAchats = max(1, min(60, (int) config('selflow.portail_fne.scraper.achats_min
  */
 Schedule::command('portail-fne:importer-achats')
     ->cron("2-59/{$pasAchats} * * * *")
-    ->withoutOverlapping()
+    ->withoutOverlapping(30)
     ->appendOutputTo($sortiesPortail);
 
 $pasAvoirs = max(1, min(60, (int) config('selflow.portail_fne.scraper.avoirs_minutes', 5)));
@@ -127,7 +133,7 @@ $importAvoirs = ($decalageAvoirs + 2) % max(1, $pasAvoirs);
 
 Schedule::command('portail-fne:importer-avoirs')
     ->cron("{$importAvoirs}-59/{$pasAvoirs} * * * *")
-    ->withoutOverlapping()
+    ->withoutOverlapping(30)
     ->appendOutputTo($sortiesPortail);
 
 /*
@@ -139,7 +145,7 @@ $pasVentes = max(1, min(60, (int) config('selflow.portail_fne.scraper.ventes_min
 
 Schedule::command('portail-fne:importer-ventes')
     ->cron("*/{$pasVentes} * * * *")
-    ->withoutOverlapping()
+    ->withoutOverlapping(30)
     ->appendOutputTo($sortiesPortail);
 
 /*
@@ -153,7 +159,7 @@ Schedule::command('portail-fne:importer-ventes')
  */
 Schedule::command('fne:diagnostiquer-rejets')
     ->hourlyAt(10)
-    ->withoutOverlapping()
+    ->withoutOverlapping(30)
     ->appendOutputTo($sortiesPortail);
 
 /*
@@ -171,7 +177,7 @@ Schedule::command('fne:diagnostiquer-rejets')
  */
 Schedule::command('portail-fne:changements --silencieux')
     ->hourlyAt(15)
-    ->withoutOverlapping()
+    ->withoutOverlapping(30)
     ->appendOutputTo($sortiesPortail);
 
 /*
@@ -261,7 +267,7 @@ if (config('selflow.portail_fne.scraper.actif')) {
 // Comptaflow lent pourrait la faire durer.
 Schedule::command('selflow:renouveler-cles-comptaflow')
     ->monthlyOn(1, '03:00')
-    ->withoutOverlapping();
+    ->withoutOverlapping(30);
 
 // La corbeille des entreprises : effacement définitif après 30 jours (16/10/2026).
 Schedule::command('selflow:purger-corbeille')->dailyAt('03:30')->withoutOverlapping();

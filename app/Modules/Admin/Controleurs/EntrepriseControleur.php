@@ -338,12 +338,12 @@ class EntrepriseControleur
 
         // Masquer à la vente les articles en rupture (26/10/2026). La case est
         // toujours postée (champ caché à 0). Colonne absente : on n'écrit rien.
-        if ($request->has('masquer_ruptures_vente') && \Illuminate\Support\Facades\Schema::hasColumn('entreprises', 'masquer_ruptures_vente')) {
+        if ($request->has('masquer_ruptures_vente') && \App\Support\Structure::aColonne('entreprises', 'masquer_ruptures_vente')) {
             $data['masquer_ruptures_vente'] = $request->boolean('masquer_ruptures_vente');
         }
 
         // Le solde du client sur ses factures (26/10/2026), même règle.
-        if ($request->has('afficher_solde_client_facture') && \Illuminate\Support\Facades\Schema::hasColumn('entreprises', 'afficher_solde_client_facture')) {
+        if ($request->has('afficher_solde_client_facture') && \App\Support\Structure::aColonne('entreprises', 'afficher_solde_client_facture')) {
             $data['afficher_solde_client_facture'] = $request->boolean('afficher_solde_client_facture');
         }
 

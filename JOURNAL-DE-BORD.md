@@ -11472,6 +11472,30 @@ choix du superadmin par entreprise ; les DNS sont gérés par DC-Knowing ;
 - Migrations `2026_11_23_000007` et `000008` (gardées).
   `SurMesurePagesPrestatairesTest` (7). Suite : 213, identiques à `main`.
 
+
+### Lot 155 — Stock « 13 sur la fiche, 0 à la vente », lenteur, notifications, journal Comptaflow — **TERMINÉ le 23/11/2026**
+
+- **O'Super prix, urgence** : la fiche article affichait 13, la vente refusait
+  (« disponible 0 »). Le stock est tenu par site ; l'entrée avait été faite
+  sur un autre site que celui de la vente. Le refus le dit désormais : « Vente
+  sur le site « X ». Le stock est ailleurs : 13 sur « Y ». Faites un
+  transfert… ». Commande `selflow:diagnostic-stock "<article>"` : stock par
+  site (fiche, entrées − sorties), utilisateurs affectés, dix derniers
+  mouvements.
+- **Lenteur** : `Schema::hasTable/hasColumn` interrogeaient `information_schema`
+  à chaque page (menu, en-tête) ; passés par `App\Support\Structure`, en
+  cache (positif pour toujours, négatif 5 min, rien en test). « Tout intégrer »
+  : 25 s par minute au plus, lots de 5 depuis la page.
+- **Planificateur** : `withoutOverlapping()` sans durée = verrou de 24 h ; un
+  passage tué par l'hébergeur bloquait la file (`queue:work`) toute une
+  journée, d'où les 128 opérations Comptaflow « en cours ». Verrous bornés
+  (2 min pour la file, 10 à 30 min ailleurs), file en arrière-plan.
+- **Journal du déversement** : `storage/logs/comptaflow-deversement.log`
+  (mise en file, opération reçue, refusée, abandonnée).
+- **Notifications** : le panneau se ferme au clic à côté ou sur Échap, bouton
+  « Tout marquer comme lu » et bouton de fermeture.
+- `StockAilleursEtNotificationsTest` (2). Suite : 213, identiques à `main`.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

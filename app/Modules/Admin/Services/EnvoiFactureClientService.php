@@ -65,7 +65,7 @@ class EnvoiFactureClientService
             return [false, 'L\'e-mail n\'a pas pu partir. Réessayez plus tard.'];
         }
 
-        if (Schema::hasColumn('ventes', 'envoyee_au_client_le')) {
+        if (\App\Support\Structure::aColonne('ventes', 'envoyee_au_client_le')) {
             // Écrit sans événement : la date d'envoi ne relance rien.
             Vente::withoutEvents(fn () => $vente->forceFill(['envoyee_au_client_le' => now()])->saveQuietly());
         }
@@ -76,7 +76,7 @@ class EnvoiFactureClientService
     /** L'envoi automatique, après la réponse : l'écran n'attend pas le courriel. */
     public static function programmer(Vente $vente, string $moment): void
     {
-        if (Schema::hasColumn('ventes', 'envoyee_au_client_le') && $vente->envoyee_au_client_le) {
+        if (\App\Support\Structure::aColonne('ventes', 'envoyee_au_client_le') && $vente->envoyee_au_client_le) {
             return;
         }
         if (! self::automatique($vente, $moment)) {

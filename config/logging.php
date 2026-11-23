@@ -99,6 +99,15 @@ return [
         | grossit de l'ordre de la centaine de kilo-octets par jour ; il se vide
         | à la main, ou par la tâche de ménage du jour où il gênera.
         */
+        // Le déversement des écritures vers Comptaflow, dans son propre fichier
+        // (23/11/2026) : chaque mise en file, chaque opération reçue ou refusée.
+        'comptaflow_deversement' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/comptaflow-deversement.log'),
+            'level' => 'debug',
+            'replace_placeholders' => true,
+        ],
+
         'portail_fne' => [
             'driver' => 'single',
             'path' => storage_path('logs/laravel.log'),

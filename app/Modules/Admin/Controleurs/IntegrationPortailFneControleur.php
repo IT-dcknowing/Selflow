@@ -96,7 +96,7 @@ class IntegrationPortailFneControleur extends Controller
         $entreprise = Auth::user()->entreprise;
         $arrierePlan->demander($entreprise, (int) Auth::id(), $request->boolean('reconnus'));
 
-        return response()->json($arrierePlan->lot($entreprise));
+        return response()->json($arrierePlan->lot($entreprise, 5));
     }
 
     public function etatArrierePlan(\App\Modules\Admin\Services\IntegrationPortailEnArrierePlan $arrierePlan): \Illuminate\Http\JsonResponse
@@ -108,7 +108,7 @@ class IntegrationPortailFneControleur extends Controller
         // (cron arrêté), la page ouverte fait avancer un lot elle-même.
         if ($etat && $etat['etat'] !== 'termine'
             && \Illuminate\Support\Carbon::parse($etat['maj_le'])->lt(now()->subSeconds(90))) {
-            $etat = $arrierePlan->lot($entreprise);
+            $etat = $arrierePlan->lot($entreprise, 5);
         }
 
         return response()->json($etat);

@@ -41,7 +41,7 @@ class ConfigurationCompte extends Model
     {
         return app()->bound('selflow.config_comptes_variation')
             ? app('selflow.config_comptes_variation')
-            : tap(\Illuminate\Support\Facades\Schema::hasColumn('configurations_comptes', 'compte_variation'),
+            : tap(\App\Support\Structure::aColonne('configurations_comptes', 'compte_variation'),
                 fn ($oui) => app()->instance('selflow.config_comptes_variation', $oui));
     }
 

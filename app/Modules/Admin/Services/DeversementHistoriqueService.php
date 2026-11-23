@@ -234,7 +234,7 @@ class DeversementHistoriqueService
     public static function etatDeLaFile(): array
     {
         try {
-            if (config('queue.default') !== 'database' || ! \Illuminate\Support\Facades\Schema::hasTable('jobs')) {
+            if (config('queue.default') !== 'database' || ! \App\Support\Structure::aTable('jobs')) {
                 return ['en_attente' => 0, 'plus_ancienne_minutes' => null, 'bloquee' => false];
             }
             $nombre = \Illuminate\Support\Facades\DB::table('jobs')->count();

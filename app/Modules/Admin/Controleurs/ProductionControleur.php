@@ -243,7 +243,7 @@ class ProductionControleur extends Controller
         // chaque site. Les autres sites gardent une fiche non référencée,
         // qu'un transfert ou une production y activera.
         $siteActif = (int) (\App\Modules\Admin\Modeles\Produit::getActivePdvId() ?: 0);
-        $parReference = \Illuminate\Support\Facades\Schema::hasColumn('stocks', 'reference');
+        $parReference = \App\Support\Structure::aColonne('stocks', 'reference');
         foreach (PointDeVente::where('entreprise_id', $entrepriseId)->get() as $pdv) {
             $valeurs = ['quantite_disponible' => 0];
             if ($parReference && $siteActif) {

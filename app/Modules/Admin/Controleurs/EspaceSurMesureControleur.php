@@ -152,7 +152,7 @@ class EspaceSurMesureControleur extends Controller
         // Les pages retirées pour l'entreprise (onglet « Modules et pages »).
         // Ce qui n'est pas coché est retiré ; rien n'est touché si l'onglet
         // n'a pas été envoyé.
-        if ($request->boolean('pages_formulaire') && \Illuminate\Support\Facades\Schema::hasColumn('espaces_sur_mesure', 'pages_retirees')) {
+        if ($request->boolean('pages_formulaire') && \App\Support\Structure::aColonne('espaces_sur_mesure', 'pages_retirees')) {
             $toutes = collect(\App\Modules\Authentification\Regles\Habilitations::CATALOGUE)
                 ->flatMap(fn ($groupes) => collect($groupes)->flatMap(fn ($droits) => array_keys($droits)))
                 ->unique()->values();
@@ -161,7 +161,7 @@ class EspaceSurMesureControleur extends Controller
         }
 
         // Les colonnes du lot 153 : seulement si la migration est jouée.
-        if (\Illuminate\Support\Facades\Schema::hasColumn('espaces_sur_mesure', 'couleur_menu')) {
+        if (\App\Support\Structure::aColonne('espaces_sur_mesure', 'couleur_menu')) {
             $espace->couleur_menu = $request->boolean('menu_auto') ? null : (isset($donnees['couleur_menu']) ? strtolower($donnees['couleur_menu']) : null);
             $espace->couleur_menu_accent = $request->boolean('accent_auto') ? null : (isset($donnees['couleur_menu_accent']) ? strtolower($donnees['couleur_menu_accent']) : null);
             $espace->facture_email_moment = $donnees['facture_email_moment'] ?? 'emission';

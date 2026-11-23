@@ -13,4 +13,12 @@ class NotificationControleur
 
         return back();
     }
+
+    /** Tout marquer comme lu, d'un clic (23/11/2026). */
+    public function toutLire(): RedirectResponse
+    {
+        Auth::user()->unreadNotifications()->update(['read_at' => now()]);
+
+        return back();
+    }
 }

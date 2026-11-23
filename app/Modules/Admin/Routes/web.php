@@ -958,6 +958,10 @@ Route::post('/assistance/quitter', [\App\Modules\Admin\Controleurs\SuperadminSwi
     ->middleware('auth')
     ->name('assistance.quitter');
 
+Route::post('/notifications/tout-lire', [\App\Modules\Admin\Controleurs\NotificationControleur::class, 'toutLire'])
+    ->middleware('auth')
+    ->name('notifications.tout_lire');
+
 Route::post('/notifications/{notification}/lire', [\App\Modules\Admin\Controleurs\NotificationControleur::class, 'marquerLue'])
     ->middleware('auth')
     ->name('notifications.lire');

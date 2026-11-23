@@ -31,7 +31,7 @@ class Client extends Model
 
     public static function fichePreferencesActive(?Entreprise $entreprise): bool
     {
-        if (! $entreprise || ! \Illuminate\Support\Facades\Schema::hasColumn('clients', 'preferences')) {
+        if (! $entreprise || ! \App\Support\Structure::aColonne('clients', 'preferences')) {
             return false;
         }
 

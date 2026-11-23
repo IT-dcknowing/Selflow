@@ -37,7 +37,7 @@ class GroupeEntreprises extends Model
     {
         static $existe = null;
 
-        return $existe ??= Schema::hasTable('groupes_entreprises');
+        return $existe ??= \App\Support\Structure::aTable('groupes_entreprises');
     }
 
     /**

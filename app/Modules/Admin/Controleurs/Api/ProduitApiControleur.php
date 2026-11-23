@@ -52,7 +52,7 @@ class ProduitApiControleur
         $pdvs = $entreprise->pointsDeVente;
         $defaultPdvId = \App\Modules\Admin\Services\SiteAutorise::pourRequete($request)
             ?? ($pdvs->first()->id ?? null);
-        $parReference = \Illuminate\Support\Facades\Schema::hasColumn('stocks', 'reference');
+        $parReference = \App\Support\Structure::aColonne('stocks', 'reference');
 
         foreach ($pdvs as $pdv) {
             $isDefault = ($pdv->id == $defaultPdvId);

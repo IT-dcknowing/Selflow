@@ -353,7 +353,7 @@ class IntegrationFacturePortailService
                 'autres_mentions'      => 'Facture émise sur le portail FNE de la DGI, reprise dans Selflow.',
             ]);
 
-            $avecCompte = Schema::hasColumn('vente_details', 'compte_vente');
+            $avecCompte = \App\Support\Structure::aColonne('vente_details', 'compte_vente');
 
             foreach ($proposition['lignes'] as $i => $p) {
                 $ligne   = $p['ligne'];
@@ -584,7 +584,7 @@ class IntegrationFacturePortailService
                 'autres_mentions'            => 'Pièce certifiée reçue sur le portail FNE de la DGI, reprise dans Selflow.',
             ], fn ($v) => $v !== null));
 
-            $avecCompte = Schema::hasColumn('achat_details', 'compte_achat');
+            $avecCompte = \App\Support\Structure::aColonne('achat_details', 'compte_achat');
 
             foreach ($proposition['lignes'] as $i => $p) {
                 $ligne = $p['ligne'];
@@ -658,7 +658,7 @@ class IntegrationFacturePortailService
     /** Les lignes d'une vente ou d'un avoir de vente, et leurs propositions de stock. */
     private function lignesDeVente(Vente $vente, array $proposition, array $choix, Entreprise $entreprise, int $pdvId, string $sens, string $numero): void
     {
-        $avecCompte = Schema::hasColumn('vente_details', 'compte_vente');
+        $avecCompte = \App\Support\Structure::aColonne('vente_details', 'compte_vente');
 
         foreach ($proposition['lignes'] as $i => $p) {
             $ligne = $p['ligne'];
