@@ -137,6 +137,9 @@ class ImportFacturesEmisesService
 
         foreach ($fichiers as $chemin) {
             $resultat = $this->importerFichier($chemin);
+            // Quand le fichier a été déposé : chaque dépôt notifie, même identique (23/11/2026).
+            $resultat['chemin'] = $chemin;
+            $resultat['depose_le'] = @filemtime($chemin) ?: null;
             $rapport['details'][] = $resultat;
             $cle = match ($resultat['statut']) {
                 'importe'  => 'importes',

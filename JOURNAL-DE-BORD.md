@@ -11273,6 +11273,28 @@ rangées par nature :
 
 - `SuperadminAValiderEtRobotTest` (2).
 
+### Lot 149 — Tiers reconnus par NCC, notification à chaque dépôt — **TERMINÉ le 23/11/2026**
+
+- **Factures FNE à intégrer, choix B du propriétaire** : une pièce dont le
+  client (ventes, avoirs émis) ou le fournisseur (achats, avoirs reçus) existe
+  déjà dans Selflow sous le même NCC porte la pastille « Client reconnu par
+  NCC » / « Fournisseur reconnu par NCC ». Elle reste sur la page, rien ne
+  s'intègre seul. Nouveau bouton « Intégrer les reconnus par NCC » : même
+  boucle par lots de 20 que « Tout intégrer », limitée aux reconnues.
+  (`IntegrationFacturePortailService::tiersReconnuParNcc`, paramètre
+  `reconnus` de `integrerPretes`.)
+- **La notification ne partait presque jamais** : dans
+  `PortailFneNotificationService`, `groupBy('entreprise_id')` renumérotait les
+  clés, si bien que les identifiants d'import lus par `keys()` valaient 0, 1…
+  et ne correspondaient à aucun détail. Corrigé (`pluck('id')`).
+- **Une notification par dépôt du robot**, même quand le fichier est identique
+  à la veille (« déjà lu ») : les imports rendent `chemin` et `depose_le`
+  (date d'écriture du fichier) ; un dépôt se notifie une fois, retenu en cache
+  (`fne_depot_notifie_*`), le rangement toutes les 5 minutes ne renotifie pas.
+- Tests : 2 ajoutés à `IntegrationFacturesPortailFneTest`. Suite : 213
+  échecs/erreurs, exactement ceux de `main` (la référence comptait jusqu'ici
+  les seuls « failures », 175 ; les 38 « errors » y étaient déjà).
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

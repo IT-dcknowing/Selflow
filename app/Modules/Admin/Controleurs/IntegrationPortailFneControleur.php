@@ -86,7 +86,13 @@ class IntegrationPortailFneControleur extends Controller
 
         // 20 par appel : chaque intégration écrit une pièce et ses écritures,
         // et l'hébergement coupe une requête trop longue.
-        $lot = $this->service->enAttente($entreprise)->reject(fn ($f) => $ecartees->contains($f->id))->take(20);
+        // « Intégrer les reconnus par NCC » : seulement les pièces dont le
+        // client ou le fournisseur est déjà dans Selflow sous le même NCC.
+        $reconnusSeulement = $request->boolean('reconnus');
+        $candidates = $this->service->enAttente($entreprise)
+            ->reject(fn ($f) => $ecartees->contains($f->id))
+            ->when($reconnusSeulement, fn ($c) => $c->filter(fn ($f) => $this->service->tiersReconnuParNcc($entreprise, $f)));
+        $lot = $candidates->take(20);
         $faites = 0;
         $aLaMain = [];
 
@@ -103,7 +109,9 @@ class IntegrationPortailFneControleur extends Controller
         }
 
         $restantes = $this->service->enAttente($entreprise)
-            ->reject(fn ($f) => $ecartees->contains($f->id) || in_array($f->id, $aLaMain, true))->count();
+            ->reject(fn ($f) => $ecartees->contains($f->id) || in_array($f->id, $aLaMain, true))
+            ->when($reconnusSeulement, fn ($c) => $c->filter(fn ($f) => $this->service->tiersReconnuParNcc($entreprise, $f)))
+            ->count();
 
         if ($request->expectsJson()) {
             return response()->json(['faites' => $faites, 'a_la_main' => $aLaMain, 'restantes' => $restantes]);

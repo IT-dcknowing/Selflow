@@ -28,13 +28,38 @@ class PortailFneNotificationService
             ->keyBy('id');
 
         foreach ($imports->groupBy('entreprise_id') as $entrepriseId => $importsEntreprise) {
-            $idsEntreprise = $importsEntreprise->keys();
-            $detailsEntreprise = $details->filter(fn ($ligne) => in_array($ligne['import_id'] ?? null, $idsEntreprise->all(), true));
+            // `groupBy` renumérote les clés : les identifiants se relisent sur
+            // les imports eux-mêmes, sinon aucun détail ne correspondait et la
+            // notification ne partait jamais (23/11/2026).
+            $idsEntreprise = $importsEntreprise->pluck('id')->map(fn ($id) => (int) $id);
+            $detailsEntreprise = $details->filter(fn ($ligne) => in_array((int) ($ligne['import_id'] ?? 0), $idsEntreprise->all(), true));
 
-            // Les fichiers déjà connus ne génèrent pas de notification répétitive
-            // à chaque passage du planificateur.
-            if (!$detailsEntreprise->contains(fn ($ligne) => in_array($ligne['statut'] ?? '', ['importe', 'erreur'], true))) {
+            // Une notification à CHAQUE DÉPÔT du robot (23/11/2026, propriétaire) :
+            // le robot réécrit chaque jour le même fichier, et un dépôt
+            // identique au précédent était classé « déjà lu », donc muet. Le
+            // dépôt se reconnaît à la date d'écriture du fichier ; le rangement,
+            // qui repasse toutes les 5 minutes sur le même fichier, ne notifie
+            // jamais deux fois le même dépôt.
+            $nouveauxDepots = $detailsEntreprise->filter(function ($ligne) use ($type) {
+                if (in_array($ligne['statut'] ?? '', ['importe', 'erreur'], true)) {
+                    return true;
+                }
+                if (empty($ligne['depose_le']) || empty($ligne['chemin'])) {
+                    return false;
+                }
+                $cle = 'fne_depot_notifie_' . md5($type . '|' . $ligne['chemin']);
+
+                return (int) \Illuminate\Support\Facades\Cache::get($cle, 0) < (int) $ligne['depose_le'];
+            });
+
+            if ($nouveauxDepots->isEmpty()) {
                 continue;
+            }
+
+            foreach ($nouveauxDepots as $ligne) {
+                if (!empty($ligne['chemin']) && !empty($ligne['depose_le'])) {
+                    \Illuminate\Support\Facades\Cache::forever('fne_depot_notifie_' . md5($type . '|' . $ligne['chemin']), (int) $ligne['depose_le']);
+                }
             }
 
             $nomEntreprise = Entreprise::whereKey($entrepriseId)->value('nom') ?? ('Entreprise #' . $entrepriseId);

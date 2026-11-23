@@ -13,7 +13,10 @@
     <div style="display:flex; gap:8px; align-items:flex-start;">
         <a href="{{ route('admin.ventes.factures') }}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Retour aux factures de vente</a>
         @if($factures->isNotEmpty())
-        <button type="button" class="btn btn-primary" id="btn-tout-integrer" onclick="toutIntegrer()">
+        <button type="button" class="btn btn-outline" id="btn-reconnus" onclick="toutIntegrer(true)">
+            <i class="fas fa-id-card"></i> Intégrer les reconnus par NCC
+        </button>
+        <button type="button" class="btn btn-primary" id="btn-tout-integrer" onclick="toutIntegrer(false)">
             <i class="fas fa-check-double"></i> Tout intégrer
         </button>
         @endif
@@ -27,8 +30,8 @@
  * montre où il en est. Il s'arrête quand il ne reste que des pièces à
  * compléter à la main (point de vente à choisir, facture d'origine absente).
  */
-async function toutIntegrer() {
-    const bouton = document.getElementById('btn-tout-integrer');
+async function toutIntegrer(reconnus) {
+    const bouton = document.getElementById(reconnus ? 'btn-reconnus' : 'btn-tout-integrer');
     const zone = document.getElementById('progression-integration');
     bouton.disabled = true;
     zone.style.display = 'block';
@@ -39,7 +42,7 @@ async function toutIntegrer() {
             const reponse = await fetch(@json(route('admin.ventes.portail_fne.integrer_pretes')), {
                 method: 'POST',
                 headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': window.__csrf || '' },
-                body: JSON.stringify({ a_la_main: aLaMain })
+                body: JSON.stringify({ a_la_main: aLaMain, reconnus: !!reconnus })
             });
             if (!reponse.ok) throw new Error('echec');
             const r = await reponse.json();
@@ -79,7 +82,13 @@ async function toutIntegrer() {
         @csrf
         <div style="display:flex; flex-wrap:wrap; gap:16px; justify-content:space-between; align-items:flex-start;">
             <div>
-                <div style="font-weight:800; font-size:15px;">{{ $facture->reference }}</div>
+                <div style="font-weight:800; font-size:15px;">{{ $facture->reference }}
+                    @if($p['reconnu_ncc'])
+                        <span style="margin-left:6px; font-size:11px; font-weight:800; padding:2px 8px; border-radius:20px; background:#ecfdf5; color:#047857; vertical-align:middle;">
+                            <i class="fas fa-id-card"></i> {{ $estAchat ? 'Fournisseur' : 'Client' }} reconnu par NCC
+                        </span>
+                    @endif
+                </div>
                 @if($estAvoir)
                     <div style="font-size:12px; color:#b45309;">Avoir de la facture {{ $p['origine'] ?: 'non indiquée' }}</div>
                 @endif

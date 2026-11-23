@@ -218,6 +218,7 @@ class IntegrationFacturePortailService
             'client_ncc'     => $estAchat ? (string) $facture->emetteur_ncc : trim((string) ($brut['clientNcc'] ?? '')),
             'mode_paiement'  => $this->mode($brut['paymentMethod'] ?? $facture->moyen_paiement),
             'origine'        => trim((string) ($brut['parentReference'] ?? '')),
+            'reconnu_ncc'    => $this->tiersReconnuParNcc($entreprise, $facture, $estAchat),
             'lignes'         => $lignes,
         ];
     }
@@ -242,6 +243,28 @@ class IntegrationFacturePortailService
         return str_contains($secteur, 'service')
             ? (string) config('selflow.plan_comptable_defaut.service_defaut', '706000')
             : (string) config('selflow.plan_comptable_defaut.vente_defaut', '701000');
+    }
+
+    /**
+     * Le client (ou le fournisseur) de la pièce est-il déjà dans Selflow sous
+     * le même NCC ? (23/11/2026, choix B du propriétaire : signalé et
+     * intégrable en un clic, sans intégration automatique.)
+     */
+    public function tiersReconnuParNcc(Entreprise $entreprise, PortailFneFactureRecue $facture, ?bool $estAchat = null): bool
+    {
+        $estAchat ??= in_array(self::nature($facture), [self::ACHAT, self::AVOIR_ACHAT], true);
+        $ncc = EntreprisePortailFne::comparable($estAchat
+            ? $facture->emetteur_ncc
+            : (((array) ($facture->contenu_brut ?? []))['clientNcc'] ?? ''));
+
+        if ($ncc === '') {
+            return false;
+        }
+
+        $modele = $estAchat ? \App\Modules\Admin\Modeles\Fournisseur::class : Client::class;
+
+        return $modele::where('entreprise_id', $entreprise->id)->whereNotNull('ncc')->pluck('ncc')
+            ->contains(fn ($n) => EntreprisePortailFne::comparable($n) === $ncc);
     }
 
     /** Le compte d'une ligne d'achat hors catalogue : configuration globale, sinon 601000. */

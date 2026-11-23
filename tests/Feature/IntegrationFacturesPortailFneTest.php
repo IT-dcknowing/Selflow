@@ -254,4 +254,48 @@ class IntegrationFacturesPortailFneTest extends TestCase
 
         $this->assertCount(1, $this->service->enAttente($this->entreprise));
     }
+
+    public function test_un_client_connu_sous_le_meme_ncc_est_signale_et_integre_par_le_bouton_des_reconnus(): void
+    {
+        \App\Modules\Admin\Modeles\Client::create(['entreprise_id' => $this->entreprise->id, 'nom' => 'SOTRA', 'ncc' => '0101010 A']);
+
+        $connu = $this->facture('1864699A26000000201', ['clientNcc' => '0101010A', 'clientCompanyName' => 'SOTRA'],
+            [['description' => 'Conseil', 'quantity' => 1, 'amount' => 1000]]);
+        $inconnu = $this->facture('1864699A26000000202', ['clientNcc' => '0999999Z', 'clientCompanyName' => 'Autre'],
+            [['description' => 'Conseil', 'quantity' => 1, 'amount' => 1000]]);
+
+        $this->assertTrue($this->service->proposer($connu, $this->entreprise)['reconnu_ncc']);
+        $this->assertFalse($this->service->proposer($inconnu, $this->entreprise)['reconnu_ncc']);
+
+        view()->share('errors', new \Illuminate\Support\ViewErrorBag());
+        $controleur = app(\App\Modules\Admin\Controleurs\IntegrationPortailFneControleur::class);
+        $this->assertStringContainsString('Client reconnu par NCC', $controleur->index()->render());
+
+        $requete = \Illuminate\Http\Request::create('/', 'POST', ['reconnus' => true]);
+        $requete->headers->set('Accept', 'application/json');
+        $controleur->integrerPretes($requete);
+
+        $this->assertSame(PortailFneFactureRecue::RAPPROCHEE, $connu->fresh()->statut_rapprochement);
+        $this->assertSame(PortailFneFactureRecue::A_RAPPROCHER, $inconnu->fresh()->statut_rapprochement, 'Seuls les reconnus partent.');
+    }
+
+    public function test_chaque_depot_du_robot_notifie_une_fois_meme_identique(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        $import = PortailFneImport::create([
+            'entreprise_id' => $this->entreprise->id, 'login' => '1864699A', 'date_scraping' => now()->toDateString(),
+            'type' => ImportFacturesEmisesService::TYPE, 'fichier_nom' => 'ventes.json',
+            'fichier_empreinte' => 'x', 'statut' => PortailFneImport::STATUT_IMPORTE,
+        ]);
+        $rapport = fn (int $mtime) => ['details' => [['import_id' => $import->id, 'statut' => 'inchange', 'lignes' => 3,
+            'chemin' => '/tmp/ventes.json', 'depose_le' => $mtime]]];
+        $admin = Auth::user();
+
+        \App\Modules\Admin\Services\PortailFneNotificationService::notifier($rapport(1000), 'Ventes');
+        \App\Modules\Admin\Services\PortailFneNotificationService::notifier($rapport(1000), 'Ventes');
+        \Illuminate\Support\Facades\Notification::assertSentToTimes($admin, \App\Notifications\PortailFneRecuperationNotification::class, 1);
+
+        \App\Modules\Admin\Services\PortailFneNotificationService::notifier($rapport(2000), 'Ventes');
+        \Illuminate\Support\Facades\Notification::assertSentToTimes($admin, \App\Notifications\PortailFneRecuperationNotification::class, 2);
+    }
 }
