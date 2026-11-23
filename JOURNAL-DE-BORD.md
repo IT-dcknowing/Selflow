@@ -10907,6 +10907,27 @@ première n'est pas encore établie** : la sortie de Node sur le serveur n'a pas
 été lue d'ici. L'hébergement est un cPanel mutualisé
 (`/home/cp2255957p00/public_html`), où Chromium peut être refusé ou tué.
 
+**Cause établie le 23/11/2026, et corrigée sur le serveur.** La sortie de
+Node dans `portail-fne-vente.log` disait : *« You are running Node.js 18.20.8.
+Playwright requires Node.js 20 or higher. »* Le lanceur
+`~/node-fne-wrapper.sh` pointait sur l'environnement Node 18 de cPanel
+(`~/nodevenv/…/18/bin/node`), et Playwright 1.55.1 exige Node 20. Le
+scraper s'arrêtait au chargement de Playwright, avant d'écrire son
+marqueur de fin : c'est exactement le cas « mort sans marqueur » que ce lot
+rend visible.
+
+- Le lanceur pointe désormais sur `/opt/alt/alt-nodejs22/root/usr/bin/node`
+  (v22.23.5). La copie d'avant est `~/node-fne-wrapper.sh.node18`. La ligne
+  `LD_LIBRARY_PATH` vers `~/local-libs` (bibliothèques de Chromium) est
+  gardée.
+- Relevé manuel : 29 factures de vente sur 36 pièces (01/01 → 23/11/2026),
+  `1864699A_20261123.json`, importées par `portail-fne:importer-ventes`
+  (29 nouvelles, rattachées à DC-KNOWING CGA).
+- Les relevés des achats et des avoirs passent par le même lanceur : ils
+  échouaient de la même façon, et sont réparés du même coup.
+- **Ne pas revenir à Node 18**, et vérifier la version de Node avant toute
+  montée de version de Playwright.
+
 - `ReleveDesVentesVerrouTest` (5). Suite : 1 974 épreuves, 1 756 passantes,
   175 en échec, 5 ignorées. **Les 175 échecs existaient avant ce lot**
   (1 969 / 1 751 / 175 sur `main`, mêmes épreuves) : la suite n'est pas verte
