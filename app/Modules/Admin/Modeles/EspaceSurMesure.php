@@ -20,6 +20,14 @@ class EspaceSurMesure extends Model
         'accueil'   => ['Page d\'accueil personnalisée', 'Ce que voit un visiteur à l\'adresse de l\'entreprise.'],
         'connexion' => ['Connexion personnalisée', 'La page de connexion à ses couleurs, réservée à ses utilisateurs.'],
         'couleurs'  => ['Couleurs et logo dans l\'application', 'Le menu, les boutons et le logo de l\'application une fois connecté.'],
+        'fiche_client' => ['Fiche client enrichie', 'Sur la fiche du client : style habituel, type de cheveux ou de peau, prestataire préféré, date d\'anniversaire, remarques.'],
+        'facture_email' => ['Facture envoyée au client par e-mail', 'La facture part en PDF à l\'adresse e-mail du client, à l\'émission ou après sa certification par la DGI.'],
+    ];
+
+    /** Quand la facture part au client (module « facture_email »). */
+    public const MOMENTS_FACTURE_EMAIL = [
+        'emission'      => 'Dès l\'émission de la facture',
+        'certification' => 'Après sa certification par la DGI (facture normalisée)',
     ];
 
     public const MODELES_ACCUEIL = [
@@ -40,6 +48,7 @@ class EspaceSurMesure extends Model
         'couleur_principale', 'couleur_secondaire', 'logo', 'logo_blanc', 'icone', 'image_fond',
         'modele_accueil', 'modele_connexion', 'titre_accueil', 'sous_titre_accueil', 'presentation',
         'atouts', 'message_connexion', 'telephone', 'email', 'adresse',
+        'couleur_menu', 'couleur_menu_accent', 'facture_email_moment',
     ];
 
     protected function casts(): array
@@ -71,10 +80,22 @@ class EspaceSurMesure extends Model
         return $this->actif && in_array($module, (array) ($this->modules ?? []), true);
     }
 
+    /** Zone ① : le fond du menu latéral (réglé, sinon tiré de la couleur principale). */
+    public function couleurMenu(): string
+    {
+        return preg_match('/^#[0-9a-f]{6}$/i', (string) $this->couleur_menu) ? $this->couleur_menu : $this->ombre($this->couleur_principale ?: '#1d4ed8', .45);
+    }
+
+    /** Zone ② : l'élément actif du menu, le point de vente, la période. */
+    public function couleurMenuAccent(): string
+    {
+        return preg_match('/^#[0-9a-f]{6}$/i', (string) $this->couleur_menu_accent) ? $this->couleur_menu_accent : $this->teinte($this->couleur_principale ?: '#1d4ed8', .55);
+    }
+
     /** Le domaine racine sous lequel se créent les sous-domaines. */
     public static function domaineRacine(): string
     {
-        return strtolower((string) config('selflow.sur_mesure.domaine_racine', 'selflow.ci'));
+        return strtolower((string) config('selflow.sur_mesure.domaine_racine', 'dc-knowing.com'));
     }
 
     /** Les adresses complètes de l'espace. */

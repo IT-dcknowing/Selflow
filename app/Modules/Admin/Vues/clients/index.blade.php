@@ -5,7 +5,11 @@
 @section('contenu')
 {{-- Comptabilité éteinte : aucun compte à l'écran. Le serveur pose
      411000 / 401000 (chantier 3.1, lot 46). --}}
-@php $comptaOuverte = auth()->user()->estSuperAdmin() || (bool) auth()->user()->entreprise?->comptabiliteOuverte(); @endphp
+@php
+    $comptaOuverte = auth()->user()->estSuperAdmin() || (bool) auth()->user()->entreprise?->comptabiliteOuverte();
+    // Fiche client enrichie d'un espace sur mesure (23/11/2026).
+    $ficheEnrichie = \App\Modules\Admin\Modeles\Client::fichePreferencesActive(auth()->user()->entreprise);
+@endphp
 @include('admin::partials.filtre-site', ['filtreSite' => $filtreSite ?? null])
 <div class="page-header">
     <div>
@@ -86,7 +90,8 @@
                 <tbody>
                     @forelse($clients as $c)
                     <tr style="{{ $c->est_apporteur ? 'background:#f1f5f9;color:#64748b;' : '' }}">
-                        <td style="font-weight:600; color:{{ $c->est_apporteur ? '#64748b' : 'var(--text)' }};">{{ $c->nom }} @if($c->est_apporteur)<span style="display:inline-block;margin-left:6px;padding:2px 7px;border-radius:12px;background:#e2e8f0;color:#475569;font-size:10px;font-weight:800;">APPORTEUR</span>@endif</td>
+                        <td style="font-weight:600; color:{{ $c->est_apporteur ? '#64748b' : 'var(--text)' }};">{{ $c->nom }} @if($c->est_apporteur)<span style="display:inline-block;margin-left:6px;padding:2px 7px;border-radius:12px;background:#e2e8f0;color:#475569;font-size:10px;font-weight:800;">APPORTEUR</span>@endif
+                            @if($ficheEnrichie && !empty($c->preferences['style']))<div style="font-size:11.5px; font-weight:500; color:var(--primary);"><i class="fas fa-scissors"></i> {{ $c->preferences['style'] }}@if(!empty($c->preferences['prestataire'])) · avec {{ $c->preferences['prestataire'] }}@endif</div>@endif</td>
                         <td>
                             @if($c->type_facturation)
                                 @php $tf = $c->type_facturation; @endphp
@@ -148,6 +153,7 @@
                                 data-compte="{{ $c->compte_comptable ?? '411000' }}"
                                 data-numero="{{ $c->numero_tiers }}"
                                 data-source="{{ $c->source }}"
+                                data-preferences="{{ json_encode($c->preferences ?? new \stdClass) }}"
                                 style="padding: 5px 10px;">
                                 <i class="fas fa-edit"></i>
                             </button>
@@ -283,6 +289,7 @@
                                     data-compte="{{ $c->compte_comptable ?? '411000' }}"
                                     data-numero="{{ $c->numero_tiers }}"
                                     data-source="{{ $c->source }}"
+                                    data-preferences="{{ json_encode($c->preferences ?? new \stdClass) }}"
                                     style="padding: 5px 10px;">
                                     <i class="fas fa-edit"></i> Modifier
                                 </button>
@@ -340,6 +347,7 @@
                 <div class="form-group"><label class="form-label">Téléphone</label><input type="text" name="telephone" class="form-control" placeholder="Ex: +225 07 00 00 00"></div>
                 <div class="form-group"><label class="form-label">Adresse E-mail</label><input type="email" name="email" class="form-control" placeholder="Ex: koffi@mail.com"></div>
                 <div class="form-group" style="grid-column:1/-1;"><label class="form-label">Adresse physique</label><input type="text" name="adresse" class="form-control" placeholder="Ex: Cocody, Abidjan"></div>
+                @if($ficheEnrichie)@include('admin::clients._preferences', ['prefixe' => 'new'])@endif
                 {{-- Informations fiscales & Comptables --}}
                 <div style="grid-column:1/-1; padding:12px 14px; background:var(--bg3); border-radius:8px; border:1px solid var(--border); margin-top:4px;">
                     <div style="font-size:11px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">
@@ -458,6 +466,7 @@
                 <div class="form-group"><label class="form-label">Téléphone</label><input type="text" name="telephone" id="edit_telephone" class="form-control" placeholder="Ex: +225 07 00 00 00"></div>
                 <div class="form-group"><label class="form-label">Adresse E-mail</label><input type="email" name="email" id="edit_email" class="form-control" placeholder="Ex: koffi@mail.com"></div>
                 <div class="form-group" style="grid-column:1/-1;"><label class="form-label">Adresse physique</label><input type="text" name="adresse" id="edit_adresse" class="form-control" placeholder="Ex: Cocody, Abidjan"></div>
+                @if($ficheEnrichie)@include('admin::clients._preferences', ['prefixe' => 'edit'])@endif
                 {{-- Informations fiscales & Comptables --}}
                 <div style="grid-column:1/-1; padding:12px 14px; background:var(--bg3); border-radius:8px; border:1px solid var(--border); margin-top:4px;">
                     <div style="font-size:11px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">
@@ -634,6 +643,12 @@ document.querySelectorAll('.btn-modifier-client').forEach(function(btn) {
 
         const selectType = document.getElementById('edit_type_facturation');
         if (selectType) { selectType.value = data.type || ''; toggleNccClient('edit'); }
+        // Fiche enrichie : style, cheveux, prestataire…
+        let preferences = {};
+        try { preferences = JSON.parse(data.preferences || '{}') || {}; } catch (e) { preferences = {}; }
+        document.querySelectorAll('[data-preference-edit]').forEach(function (champ) {
+            champ.value = preferences[champ.dataset.preferenceEdit] || '';
+        });
         const apporteur = document.getElementById('edit_est_apporteur');
         if (apporteur) apporteur.checked = data.estApporteur === '1';
 

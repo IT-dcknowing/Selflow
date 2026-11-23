@@ -101,7 +101,7 @@ class ClientControleur
             (string) $request->input('nom')
         );
 
-        Client::create(array_merge(
+        $client = Client::create(array_merge(
             $request->only(['nom', 'type_facturation', 'telephone', 'email', 'adresse', 'ncc', 'rccm', 'regime_imposition', 'compte_comptable']),
             [
                 'entreprise_id' => $entreprise->id,
@@ -111,6 +111,8 @@ class ClientControleur
                 'est_apporteur' => $entreprise->aAttribution('apporteurs') && $request->boolean('est_apporteur'),
             ]
         ));
+
+        $this->enregistrerPreferences($client, $request, $entreprise);
 
         return back()->with('succes', 'Client ajouté avec succès.');
     }
@@ -179,7 +181,19 @@ class ClientControleur
             ));
         }
 
+        $this->enregistrerPreferences($client, $request, $entreprise);
+
         return back()->with('succes', 'Client modifié avec succès.');
+    }
+
+    /** La fiche enrichie d'un espace sur mesure (style, cheveux…), si le module est actif. */
+    private function enregistrerPreferences(Client $client, Request $request, Entreprise $entreprise): void
+    {
+        if (! $request->has('preferences') || ! Client::fichePreferencesActive($entreprise)) {
+            return;
+        }
+
+        $client->forceFill(['preferences' => Client::preferencesDepuis($request->input('preferences')) ?: null])->save();
     }
 
     public function supprimer(Request $request, Client $client): RedirectResponse

@@ -5,14 +5,16 @@
 --}}
 @php
     $ip = $ipServeur ?: 'IP du serveur';
-    $sd = !empty($sousDomaine) ? $sousDomaine : 'nom-entreprise';
-    $dom = !empty($domaine) ? $domaine : 'gestion.entreprise.ci';
+    $sd = !empty($sousDomaine) ? $sousDomaine : 'formen';
+    $dom = !empty($domaine) ? $domaine : 'gestion.formen.ci';
     $parties = explode('.', $dom);
     $estRacine = count($parties) <= 2;
     $hoteDns = $estRacine ? '@' : implode('.', array_slice($parties, 0, -2));
     $zone = implode('.', array_slice($parties, -2));
     $adresseSd = $sd . '.' . $racine;
     $compact = $compact ?? false;
+    // L'adresse où Selflow est servi (son dossier est celui que visent les espaces).
+    $hoteSelflow = parse_url((string) config('app.url'), PHP_URL_HOST) ?: 'selflow.dc-knowing.com';
 @endphp
 <style>
     .proc-grille { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px; }
@@ -57,14 +59,14 @@
             <li><strong>Selflow</strong>, fiche de l'entreprise, onglet Domaine : saisir <code>{{ $sd }}</code> dans « Sous-domaine Selflow », puis <strong>Enregistrer</strong>.</li>
             <li><strong>cPanel</strong>, menu <strong>Domaines</strong>, bouton <strong>Créer un domaine</strong> :
                 <span class="proc-code">Domaine : {{ $adresseSd }}</span>
-                Décocher « Partager la racine du document », puis mettre comme <strong>racine du document</strong> exactement celle de <code>{{ $racine }}</code> (dossier <code>public</code> de Selflow, visible dans la liste des domaines). <strong>Soumettre</strong>.</li>
+                Décocher « Partager la racine du document », puis mettre comme <strong>racine du document</strong> exactement celle de <code>{{ $hoteSelflow }}</code> (le dossier <code>public</code> de Selflow, affiché dans la colonne « Racine du document » de la liste des domaines). Ne pas prendre celle de <code>{{ $racine }}</code> : c'est le site principal. <strong>Soumettre</strong>.</li>
             <li><strong>DNS</strong> : si la zone de <code>{{ $racine }}</code> est dans ce cPanel, l'enregistrement est créé automatiquement, rien à faire. Sinon, l'ajouter là où la zone est gérée :
                 <span class="proc-code">{{ $sd }}.{{ $racine }}.&nbsp;&nbsp;A&nbsp;&nbsp;{{ $ip }}</span></li>
             <li><strong>cPanel</strong>, <strong>SSL/TLS Status</strong> : cocher <code>{{ $adresseSd }}</code> et cliquer <strong>Run AutoSSL</strong>. Attendre le cadenas vert (quelques minutes).</li>
             <li><strong>Selflow</strong>, onglet Domaine : <strong>Vérifier les adresses</strong>. Le message doit dire « pointe sur le serveur ».</li>
             <li>Onglet <strong>Modules</strong> : cocher les modules voulus et <strong>Espace actif</strong>, Enregistrer. Ouvrir <code>https://{{ $adresseSd }}</code> pour contrôler.</li>
         </ol>
-        <p class="ou" style="margin:12px 0 0; font-size:12px; color:var(--text-3); line-height:1.6;">Option, une fois pour toutes : créer le domaine joker <code>*.{{ $racine }}</code> avec la même racine. Les nouveaux sous-domaines répondent alors sans passer par l'étape 2. Le certificat joker n'est délivré par AutoSSL que si la zone DNS est gérée par ce cPanel ; sinon, garder l'étape 2 pour chaque entreprise.</p>
+        <p class="ou" style="margin:12px 0 0; font-size:12px; color:var(--text-3); line-height:1.6;">Option, une fois pour toutes : créer le domaine joker <code>*.{{ $racine }}</code> avec la même racine que {{ $hoteSelflow }}. Les nouveaux sous-domaines répondent alors sans passer par l'étape 2 (les sous-domaines déjà créés, comme {{ $hoteSelflow }} ou webmail, gardent leur propre dossier : le joker ne prend que les adresses qui n'existent pas encore). Le certificat joker n'est délivré par AutoSSL que si la zone DNS est gérée par ce cPanel ; sinon, garder l'étape 2 pour chaque entreprise.</p>
     </div>
 
     <div class="proc-carte">
@@ -87,7 +89,7 @@
             <li><strong>Attendre la propagation</strong> : de quelques minutes à 48 h. On peut contrôler sur un poste avec <code>nslookup {{ $dom }}</code> : la réponse doit être {{ $ip }}.</li>
             <li><strong>cPanel</strong>, <strong>Domaines</strong>, <strong>Créer un domaine</strong> :
                 <span class="proc-code">Domaine : {{ $dom }}</span>
-                Décocher « Partager la racine du document », racine du document = celle de <code>{{ $racine }}</code> (dossier <code>public</code> de Selflow). Soumettre.</li>
+                Décocher « Partager la racine du document », racine du document = celle de <code>{{ $hoteSelflow }}</code> (dossier <code>public</code> de Selflow). Soumettre.</li>
             <li><strong>cPanel</strong>, <strong>SSL/TLS Status</strong> : <strong>Run AutoSSL</strong> pour <code>{{ $dom }}</code>{{ $estRacine ? ' et www.' . $dom : '' }}. S'il échoue, c'est que la propagation n'est pas finie : réessayer plus tard.</li>
             <li><strong>Selflow</strong>, onglet Domaine : saisir <code>{{ $dom }}</code> dans « Domaine propre », Enregistrer, puis <strong>Vérifier les adresses</strong> : la fiche affiche « Vérifié le … ».</li>
             <li>Onglet <strong>Modules</strong> : modules voulus et <strong>Espace actif</strong>, Enregistrer. Ouvrir <code>https://{{ $dom }}</code> pour contrôler, puis remettre l'adresse à l'entreprise.</li>
@@ -99,7 +101,7 @@
 <div class="card" style="padding:18px; margin-top:16px;">
     <h3 style="margin-top:0;">À régler une seule fois sur le serveur</h3>
     <ul style="font-size:13px; line-height:1.8; padding-left:18px; margin:0;">
-        <li>Dans <code>.env</code> : <code>SELFLOW_DOMAINE_RACINE={{ $racine }}</code> (le domaine sous lequel se créent les sous-domaines) et <code>SELFLOW_IP_SERVEUR=</code>l'adresse IP du serveur (cPanel, panneau « Informations générales », Adresse IP partagée). Puis <code>php artisan optimize:clear &amp;&amp; php artisan optimize</code>.</li>
+        <li>Dans <code>.env</code> : <code>SELFLOW_DOMAINE_RACINE={{ $racine }}</code> (le domaine sous lequel se créent les sous-domaines : <code>formen.{{ $racine }}</code>), <code>SELFLOW_CIBLE_CNAME={{ $hoteSelflow }}</code> et <code>SELFLOW_IP_SERVEUR=</code>l'adresse IP du serveur (cPanel, panneau « Informations générales », Adresse IP partagée). Puis <code>php artisan optimize:clear &amp;&amp; php artisan optimize</code>.</li>
         <li><code>SESSION_DOMAIN</code> doit rester <strong>vide</strong> : sinon la connexion d'une entreprise serait partagée avec les autres sous-domaines.</li>
         <li><code>APP_URL</code> ne change pas : il reste l'adresse de Selflow.</li>
     </ul>

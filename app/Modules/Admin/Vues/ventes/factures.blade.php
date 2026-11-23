@@ -582,6 +582,17 @@
                                title="{{ $estDevisOuBC ? 'Voir le document' : 'Voir la facture établie par Selflow' }}">
                                 <i class="fas fa-file-invoice"></i> {{ $estDevisOuBC ? 'Voir' : 'Facture' }}
                             </a>
+                            {{-- La facture au client par e-mail (23/11/2026). --}}
+                            @if(!$estDevisOuBC && !$isCaissier && $vente->etape === 'Facture' && $vente->client?->email)
+                                <form method="POST" action="{{ route('admin.ventes.envoyer_email', $vente) }}" style="margin:0;"
+                                      onsubmit="return confirm('Envoyer la facture à {{ addslashes($vente->client->email) }} ?');">
+                                    @csrf
+                                    <button class="btn btn-outline btn-sm" style="padding:4px 8px; font-size:11px;"
+                                            title="{{ $vente->envoyee_au_client_le ? 'Déjà envoyée le ' . \Illuminate\Support\Carbon::parse($vente->envoyee_au_client_le)->format('d/m/Y à H:i') . '. Renvoyer ?' : 'Envoyer la facture au client par e-mail' }}">
+                                        <i class="fas {{ $vente->envoyee_au_client_le ? 'fa-envelope-circle-check' : 'fa-envelope' }}"></i> E-mail
+                                    </button>
+                                </form>
+                            @endif
                             @if(!$estDevisOuBC && $ticketUrl)
                                 <a href="{{ $ticketUrl }}" target="_blank" class="btn btn-outline btn-sm"
                                    style="padding:4px 8px; font-size:11px; border-color:var(--success); color:var(--success);"

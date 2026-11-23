@@ -69,7 +69,7 @@ class EspaceSurMesureControleur extends Controller
         $donnees = $request->validate([
             'actif' => ['nullable', 'boolean'],
             'sous_domaine' => ['nullable', 'regex:/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/',
-                Rule::notIn(['www', 'mail', 'api', 'admin', 'cpanel', 'webmail', 'ftp', 'app']),
+                Rule::notIn(['www', 'mail', 'api', 'admin', 'cpanel', 'webmail', 'webdisk', 'ftp', 'app', 'selflow', 'comptaflow', 'autodiscover', 'autoconfig', 'cpcalendars', 'cpcontacts']),
                 Rule::unique('espaces_sur_mesure', 'sous_domaine')->ignore($espace->id)],
             'domaine' => ['nullable', 'max:190', 'regex:/^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/',
                 Rule::unique('espaces_sur_mesure', 'domaine')->ignore($espace->id),
@@ -82,6 +82,11 @@ class EspaceSurMesureControleur extends Controller
             'modules.*' => [Rule::in(array_keys(EspaceSurMesure::MODULES))],
             'couleur_principale' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'couleur_secondaire' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'couleur_menu' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'couleur_menu_accent' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'menu_auto' => ['nullable', 'boolean'],
+            'accent_auto' => ['nullable', 'boolean'],
+            'facture_email_moment' => ['nullable', Rule::in(array_keys(EspaceSurMesure::MOMENTS_FACTURE_EMAIL))],
             'modele_accueil' => ['required', Rule::in(array_keys(EspaceSurMesure::MODELES_ACCUEIL))],
             'modele_connexion' => ['required', Rule::in(array_keys(EspaceSurMesure::MODELES_CONNEXION))],
             'titre_accueil' => ['nullable', 'string', 'max:255'],
@@ -142,6 +147,13 @@ class EspaceSurMesureControleur extends Controller
                 ->map(fn ($a) => ['titre' => trim($a['titre']), 'texte' => trim((string) ($a['texte'] ?? ''))])
                 ->values()->all(),
         ]);
+
+        // Les colonnes du lot 153 : seulement si la migration est jouée.
+        if (\Illuminate\Support\Facades\Schema::hasColumn('espaces_sur_mesure', 'couleur_menu')) {
+            $espace->couleur_menu = $request->boolean('menu_auto') ? null : (isset($donnees['couleur_menu']) ? strtolower($donnees['couleur_menu']) : null);
+            $espace->couleur_menu_accent = $request->boolean('accent_auto') ? null : (isset($donnees['couleur_menu_accent']) ? strtolower($donnees['couleur_menu_accent']) : null);
+            $espace->facture_email_moment = $donnees['facture_email_moment'] ?? 'emission';
+        }
 
         foreach (self::IMAGES as $champ) {
             $ancien = $espace->{$champ};

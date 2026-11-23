@@ -2087,6 +2087,19 @@ class VenteControleur
     /**
      * Passer un devis/commande au statut Envoyé.
      */
+    /** La facture envoyée au client par e-mail, en PDF (23/11/2026). */
+    public function envoyerParEmail(Vente $vente): RedirectResponse
+    {
+        abort_unless($vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);
+
+        [$ok, $message] = app(\App\Modules\Admin\Services\EnvoiFactureClientService::class)->envoyer($vente);
+        if ($ok) {
+            $this->journaliser('facture_envoyee_client', 'Vente', $vente->id);
+        }
+
+        return back()->with($ok ? 'succes' : 'erreur', $message);
+    }
+
     public function envoyer(Vente $vente): RedirectResponse
     {
         abort_unless($vente->pointDeVente->entreprise_id === Auth::user()->entreprise_id, 404);

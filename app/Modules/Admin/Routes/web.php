@@ -71,6 +71,8 @@ Route::prefix('admin')
             Route::post('/{vente}/normaliser', [VenteControleur::class, 'normaliser'])->name('normaliser');
             // Workflow Devis → Commande → Facture
             Route::post('/{vente}/envoyer', [VenteControleur::class, 'envoyer'])->name('envoyer');
+            // La facture envoyée au client par e-mail, en PDF (23/11/2026).
+            Route::post('/{vente}/envoyer-par-email', [VenteControleur::class, 'envoyerParEmail'])->middleware('throttle:10,1')->name('envoyer_email');
             Route::post('/{vente}/convertir-commande', [VenteControleur::class, 'convertirEnCommande'])->name('convertir.commande');
             Route::post('/{vente}/convertir-facture', [VenteControleur::class, 'convertirEnFacture'])->name('convertir.facture');
             // Ce qui rend un devis opposable : son terme, et l'accord du client

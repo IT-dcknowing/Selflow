@@ -677,8 +677,8 @@
         --marque-700: {{ $__espaceHabille->ombre($__p, .12) }};
         --marque-800: {{ $__espaceHabille->ombre($__p, .25) }};
         --marque-900: {{ $__espaceHabille->ombre($__p, .38) }};
-        --sidebar-bg: {{ $__espaceHabille->ombre($__p, .45) }};
-        --sidebar-accent: {{ $__espaceHabille->teinte($__p, .55) }};
+        --sidebar-bg: {{ $__espaceHabille->couleurMenu() }};
+        --sidebar-accent: {{ $__espaceHabille->couleurMenuAccent() }};
         --titre-page: {{ $__s }};
     }
     .page-header h1 { color: var(--titre-page); }

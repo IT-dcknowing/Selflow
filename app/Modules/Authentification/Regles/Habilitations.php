@@ -353,6 +353,7 @@ class Habilitations
         'admin.ventes.confirmer'                     => 'factures_vente',
         'admin.ventes.facturer'                      => 'factures_vente',
         'admin.ventes.envoyer'                       => 'factures_vente',
+        'admin.ventes.envoyer_email'                 => 'factures_vente',
         'admin.ventes.convertir.commande'            => 'factures_vente',
         'admin.ventes.convertir.facture'             => 'factures_vente',
         'admin.ventes.convertir_piece'               => 'factures_vente',

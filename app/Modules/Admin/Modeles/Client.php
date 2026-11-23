@@ -12,9 +12,41 @@ class Client extends Model
     use IdentifiantOpaque;
 
     protected $table = 'clients';
-    protected $fillable = ['entreprise_id', 'type_facturation', 'nom', 'telephone', 'email', 'adresse', 'ncc', 'regime_imposition', 'rccm', 'compte_comptable', 'numero_tiers', 'source', 'numero_original', 'est_apporteur'];
+    protected $fillable = ['entreprise_id', 'type_facturation', 'nom', 'telephone', 'email', 'adresse', 'ncc', 'regime_imposition', 'rccm', 'compte_comptable', 'numero_tiers', 'source', 'numero_original', 'est_apporteur', 'preferences'];
 
-    protected $casts = ['est_apporteur' => 'boolean'];
+    protected $casts = ['est_apporteur' => 'boolean', 'preferences' => 'array'];
+
+    /**
+     * La fiche client enrichie d'un espace sur mesure (23/11/2026, métiers de
+     * la beauté : salon FOR MEN). Seulement quand le module « fiche_client »
+     * de l'espace de l'entreprise est actif.
+     */
+    public const PREFERENCES = [
+        'style'        => ['Style habituel', 'Ex. : dégradé américain, tresses collées, French manucure'],
+        'cheveux_peau' => ['Type de cheveux ou de peau', 'Ex. : crépus, défrisés, peau sensible'],
+        'prestataire'  => ['Prestataire préféré', 'Le coiffeur, la coiffeuse ou l\'esthéticienne qu\'il demande'],
+        'anniversaire' => ['Date d\'anniversaire', 'JJ/MM'],
+        'remarques'    => ['Remarques', 'Allergies, produits à éviter, préférences'],
+    ];
+
+    public static function fichePreferencesActive(?Entreprise $entreprise): bool
+    {
+        if (! $entreprise || ! \Illuminate\Support\Facades\Schema::hasColumn('clients', 'preferences')) {
+            return false;
+        }
+
+        return (bool) EspaceSurMesure::pourEntreprise((int) $entreprise->id)?->moduleActif('fiche_client');
+    }
+
+    /** Les préférences postées, nettoyées : seulement les champs connus. */
+    public static function preferencesDepuis($valeurs): array
+    {
+        return collect((array) $valeurs)
+            ->only(array_keys(self::PREFERENCES))
+            ->map(fn ($v) => mb_substr(trim((string) $v), 0, 500))
+            ->filter(fn ($v) => $v !== '')
+            ->all();
+    }
 
     /**
      * Les types de clients dont la fiche garde un NCC : l'entreprise (B2B),

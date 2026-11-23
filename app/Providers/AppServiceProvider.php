@@ -21,6 +21,23 @@ class AppServiceProvider extends ServiceProvider
     {
         \Illuminate\Pagination\Paginator::useBootstrapFive();
 
+        // La facture envoyée au client par e-mail (23/11/2026, Selflow sur
+        // mesure). Une pièce reprise du portail FNE naît déjà normalisée : elle
+        // a été émise ailleurs, elle ne part pas d'ici.
+        \App\Modules\Admin\Modeles\Vente::created(function ($vente) {
+            if (! $vente->normalise) {
+                \App\Modules\Admin\Services\EnvoiFactureClientService::programmer($vente, 'emission');
+            }
+        });
+        \App\Modules\Admin\Modeles\Vente::updated(function ($vente) {
+            if ($vente->wasChanged('etape') && $vente->etape === 'Facture' && ! $vente->normalise) {
+                \App\Modules\Admin\Services\EnvoiFactureClientService::programmer($vente, 'emission');
+            }
+            if ($vente->wasChanged('normalise') && $vente->normalise) {
+                \App\Modules\Admin\Services\EnvoiFactureClientService::programmer($vente, 'certification');
+            }
+        });
+
         // Une relation lue sur un modèle d'une collection se charge pour toute
         // la collection, en une requête. Mesuré le 06/10/2026 (lot 43) : la
         // caisse lisait la catégorie et le stock de chaque carte un par un —

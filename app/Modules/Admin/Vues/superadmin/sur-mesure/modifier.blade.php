@@ -81,14 +81,14 @@
             <div class="sm-champ">
                 <label for="sous_domaine">Sous-domaine Selflow</label>
                 <div class="sm-prefixe">
-                    <input class="form-control" id="sous_domaine" name="sous_domaine" value="{{ old('sous_domaine', $espace->sous_domaine) }}" placeholder="nom-entreprise">
+                    <input class="form-control" id="sous_domaine" name="sous_domaine" value="{{ old('sous_domaine', $espace->sous_domaine) }}" placeholder="formen">
                     <span>.{{ $racine }}</span>
                 </div>
                 <small>Immédiat une fois le sous-domaine générique en place sur le serveur (voir ci-dessous).</small>
             </div>
             <div class="sm-champ">
                 <label for="domaine">Domaine propre</label>
-                <input class="form-control" id="domaine" name="domaine" value="{{ old('domaine', $espace->domaine) }}" placeholder="gestion.entreprise.ci">
+                <input class="form-control" id="domaine" name="domaine" value="{{ old('domaine', $espace->domaine) }}" placeholder="gestion.formen.ci">
                 <small>
                     @if($espace->domaine && $espace->domaine_verifie_le)
                         <span style="color:#047857; font-weight:700;"><i class="fas fa-circle-check"></i> Vérifié le {{ $espace->domaine_verifie_le->format('d/m/Y à H:i') }}</span>
@@ -112,45 +112,201 @@
         @endif
     </div>
 
-    {{-- ── Identité ── --}}
+    {{-- ── Identité : chaque zone numérotée, et l'aperçu qui porte les mêmes numéros ── --}}
+    @php
+        $menuAuto = old('menu_auto', $espace->couleur_menu ? '0' : '1') === '1';
+        $accentAuto = old('accent_auto', $espace->couleur_menu_accent ? '0' : '1') === '1';
+        $couleurMenu = old('couleur_menu', $espace->couleur_menu ?: $espace->ombre($couleurP, .45));
+        $couleurAccent = old('couleur_menu_accent', $espace->couleur_menu_accent ?: $espace->teinte($couleurP, .55));
+        $nomEntreprise = $entreprise->nom;
+        $zonesCouleur = [
+            ['n' => 1, 'nom' => 'couleur_menu', 'titre' => 'Fond du menu latéral', 'ou' => 'La colonne de gauche de l\'application, sur toute sa hauteur.', 'valeur' => $couleurMenu, 'auto' => 'menu_auto', 'estAuto' => $menuAuto],
+            ['n' => 2, 'nom' => 'couleur_menu_accent', 'titre' => 'Élément actif du menu', 'ou' => 'L\'icône et le trait de la page ouverte, le nom du point de vente, la période.', 'valeur' => $couleurAccent, 'auto' => 'accent_auto', 'estAuto' => $accentAuto],
+            ['n' => 3, 'nom' => 'couleur_principale', 'titre' => 'Boutons et liens', 'ou' => 'Boutons « Ajouter », « Enregistrer », liens, onglets, cases cochées, en-têtes des tableaux. Aussi les boutons de l\'accueil et de la connexion.', 'valeur' => $couleurP],
+            ['n' => 4, 'nom' => 'couleur_secondaire', 'titre' => 'Titres des pages', 'ou' => 'Le grand titre de chaque page. Sur l\'accueil et la connexion : le fond dégradé, avec la couleur ③.', 'valeur' => $couleurS],
+        ];
+        $zonesImage = [
+            ['n' => 5, 'champ' => 'logo_blanc', 'titre' => 'Logo blanc', 'ou' => 'En haut du menu latéral, et sur les fonds foncés de l\'accueil et de la connexion.', 'sombre' => true],
+            ['n' => 6, 'champ' => 'logo', 'titre' => 'Logo couleur', 'ou' => 'En haut de la page d\'accueil, et au-dessus du formulaire de connexion.', 'sombre' => false],
+            ['n' => 7, 'champ' => 'icone', 'titre' => 'Icône d\'onglet', 'ou' => 'Le petit carré dans l\'onglet du navigateur. Carré, 64 × 64 px conseillé.', 'sombre' => false],
+            ['n' => 8, 'champ' => 'image_fond', 'titre' => 'Photo', 'ou' => 'Le grand visuel de l\'accueil et le côté gauche (ou le fond) de la connexion. Ex. : le salon, une coupe.', 'sombre' => false],
+        ];
+    @endphp
+    <style>
+        .zid { display:grid; grid-template-columns:minmax(300px, 1fr) minmax(360px, 1.1fr); gap:22px; align-items:start; }
+        @media (max-width: 1100px) { .zid { grid-template-columns:1fr; } }
+        .zone { display:flex; gap:12px; padding:12px; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:10px; background:#fff; }
+        .zone .num, .mq .num { width:24px; height:24px; border-radius:50%; background:#f59e0b; color:#111; font-size:12px; font-weight:800; display:grid; place-items:center; flex-shrink:0; box-shadow:0 0 0 2px #fff; }
+        .zone h5 { margin:0; font-size:14px; }
+        .zone p { margin:2px 0 8px; font-size:12.5px; color:#64748b; line-height:1.5; }
+        .zone input[type=color] { width:46px; height:34px; border:0; background:none; cursor:pointer; padding:0; }
+        .zone .auto { font-size:12px; color:#475569; display:inline-flex; gap:5px; align-items:center; margin-left:10px; }
+        .mq { position:sticky; top:80px; border:1px solid #e2e8f0; border-radius:14px; overflow:hidden; background:#f4f6f9; font-family:Inter, sans-serif; box-shadow:0 20px 50px -30px rgba(15,23,42,.4); }
+        .mq-cadre { display:grid; grid-template-columns:150px 1fr; min-height:330px; }
+        .mq-menu { background:var(--mq-menu); padding:12px 10px; color:#fff; position:relative; }
+        .mq-logo { display:flex; align-items:center; gap:7px; font-weight:800; font-size:12px; margin-bottom:12px; }
+        .mq-logo .carre { width:24px; height:24px; border-radius:6px; background:rgba(255,255,255,.15); background-size:contain; background-repeat:no-repeat; background-position:center; }
+        .mq-pdv { border:1px solid rgba(255,255,255,.18); border-radius:8px; padding:6px 8px; font-size:10px; margin-bottom:10px; }
+        .mq-pdv b { color:var(--mq-accent); display:block; font-size:11px; }
+        .mq-item { font-size:11px; padding:6px 8px; border-radius:6px; opacity:.8; display:flex; gap:6px; align-items:center; }
+        .mq-item.actif { opacity:1; background:rgba(255,255,255,.1); box-shadow:inset 3px 0 0 var(--mq-accent); }
+        .mq-item.actif i { color:var(--mq-accent); }
+        .mq-page { padding:14px; position:relative; }
+        .mq-barre { height:30px; background:#fff; border-radius:8px; margin-bottom:12px; display:flex; align-items:center; padding:0 10px; font-size:11px; font-weight:700; color:#334155; }
+        .mq-titre { font-size:17px; font-weight:800; color:var(--mq-titre); margin-bottom:10px; display:flex; align-items:center; gap:8px; }
+        .mq-bouton { display:inline-block; background:var(--mq-principale); color:#fff; font-size:11px; font-weight:700; padding:7px 12px; border-radius:7px; }
+        .mq-lien { color:var(--mq-principale); font-size:11px; font-weight:700; margin-left:10px; }
+        .mq-table { margin-top:12px; background:#fff; border-radius:8px; overflow:hidden; font-size:10.5px; }
+        .mq-table div { padding:7px 10px; border-bottom:1px solid #eef2f7; display:flex; justify-content:space-between; }
+        .mq-table .tete { background:var(--mq-pale); font-weight:800; color:#475569; }
+        .mq .num { position:absolute; }
+        .mq-pages { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:10px; border-top:1px solid #e2e8f0; background:#fff; }
+        .mq-mini { border-radius:10px; height:120px; position:relative; overflow:hidden; background:linear-gradient(140deg, var(--mq-principale), var(--mq-titre)); background-size:cover; background-position:center; }
+        .mq-mini .voile { position:absolute; inset:0; background:rgba(2,6,23,.35); }
+        .mq-mini .carte { position:absolute; right:8px; top:12px; bottom:12px; width:46%; background:#fff; border-radius:8px; padding:8px; }
+        .mq-mini .carte .l { height:16px; background-size:contain; background-repeat:no-repeat; margin-bottom:6px; font-size:8.5px; font-weight:800; color:#0f172a; }
+        .mq-mini .carte .b { height:14px; border-radius:4px; background:var(--mq-principale); margin-top:20px; }
+        .mq-mini .lb { position:absolute; left:10px; top:10px; height:18px; width:70px; background-size:contain; background-repeat:no-repeat; color:#fff; font-size:9px; font-weight:800; }
+        .mq-legende { font-size:10.5px; color:#64748b; text-align:center; margin-top:4px; }
+    </style>
+
     <div class="card sm-volet" data-volet="identite" style="padding:20px;">
-        <h3 style="margin-top:0;">Identité visuelle</h3>
-        <div class="sm-grille" style="margin-bottom:18px;">
-            <div class="sm-champ">
-                <label>Couleur principale</label>
-                <div style="display:flex; gap:10px; align-items:center;">
-                    <input type="color" name="couleur_principale" value="{{ $couleurP }}" style="width:54px; height:40px; border:0; background:none; cursor:pointer;" oninput="this.nextElementSibling.textContent=this.value">
-                    <code>{{ $couleurP }}</code>
-                </div>
-                <small>Boutons, liens, accents.</small>
-            </div>
-            <div class="sm-champ">
-                <label>Couleur secondaire</label>
-                <div style="display:flex; gap:10px; align-items:center;">
-                    <input type="color" name="couleur_secondaire" value="{{ $couleurS }}" style="width:54px; height:40px; border:0; background:none; cursor:pointer;" oninput="this.nextElementSibling.textContent=this.value">
-                    <code>{{ $couleurS }}</code>
-                </div>
-                <small>Titres, dégradés, menu de l'application.</small>
-            </div>
-        </div>
-        <div class="sm-grille">
-            @foreach(['logo' => ['Logo (sur fond clair)', false], 'logo_blanc' => ['Logo blanc (sur fond foncé)', true], 'icone' => ['Icône d\'onglet', false], 'image_fond' => ['Image de fond ou photo', false]] as $champ => [$libelle, $sombre])
-                <div class="sm-champ">
-                    <label>{{ $libelle }}</label>
-                    <div class="sm-image">
-                        <div class="vignette {{ $sombre ? 'sombre' : '' }}" @if($espace->{$champ}) style="background-image:url('{{ $espace->media($champ) }}'); {{ $champ === 'image_fond' ? 'background-size:cover;' : '' }}" @endif></div>
+        <h3 style="margin-top:0;">Identité visuelle : zone par zone</h3>
+        <p style="color:#64748b; font-size:13.5px; margin-top:-4px;">Chaque réglage porte un numéro. Le même numéro, sur l'aperçu à droite, montre l'endroit exact qui change. L'aperçu suit vos choix en direct. Ces couleurs s'appliquent quand le module « Couleurs et logo dans l'application » est coché.</p>
+
+        <div class="zid">
+            <div>
+                <h4 style="margin:6px 0 10px; font-size:13px; text-transform:uppercase; color:#475569;">Couleurs</h4>
+                @foreach($zonesCouleur as $z)
+                    <div class="zone">
+                        <span class="num">{{ $z['n'] }}</span>
+                        <div style="flex:1;">
+                            <h5>{{ $z['titre'] }}</h5>
+                            <p>{{ $z['ou'] }}</p>
+                            <div style="display:flex; align-items:center; flex-wrap:wrap; gap:6px;">
+                                <input type="color" name="{{ $z['nom'] }}" value="{{ $z['valeur'] }}" data-zone="{{ $z['nom'] }}">
+                                <code data-code="{{ $z['nom'] }}">{{ $z['valeur'] }}</code>
+                                @isset($z['auto'])
+                                    <input type="hidden" name="{{ $z['auto'] }}" value="0">
+                                    <label class="auto"><input type="checkbox" name="{{ $z['auto'] }}" value="1" data-auto="{{ $z['nom'] }}" {{ $z['estAuto'] ? 'checked' : '' }}> Automatique (tirée de ③)</label>
+                                @endisset
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+
+                <h4 style="margin:18px 0 10px; font-size:13px; text-transform:uppercase; color:#475569;">Logos et images</h4>
+                @foreach($zonesImage as $z)
+                    @php $champ = $z['champ']; @endphp
+                    <div class="zone">
+                        <span class="num">{{ $z['n'] }}</span>
                         <div style="flex:1; min-width:0;">
-                            <input type="file" name="{{ $champ }}" accept="image/png,image/jpeg,image/webp" style="font-size:12.5px; max-width:100%;">
-                            @if($espace->{$champ})
-                                <label style="font-weight:500; font-size:12px; margin-top:6px; display:flex; gap:6px; align-items:center;"><input type="checkbox" name="retirer[]" value="{{ $champ }}"> Retirer</label>
-                            @endif
+                            <h5>{{ $z['titre'] }}</h5>
+                            <p>{{ $z['ou'] }}</p>
+                            <div class="sm-image" style="padding:8px;">
+                                <div class="vignette {{ $z['sombre'] ? 'sombre' : '' }}" data-vignette="{{ $champ }}" @if($espace->{$champ}) style="background-image:url('{{ $espace->media($champ) }}'); {{ $champ === 'image_fond' ? 'background-size:cover;' : '' }}" @endif></div>
+                                <div style="flex:1; min-width:0;">
+                                    <input type="file" name="{{ $champ }}" accept="image/png,image/jpeg,image/webp" data-fichier="{{ $champ }}" style="font-size:12.5px; max-width:100%;">
+                                    @if($espace->{$champ})
+                                        <label style="font-weight:500; font-size:12px; margin-top:6px; display:flex; gap:6px; align-items:center;"><input type="checkbox" name="retirer[]" value="{{ $champ }}"> Retirer</label>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+                <small style="display:block; color:#64748b;">PNG, JPEG ou WebP (pas de SVG). Logos sur fond transparent de préférence.</small>
+            </div>
+
+            {{-- L'aperçu --}}
+            <div class="mq" id="maquette" style="--mq-menu:{{ $couleurMenu }}; --mq-accent:{{ $couleurAccent }}; --mq-principale:{{ $couleurP }}; --mq-titre:{{ $couleurS }}; --mq-pale:{{ $espace->teinte($couleurP, .9) }};">
+                <div class="mq-cadre">
+                    <div class="mq-menu">
+                        <span class="num" style="left:12px; bottom:12px;">1</span>
+                        <div class="mq-logo">
+                            <span class="carre" data-apercu="logo_blanc" @if($espace->logo_blanc) style="background-image:url('{{ $espace->media('logo_blanc') }}')" @endif></span>
+                            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ $nomEntreprise }}</span>
+                            <span class="num" style="left:2px; top:2px;">5</span>
+                        </div>
+                        <div class="mq-pdv">POINT DE VENTE<b>Salon Cocody</b></div>
+                        <div class="mq-item"><i class="fas fa-gauge-high"></i> Tableau de bord</div>
+                        <div class="mq-item actif" style="position:relative;"><i class="fas fa-users"></i> Clients <span class="num" style="right:-4px; top:2px; left:auto;">2</span></div>
+                        <div class="mq-item"><i class="fas fa-cart-shopping"></i> Ventes</div>
+                        <div class="mq-item"><i class="fas fa-scissors"></i> Prestations</div>
+                        <div class="mq-item"><i class="fas fa-wallet"></i> Trésorerie</div>
+                    </div>
+                    <div class="mq-page">
+                        <div class="mq-barre">Clients</div>
+                        <div class="mq-titre" style="position:relative;"><i class="fas fa-users" style="color:var(--mq-principale);"></i> Liste des clients <span class="num" style="position:static;">4</span></div>
+                        <div style="display:flex; align-items:center; gap:8px;"><span class="mq-bouton">+ Ajouter un client</span><span class="mq-lien" style="margin-left:0;">Voir la fiche</span><span class="num" style="position:static;">3</span></div>
+                        <div class="mq-table">
+                            <div class="tete"><span>NOM</span><span>STYLE HABITUEL</span></div>
+                            <div><span>Kouamé Yao</span><span>Dégradé américain</span></div>
+                            <div><span>Aya Koné</span><span>Tresses collées</span></div>
                         </div>
                     </div>
                 </div>
-            @endforeach
+                <div class="mq-pages">
+                    <div>
+                        <div class="mq-mini" data-apercu="image_fond" @if($espace->image_fond) style="background-image:url('{{ $espace->media('image_fond') }}')" @endif>
+                            <div class="voile"></div>
+                            <div class="lb" data-apercu="logo_blanc2" @if($espace->logo_blanc) style="background-image:url('{{ $espace->media('logo_blanc') }}')" @endif>{{ $espace->logo_blanc ? '' : $nomEntreprise }}</div>
+                            <div class="carte"><div class="l" data-apercu="logo" @if($espace->logo) style="background-image:url('{{ $espace->media('logo') }}')" @endif>{{ $espace->logo ? '' : $nomEntreprise }}</div><div class="b"></div></div>
+                            <span class="num" style="left:8px; bottom:8px;">8</span>
+                            <span class="num" style="right:12px; top:4px;">6</span>
+                        </div>
+                        <div class="mq-legende">Page de connexion</div>
+                    </div>
+                    <div>
+                        <div style="height:120px; border-radius:10px; border:1px solid #e2e8f0; position:relative; background:#fff; padding:10px;">
+                            <div style="display:flex; align-items:center; gap:6px; background:#f1f5f9; border-radius:6px 6px 0 0; padding:4px 6px; font-size:9px; width:70%;">
+                                <span data-apercu="icone" style="width:12px; height:12px; border-radius:3px; background:{{ $couleurP }} center/contain no-repeat; {{ $espace->icone ? "background-image:url('" . $espace->media('icone') . "')" : '' }}"></span>
+                                {{ $nomEntreprise }}
+                            </div>
+                            <span class="num" style="left:82%; top:6px;">7</span>
+                            <div style="font-size:9.5px; color:#64748b; margin-top:10px; line-height:1.5;">L'onglet du navigateur affiche l'icône ⑦ à côté du nom de l'entreprise.</div>
+                        </div>
+                        <div class="mq-legende">Onglet du navigateur</div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <small style="display:block; color:#64748b; margin-top:10px;">PNG, JPEG ou WebP. Pas de SVG.</small>
     </div>
+
+    <script>
+    (function () {
+        var m = document.getElementById('maquette');
+        var correspond = { couleur_menu: '--mq-menu', couleur_menu_accent: '--mq-accent', couleur_principale: '--mq-principale', couleur_secondaire: '--mq-titre' };
+        function rgb(hex) { var n = parseInt(hex.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+        function clair(hex, p) { return 'rgb(' + rgb(hex).map(function (c) { return Math.round(c + (255 - c) * p); }).join(',') + ')'; }
+        function fonce(hex, p) { return 'rgb(' + rgb(hex).map(function (c) { return Math.round(c * (1 - p)); }).join(',') + ')'; }
+        function auto(nom) { var c = document.querySelector('[data-auto="' + nom + '"]'); return c && c.checked; }
+        function rafraichir() {
+            var p = document.querySelector('[data-zone="couleur_principale"]').value;
+            Object.keys(correspond).forEach(function (nom) {
+                var champ = document.querySelector('[data-zone="' + nom + '"]');
+                var v = champ.value;
+                if (nom === 'couleur_menu' && auto(nom)) { v = fonce(p, .45); }
+                if (nom === 'couleur_menu_accent' && auto(nom)) { v = clair(p, .55); }
+                champ.disabled = (nom === 'couleur_menu' || nom === 'couleur_menu_accent') && auto(nom);
+                champ.style.opacity = champ.disabled ? .4 : 1;
+                m.style.setProperty(correspond[nom], v);
+                var code = document.querySelector('[data-code="' + nom + '"]'); if (code) code.textContent = champ.disabled ? 'automatique' : champ.value;
+            });
+            m.style.setProperty('--mq-pale', clair(p, .9));
+        }
+        document.querySelectorAll('[data-zone], [data-auto]').forEach(function (e) { e.addEventListener('input', rafraichir); e.addEventListener('change', rafraichir); });
+        document.querySelectorAll('[data-fichier]').forEach(function (champ) {
+            champ.addEventListener('change', function () {
+                if (!champ.files || !champ.files[0]) return;
+                var url = URL.createObjectURL(champ.files[0]), nom = champ.dataset.fichier;
+                var cibles = document.querySelectorAll('[data-vignette="' + nom + '"], [data-apercu="' + nom + '"]' + (nom === 'logo_blanc' ? ', [data-apercu="logo_blanc2"]' : ''));
+                cibles.forEach(function (c) { c.style.backgroundImage = "url('" + url + "')"; if (c.dataset.apercu === 'logo' || c.dataset.apercu === 'logo_blanc2') c.textContent = ''; });
+            });
+        });
+        rafraichir();
+    })();
+    </script>
 
     {{-- ── Page d'accueil ── --}}
     <div class="card sm-volet" data-volet="accueil" style="padding:20px;">
@@ -205,7 +361,19 @@
             @foreach(EspaceSurMesure::MODULES as $cle => [$libelle, $aide])
                 <label class="sm-module">
                     <input type="checkbox" name="modules[]" value="{{ $cle }}" {{ in_array($cle, $modulesActifs, true) ? 'checked' : '' }}>
-                    <span><strong>{{ $libelle }}</strong><br><span style="color:#64748b; font-size:13px;">{{ $aide }}</span></span>
+                    <span style="flex:1;"><strong>{{ $libelle }}</strong><br><span style="color:#64748b; font-size:13px;">{{ $aide }}</span>
+                        @if($cle === 'facture_email')
+                            <span style="display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap; font-size:13px;">
+                                Envoi :
+                                <select name="facture_email_moment" class="form-control" style="max-width:360px;" onclick="event.stopPropagation()">
+                                    @foreach(EspaceSurMesure::MOMENTS_FACTURE_EMAIL as $m => $lib)
+                                        <option value="{{ $m }}" @selected(old('facture_email_moment', $espace->facture_email_moment ?: 'emission') === $m)>{{ $lib }}</option>
+                                    @endforeach
+                                </select>
+                            </span>
+                            <span style="display:block; color:#64748b; font-size:12px; margin-top:4px;">Le client doit avoir une adresse e-mail sur sa fiche. Un bouton « E-mail » permet aussi de l'envoyer à la main depuis la liste des factures.</span>
+                        @endif
+                    </span>
                 </label>
             @endforeach
         </div>

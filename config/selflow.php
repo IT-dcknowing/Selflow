@@ -19,9 +19,11 @@ return [
     | dans les DNS d'un domaine propre, et ce que vérifie le superadmin.
     */
     'sur_mesure' => [
-        'domaine_racine' => env('SELFLOW_DOMAINE_RACINE', 'selflow.ci'),
+        // Selflow est servi à selflow.dc-knowing.com : les espaces prennent la
+        // forme formen.dc-knowing.com.
+        'domaine_racine' => env('SELFLOW_DOMAINE_RACINE', 'dc-knowing.com'),
         'ip_serveur'     => env('SELFLOW_IP_SERVEUR'),
-        'cible_cname'    => env('SELFLOW_CIBLE_CNAME', env('SELFLOW_DOMAINE_RACINE', 'selflow.ci')),
+        'cible_cname'    => env('SELFLOW_CIBLE_CNAME', 'selflow.dc-knowing.com'),
     ],
 
     /*

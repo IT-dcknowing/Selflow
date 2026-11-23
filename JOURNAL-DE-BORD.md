@@ -11388,6 +11388,40 @@ choix du superadmin par entreprise ; les DNS sont gérés par DC-Knowing ;
 - Test ajouté à `GroupesEntreprisesTest` (échoue sans le correctif). Suite : 213,
   identiques à `main`.
 
+
+### Lot 153 — Sur mesure pour FOR MEN (coiffure et beauté) — **TERMINÉ le 23/11/2026**
+
+- SF-261123-EED9CF confirmée par le détail de la panne : c'est bien le menu
+  « Changer d'entreprise » (LA GROIRE SARL, membre d'un groupe), corrigé au
+  lot 152.
+- **Adresses** : le domaine est `dc-knowing.com`, Selflow est servi à
+  `selflow.dc-knowing.com`. Racine par défaut `dc-knowing.com` (espace :
+  `formen.dc-knowing.com`), cible CNAME `selflow.dc-knowing.com`. Sous-domaines
+  réservés : selflow, comptaflow, www, mail, webmail, cpanel… La procédure
+  vise le dossier de selflow.dc-knowing.com, pas celui du site principal.
+- **Identité, zone par zone** : ① fond du menu, ② élément actif du menu (ces
+  deux-là réglables à part ou « automatiques », tirées de ③), ③ boutons et
+  liens, ④ titres des pages, ⑤ logo blanc, ⑥ logo couleur, ⑦ icône
+  d'onglet, ⑧ photo. Chaque réglage dit où il agit ; l'aperçu à droite porte
+  les mêmes numéros et suit les choix en direct (couleurs et images).
+- **Module « Fiche client enrichie »** : style habituel, type de cheveux ou de
+  peau, prestataire préféré, anniversaire, remarques (`clients.preferences`,
+  JSON). Visible dans les fenêtres d'ajout et de modification, le style et le
+  prestataire sous le nom dans la liste. Sans le module : rien n'apparaît,
+  rien n'est enregistré.
+- **Module « Facture envoyée au client par e-mail »** : PDF de la facture en
+  pièce jointe, courriel au nom et à la couleur de l'entreprise, à l'émission
+  ou après la certification DGI (au choix). Déclenché par des écouteurs
+  `Vente::created/updated` (AppServiceProvider), après la réponse ; une pièce
+  reprise du portail (née normalisée) ne part jamais. Bouton « E-mail » dans
+  la liste des factures, pour toute entreprise, dès que le client a une
+  adresse. Date d'envoi : `ventes.envoyee_au_client_le`. Aucun fichier du
+  périmètre FNE n'est modifié (ni `Vente.php`, ni le job de normalisation).
+- Le catalogue du salon vient du référentiel existant (profils
+  `barbershop`, `coiffure_dames`, `onglerie_beaute`).
+- Migration `2026_11_23_000006` (gardée). `SurMesureMetierBeauteTest` (6).
+  Suite : 213, identiques à `main`.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |
