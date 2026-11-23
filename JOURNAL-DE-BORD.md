@@ -11215,6 +11215,26 @@ rangées par nature :
 - `IntegrationFacturesPortailFneTest` (+4). Suite : 1 998 épreuves, 1 780
   passantes, mêmes 175 échecs qu'avant.
 
+### Lot 146 — Page d'intégration vide ; rapport PDF complet, par site — **TERMINÉ le 23/11/2026**
+
+- **Page « Factures FNE à intégrer » vide** alors que le bandeau annonçait
+  158 factures : le filtre « notre propre BAPA » (lot 145) reconnaissait un
+  BAPA à l'émetteur portant notre NCC, ce qui est le cas de toute facture
+  émise. Il ne s'applique plus qu'aux pièces reçues. Page paginée par 25 ;
+  « Intégrer celles qui sont prêtes » traite 40 pièces par clic (le
+  serveur coupe une requête trop longue).
+- **Rapport d'activité PDF complet** : en plus de l'écran, créances
+  clients, dettes fournisseurs, TVA collectée, déductible et nette,
+  factures normalisées et non normalisées, valeur du stock au CUMP, résultat
+  comptable par site (celui de « Résultat par site »), stock par site
+  (articles, valeur, alertes, ruptures).
+- **Rapport d'un seul site** : choix « Toute l'entreprise » ou un site à
+  côté du bouton d'export ; l'écran accepte aussi `?site=`. Un membre
+  affecté n'a que le sien.
+- **Proposition du propriétaire, non retenue pour l'instant** : un seul
+  passage automatique qui relève tous les types puis les répartit. Les
+  relevés fonctionnent ; on n'y touche pas tant que ce n'est pas nécessaire.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

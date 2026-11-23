@@ -30,5 +30,16 @@ class RapportActivitePdfTest extends TestCase
         $this->assertSame('application/pdf', $reponse->headers->get('Content-Type'));
         $this->assertStringStartsWith('%PDF', $reponse->getContent());
         file_put_contents(storage_path('framework/testing/rapport-activite.pdf'), $reponse->getContent());
+
+        // Le rapport d'un seul site : il ne garde que ce site.
+        $autre = PointDeVente::create(['entreprise_id' => $e->id, 'nom' => 'PDV-plateau', 'ville' => 'Abidjan', 'commune' => 'Plateau']);
+        Vente::create(['point_de_vente_id' => $autre->id, 'utilisateur_id' => $admin->id, 'numero_facture' => 'VTE-2', 'date_vente' => now()->toDateString(),
+            'mode_paiement' => 'Espèces', 'montant_ht' => 1000, 'montant_tva' => 180, 'montant_ttc' => 1180, 'etape' => 'Facture', 'statut' => 'Payé']);
+        \Illuminate\Support\Facades\Cache::flush();
+
+        $requete = \Illuminate\Http\Request::create('/admin/rapports/analyse-activite/pdf', 'GET', ['site' => $autre->id]);
+        $vue = app(\App\Modules\Admin\Controleurs\RapportControleur::class)->analyseActivite($requete)->getData();
+        $this->assertSame([$autre->id], $vue['pointsDeVente']->pluck('id')->all());
+        $this->assertEqualsWithDelta(1180, (float) $vue['totalVentes'], 0.01);
     }
 }

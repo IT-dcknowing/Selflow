@@ -22,9 +22,18 @@
             </div>
         </div>
         <div class="rapport-header-right">
-            <a href="{{ route('admin.rapports.analyse_activite.pdf') }}" class="btn btn-outline" data-envoi-libre>
-                <i class="fas fa-file-pdf"></i> Exporter en PDF
-            </a>
+            {{-- Le rapport de toute l'entreprise, ou d'un seul site (23/11/2026). --}}
+            <form method="GET" action="{{ route('admin.rapports.analyse_activite.pdf') }}" style="display:flex; gap:6px; align-items:center;" data-envoi-libre>
+                @if(!auth()->user()->estAffecteAUnSite() && $pointsDeVente->count() > 1)
+                    <select name="site" class="form-control" style="width:auto;">
+                        <option value="">Toute l'entreprise</option>
+                        @foreach(\App\Modules\Admin\Modeles\PointDeVente::where('entreprise_id', $entreprise->id)->orderBy('nom')->get(['id', 'nom']) as $siteRapport)
+                            <option value="{{ $siteRapport->id }}" @selected((string) request('site') === (string) $siteRapport->id)>{{ $siteRapport->nom }}</option>
+                        @endforeach
+                    </select>
+                @endif
+                <button type="submit" class="btn btn-outline"><i class="fas fa-file-pdf"></i> Exporter en PDF</button>
+            </form>
             <a href="{{ route('admin.rapports.analyse_prix') }}" class="btn btn-primary">
                 <i class="fas fa-tags"></i> Analyse des prix par produit et vendeur
             </a>

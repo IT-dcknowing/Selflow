@@ -7,6 +7,7 @@ use App\Modules\Admin\Modeles\AchatDetail;
 use App\Modules\Admin\Modeles\Entreprise;
 use App\Modules\Admin\Modeles\PointDeVente;
 use App\Modules\Admin\Modeles\Produit;
+use App\Modules\Admin\Modeles\Stock;
 use App\Modules\Admin\Modeles\TresorerieJournal;
 use App\Modules\Admin\Modeles\Vente;
 use App\Modules\Admin\Modeles\VenteDetail;
@@ -126,6 +127,9 @@ class RapportControleur
         // Un membre affecté ne voit que l'activité de son site (audit du 23/11/2026).
         if ($site = \App\Modules\Admin\Services\SiteAutorise::siteImpose()) {
             $pointsDeVente = $pointsDeVente->where('id', $site)->values();
+        } elseif ($request->filled('site') && $pointsDeVente->contains('id', (int) $request->query('site'))) {
+            // Le rapport d'un seul site (23/11/2026), choisi parmi ceux de l'entreprise.
+            $pointsDeVente = $pointsDeVente->where('id', (int) $request->query('site'))->values();
         }
         $pdvIds        = $pointsDeVente->pluck('id');
 
@@ -341,15 +345,74 @@ class RapportControleur
     public function exporterActivite(Request $request, \App\Modules\Admin\Services\DocumentPdfService $pdf): \Symfony\Component\HttpFoundation\Response
     {
         $donnees = $this->analyseActivite($request)->getData();
+        $entreprise = $donnees['entreprise'];
+        $pdvIds = $donnees['pointsDeVente']->pluck('id');
+        $unSeulSite = $request->filled('site') || \App\Modules\Admin\Services\SiteAutorise::siteImpose();
 
         $periode = session('active_periode_id')
             ? \App\Modules\Admin\Modeles\Periode::find(session('active_periode_id'))
             : null;
-        $donnees['libellePeriode'] = $periode
-            ? 'Période : ' . $periode->nom
-            : 'Toutes périodes';
+        $donnees['libellePeriode'] = $periode ? 'Période : ' . $periode->nom : 'Toutes périodes';
+        $donnees['titreSite'] = $unSeulSite ? 'Site : ' . $donnees['pointsDeVente']->pluck('nom')->implode(', ') : null;
 
-        $nom = 'rapport-activite-' . \Illuminate\Support\Str::slug($donnees['entreprise']->nom) . '-' . now()->format('Ymd') . '.pdf';
+        // ── Ce que l'écran ne montre pas, et qu'un rapport complet doit dire ──
+
+        // Le résultat comptable par site (écran « Résultat par site »).
+        [$debut, $fin] = \App\Modules\Admin\Services\FiltrePeriodeService::intervalle($request);
+        $analytique = \App\Modules\Admin\Services\AnalytiqueService::parSite($entreprise->id, $debut?->toDateString(), $fin?->toDateString());
+        $analytique['sites'] = collect($analytique['sites'])->filter(fn ($l) => $l['id'] === null ? !$unSeulSite : $pdvIds->contains($l['id']))->values()->all();
+        $donnees['analytique'] = $analytique;
+
+        // Le stock valorisé au CUMP (Coût Unitaire Moyen Pondéré), par site.
+        $donnees['stockParSite'] = $donnees['pointsDeVente']->map(function ($site) {
+            $fiches = Stock::where('point_de_vente_id', $site->id)->whereHas('produit', fn ($q) => $q->stockables());
+            $avecReference = \Illuminate\Support\Facades\Schema::hasColumn('stocks', 'reference');
+
+            return [
+                'nom'      => $site->nom,
+                'articles' => (clone $fiches)->when($avecReference, fn ($q) => $q->where('reference', true))->count(),
+                'valeur'   => (float) (clone $fiches)->sum(DB::raw('quantite_disponible * COALESCE(cump, 0)')),
+                'ruptures' => (clone $fiches)->when($avecReference, fn ($q) => $q->where('reference', true))->where('quantite_disponible', '<=', 0)->count(),
+                'alertes'  => (clone $fiches)->when($avecReference, fn ($q) => $q->where('reference', true))->whereColumn('quantite_disponible', '<=', 'stock_minimum')->count(),
+            ];
+        })->values();
+
+        // Ce que les clients doivent, ce que l'entreprise doit (pièces à crédit
+        // ou en avance, moins ce que la trésorerie a déjà encaissé ou payé).
+        $reste = function ($pieces, string $colonne) {
+            $regles = TresorerieJournal::whereIn('reference_document', $pieces->pluck('numero_facture')->filter())
+                ->groupBy('reference_document')->select('reference_document', DB::raw("SUM({$colonne}) as total"))
+                ->pluck('total', 'reference_document');
+
+            return round($pieces->sum(fn ($p) => max(0, (float) $p->montant_ttc - (float) ($regles[$p->numero_facture] ?? 0))), 2);
+        };
+        $donnees['creancesClients'] = $reste(Vente::whereIn('point_de_vente_id', $pdvIds)->where('etape', 'Facture')
+            ->where(fn ($q) => $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir'))
+            ->whereIn('statut', ['Crédit', 'Avance'])->get(['numero_facture', 'montant_ttc']), 'montant_entree');
+        $donnees['dettesFournisseurs'] = $reste(Achat::whereIn('point_de_vente_id', $pdvIds)->where('etape', 'Facture')
+            ->where(fn ($q) => $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir'))
+            ->whereIn('statut', ['Crédit', 'Avance'])->get(['numero_facture', 'montant_ttc']), 'montant_sortie');
+
+        // La TVA, avoirs déduits.
+        $net = fn ($requete, string $col) => (float) (clone $requete)->where(fn ($q) => $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir'))->sum($col)
+            - (float) (clone $requete)->where('type_facture', 'avoir')->sum($col);
+        $donnees['tvaCollectee'] = $net(Vente::whereIn('point_de_vente_id', $pdvIds)->where('etape', 'Facture'), 'montant_tva');
+        $donnees['tvaDeductible'] = $net(Achat::whereIn('point_de_vente_id', $pdvIds)->where('etape', 'Facture'), 'montant_tva');
+
+        // La normalisation FNE des factures de vente.
+        $factures = Vente::whereIn('point_de_vente_id', $pdvIds)->where('etape', 'Facture')
+            ->where(fn ($q) => $q->whereNull('type_facture')->orWhere('type_facture', '!=', 'avoir'))
+            ->where(fn ($q) => $q->whereNull('statut')->orWhere('statut', '!=', 'Annulée'));
+        $donnees['fne'] = [
+            'normalisees'        => (clone $factures)->where('normalise', true)->count(),
+            'montantNormalise'   => (float) (clone $factures)->where('normalise', true)->sum('montant_ttc'),
+            'nonNormalisees'     => (clone $factures)->where('normalise', false)->count(),
+            'montantNonNormalise'=> (float) (clone $factures)->where('normalise', false)->sum('montant_ttc'),
+        ];
+
+        $nom = 'rapport-activite-' . \Illuminate\Support\Str::slug($entreprise->nom)
+            . ($unSeulSite ? '-' . \Illuminate\Support\Str::slug($donnees['pointsDeVente']->pluck('nom')->implode('-')) : '')
+            . '-' . now()->format('Ymd') . '.pdf';
 
         return response($pdf->rapportActivite($donnees), 200, [
             'Content-Type'        => 'application/pdf',

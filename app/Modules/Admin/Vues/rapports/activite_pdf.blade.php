@@ -100,7 +100,11 @@
                 <div class="titre">RAPPORT D'ACTIVITÉ</div>
                 <div class="sous">
                     {{ $libellePeriode }}<br>
-                    {{ $pointsDeVente->count() }} point(s) de vente : {{ $pointsDeVente->pluck('nom')->implode(', ') }}<br>
+                    @if(!empty($titreSite))
+                        <strong style="color:#1e293b;">{{ $titreSite }}</strong><br>
+                    @else
+                        {{ $pointsDeVente->count() }} point(s) de vente : {{ $pointsDeVente->pluck('nom')->implode(', ') }}<br>
+                    @endif
                     Édité le {{ now()->format('d/m/Y à H:i') }}
                 </div>
             </td>
@@ -121,6 +125,21 @@
             <td><div class="tuile {{ $soldeTresorerie >= 0 ? 'vert' : 'rouge' }}"><div class="etiquette">Solde de trésorerie</div><div class="valeur">{{ $f($soldeTresorerie) }} F</div><div class="detail">caisse, banque et mobile money</div></div></td>
         </tr>
     </table>
+
+    @isset($fne)
+    <table class="tuiles">
+        <tr>
+            <td><div class="tuile"><div class="etiquette">Créances clients</div><div class="valeur">{{ $f($creancesClients) }} F</div><div class="detail">reste à encaisser</div></div></td>
+            <td><div class="tuile orange"><div class="etiquette">Dettes fournisseurs</div><div class="valeur">{{ $f($dettesFournisseurs) }} F</div><div class="detail">reste à payer</div></div></td>
+            <td><div class="tuile"><div class="etiquette">TVA nette</div><div class="valeur">{{ $f($tvaCollectee - $tvaDeductible) }} F</div><div class="detail">collectée {{ $f($tvaCollectee) }} F, déductible {{ $f($tvaDeductible) }} F</div></div></td>
+        </tr>
+        <tr>
+            <td><div class="tuile vert"><div class="etiquette">Factures normalisées FNE</div><div class="valeur">{{ $fne['normalisees'] }}</div><div class="detail">{{ $f($fne['montantNormalise']) }} F TTC</div></div></td>
+            <td><div class="tuile {{ $fne['nonNormalisees'] > 0 ? 'rouge' : 'vert' }}"><div class="etiquette">Factures non normalisées</div><div class="valeur">{{ $fne['nonNormalisees'] }}</div><div class="detail">{{ $f($fne['montantNonNormalise']) }} F TTC</div></div></td>
+            <td><div class="tuile"><div class="etiquette">Valeur du stock</div><div class="valeur">{{ $f(collect($stockParSite)->sum('valeur')) }} F</div><div class="detail">au CUMP (Coût Unitaire Moyen Pondéré)</div></div></td>
+        </tr>
+    </table>
+    @endisset
 
     <h2>Ventes et achats des douze derniers mois</h2>
     <table class="graphe">
@@ -162,6 +181,45 @@
         @endforelse
         </tbody>
     </table>
+
+    @isset($analytique)
+    <h2>Le résultat comptable par site</h2>
+    <table class="liste">
+        <thead><tr><th>Site</th><th class="num">Produits (classe 7)</th><th class="num">Charges (classe 6)</th><th class="num">Résultat</th><th class="num">Écritures</th></tr></thead>
+        <tbody>
+        @forelse($analytique['sites'] as $l)
+            <tr>
+                <td>{{ $l['nom'] }}</td>
+                <td class="num">{{ $f($l['produits']) }}</td>
+                <td class="num">{{ $f($l['charges']) }}</td>
+                <td class="num {{ $l['resultat'] >= 0 ? 'positif' : 'negatif' }}">{{ $f($l['resultat']) }}</td>
+                <td class="num">{{ $l['ecritures'] }}</td>
+            </tr>
+        @empty
+            <tr><td colspan="5">Aucune écriture sur la période.</td></tr>
+        @endforelse
+        </tbody>
+        @if(empty($titreSite))
+        <tfoot><tr><td style="padding:5pt; font-weight:bold;">Entreprise</td><td class="num" style="font-weight:bold;">{{ $f($analytique['totaux']['produits']) }}</td><td class="num" style="font-weight:bold;">{{ $f($analytique['totaux']['charges']) }}</td><td class="num {{ $analytique['totaux']['resultat'] >= 0 ? 'positif' : 'negatif' }}">{{ $f($analytique['totaux']['resultat']) }}</td><td class="num">{{ $analytique['totaux']['ecritures'] }}</td></tr></tfoot>
+        @endif
+    </table>
+
+    <h2>Le stock par site</h2>
+    <table class="liste">
+        <thead><tr><th>Site</th><th class="num">Articles suivis</th><th class="num">Valeur (CUMP)</th><th class="num">En alerte</th><th class="num">En rupture</th></tr></thead>
+        <tbody>
+        @foreach($stockParSite as $st)
+            <tr>
+                <td>{{ $st['nom'] }}</td>
+                <td class="num">{{ $st['articles'] }}</td>
+                <td class="num">{{ $f($st['valeur']) }}</td>
+                <td class="num">{{ $st['alertes'] }}</td>
+                <td class="num {{ $st['ruptures'] > 0 ? 'negatif' : '' }}">{{ $st['ruptures'] }}</td>
+            </tr>
+        @endforeach
+        </tbody>
+    </table>
+    @endisset
 
     <h2>Les articles</h2>
     <table class="deux">
