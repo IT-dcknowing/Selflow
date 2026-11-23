@@ -528,7 +528,10 @@ class FneDashboardControleur
             Cache::forget(ScraperPortailFneService::verrouAchats($login));
             return response()->json([
                 'status' => 'error',
-                'message' => 'Le scraper des factures d’achat s’est terminé en erreur (code ' . (int) $processus['exit_code'] . '). Consultez storage/logs/portail-fne-sorties.log.',
+                'message' => (!empty($processus['interrompu'])
+                    ? 'Le scraper des factures d’achat s’est arrêté sans terminer (plantage au démarrage ou navigateur interrompu par le serveur).'
+                    : 'Le scraper des factures d’achat s’est terminé en erreur (code ' . (int) $processus['exit_code'] . ').')
+                    . ' Consultez storage/logs/portail-fne-achat.log.',
             ], 502);
         }
         $verrou = ScraperPortailFneService::verrouAchats($login);
@@ -602,7 +605,10 @@ class FneDashboardControleur
             Cache::forget(ScraperPortailFneService::verrouVentes($login));
             return response()->json([
                 'status' => 'error',
-                'message' => 'Le scraper des factures de vente s’est terminé en erreur (code ' . (int) $processus['exit_code'] . '). Consultez storage/logs/portail-fne-sorties.log.',
+                'message' => (!empty($processus['interrompu'])
+                    ? 'Le scraper des factures de vente s’est arrêté sans terminer (plantage au démarrage ou navigateur interrompu par le serveur).'
+                    : 'Le scraper des factures de vente s’est terminé en erreur (code ' . (int) $processus['exit_code'] . ').')
+                    . ' Consultez storage/logs/portail-fne-vente.log.',
             ], 502);
         }
         $verrou = ScraperPortailFneService::verrouVentes($login);
@@ -704,7 +710,10 @@ class FneDashboardControleur
             Cache::forget(ScraperPortailFneService::verrouAvoirs($login));
             return response()->json([
                 'status' => 'error',
-                'message' => 'Le scraper des avoirs s’est terminé en erreur (code ' . (int) $processus['exit_code'] . '). Consultez storage/logs/portail-fne-sorties.log.',
+                'message' => (!empty($processus['interrompu'])
+                    ? 'Le scraper des avoirs s’est arrêté sans terminer (plantage au démarrage ou navigateur interrompu par le serveur).'
+                    : 'Le scraper des avoirs s’est terminé en erreur (code ' . (int) $processus['exit_code'] . ').')
+                    . ' Consultez storage/logs/portail-fne-avoir.log.',
             ], 502);
         }
         $verrou = ScraperPortailFneService::verrouAvoirs($login);

@@ -6,7 +6,8 @@ et ce fichier. Tout ce qui a été décidé, tout ce qui a été écarté et pou
 tout ce qui reste à faire doit donc figurer ici — et y être tenu à jour à chaque
 lot terminé.
 
-Dernière mise à jour : 26 octobre 2026 — lot 134 (URGENT) : plus de
+Dernière mise à jour : 23 novembre 2026 — lot 138 : relevé des ventes FNE,
+le verrou rendu à la fin du scraper et ses échecs écrits. Avant : 26 octobre 2026 — lot 134 (URGENT) : plus de
 factures en double (double envoi, numérotation) ; `selflow:doublons-factures`
 pour recenser l'existant. Lot 133 : exports de l'inventaire
 mis en forme, filigrane SELFLOW sur le PDF et l'Excel. Lots 128 à 132 : configuration des
@@ -10854,6 +10855,62 @@ mélanger les dépôts.
 et php artisan verifier:variables restent à exécuter avant fusion dans
 main, puis synchronisation des deux dépôts.
 
+
+### Lot 138 — Relevé des ventes FNE : le verrou qui ne se rendait pas — **TERMINÉ le 23/11/2026**
+
+Branche `releve-ventes-fne-verrou`. Signalé en production le 23/11/2026,
+toutes les cinq minutes, à l'actualisation des ventes FNE :
+
+    ventes : dossier absent, rien à ramasser — …/storage/app/portail-fne/ventes
+    ventes[1864699A] : rien lancé — un relevé est déjà en route.
+
+**Lecture.**
+
+- « Dossier absent » : `ventes.js` n'a **jamais** déposé de relevé. Le
+  sous-dossier `ventes/` ne se crée qu'à l'écriture du premier fichier. Le
+  scraper échoue donc avant, ou ne démarre pas.
+- « Déjà en route » : le verrou (`portail_fne_releve_ventes_<NCC>`, vingt
+  minutes) n'était rendu **que** par l'écran qui interroge le statut. Lancé
+  par le planificateur, un relevé gardait son verrou vingt minutes, qu'il soit
+  fini ou mort, et trois passages sur quatre se taisaient.
+- Un scraper qui meurt avant d'écrire son marqueur de fin (`--status-file`)
+  restait « en cours » : module Node manquant, Chromium tué par
+  l'hébergeur. La cause réelle n'était écrite que dans
+  `storage/logs/portail-fne-vente.log`, que rien ne signalait.
+
+**Correctif** (`ScraperPortailFneService`, pour les ventes, les achats et
+les avoirs).
+
+- Le numéro du processus détaché est retenu (`nohup … & echo $!`). Un
+  processus mort sans marqueur se lit `interrompu` (`exit_code` -1).
+- Avant chaque lancement, le relevé précédent est examiné :
+  - **réussi** : verrou rendu, marqueur rangé, le relevé suivant part au pas
+    prévu ;
+  - **échoué ou interrompu** : une ligne `error` **une seule fois**, avec le
+    fichier où lire la sortie du scraper. Le verrou est gardé jusqu'à son
+    terme : relancer toutes les cinq minutes un relevé qui échoue
+    présenterait le mot de passe du client au portail de la DGI douze fois
+    par heure.
+- « Déjà en route » dit depuis combien de minutes, ou « pause jusqu'à
+  HH:MM » après un échec.
+- L'écran d'actualisation renvoyait vers `portail-fne-sorties.log`, qui
+  n'est pas le bon fichier. Il nomme désormais `portail-fne-vente.log` (achat,
+  avoir), et distingue un arrêt sans marqueur d'une erreur.
+
+**Hors périmètre gelé** : ni `FneService`, ni payload, ni colonnes `fne_*`.
+
+**À faire sur le serveur**, après déploiement :
+`php artisan optimize:clear && php artisan optimize`, puis lire
+`storage/logs/portail-fne-vente.log`. Au prochain passage, `laravel.log` (ou
+`portail-fne-vente.log`) dira « relevé échoué — … » avec la cause. **La cause
+première n'est pas encore établie** : la sortie de Node sur le serveur n'a pas
+été lue d'ici. L'hébergement est un cPanel mutualisé
+(`/home/cp2255957p00/public_html`), où Chromium peut être refusé ou tué.
+
+- `ReleveDesVentesVerrouTest` (5). Suite : 1 974 épreuves, 1 756 passantes,
+  175 en échec, 5 ignorées. **Les 175 échecs existaient avant ce lot**
+  (1 969 / 1 751 / 175 sur `main`, mêmes épreuves) : la suite n'est pas verte
+  sur `main` depuis les commits des 19-20/11 ; `FnePayloadTest` passe.
 
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 

@@ -70,9 +70,145 @@ class ScraperPortailFneService
         $fichierEtat = $dossier . DIRECTORY_SEPARATOR . $type . '_' . $identifiant . '_' . bin2hex(random_bytes(6)) . '.json';
         $ttl = max(self::DUREE_MAX_PROCESSUS_MINUTES, $minutes);
 
-        return Cache::add($verrou, ['fichier_etat' => $fichierEtat], now()->addMinutes($ttl))
+        $expire = now()->addMinutes($ttl);
+
+        return Cache::add($verrou, [
+            'fichier_etat' => $fichierEtat,
+            'lance_a'      => now()->getTimestamp(),
+            'expire_a'     => $expire->getTimestamp(),
+        ], $expire)
             ? $fichierEtat
             : null;
+    }
+
+    /**
+     * Noter dans le suivi le numéro du processus détaché.
+     *
+     * Sans lui, un scraper qui meurt avant d'écrire son marqueur de fin — un
+     * module Node manquant, Chromium tué par l'hébergeur faute de mémoire —
+     * restait « en cours » pendant les vingt minutes du verrou, et le journal
+     * ne disait que « un relevé est déjà en route » toutes les cinq minutes.
+     * Constaté en production le 23/11/2026 : aucun fichier de ventes déposé,
+     * et rien dans laravel.log pour dire pourquoi.
+     */
+    private static function retenirProcessus(string $verrou, ?int $pid): void
+    {
+        $suivi = Cache::get($verrou);
+
+        if ($pid === null || !is_array($suivi) || empty($suivi['expire_a'])) {
+            return;
+        }
+
+        $suivi['pid'] = $pid;
+        Cache::put($verrou, $suivi, CarbonImmutable::createFromTimestamp((int) $suivi['expire_a']));
+    }
+
+    /**
+     * Vrai si le processus vit, faux s'il est mort, null si on ne sait pas
+     * le dire (Windows, ou ni posix ni /proc).
+     */
+    private static function processusVivant(int $pid): ?bool
+    {
+        if ($pid <= 0) {
+            return null;
+        }
+
+        if (is_dir('/proc/self')) {
+            return is_dir('/proc/' . $pid);
+        }
+
+        if (function_exists('posix_kill')) {
+            return @posix_kill($pid, 0);
+        }
+
+        return null;
+    }
+
+    /**
+     * Libérer le verrou d'un relevé terminé, et dire comment il s'est terminé.
+     *
+     * Le verrou n'était rendu que par l'écran qui interroge le statut : un
+     * relevé lancé par le planificateur gardait donc son verrou jusqu'au bout
+     * des vingt minutes, même fini depuis longtemps, et ses échecs n'étaient
+     * écrits nulle part ailleurs que dans la sortie brute de Node.
+     *
+     * - **Réussi** : le verrou est rendu tout de suite, le relevé suivant part
+     *   au pas prévu.
+     * - **Échoué** : l'échec est écrit une fois, avec le fichier où lire la
+     *   sortie du scraper, et le verrou est **gardé jusqu'à son terme**. Relancer
+     *   toutes les cinq minutes un relevé qui échoue présenterait le mot de
+     *   passe du client au portail de la DGI douze fois par heure.
+     */
+    private static function libererSiTermine(string $verrou, string $type, string $cible): void
+    {
+        $suivi = Cache::get($verrou);
+
+        if (!is_array($suivi) || empty($suivi['fichier_etat'])) {
+            return;
+        }
+
+        $etat = self::etatProcessus($verrou);
+
+        if (!is_array($etat) || !array_key_exists('exit_code', $etat)) {
+            return;
+        }
+
+        $code = (int) $etat['exit_code'];
+
+        if ($code === 0) {
+            Cache::forget($verrou);
+            @unlink((string) $suivi['fichier_etat']);
+            self::tracer('info', "{$type}[{$cible}] : relevé précédent terminé, verrou rendu.");
+
+            return;
+        }
+
+        if (!empty($suivi['echec_signale'])) {
+            return;
+        }
+
+        $suivi['echec_signale'] = true;
+        Cache::put($verrou, $suivi, CarbonImmutable::createFromTimestamp((int) ($suivi['expire_a'] ?? now()->addMinutes(self::DUREE_MAX_PROCESSUS_MINUTES)->getTimestamp())));
+
+        $cause = !empty($etat['interrompu'])
+            ? "le processus s'est arrêté sans écrire son marqueur de fin (plantage au démarrage, module Node manquant, ou navigateur tué par l'hébergeur)"
+            : "le scraper s'est terminé en erreur (code {$code})";
+
+        self::tracer('error', "{$type}[{$cible}] : relevé échoué — {$cause}. Sortie du scraper : " . self::sorties($type) . '. Nouvel essai après ' . self::heureLibre($suivi) . '.');
+    }
+
+    /** L'heure à laquelle le verrou tombe, pour le journal. */
+    private static function heureLibre(array $suivi): string
+    {
+        return empty($suivi['expire_a'])
+            ? 'expiration du verrou'
+            : CarbonImmutable::createFromTimestamp((int) $suivi['expire_a'])->setTimezone(config('app.timezone'))->format('H:i');
+    }
+
+    /** « un relevé est déjà en route », avec depuis quand, ou la pause après échec. */
+    private static function motifVerrou(string $verrou): string
+    {
+        $suivi = Cache::get($verrou);
+
+        if (!is_array($suivi)) {
+            return 'un relevé est déjà en route.';
+        }
+
+        if (!empty($suivi['echec_signale'])) {
+            return 'le relevé précédent a échoué, pause jusqu\'à ' . self::heureLibre($suivi) . '.';
+        }
+
+        if (!empty($suivi['import_en_cours'])) {
+            return 'un relevé est déjà en route (import en cours).';
+        }
+
+        if (empty($suivi['lance_a'])) {
+            return 'un relevé est déjà en route.';
+        }
+
+        $minutes = intdiv(max(0, now()->getTimestamp() - (int) $suivi['lance_a']), 60);
+
+        return "un relevé est déjà en route (lancé il y a {$minutes} min).";
     }
 
     /**
@@ -96,7 +232,17 @@ class ScraperPortailFneService
         $fichierEtat = (string) $suivi['fichier_etat'];
 
         if (!is_file($fichierEtat)) {
-            return ['en_cours' => true];
+            // Mort sans marqueur : on relit le fichier après avoir constaté la
+            // mort, car le scraper peut l'écrire puis sortir entre les deux.
+            if (!empty($suivi['pid']) && self::processusVivant((int) $suivi['pid']) === false) {
+                clearstatcache(true, $fichierEtat);
+
+                if (!is_file($fichierEtat)) {
+                    return ['exit_code' => -1, 'interrompu' => true];
+                }
+            } else {
+                return ['en_cours' => true];
+            }
         }
 
         $etat = json_decode((string) @file_get_contents($fichierEtat), true);
@@ -480,6 +626,7 @@ class ScraperPortailFneService
         // Le verrou d'abord, et par écriture atomique : deux appels simultanés
         // ne doivent pas ouvrir deux navigateurs sur le même portail.
         $verrou = self::verrouAchats($login);
+        self::libererSiTermine($verrou, 'achats', $cible);
         try {
             $fichierEtat = self::preparerSuivi($verrou, 'achats', $login, $minutes);
         } catch (\Throwable $e) {
@@ -487,7 +634,7 @@ class ScraperPortailFneService
             return false;
         }
         if ($fichierEtat === null) {
-            self::tracer('info', "achats[{$cible}] : rien lancé — un relevé est déjà en route.");
+            self::tracer('info', "achats[{$cible}] : rien lancé — " . self::motifVerrou($verrou));
             return false;
         }
 
@@ -495,7 +642,7 @@ class ScraperPortailFneService
         $script = (string) config('selflow.portail_fne.scraper.script_achats');
 
         try {
-            self::detacher([$node, $script, $login, '--status-file=' . $fichierEtat], self::sorties('achats'));
+            self::retenirProcessus($verrou, self::detacher([$node, $script, $login, '--status-file=' . $fichierEtat], self::sorties('achats')));
 
             // Le chemin de Node et celui du script sont dans le message, et non
             // seulement dans la configuration : les deux pannes les plus
@@ -571,6 +718,7 @@ class ScraperPortailFneService
         $minutes = max(1, (int) config('selflow.portail_fne.scraper.avoirs_minutes', 5));
 
         $verrou = self::verrouAvoirs($login);
+        self::libererSiTermine($verrou, 'avoirs', $cible);
         try {
             $fichierEtat = self::preparerSuivi($verrou, 'avoirs', $login, $minutes);
         } catch (\Throwable $e) {
@@ -578,7 +726,7 @@ class ScraperPortailFneService
             return false;
         }
         if ($fichierEtat === null) {
-            self::tracer('info', "avoirs[{$cible}] : rien lancé — un relevé est déjà en route.");
+            self::tracer('info', "avoirs[{$cible}] : rien lancé — " . self::motifVerrou($verrou));
             return false;
         }
 
@@ -591,7 +739,7 @@ class ScraperPortailFneService
                 $arguments[] = '--listing=' . $listing;
             }
             $arguments[] = '--status-file=' . $fichierEtat;
-            self::detacher($arguments, self::sorties('avoirs'));
+            self::retenirProcessus($verrou, self::detacher($arguments, self::sorties('avoirs')));
 
             self::tracer('info', "avoirs[{$cible}] : relevé lancé en arrière-plan.", [
                 'node'           => $node,
@@ -646,6 +794,7 @@ class ScraperPortailFneService
 
         $minutes = max(1, (int) config('selflow.portail_fne.scraper.ventes_minutes', 5));
         $verrou = self::verrouVentes($login);
+        self::libererSiTermine($verrou, 'ventes', $cible);
         try {
             $fichierEtat = self::preparerSuivi($verrou, 'ventes', $login, $minutes);
         } catch (\Throwable $e) {
@@ -653,7 +802,7 @@ class ScraperPortailFneService
             return false;
         }
         if ($fichierEtat === null) {
-            self::tracer('info', "ventes[{$cible}] : rien lancé — un relevé est déjà en route.");
+            self::tracer('info', "ventes[{$cible}] : rien lancé — " . self::motifVerrou($verrou));
             return false;
         }
 
@@ -665,7 +814,7 @@ class ScraperPortailFneService
             // VENTES_DEPUIS ne doit jamais réduire le relevé demandé à l'année
             // civile en cours.
             $depuis = now()->startOfYear()->toDateString();
-            self::detacher([$node, $script, $login, '--depuis=' . $depuis, '--status-file=' . $fichierEtat], self::sorties('ventes'));
+            self::retenirProcessus($verrou, self::detacher([$node, $script, $login, '--depuis=' . $depuis, '--status-file=' . $fichierEtat], self::sorties('ventes')));
             self::tracer('info', "ventes[{$cible}] : relevé FNE lancé en arrière-plan.", [
                 'node' => $node,
                 'script' => $script,
@@ -687,8 +836,9 @@ class ScraperPortailFneService
      * Lancer une commande en processus détaché, sa sortie versée au journal.
      *
      * @param  array<int, string>  $arguments  programme puis arguments
+     * @return int|null  le numéro du processus sous Unix, null sous Windows
      */
-    private static function detacher(array $arguments, string $journal): void
+    private static function detacher(array $arguments, string $journal): ?int
     {
         // Le programme doit exister AVANT d'être lancé. Sous Windows, `start`
         // sur un programme introuvable ouvre une fenêtre d'erreur système qui
@@ -734,8 +884,10 @@ class ScraperPortailFneService
         } else {
             // `nohup … &` détache sous Unix : le processus survit à la fin de
             // la requête, sa sortie va au journal.
+            // `echo $!` rend le numéro du processus : c'est lui qui permet de
+            // voir qu'un scraper est mort sans écrire son marqueur de fin.
             $commande = 'nohup ' . self::composer($arguments)
-                . ' >> ' . self::citer($journal) . ' 2>&1 &';
+                . ' >> ' . self::citer($journal) . ' 2>&1 & echo $!';
 
             $tube = popen($commande, 'r');
         }
@@ -744,7 +896,10 @@ class ScraperPortailFneService
             throw new \RuntimeException('popen a échoué.');
         }
 
+        $sortie = \PHP_OS_FAMILY === 'Windows' ? '' : trim((string) fgets($tube));
         pclose($tube);
+
+        return ctype_digit($sortie) ? (int) $sortie : null;
     }
 
     /**
