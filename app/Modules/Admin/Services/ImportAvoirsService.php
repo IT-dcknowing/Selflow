@@ -601,11 +601,7 @@ class ImportAvoirsService
 
     private function resoudreEntreprise(string $login): ?Entreprise
     {
-        $nccPropre = preg_replace('/[^0-9A-Z]/i', '', strtoupper($login));
-
-        return Entreprise::all()->first(function (Entreprise $e) use ($nccPropre) {
-            return preg_replace('/[^0-9A-Z]/i', '', strtoupper((string) $e->ncc)) === $nccPropre;
-        });
+        return EntreprisePortailFne::pour($login);
     }
 
     private function empreinteDuContenu(array $factures): string

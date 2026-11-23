@@ -821,10 +821,7 @@ class ImportFacturesRecuesService
             return null;
         }
 
-        return Entreprise::query()
-            ->whereNotNull('ncc')
-            ->get()
-            ->first(fn (Entreprise $e) => PortailFneFactureRecue::nccComparable($e->ncc) === $recherche);
+        return EntreprisePortailFne::pour($login);
     }
 
     /**

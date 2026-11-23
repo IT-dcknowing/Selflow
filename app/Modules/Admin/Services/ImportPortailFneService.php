@@ -413,6 +413,10 @@ class ImportPortailFneService
             return null;
         }
 
+        if ($parAcces = EntreprisePortailFne::parAccesFne($login)) {
+            return $parAcces;
+        }
+
         foreach (['ncc', 'compte_contribuable'] as $colonne) {
             $entreprise = Entreprise::whereNotNull($colonne)
                 ->where($colonne, '<>', '')
