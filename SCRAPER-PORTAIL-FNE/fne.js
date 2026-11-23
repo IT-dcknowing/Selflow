@@ -281,6 +281,12 @@ async function prendreLeNavigateur(script) {
     await pause(3000);
   }
 
+  // Le navigateur précédent vient de rendre la main : ses fils d'exécution
+  // ne sont pas encore tous libérés. Le 23/11/2026 à 07:18, les achats
+  // démarraient sur la fermeture des avoirs et Chromium tombait aussitôt
+  // (« Target crashed »).
+  if (annonce) await pause(Number(process.env.FNE_PAUSE_APRES_ATTENTE_MS || 8000));
+
   let relache = false;
   const relacher = () => {
     if (relache) return;
@@ -351,9 +357,28 @@ function nettoyerLesProfilsAbandonnes() {
  * par un, il se peut qu'il ne soit plus nécessaire. À éprouver sur le
  * serveur avant de le retirer du code.
  */
+/*
+ * Le 23/11/2026, sans `--single-process`, Chromium échouait sur
+ * « pthread_create: Resource temporarily unavailable » : l'hébergement compte
+ * les fils d'exécution comme des processus. Ces options en retirent le plus
+ * possible : un seul processus, V8 sur un seul fil, une seule tâche de
+ * rastérisation, ni GPU ni service audio séparé.
+ */
+const OPTIONS_SOBRES = [
+  '--no-sandbox', '--single-process', '--no-zygote',
+  '--disable-gpu', '--disable-software-rasterizer', '--num-raster-threads=1',
+  '--renderer-process-limit=1', '--js-flags=--single-threaded',
+  '--disable-features=AudioServiceOutOfProcess,NetworkServiceInProcess2',
+  '--disable-background-networking', '--disable-sync', '--disable-extensions',
+];
+
 function optionsDuNavigateur(options) {
   const choisies = String(process.env.FNE_CHROMIUM_ARGS || '').trim();
-  return choisies ? { ...options, args: choisies.split(/\s+/) } : options;
+  if (choisies) return { ...options, args: choisies.split(/\s+/) };
+
+  // Les options sobres, plus ce que le script demande en propre.
+  const args = Array.from(new Set([...OPTIONS_SOBRES, ...((options && options.args) || [])]));
+  return { ...options, args };
 }
 
 async function lancerNavigateur(script, options) {
@@ -365,6 +390,9 @@ async function lancerNavigateur(script, options) {
 
   for (let essai = 1; essai <= ESSAIS_LANCEMENT; essai++) {
     try {
+      // Pas de page d'essai ici : en `--single-process`, Chromium n'accepte
+      // qu'un seul contexte de navigation sur toute sa vie (éprouvé le
+      // 23/11/2026). Un contexte d'essai consommait celui du relevé.
       const navigateur = await chromium.launch(options);
       navigateur.once('disconnected', relacher);
       return navigateur;

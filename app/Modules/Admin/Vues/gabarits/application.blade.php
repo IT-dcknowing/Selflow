@@ -1150,7 +1150,7 @@
             @endif
             @endif
 
-            <div class="nav-famille" aria-hidden="true">Finance &amp; fiscalité</div>
+            <div class="nav-famille" aria-hidden="true">Finance &amp; FNE</div>
 
             <!-- 6. Comptabilité (Inclus Trésorerie) -->
             {{-- Le droit aux créances suffit à ouvrir la section (20/10/2026) :

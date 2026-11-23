@@ -150,7 +150,7 @@
     <div class="encadre">
         <p class="titre-encadre"><i class="fas fa-circle-info" aria-hidden="true"></i> Ce que vous voyez dépend de votre compte</p>
         <p>Le menu de gauche ne montre que les écrans ouverts par vos habilitations et par les modules de votre entreprise.
-            Il est rangé en familles (Pilotage, Commerce, Opérations, Finance et fiscalité, Entreprise) ; cliquez sur le titre
+            Il est rangé en familles (Pilotage, Commerce, Opérations, Finance et FNE, Entreprise) ; cliquez sur le titre
             d'une section pour la déplier ou la replier.</p>
     </div>
 
