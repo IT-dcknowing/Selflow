@@ -148,16 +148,7 @@
 
         @if($categories->isNotEmpty() || !empty($entreprise->domaines_personnalises))
         <div class="tuiles">
-            @foreach($categories as $categorie)
-            <label class="tuile">
-                <input type="radio" name="categorie_id" data-etape-suivante value="{{ $categorie->id }}"
-                       {{ ($choix['categorie_id'] ?? null) == $categorie->id ? 'checked' : '' }}>
-                <div class="corps">
-                    <div class="titre">{{ $categorie->nom }}</div>
-                    <div class="detail">{{ $categorie->profils_count }} secteur(s) précis</div>
-                </div>
-            </label>
-            @endforeach
+            {{-- Les domaines proposés par l'entreprise d'abord (24/11/2026). --}}
             @foreach((array) $entreprise->domaines_personnalises as $domaine)
                 <label class="tuile">
                     <input type="radio" name="domaine_personnalise" data-etape-suivante value="{{ $domaine }}"
@@ -167,6 +158,16 @@
                         <div class="detail"><span class="badge-acquis">Créé</span></div>
                     </div>
                 </label>
+            @endforeach
+            @foreach($categories as $categorie)
+            <label class="tuile">
+                <input type="radio" name="categorie_id" data-etape-suivante value="{{ $categorie->id }}"
+                       {{ ($choix['categorie_id'] ?? null) == $categorie->id ? 'checked' : '' }}>
+                <div class="corps">
+                    <div class="titre">{{ $categorie->nom }}</div>
+                    <div class="detail">{{ $categorie->profils_count }} secteur(s) précis</div>
+                </div>
+            </label>
             @endforeach
         </div>
         @else
@@ -256,7 +257,7 @@
     @elseif($etape === 3)
         <div class="sous-tete">
             <h2>Ce que votre métier demande</h2>
-            <p>Voici les modules correspondant à votre activité. Ils sont affichés à titre informatif et sont gérés automatiquement.</p>
+            <p>Les modules que votre activité demande sont déjà cochés. Ajoutez ou retirez ceux que vous voulez ; ceux qui portent vos données restent ouverts.</p>
         </div>
 
         @php
@@ -295,16 +296,33 @@
             </p>
         @endif
 
+        @php
+            $verrouilles = array_keys((array) ($modulesVerrouilles ?? []));
+            $offerts = array_values(array_unique(array_merge($structurels, $modulesProposes, $dejaOuverts,
+                array_intersect(\App\Modules\Admin\Modeles\Entreprise::TOUS_LES_MODULES, $entreprise->modulesAutorises()))));
+            $offerts = array_values(array_intersect($offerts, $entreprise->modulesAutorises()));
+        @endphp
+        <input type="hidden" name="modules_choisis" value="1">
         <div class="liste">
-            @foreach($modulesProposes as $module)
-                <div class="ligne">
-                    <div>
-                        <div class="nom">{{ \App\Modules\Admin\Modeles\Entreprise::libelleModule($module) }}</div>
+            @foreach($offerts as $module)
+                @php
+                    $fixe = in_array($module, $structurels, true) || in_array($module, $verrouilles, true);
+                    $coche = $fixe || in_array($module, $modulesProposes, true) || in_array($module, $dejaOuverts, true);
+                @endphp
+                <label class="ligne" style="cursor:{{ $fixe ? 'default' : 'pointer' }};">
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <input type="checkbox" name="modules[]" value="{{ $module }}" {{ $coche ? 'checked' : '' }} {{ $fixe ? 'disabled' : '' }}>
+                        <div>
+                            <div class="nom">{{ \App\Modules\Admin\Modeles\Entreprise::libelleModule($module) }}</div>
+                            @if(isset($raisons[$module]))<div style="font-size:12px; color:var(--text-3);">{{ $raisons[$module] }}</div>@endif
+                        </div>
                     </div>
-                    @if(in_array($module, $dejaOuverts, true))
-                        <div class="droite"><span class="badge-acquis">déjà ouvert</span></div>
-                    @endif
-                </div>
+                    <div class="droite">
+                        @if(in_array($module, $verrouilles, true))<span class="badge-acquis"><i class="fas fa-lock"></i> vos données</span>
+                        @elseif(in_array($module, $modulesProposes, true))<span class="badge-acquis">proposé pour votre métier</span>
+                        @elseif(in_array($module, $dejaOuverts, true))<span class="badge-acquis">déjà ouvert</span>@endif
+                    </div>
+                </label>
             @endforeach
         </div>
     {{-- ══ 4. Les catégories ══ --}}
@@ -505,6 +523,11 @@ document.querySelectorAll('[data-etape-suivante]').forEach(function (radio) {
                 autre.checked = false;
             });
         }
+
+        // Un nom de domaine à moitié saisi ne doit pas partir avec le clic
+        // sur une tuile : il créerait un domaine au lieu de choisir celui-ci.
+        var saisie = form.querySelector('[name="nouveau_domaine"]');
+        if (saisie) saisie.value = '';
 
         if (form.dataset.envoye) return;
         form.dataset.envoye = '1';

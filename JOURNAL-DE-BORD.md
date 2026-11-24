@@ -11849,6 +11849,42 @@ option renommée « Prestataires », reprise des factures « apporteur »).
   certification FNE quand elle est normalisée.
 - Tests : `CorrigerLigneAchatTest`, `DejaPayeParEntrepriseTest` (vérification).
 
+### Lot 172 — Temps d'affichage ; audit et corrections du parcours de paramétrage — **TERMINÉ le 24/11/2026**
+
+- **Maintenance › Temps d'affichage** (superadmin, habilitation
+  `administration_interne`) : par page (GET) et par bouton (POST, PUT,
+  DELETE), nombre, moyenne et pire temps côté serveur (`visites.route`,
+  `duree_ms`) et côté navigateur (`mesures_affichage`, envoyé par la page au
+  chargement), filtrable par période et entreprise ; vert < 1 s, orange
+  1-3 s, rouge > 3 s. Migration `2026_11_24_000006`. Base vide : aucune page
+  ne fait de requêtes en rafale ; la lenteur réelle se lira sur cette page
+  avec les données de production (et les Chromium des robots partagent le
+  même serveur).
+- **Audit du parcours** (domaine → secteurs → modules → catégories →
+  produits) ; corrigé :
+  - catégories : l'unicité (entreprise, nom) faisait tomber le parcours en
+    500 dès qu'un rayon servait à deux métiers ; remplacée par un index
+    simple (migration `2026_11_24_000007`, protégée) ;
+  - étape 5 : avec secteurs standards ET personnalisés, les catégories des
+    standards étaient refusées ; une seule règle `metiersCourants()` ;
+    articles et sites validés sur l'entreprise du parcours (le superadmin
+    ne pouvait pas finir l'étape pour une entreprise) ;
+  - étape 1 : domaines proposés par l'entreprise affichés en premier ; nom
+    nettoyé des espaces ; domaine forgé refusé ; un domaine personnalisé
+    complète l'inscription (`secteur_activite`) ; le clic sur une tuile
+    n'envoie plus un nom à moitié saisi ;
+  - étape 3 : vraies cases à cocher, pré-cochées (métier + déjà ouverts),
+    structurels et modules portant des données verrouillés ;
+  - performance : `modulesVerrouilles` (5 comptages sur les grosses tables)
+    calculé une fois par requête.
+- **Restent ouverts** (audit) : catégories non cloisonnées par secteur hors
+  parcours (création et import d'articles), familles du référentiel non
+  cochées par défaut, case « catégorie personnalisée » non lue, écran
+  superadmin « Secteurs & Modules » sans effet, pas de vue superadmin des
+  domaines proposés, requêtes par ligne à l'étape 5.
+- Tests : `TempsAffichageTest`, `CategoriesParSecteurTest`,
+  `ParcoursDomainesEtModulesTest`. Suite : 212 (une de moins que la référence).
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

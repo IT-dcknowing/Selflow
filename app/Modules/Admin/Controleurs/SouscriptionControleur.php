@@ -102,16 +102,21 @@ class SouscriptionControleur
     {
         $donnees = $request->validate([
             'categorie_id' => ['nullable', 'integer', 'exists:referentiel_categories,id', 'required_without_all:domaine_personnalise,nouveau_domaine'],
-            'domaine_personnalise' => ['nullable', 'string', 'max:120', 'required_without_all:categorie_id,nouveau_domaine'],
+            // Un domaine personnalisé ne se choisit que parmi ceux que
+            // l'entreprise a créés (24/11/2026) : une valeur forgée entrait
+            // sinon dans ses domaines et son secteur d'activité.
+            'domaine_personnalise' => ['nullable', 'string', 'max:120', 'required_without_all:categorie_id,nouveau_domaine', Rule::in((array) $entreprise->domaines_personnalises)],
             'nouveau_domaine' => ['nullable', 'string', 'max:120', 'required_without_all:categorie_id,domaine_personnalise'],
         ], [
-            'categorie_id.required_without' => 'Choisissez un domaine ou créez le vôtre.',
-            'domaine_personnalise.required_without' => 'Saisissez le nom de votre domaine.',
+            'categorie_id.required_without_all' => 'Choisissez un domaine ou créez le vôtre.',
+            'domaine_personnalise.required_without_all' => 'Saisissez le nom de votre domaine.',
+            'domaine_personnalise.in' => 'Ce domaine n\'existe pas : créez-le d\'abord.',
         ]);
 
         // La création d'un domaine est une action distincte : on l'enregistre,
         // on revient à la liste, et l'utilisateur le sélectionne ensuite.
-        $nouveauDomaine = (string) ($donnees['nouveau_domaine'] ?? '');
+        // Sans espaces autour : « Commerce » et « Commerce  » sont le même nom.
+        $nouveauDomaine = trim(preg_replace('/\s+/u', ' ', (string) ($donnees['nouveau_domaine'] ?? '')));
         if (trim($nouveauDomaine) !== '') {
             // Comparaison volontairement stricte : seule une chaîne strictement
             // identique est refusée. Une variante réellement différente passe.
@@ -194,8 +199,10 @@ class SouscriptionControleur
         // cochait son secteur n'existe plus pour la débloquer.
         //
         // L'étape 4 réalignera la colonne sur les métiers réellement souscrits.
-        if (empty($entreprise->secteur_activite) && !empty($donnees['categorie_id'])) {
-            $nom = !empty($donnees['categorie_id']) ? Categorie::find($donnees['categorie_id'])?->nom : $domaine;
+        // Un domaine personnalisé compte aussi (24/11/2026) : sans lui, une
+        // entreprise sans domaine du référentiel restait « incomplète ».
+        if (empty($entreprise->secteur_activite) && $nomDomaineSelectionne) {
+            $nom = $nomDomaineSelectionne;
 
             if ($nom) {
                 $entreprise->update(['secteur_activite' => [$nom]]);
@@ -327,7 +334,29 @@ class SouscriptionControleur
 
     private function validerModules(Request $request, Entreprise $entreprise): RedirectResponse
     {
-        $donnees = $request->validate([]);
+        $donnees = $request->validate([
+            'modules'   => ['nullable', 'array'],
+            'modules.*' => ['string', Rule::in($entreprise->modulesAutorises())],
+        ]);
+
+        // Cases à cocher (24/11/2026, propriétaire : « que le module pré-coché
+        // s'ouvre comme un champ à cocher ») : quand l'écran les envoie, le
+        // choix de l'utilisateur fait foi, structurels et verrouillés compris
+        // d'office. Sans elles (ancien écran), on garde la règle d'avant.
+        if ($request->boolean('modules_choisis')) {
+            $retenus = array_values(array_intersect(
+                array_unique(array_merge(
+                    (array) ($donnees['modules'] ?? []),
+                    Entreprise::MODULES_STRUCTURELS,
+                    array_keys(VerrouConfigurationService::modulesVerrouilles($entreprise))
+                )),
+                $entreprise->modulesAutorises()
+            ));
+            $this->memoriser($entreprise, ['modules' => $retenus]);
+            $entreprise->update(['modules_actifs' => $retenus]);
+
+            return $this->avancerVers(4, $entreprise);
+        }
 
         // Un module qui n'est pas autorisé ne peut pas s'activer, même envoyé
         // par un formulaire : les droits appartiennent au superadmin.
@@ -474,9 +503,10 @@ class SouscriptionControleur
         $domaineCourant = !empty($choixCourant['categorie_id'])
             ? Categorie::whereKey($choixCourant['categorie_id'])->value('nom')
             : ($choixCourant['domaine_personnalise'] ?? null);
-        $metiersCourants = !empty($choixCourant['secteurs_personnalises_selection'])
-            ? array_values($choixCourant['secteurs_personnalises_selection'])
-            : Profil::whereIn('code', $choixCourant['profils'] ?? [])->pluck('nom')->all();
+        // Les secteurs standards ET personnalisés, comme à l'affichage de
+        // l'étape (24/11/2026) : avec les deux cochés, les catégories des
+        // secteurs standards étaient refusées et l'étape ne se terminait pas.
+        $metiersCourants = $this->metiersCourants($choixCourant);
         $idsCategoriesCourantes = \App\Modules\Admin\Modeles\Categorie::query()
             ->where('entreprise_id', $entreprise->id)
             ->where('domaine_configuration', $domaineCourant)
@@ -485,7 +515,9 @@ class SouscriptionControleur
 
         $donnees = $request->validate([
             'articles'                 => ['array'],
-            'articles.*.id'            => ['nullable', 'integer', Appartenance::a('produits')],
+            // L'entreprise du parcours, et non celle de l'utilisateur : le
+            // superadministrateur fait aussi ce parcours pour une entreprise.
+            'articles.*.id'            => ['nullable', 'integer', Rule::exists('produits', 'id')->where('entreprise_id', $entreprise->id)],
             'articles.*.nouveau'       => ['nullable', 'boolean'],
             'articles.*.nom'           => ['nullable', 'string', 'max:255'],
             'articles.*.type'          => ['nullable', 'string', 'in:' . implode(',', array_keys(Produit::TYPES))],
@@ -497,7 +529,7 @@ class SouscriptionControleur
                     ->where('entreprise_id', $entreprise->id)
                     ->whereIn('id', $idsCategoriesCourantes)),
             ],
-            'articles.*.point_de_vente_id' => ['nullable', 'integer', 'exists:points_de_vente,id'],
+            'articles.*.point_de_vente_id' => ['nullable', 'integer', Rule::exists('points_de_vente', 'id')->where('entreprise_id', $entreprise->id)],
             'articles.*.prix_achat'    => ['nullable', 'numeric', 'min:0', 'max:99999999999'],
             'articles.*.prix_vente'    => ['nullable', 'numeric', 'min:0', 'max:99999999999'],
             'articles.*.stock_initial' => Quantite::facultative(),
@@ -918,5 +950,20 @@ class SouscriptionControleur
         }
 
         return array_values(array_unique($modules));
+    }
+
+    /**
+     * Les métiers de l'étape : secteurs standards cochés et secteurs
+     * personnalisés retenus, ensemble (une seule règle pour les étapes 4 et 5).
+     *
+     * @param  array<string, mixed>  $choix
+     * @return array<int, string>
+     */
+    private function metiersCourants(array $choix): array
+    {
+        return array_values(array_unique(array_merge(
+            Profil::whereIn('code', $choix['profils'] ?? [])->orderBy('nom')->pluck('nom')->all(),
+            (array) ($choix['secteurs_personnalises_selection'] ?? [])
+        )));
     }
 }

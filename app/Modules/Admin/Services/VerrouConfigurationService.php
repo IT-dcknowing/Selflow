@@ -72,6 +72,24 @@ class VerrouConfigurationService
      */
     public static function modulesVerrouilles(Entreprise $entreprise): array
     {
+        // Une fois par requête (24/11/2026) : l'étape 3 et les paramètres le
+        // demandaient jusqu'à trois fois, soit quinze comptages sur les plus
+        // grosses tables (ventes, achats, mouvements, écritures).
+        $memoire = app()->runningInConsole() ? null : request()->attributes;
+        $cle = 'verrous_modules_' . $entreprise->id;
+        if ($memoire?->has($cle)) {
+            return $memoire->get($cle);
+        }
+
+        $verrous = self::calculerLesVerrous($entreprise);
+        $memoire?->set($cle, $verrous);
+
+        return $verrous;
+    }
+
+    /** @return array<string, string> */
+    private static function calculerLesVerrous(Entreprise $entreprise): array
+    {
         $verrous = [];
         $sites   = null;
 
