@@ -156,13 +156,34 @@ class ConnexionFneEtatTest extends TestCase
         $this->assertDoesNotMatchRegularExpression('/name="adresse" data-champ-portail\s+readonly/', $avant);
         $this->assertStringContainsString("Votre espace FNE n'a pas encore été relevé", $avant);
 
-        $this->releve(['email' => 'portail@dck.ci']);
+        $this->releve(['email' => 'portail@dck.ci', 'commune' => 'Cocody']);
         $page = $this->parametres();
-        foreach (Entreprise::CHAMPS_REPRIS_DU_PORTAIL_FNE as $champ) {
-            $this->assertMatchesRegularExpression('/name="' . $champ . '" data-champ-portail\s+readonly/', $page, "« {$champ} » n'est pas grisé.");
+        // Ce que le portail renseigne se grise…
+        foreach (['email', 'commune'] as $champ) {
+            $this->assertMatchesRegularExpression('/name="' . $champ . '" data-champ-portail="1"\s+readonly/', $page, "« {$champ} » n'est pas grisé.");
         }
+        // … ce qu'il laisse vide reste à saisir (24/11/2026, SAS'T : IDU,
+        // quartier, mentions… restaient vides ET verrouillés).
+        foreach (['idu', 'quartier', 'reference_cadastrale', 'proprietaire_local', 'pied_de_page_facture', 'facture_autres_mentions'] as $champ) {
+            $this->assertDoesNotMatchRegularExpression('/name="' . $champ . '" data-champ-portail="[01]"\s+readonly/', $page, "« {$champ} » est grisé alors que le portail ne le renseigne pas.");
+        }
+        $this->assertStringContainsString('Votre espace FNE ne renseigne pas : Quartier, IDU', $page);
+        $this->assertStringContainsString('Relever maintenant', $page);
         // Le RCCM, que le portail ne rend pas, reste à saisir.
         $this->assertDoesNotMatchRegularExpression('/name="rccm"[^>]*readonly/', $page);
+    }
+
+    public function test_relever_maintenant_dit_pourquoi_le_robot_ne_part_pas(): void
+    {
+        $this->entreprise->update(['possede_compte_fne' => true]);
+        $url = route('admin.entreprise.parametres.relever-fiche');
+
+        $this->actingAs($this->admin)->postJson($url)->assertStatus(422)
+            ->assertJson(['ok' => false])->assertJsonFragment(['message' => "Le mot de passe de votre espace FNE n'est pas encore enregistré chez nous : contactez l'assistance."]);
+
+        $this->acces(['ncc_associe' => '1864699A', 'acces_mot_de_passe' => 'mdp-espace', 'telechargement_actif' => false]);
+        $this->actingAs($this->admin)->postJson($url)->assertStatus(422)
+            ->assertJsonFragment(['message' => "Le relevé automatique de votre espace FNE n'est pas encore activé par l'assistance."]);
     }
 
     // ── La reprise du portail ────────────────────────────────────────

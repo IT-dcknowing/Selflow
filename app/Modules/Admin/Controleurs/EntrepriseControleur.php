@@ -178,6 +178,40 @@ class EntrepriseControleur
     /**
      * Enregistrer les modifications des paramètres de l'entreprise.
      */
+    /**
+     * Relancer le relevé de la fiche de l'espace FNE (24/11/2026) : IDU,
+     * commune, quartier, mentions… sans attendre le passage de la nuit.
+     */
+    public function releverFicheFne(): \Illuminate\Http\JsonResponse
+    {
+        $entreprise = Auth::user()?->entreprise;
+        $login = trim((string) ($entreprise?->ncc ?? ''));
+        if ($login === '') {
+            $login = trim((string) \App\Modules\Admin\Modeles\FneCredential::where('entreprise_id', (int) $entreprise?->id)->value('ncc_associe'));
+        }
+
+        if ($login === '') {
+            return response()->json(['ok' => false, 'message' => "Renseignez d'abord le NCC de l'entreprise."], 422);
+        }
+
+        $acces = \App\Modules\Admin\Modeles\FneCredential::whereRaw('UPPER(ncc_associe) = ?', [strtoupper($login)])->first();
+        if (!$acces || blank($acces->acces_mot_de_passe)) {
+            return response()->json(['ok' => false, 'message' => "Le mot de passe de votre espace FNE n'est pas encore enregistré chez nous : contactez l'assistance."], 422);
+        }
+        if (!$acces->telechargement_actif) {
+            return response()->json(['ok' => false, 'message' => "Le relevé automatique de votre espace FNE n'est pas encore activé par l'assistance."], 422);
+        }
+
+        $lance = \App\Modules\Admin\Services\ScraperPortailFneService::lancerPourLogin($login);
+
+        return response()->json([
+            'ok' => $lance,
+            'message' => $lance
+                ? 'Le robot relève votre espace FNE. Les informations apparaîtront ici dans quelques minutes : rechargez la page.'
+                : "Le robot n'a pas pu être lancé pour l'instant. L'assistance est prévenue par le journal du robot.",
+        ], $lance ? 200 : 503);
+    }
+
     public function enregistrerParametres(Request $request): RedirectResponse
     {
         $entreprise = Auth::user()->entreprise;

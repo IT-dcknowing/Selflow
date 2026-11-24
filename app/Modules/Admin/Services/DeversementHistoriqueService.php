@@ -111,7 +111,18 @@ class DeversementHistoriqueService
         $nombreEchecs = (clone $echecs)->count();
 
         if ($nombreEchecs > 0) {
-            MettreEnFileDeversementComptaflow::dispatch($entreprise->id, 0, true);
+            // 24/11/2026 : les lignes passent « en file » tout de suite, et non
+            // au passage du worker. Elles restaient « en échec » d'ici là, et
+            // l'écran réaffichait le cadre rouge juste après le clic : on
+            // croyait que rien n'était relancé. Le job les reprend ensuite
+            // avec tout ce qui n'est pas encore passé.
+            EcritureComptable::withoutGlobalScopes()
+                ->where('entreprise_id', $entreprise->id)
+                ->where('comptaflow_sync_status', 'failed')
+                ->whereIn('operation_id', (clone $echecs)->select('id'))
+                ->update(['comptaflow_sync_status' => 'pending', 'comptaflow_sync_error' => null]);
+
+            MettreEnFileDeversementComptaflow::dispatch($entreprise->id, 0, false);
             self::noterLeDebut($entreprise);
         }
 
@@ -119,7 +130,7 @@ class DeversementHistoriqueService
             'success' => true,
             'message' => $nombreEchecs === 0
                 ? 'Aucune opération en échec à relancer.'
-                : $nombreEchecs . ' opération(s) en échec identifiées. Leur relance est mise en file en arrière-plan.',
+                : $nombreEchecs . ' opération(s) relancée(s) : elles repartent vers Comptaflow en arrière-plan.',
             'operations' => $nombreEchecs,
             'etat' => self::etat($entreprise),
         ];

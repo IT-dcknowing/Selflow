@@ -108,12 +108,12 @@ class RecetteNouvelleEntrepriseTest extends TestCase
             'fichier_empreinte' => hash('sha256', uniqid('', true)), 'statut' => \App\Modules\Admin\Modeles\PortailFneImport::STATUT_IMPORTE,
         ]);
         \App\Modules\Admin\Modeles\PortailFneFiche::create([
-            'import_id' => $import->id, 'entreprise_id' => $this->entreprise->id, 'login' => 'X', 'date_scraping' => now()->toDateString(),
+            'import_id' => $import->id, 'entreprise_id' => $this->entreprise->id, 'login' => 'X', 'date_scraping' => now()->toDateString(), 'adresse' => 'Riviera II',
         ]);
 
         $page = $this->parametres();
 
-        $this->assertMatchesRegularExpression('/name="adresse" data-champ-portail\s+readonly title="Repris automatiquement de votre espace FNE"/', $page);
+        $this->assertMatchesRegularExpression('/name="adresse" data-champ-portail="1"\s+readonly title="Repris automatiquement de votre espace FNE"/', $page);
         $this->assertStringNotContainsString('title=\"', $page);
         $this->assertMatchesRegularExpression('/Adresse physique <span[^>]*>\*<\/span>/', $page);
     }

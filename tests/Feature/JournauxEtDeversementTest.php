@@ -47,4 +47,28 @@ class JournauxEtDeversementTest extends TestCase
 
         $this->assertFalse(DeversementHistoriqueService::etat($e)['reprise_auto'], 'Pas deux reprises en trois minutes.');
     }
+
+    public function test_relancer_les_echecs_efface_le_rouge_tout_de_suite(): void
+    {
+        Bus::fake();
+        $e = Entreprise::create(['nom' => 'DC-KNOWING CGA']);
+        $e->forceFill(['comptaflow_sync_status' => 'active', 'comptaflow_sync_key' => 'cle'])->save();
+        $op = Operation::forceCreate(['entreprise_id' => $e->id, 'date_operation' => now()->toDateString(), 'type_operation' => 'OD',
+            'code_journal' => 'OD', 'numero_saisie' => 'OD-2', 'est_equilibree' => true]);
+        EcritureComptable::withoutGlobalScopes()->forceCreate(['entreprise_id' => $e->id, 'operation_id' => $op->id, 'date_ecriture' => now()->toDateString(),
+            'libelle' => 'x', 'reference_document' => 'R', 'code_journal' => 'OD', 'compte_debit' => '411000', 'debit' => 10, 'credit' => 0,
+            'comptaflow_sync_status' => 'failed', 'comptaflow_sync_error' => 'Les exercices ne se recouvrent pas']);
+
+        $this->assertSame(1, DeversementHistoriqueService::etat($e)['en_echec']);
+
+        $retour = DeversementHistoriqueService::relancerEchecs($e);
+
+        $this->assertTrue($retour['success']);
+        $this->assertSame(1, $retour['operations']);
+        $this->assertStringContainsString('relancée', $retour['message']);
+        $this->assertSame(0, $retour['etat']['en_echec'], 'Le cadre rouge doit disparaître dès la réponse.');
+        $this->assertSame([], $retour['etat']['erreurs']);
+        $this->assertSame('pending', EcritureComptable::withoutGlobalScopes()->where('operation_id', $op->id)->value('comptaflow_sync_status'));
+        Bus::assertDispatched(\App\Jobs\MettreEnFileDeversementComptaflow::class);
+    }
 }

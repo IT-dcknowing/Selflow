@@ -82,8 +82,12 @@ Schedule::command('selflow:comptabiliser-stock-periodique')
  * endroit où l'on verra qu'un fichier est refusé pour cause de nom hors
  * nomenclature, personne n'étant devant l'écran quand la tâche tourne.
  */
+// Toutes les 5 minutes (24/11/2026), et non plus toutes les heures : après
+// « Actualiser » ou « Relever maintenant », la fiche (IDU, commune, mentions…)
+// mettait jusqu'à une heure à paraître, et l'on croyait le robot en panne. Un
+// fichier déjà lu est écarté par son empreinte : le passage ne coûte presque rien.
 Schedule::command('portail-fne:importer')
-    ->hourly()
+    ->cron('3-59/5 * * * *')
     ->withoutOverlapping(30)
     ->appendOutputTo($sortiesPortail);
 

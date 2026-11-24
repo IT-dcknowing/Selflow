@@ -11706,6 +11706,35 @@ option renommée « Prestataires », reprise des factures « apporteur »).
   le compte qui sera passé.
 - Test ajouté à `IntegrationFacturesPortailFneTest`. Suite : 213, identiques à `main`.
 
+### Lot 166 — Fiche FNE vide (SAS'T), groupes par nature, relance des échecs visible — **TERMINÉ le 24/11/2026**
+
+- **Fiche de l'espace FNE (SAS'T, 2196217J : IDU, commune, quartier…
+  vides)** : dès qu'un relevé existait, *tous* les champs repris se
+  grisaient, même ceux que le portail laisse vides : vides et verrouillés.
+  Désormais seul un champ que le portail renseigne se grise ; les autres se
+  saisissent. Un bandeau dans « DGI & Local professionnel » donne la date du
+  dernier relevé, les champs que l'espace FNE ne renseigne pas, l'échec de
+  connexion du robot s'il y en a un, et un bouton **Relever maintenant**
+  (route `admin.entreprise.parametres.relever-fiche`, qui dit pourquoi le
+  robot ne part pas : mot de passe absent, relevé non autorisé).
+- **Rangement de la fiche** toutes les 5 minutes (`3-59/5`) au lieu de
+  toutes les heures : après « Actualiser », elle mettait jusqu'à une heure à
+  paraître.
+- **Diagnostic** : `php artisan selflow:diagnostic-fiche <NCC> [--appliquer]`
+  suit la chaîne (entreprise, accès du robot, dernière connexion, fichiers
+  déposés, relevés rangés, portail face à Selflow) ; `--appliquer` range le
+  dossier et reprend la fiche.
+- **Groupes d'articles** (Factures FNE à intégrer) : par nature (Ventes,
+  Avoirs émis, Achats, Avoirs reçus), avec le nombre de pièces en attente de
+  chaque nature sur toutes les pages.
+- **Relancer les échecs** : les lignes en échec passent « en file » dès le
+  clic (elles restaient « en échec » jusqu'au worker et le cadre rouge
+  revenait) ; sablier sur le bouton, cadre rouge effacé, message en bas.
+  « Lancer / reprendre » affiche aussi son message en bas. Tous les boutons
+  s'enfoncent au clic.
+- Tests : `ConnexionFneEtatTest` (règle de grisage mise à jour, relever
+  maintenant), `RecetteNouvelleEntrepriseTest`, `JournauxEtDeversementTest` (relance), `IntegrationFacturesPortailFneTest`. Suite : 213, identiques à la référence.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

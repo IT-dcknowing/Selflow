@@ -613,6 +613,10 @@
             line-height: 1.7;
         }
         .alerte-stickers .detail strong { font-weight: 700; }
+        /* 24/11/2026 : la sensation du clic, partout. */
+        .btn { transition: transform .08s ease, opacity .15s ease; }
+        .btn:active:not(:disabled) { transform: scale(.96); }
+        .btn:disabled, .btn[disabled] { opacity: .6; }
     </style>
     @yield('styles')
 </head>

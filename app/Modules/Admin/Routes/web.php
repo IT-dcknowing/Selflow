@@ -573,6 +573,7 @@ Route::prefix('admin')
         // ── Paramètres entreprise ──
         Route::get('/entreprise/parametres', [EntrepriseControleur::class, 'parametres'])->name('entreprise.parametres');
         Route::put('/entreprise/parametres', [EntrepriseControleur::class, 'enregistrerParametres'])->name('entreprise.parametres.enregistrer');
+        Route::post('/entreprise/parametres/relever-fiche', [EntrepriseControleur::class, 'releverFicheFne'])->name('entreprise.parametres.relever-fiche');
         Route::put('/entreprise/categories/{categorie}', [EntrepriseControleur::class, 'modifierCategorieProduit'])->name('entreprise.categories.modifier');
         Route::delete('/entreprise/categories/{categorie}', [EntrepriseControleur::class, 'supprimerCategorieProduit'])->name('entreprise.categories.supprimer');
         // Ces trois boutons appellent un service extérieur — la plateforme de

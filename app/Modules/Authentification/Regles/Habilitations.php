@@ -628,6 +628,7 @@ class Habilitations
         'admin.entreprise.categories.modifier'    => 'parametres_entreprise',
         'admin.entreprise.categories.supprimer'   => 'parametres_entreprise',
         'admin.entreprise.parametres.enregistrer' => 'parametres_entreprise',
+        'admin.entreprise.parametres.relever-fiche' => 'parametres_entreprise',
         'admin.entreprise.periodes.creer'         => 'comptabilite_globale',
         'admin.entreprise.periodes.cloturer'      => 'comptabilite_globale',
         'admin.entreprise.fne.tester_connexion'   => 'parametres_entreprise',

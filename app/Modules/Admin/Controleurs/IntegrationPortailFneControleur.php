@@ -49,8 +49,28 @@ class IntegrationPortailFneControleur extends Controller
         // Les lignes de la page, regroupées (24/11/2026) : par catégorie
         // d'article, les prestations et les lignes libres à part, avec les
         // comptes qui seront passés. On sait ainsi ce qu'il faut vérifier.
+        // Par nature (24/11/2026, propriétaire : « pas uniquement les ventes,
+        // toutes les factures à intégrer, même les avoirs ») : ventes, avoirs
+        // émis, achats, avoirs reçus. Le nombre de pièces en attente compte
+        // toutes les pages ; le détail des groupes, celles de la page.
+        $Service = \App\Modules\Admin\Services\IntegrationFacturePortailService::class;
+        $courts = [$Service::VENTE => 'Ventes', $Service::AVOIR_VENTE => 'Avoirs émis', $Service::ACHAT => 'Achats', $Service::AVOIR_ACHAT => 'Avoirs reçus'];
         $groupes = [];
+        foreach ($courts as $nature => $libelle) {
+            $groupes[$nature] = ['libelle' => $libelle, 'pieces' => 0, 'sur_la_page' => 0, 'groupes' => []];
+        }
+        foreach ($toutes as $f) {
+            $n = $Service::nature($f);
+            if (isset($groupes[$n])) {
+                $groupes[$n]['pieces']++;
+            }
+        }
         foreach ($propositions as $proposition) {
+            $n = $proposition['nature'] ?? null;
+            if (!isset($groupes[$n])) {
+                continue;
+            }
+            $groupes[$n]['sur_la_page']++;
             foreach ($proposition['lignes'] as $l) {
                 $produit = $l['produit'];
                 if ($produit) {
@@ -60,13 +80,16 @@ class IntegrationPortailFneControleur extends Controller
                     $cle = str_starts_with((string) $l['compte'], '706') ? 'Lignes libres · prestations de services' : 'Lignes libres · hors catalogue';
                 }
                 $ligne = $l['ligne'];
-                $groupes[$cle] ??= ['lignes' => 0, 'montant' => 0.0, 'comptes' => [], 'libre' => ! $produit];
-                $groupes[$cle]['lignes']++;
-                $groupes[$cle]['montant'] += (float) $ligne->quantite * (float) $ligne->prix_unitaire * (1 - (float) $ligne->remise / 100);
-                $groupes[$cle]['comptes'][(string) $l['compte']] = true;
+                $g = &$groupes[$n]['groupes'][$cle];
+                $g ??= ['lignes' => 0, 'montant' => 0.0, 'comptes' => [], 'libre' => ! $produit];
+                $g['lignes']++;
+                $g['montant'] += (float) $ligne->quantite * (float) $ligne->prix_unitaire * (1 - (float) $ligne->remise / 100);
+                $g['comptes'][(string) $l['compte']] = true;
+                unset($g);
             }
+            ksort($groupes[$n]['groupes']);
         }
-        ksort($groupes);
+        $groupes = array_filter($groupes, fn ($g) => $g['pieces'] > 0);
 
         return view('admin::portail-fne.integration', [
             'groupes'       => $groupes,

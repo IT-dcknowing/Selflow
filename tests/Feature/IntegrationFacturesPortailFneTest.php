@@ -312,6 +312,7 @@ class IntegrationFacturesPortailFneTest extends TestCase
 
         $html = app(\App\Modules\Admin\Controleurs\IntegrationPortailFneControleur::class)->index()->render();
         $this->assertStringContainsString("Groupes d'articles", $html);
+        $this->assertStringContainsString('pièce(s) en attente', $html);
         $this->assertStringContainsString('Boissons', $html);
         $this->assertStringContainsString('Lignes libres', $html);
         $this->assertStringContainsString('701000', $html);

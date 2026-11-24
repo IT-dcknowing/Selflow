@@ -302,8 +302,21 @@
                     // exigée pour vendre, bloquerait toute l'activité (recette
                     // du 08/10/2026). Saisi en attendant, il sera remplacé par
                     // la valeur de l'espace FNE au premier relevé.
-                    $releveFneDisponible = \App\Modules\Admin\Modeles\PortailFneFiche::where('entreprise_id', $entreprise->id)->exists();
+                    $ficheFne = \App\Modules\Admin\Modeles\PortailFneFiche::where('entreprise_id', $entreprise->id)
+                        ->orderByDesc('date_scraping')->orderByDesc('id')->first();
+                    $releveFneDisponible = $ficheFne !== null;
                     $champsPortailVerrouilles = $entreprise->possede_compte_fne === true && $releveFneDisponible;
+                    // 24/11/2026 : un champ que le portail laisse VIDE ne se grise
+                    // pas. Il restait vide et verrouillé (SAS'T : IDU, commune,
+                    // quartier…) : l'entreprise ne pouvait ni le voir repris ni le
+                    // saisir. Seul ce que l'espace FNE renseigne est verrouillé.
+                    $portailRempli = fn (string $champ) => $ficheFne !== null && filled($ficheFne->{$champ});
+                    $verrouPortail = fn (string $champ) => $champsPortailVerrouilles && $portailRempli($champ);
+                    $champsVidesAuPortail = $ficheFne
+                        ? collect(['commune' => 'Commune', 'quartier' => 'Quartier', 'idu' => 'IDU', 'reference_cadastrale' => 'Référence cadastrale', 'proprietaire_local' => 'Propriétaire du local', 'pied_de_page_facture' => 'Pied de page', 'facture_autres_mentions' => 'Autres mentions'])
+                            ->reject(fn ($l, $c) => $portailRempli($c))->values()->all()
+                        : [];
+                    $connexionFiche = \App\Modules\Admin\Services\ScraperPortailFneService::etatConnexion((string) ($entreprise->ncc ?: $entreprise->fneCredential?->ncc_associe));
                     $aCompteFne = $entreprise->possede_compte_fne;
                     $infosFne = $entreprise->informationsFne();
                     $manquants = $entreprise->informationsFneManquantes();
@@ -472,20 +485,20 @@
 
                         <div class="form-group">
                             <label class="form-label">Adresse physique <span style="color:var(--danger)">*</span></label>
-                            <input type="text" name="adresse" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
+                            <input type="text" name="adresse" data-champ-portail="{{ $portailRempli('adresse') ? 1 : 0 }}" @if($verrouPortail('adresse')) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                 value="{{ old('adresse', $entreprise->adresse) }}"
                                 placeholder="Ex: Cocody, Abidjan, Côte d'Ivoire">
                         </div>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                             <div class="form-group" style="margin-bottom:0;">
                                 <label class="form-label">Téléphone</label>
-                                <input type="text" name="telephone" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
+                                <input type="text" name="telephone" data-champ-portail="{{ $portailRempli('telephone') ? 1 : 0 }}" @if($verrouPortail('telephone')) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                     value="{{ old('telephone', $entreprise->telephone) }}"
                                     placeholder="Ex: +225 07 00 00 00">
                             </div>
                             <div class="form-group" style="margin-bottom:0;">
                                 <label class="form-label">E-mail</label>
-                                <input type="email" name="email" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
+                                <input type="email" name="email" data-champ-portail="{{ $portailRempli('email') ? 1 : 0 }}" @if($verrouPortail('email')) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                     value="{{ old('email', $entreprise->email) }}"
                                     placeholder="Ex: contact@monentreprise.com">
                             </div>
@@ -559,7 +572,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Références bancaires</label>
-                            <textarea name="ref_bancaire" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control" rows="3"
+                            <textarea name="ref_bancaire" data-champ-portail="{{ $portailRempli('ref_bancaire') ? 1 : 0 }}" @if($verrouPortail('ref_bancaire')) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control" rows="3"
                                 placeholder="Ex: Établissement : SGBCI — N° compte : 00123456789">{{ old('ref_bancaire', $entreprise->ref_bancaire) }}</textarea>
                             <small style="color:var(--text-3);font-size:11px;">Ces informations apparaîtront en bas de vos
                                 factures.</small>
@@ -690,6 +703,34 @@
                         style="font-size:12px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
                         <span id="dgi" style="scroll-margin-top:90px;"></span><i class="fas fa-map-marker-alt" style="color:var(--primary);"></i> DGI & Local professionnel
                     </div>
+                    {{-- 24/11/2026 : dire d'où viennent (ou pourquoi manquent) ces
+                         informations, et pouvoir relancer le robot sans attendre la nuit. --}}
+                    @if($entreprise->possede_compte_fne === true)
+                    @php
+                        $statutCo = $connexionFiche['statut'] ?? null;
+                        $libellesCo = ['identifiants' => 'NCC ou mot de passe du portail refusé', 'mot_de_passe' => 'mot de passe du portail à changer', 'portail' => 'portail FNE injoignable', 'autre' => 'échec du robot'];
+                    @endphp
+                    <div id="releve-fiche-fne" style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;padding:10px 12px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);margin-bottom:14px;font-size:12.5px;line-height:1.6;">
+                        <i class="fas fa-robot" style="color:var(--primary);margin-top:3px;"></i>
+                        <div style="flex:1 1 260px;">
+                            @if($ficheFne)
+                                <strong>Dernier relevé de votre espace FNE : {{ $ficheFne->date_scraping?->format('d/m/Y') }}</strong>
+                                @if($champsVidesAuPortail)
+                                    <div style="color:#92400e;">Votre espace FNE ne renseigne pas : {{ implode(', ', $champsVidesAuPortail) }}.
+                                        Saisissez-les ici, ou complétez-les dans l'onglet « Paramétrage » du portail FNE : ils seront repris au prochain relevé.</div>
+                                @endif
+                            @else
+                                <strong>Votre espace FNE n'a encore jamais été relevé.</strong>
+                            @endif
+                            @if($statutCo && $statutCo !== 'ok')
+                                <div style="color:#b91c1c;"><i class="fas fa-triangle-exclamation"></i> Dernière tentative{{ !empty($connexionFiche['quand']) ? ' (' . \Illuminate\Support\Carbon::parse($connexionFiche['quand'])->format('d/m/Y H:i') . ')' : '' }} : {{ $libellesCo[$statutCo] ?? $statutCo }}.</div>
+                            @endif
+                        </div>
+                        <button type="button" class="btn btn-secondary" id="btn-relever-fiche" style="font-size:12px;padding:6px 12px;" onclick="releverFicheFne(this)">
+                            <i class="fas fa-rotate"></i> Relever maintenant
+                        </button>
+                    </div>
+                    @endif
                     <div style="display:flex;flex-direction:column;gap:14px;">
 
                         <div class="form-group">
@@ -700,7 +741,7 @@
                             <label class="form-label">
                                 IDU — Identifiant Unique DGI
                             </label>
-                            <input type="text" name="idu" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control" value="{{ old('idu', $entreprise->idu) }}"
+                            <input type="text" name="idu" data-champ-portail="{{ $portailRempli('idu') ? 1 : 0 }}" @if($verrouPortail('idu')) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control" value="{{ old('idu', $entreprise->idu) }}"
                                 placeholder="Ex: CI-001-2025-A123456">
                             <small style="color:var(--text-3);font-size:11px;">Cet identifiant apparaît sur chaque facture
                                 normalisée FNE.</small>
@@ -709,12 +750,12 @@
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                             <div class="form-group" style="margin-bottom:0;">
                                 <label class="form-label">Commune</label>
-                                <input type="text" name="commune" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
+                                <input type="text" name="commune" data-champ-portail="{{ $portailRempli('commune') ? 1 : 0 }}" @if($verrouPortail('commune')) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                     value="{{ old('commune', $entreprise->commune) }}" placeholder="Ex: COCODY">
                             </div>
                             <div class="form-group" style="margin-bottom:0;">
                                 <label class="form-label">Quartier</label>
-                                <input type="text" name="quartier" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
+                                <input type="text" name="quartier" data-champ-portail="{{ $portailRempli('quartier') ? 1 : 0 }}" @if($verrouPortail('quartier')) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                     value="{{ old('quartier', $entreprise->quartier) }}"
                                     placeholder="Ex: Angré 8ème Tranche">
                             </div>
@@ -722,14 +763,14 @@
 
                         <div class="form-group">
                             <label class="form-label">Référence Cadastrale</label>
-                            <input type="text" name="reference_cadastrale" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
+                            <input type="text" name="reference_cadastrale" data-champ-portail="{{ $portailRempli('reference_cadastrale') ? 1 : 0 }}" @if($verrouPortail('reference_cadastrale')) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                 value="{{ old('reference_cadastrale', $entreprise->reference_cadastrale) }}"
                                 placeholder="Ex: Section B, Parcelle 042">
                         </div>
 
                         <div class="form-group">
                             <label class="form-label">Propriétaire du local professionnel</label>
-                            <input type="text" name="proprietaire_local" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
+                            <input type="text" name="proprietaire_local" data-champ-portail="{{ $portailRempli('proprietaire_local') ? 1 : 0 }}" @if($verrouPortail('proprietaire_local')) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                 value="{{ old('proprietaire_local', $entreprise->proprietaire_local) }}"
                                 placeholder="Ex: SCI IMMOBILIERE COCODY">
                         </div>
@@ -739,7 +780,7 @@
                                 Seuil d'alerte stickers <span style="color:#E53E3E">*</span>
                             </label>
                             <div style="display:flex;align-items:center;gap:10px;">
-                                <input type="number" name="sticker_solde_alerte" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
+                                <input type="number" name="sticker_solde_alerte" data-champ-portail="{{ $portailRempli('sticker_solde_alerte') ? 1 : 0 }}" @if($verrouPortail('sticker_solde_alerte')) readonly title="Repris automatiquement de votre espace FNE" @endif class="form-control"
                                     value="{{ old('sticker_solde_alerte', $entreprise->sticker_solde_alerte ?? 5) }}"
                                     min="1" max="9999" style="max-width:120px;">
                                 <small style="color:var(--text-3);font-size:12px;">sticker(s) restants → notification
@@ -1161,7 +1202,7 @@
                         </label>
                         <div class="form-group">
                             <label class="form-label">Pied de page des factures</label>
-                            <textarea name="pied_de_page_facture" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif id="piedDePageFactureInput" class="form-control" rows="3"
+                            <textarea name="pied_de_page_facture" data-champ-portail="{{ $portailRempli('pied_de_page_facture') ? 1 : 0 }}" @if($verrouPortail('pied_de_page_facture')) readonly title="Repris automatiquement de votre espace FNE" @endif id="piedDePageFactureInput" class="form-control" rows="3"
                                 maxlength="248" oninput="majCompteurParametre('piedDePageFacture')"
                                 placeholder="Ex: Merci pour votre confiance. Paiement à 30 jours. Pénalités de retard : 1,5% / mois.">{{ old('pied_de_page_facture', $entreprise->pied_de_page_facture) }}</textarea>
                             <small style="color:var(--text-3);font-size:11px;">
@@ -1171,7 +1212,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Autres mentions légales</label>
-                            <textarea name="facture_autres_mentions" data-champ-portail @if($champsPortailVerrouilles) readonly title="Repris automatiquement de votre espace FNE" @endif id="factureAutresMentionsInput" class="form-control"
+                            <textarea name="facture_autres_mentions" data-champ-portail="{{ $portailRempli('facture_autres_mentions') ? 1 : 0 }}" @if($verrouPortail('facture_autres_mentions')) readonly title="Repris automatiquement de votre espace FNE" @endif id="factureAutresMentionsInput" class="form-control"
                                 rows="3" maxlength="248" oninput="majCompteurParametre('factureAutresMentions')"
                                 placeholder="Ex: Capital social : 1 000 000 FCFA — Forme juridique : SARL">{{ old('facture_autres_mentions', $entreprise->facture_autres_mentions) }}</textarea>
                             <small style="color:var(--text-3);font-size:11px;">
@@ -2099,6 +2140,10 @@ function confirmerLancementDeversement() {
             res.d.message || (ok ? 'La demande de déversement a été mise en file.' : 'Le serveur a refusé la demande de déversement.'),
             ok ? 'info' : false
         );
+        if (window.selflowToast) {
+            window.selflowToast({ type: ok ? 'succes' : 'erreur', titre: ok ? 'Déversement lancé' : 'Déversement refusé',
+                message: res.d.message || (ok ? 'La demande a été mise en file.' : 'Le serveur a refusé la demande.'), duree: 6000 });
+        }
         actualiserEtatDeversementComptaflow();
     })
     .catch(function () { afficherRetourDeversement('Impossible de joindre le serveur. Vérifiez la connexion puis réessayez.', false); })
@@ -2109,8 +2154,18 @@ function confirmerLancementDeversement() {
 }
 
 function relancerEchecsComptaflow() {
+    // 24/11/2026 : le clic se voit (sablier, bouton grisé), le cadre rouge
+    // s'efface aussitôt, et un message en bas dit ce qui a été relancé.
     var bouton = document.getElementById('btn-reessayer-deversement');
+    if (bouton.disabled) return;
+    var libelle = bouton.innerHTML;
     bouton.disabled = true;
+    bouton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Relance…';
+    var erreurs = document.getElementById('devers-erreurs');
+    var cadreAvant = erreurs.innerHTML;
+    erreurs.style.transition = 'opacity .3s';
+    erreurs.style.opacity = '0';
+    setTimeout(function () { erreurs.style.display = 'none'; erreurs.style.opacity = '1'; }, 300);
     fetch(@json(route('admin.entreprise.comptaflow.deversement.reessayer')), {
         method: 'POST',
         headers: {
@@ -2120,11 +2175,27 @@ function relancerEchecsComptaflow() {
     })
     .then(function (r) { return r.json().then(function (d) { return {ok:r.ok,d:d}; }); })
     .then(function (res) {
-        afficherRetourDeversement(res.d.message || 'Demande traitée.', res.ok && res.d.success ? 'info' : false);
-        actualiserEtatDeversementComptaflow();
+        var ok = res.ok && res.d.success;
+        if (window.selflowToast) {
+            window.selflowToast({
+                type: ok ? 'succes' : 'erreur',
+                titre: ok ? 'Échecs relancés' : 'Relance refusée',
+                message: res.d.message || (ok ? 'Les opérations repartent vers Comptaflow.' : 'Le serveur a refusé la relance.'),
+                duree: 6000
+            });
+        }
+        if (!ok) {
+            erreurs.innerHTML = cadreAvant;
+            erreurs.style.display = 'block';
+        }
+        if (res.d.etat) { afficherEtatDeversement(res.d.etat); } else { actualiserEtatDeversementComptaflow(); }
     })
-    .catch(function () { afficherRetourDeversement('Impossible de joindre le serveur. Réessayez.', false); })
-    .finally(function () { bouton.disabled = false; });
+    .catch(function () {
+        erreurs.innerHTML = cadreAvant;
+        erreurs.style.display = 'block';
+        if (window.selflowToast) window.selflowToast({ type: 'erreur', titre: 'Serveur injoignable', message: 'La relance n’a pas pu être envoyée. Réessayez.' });
+    })
+    .finally(function () { bouton.disabled = false; bouton.innerHTML = libelle; });
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -2150,7 +2221,7 @@ document.addEventListener('DOMContentLoaded', function () {
             v.style.display = v.dataset.voletFne === choix ? 'block' : 'none';
         });
         champs.forEach(function (c) {
-            if (choix === 'oui' && releve) {
+            if (choix === 'oui' && releve && c.dataset.champPortail === '1') {
                 c.setAttribute('readonly', 'readonly');
                 c.title = 'Repris automatiquement de votre espace FNE';
             } else {
@@ -2190,4 +2261,25 @@ function demanderExercicesAnterieurs(bouton) {
 }
 </script>
 
+
+<script>
+// 24/11/2026 : relancer le relevé de la fiche FNE depuis les paramètres.
+function releverFicheFne(btn) {
+    if (btn.disabled) return;
+    var html = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Lancement…';
+    fetch(@json(route('admin.entreprise.parametres.relever-fiche')), {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content, 'Accept': 'application/json' }
+    }).then(function (r) { return r.json(); }).then(function (d) {
+        if (window.selflowToast) window.selflowToast({ type: d.ok ? 'succes' : 'erreur', titre: d.ok ? 'Relevé lancé' : 'Relevé non lancé', message: d.message, duree: 7000 });
+        btn.innerHTML = d.ok ? '<i class="fas fa-check"></i> Lancé' : html;
+        if (!d.ok) btn.disabled = false;
+    }).catch(function () {
+        btn.disabled = false; btn.innerHTML = html;
+        if (window.selflowToast) window.selflowToast({ type: 'erreur', titre: 'Erreur', message: 'Le relevé n\'a pas pu être lancé.' });
+    });
+}
+</script>
 @endsection

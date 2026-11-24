@@ -216,9 +216,14 @@ document.addEventListener('DOMContentLoaded', function () {
 @if(!empty($groupes))
 <aside class="card" style="flex:0 1 300px; min-width:260px; padding:14px 16px; position:sticky; top:80px;">
     <div style="font-weight:800; font-size:14px; margin-bottom:4px;"><i class="fas fa-layer-group" style="color:var(--primary);"></i> Groupes d'articles</div>
-    <div style="font-size:11.5px; color:var(--text-3); margin-bottom:10px;">Les lignes des pièces de cette page, et le compte qui sera passé : vérifiez-le avant d'intégrer.</div>
-    @foreach($groupes as $nom => $g)
-        <div style="padding:8px 0; border-top:1px solid var(--border);">
+    <div style="font-size:11.5px; color:var(--text-3); margin-bottom:10px;">Ventes, avoirs émis, achats et avoirs reçus : les lignes des pièces de cette page et le compte qui sera passé. Vérifiez-le avant d'intégrer.</div>
+    @foreach($groupes as $nature)
+        <div style="margin-top:10px; padding:6px 8px; border-radius:8px; background:var(--bg3); display:flex; justify-content:space-between; gap:8px; font-size:12.5px;">
+            <strong>{{ $nature['libelle'] }}</strong>
+            <span style="color:var(--text-2); white-space:nowrap;">{{ $nature['pieces'] }} pièce(s) en attente</span>
+        </div>
+        @forelse($nature['groupes'] as $nom => $g)
+        <div style="padding:8px 0 8px 6px; border-bottom:1px solid var(--border);">
             <div style="display:flex; justify-content:space-between; gap:8px; font-size:12.5px;">
                 <strong style="{{ $g['libre'] ? 'color:#b45309;' : '' }}">{{ $nom }}</strong>
                 <span style="white-space:nowrap; color:var(--text-2);">{{ $g['lignes'] }} ligne(s)</span>
@@ -228,6 +233,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 <span style="white-space:nowrap;">{{ number_format($g['montant'], 0, ',', ' ') }} F HT</span>
             </div>
         </div>
+        @empty
+        <div style="padding:6px 0 6px 6px; font-size:12px; color:var(--text-3);">Sur d'autres pages de la liste.</div>
+        @endforelse
     @endforeach
 </aside>
 @endif
