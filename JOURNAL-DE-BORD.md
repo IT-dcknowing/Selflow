@@ -11557,6 +11557,20 @@ choix du superadmin par entreprise ; les DNS sont gérés par DC-Knowing ;
   PointsDeVenteDuPortailTest ; ajout à SiteDeVenteEtPortailTest (5).
 - Suite : 213, identiques à `main`.
 
+
+### Lot 159 — Les options fiscales suivent aussi le portail — **TERMINÉ le 24/11/2026**
+
+- **Demande explicite du propriétaire (exception n° 3 de la règle FNE)** :
+  timbre de quittance, BAPA et seuil d'alerte des stickers suivent le portail
+  pour toutes les entreprises, compte FNE déclaré ou non
+  (`SynchronisationPortailFneService::reprendre`). L'exception du lot 158 est
+  levée.
+- Tests mis à jour en conséquence : `CycleFneTroisCasTest`
+  (`test_cas_2_les_trois_champs_fiscaux_suivent_le_portail`),
+  `ImportPortailFneTest`. `FnePayloadTest` inchangé et vert.
+- Comptaflow : exercice 2026 mis par défaut par le propriétaire.
+- Suite : 213, identiques à `main`.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

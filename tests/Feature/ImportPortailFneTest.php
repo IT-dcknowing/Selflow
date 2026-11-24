@@ -217,16 +217,12 @@ class ImportPortailFneTest extends TestCase
 
         $entreprise->refresh();
 
-        $this->assertSame('COCODY', $entreprise->commune, 'Les coordonnées suivent le portail.');
-
-        // Les options fiscales, non : sans compte FNE déclaré, elles ne
-        // bougent pas (elles changent le contenu des factures). L'écart se voit.
-        $this->assertFalse((bool) $entreprise->timbre_quittance);
-        $this->assertFalse((bool) $entreprise->bapa);
-        $this->assertSame(5, (int) $entreprise->sticker_solde_alerte);
-        $ecarts = PortailFneFiche::sole()->ecartsAvecEntreprise();
-        $this->assertArrayHasKey('timbre_quittance', $ecarts);
-        $this->assertSame(5000, $ecarts['sticker_solde_alerte']['portail']);
+        // Tout suit le portail, options fiscales comprises (propriétaire, 24/11/2026).
+        $this->assertSame('COCODY', $entreprise->commune);
+        $this->assertTrue((bool) $entreprise->timbre_quittance);
+        $this->assertTrue((bool) $entreprise->bapa);
+        $this->assertSame(5000, (int) $entreprise->sticker_solde_alerte);
+        $this->assertSame([], PortailFneFiche::sole()->ecartsAvecEntreprise());
     }
 
     public function test_un_releve_identique_au_precedent_n_ecrit_pas_une_seconde_fiche(): void

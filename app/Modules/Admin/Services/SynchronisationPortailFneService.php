@@ -42,14 +42,11 @@ class SynchronisationPortailFneService
 
         $changements = [];
 
-        // Les coordonnées et le paramétrage se reprennent pour toute
-        // entreprise. Les trois options fiscales (timbre de quittance,
-        // bordereau d'achat, seuil des stickers) changent ce que la facture
-        // contient : elles ne suivent le portail que pour une entreprise qui a
-        // déclaré son compte FNE (règle de conformité, CycleFneTroisCasTest).
-        $champs = $entreprise->possede_compte_fne === true
-            ? array_merge(Entreprise::CHAMPS_REPRIS_DU_PORTAIL_FNE, Entreprise::OPTIONS_REPRISES_DU_PORTAIL_FNE)
-            : array_values(array_diff(Entreprise::CHAMPS_REPRIS_DU_PORTAIL_FNE, ['sticker_solde_alerte']));
+        // Tout ce que le portail déclare se reprend, pour toute entreprise,
+        // options fiscales comprises (timbre de quittance, BAPA, seuil des
+        // stickers) : demande explicite du propriétaire le 24/11/2026
+        // (exception n° 3 de la règle FNE de CLAUDE.md). L'espace FNE fait foi.
+        $champs = array_merge(Entreprise::CHAMPS_REPRIS_DU_PORTAIL_FNE, Entreprise::OPTIONS_REPRISES_DU_PORTAIL_FNE);
 
         foreach ($champs as $champ) {
             $portail = $fiche->{$champ};

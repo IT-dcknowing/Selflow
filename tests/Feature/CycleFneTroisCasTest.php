@@ -307,7 +307,7 @@ class CycleFneTroisCasTest extends TestCase
         $this->assertContains('FACTURATION ANNEXE', $champ['portail']);
     }
 
-    public function test_cas_2_les_trois_champs_fiscaux_ne_sont_jamais_appliques(): void
+    public function test_cas_2_les_trois_champs_fiscaux_suivent_le_portail(): void
     {
         // La correction automatique porte sur un libellé. Ces trois-là commandent
         // ce que la facture contient — le timbre de quittance, le bordereau
@@ -333,12 +333,14 @@ class CycleFneTroisCasTest extends TestCase
         $this->assertSame('FACTURATION SIEGE', $this->pointDeVente->refresh()->nom);
         $this->assertTrue(PointDeVente::where('nom', 'FACTURATION SIÈGE')->exists());
 
-        // Les trois autres, non. Le relevé les affirme, l'entreprise les ignore.
+        // Les trois champs fiscaux suivent aussi le portail : décision explicite
+        // du propriétaire le 24/11/2026 (exception n° 3 de la règle FNE). Ils
+        // étaient jusque-là ignorés, l'espace FNE fait désormais foi.
         $this->entreprise->refresh();
 
-        $this->assertFalse((bool) $this->entreprise->timbre_quittance);
-        $this->assertFalse((bool) $this->entreprise->bapa);
-        $this->assertSame(5, (int) $this->entreprise->sticker_solde_alerte);
+        $this->assertTrue((bool) $this->entreprise->timbre_quittance);
+        $this->assertTrue((bool) $this->entreprise->bapa);
+        $this->assertSame(5000, (int) $this->entreprise->sticker_solde_alerte);
     }
 
     public function test_cas_2_l_interrupteur_eteint_la_correction_automatique(): void
