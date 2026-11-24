@@ -49,4 +49,21 @@ class DejaPayeParEntrepriseTest extends TestCase
             ->get(route('admin.ventes.imprimer', $vente))->assertOk()
             ->assertSee('deja_paye: 3000', false);
     }
+
+    public function test_la_verification_signale_un_paye_sans_encaissement_dans_un_groupe_modifie(): void
+    {
+        $a = Entreprise::create(['nom' => 'Alpha']);
+        $b = Entreprise::create(['nom' => 'Beta']);
+        $sa = PointDeVente::create(['entreprise_id' => $a->id, 'nom' => 'A', 'ville' => 'Abidjan', 'commune' => 'Abobo']);
+        $sb = PointDeVente::create(['entreprise_id' => $b->id, 'nom' => 'B', 'ville' => 'Abidjan', 'commune' => 'Cocody']);
+        $piece = ['numero_facture' => 'FAC-0009', 'date_vente' => now()->toDateString(), 'mode_paiement' => 'Espèces',
+            'montant_ht' => 1000, 'montant_tva' => 0, 'montant_ttc' => 1000, 'statut' => 'Payé', 'etape' => 'Facture'];
+        $va = Vente::create($piece + ['point_de_vente_id' => $sa->id]);
+        Vente::create($piece + ['point_de_vente_id' => $sb->id]);
+        $va->forceFill(['updated_at' => now()->addHour()])->saveQuietly();
+
+        $this->artisan('selflow:verifier-reglements-effaces')
+            ->expectsOutputToContain('1 groupe(s) suspect(s)')
+            ->assertExitCode(0);
+    }
 }

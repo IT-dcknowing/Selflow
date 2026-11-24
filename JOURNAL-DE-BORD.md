@@ -11827,6 +11827,28 @@ option renommée « Prestataires », reprise des factures « apporteur »).
 - Tests : `DejaPayeParEntrepriseTest`, `AbonnementsSansEcheanceTest`.
   Suite : 213, identiques à la référence.
 
+### Lot 171 — Correction d'une ligne de BCF, vérification des règlements effacés, justificatifs Comptaflow — **TERMINÉ le 24/11/2026**
+
+- **O'SUPER PRIX, BCF-24-11-2026-0001** : une ligne à 154 100 F au lieu de
+  1 541 F. Commande `selflow:corriger-ligne-achat <numéro> --entreprise=…
+  --prix-actuel=… --nouveau-prix=… [--appliquer]` : sans `--appliquer`,
+  elle montre avant/après ; seule la ligne visée change, les totaux de la
+  pièce suivent (calcul de la saisie) ; une pièce facturée, comptabilisée ou
+  réglée est refusée.
+- **Vérification** : `selflow:verifier-reglements-effaces` (lecture seule)
+  liste les numéros de facture portés par plusieurs entreprises, l'encaissé
+  de chacune chez elle, les ventes modifiées, et signale « RÈGLEMENT
+  MANQUANT ? » quand une facture payée n'a aucun encaissement dans un groupe
+  où une vente a été modifiée. Les modifications de vente ne sont pas
+  journalisées : la commande déduit des données.
+- **Comptaflow, justificatif « 404 NOT FOUND »** : la liste des écritures (et
+  six autres écrans) construisait une adresse publique pour des pièces
+  rangées en privé ; `App\Support\PieceJustificative::url()` (dépôt
+  Comptaflow, `main`) les sert par la route `ecriture.justificatif`. Côté
+  Selflow, la pièce transmise est la facture de Selflow, avec son bloc de
+  certification FNE quand elle est normalisée.
+- Tests : `CorrigerLigneAchatTest`, `DejaPayeParEntrepriseTest` (vérification).
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |
