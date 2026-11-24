@@ -110,7 +110,7 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
             $motif = 'Opération déséquilibrée : écart débit/crédit de ' . number_format($solde, 2, ',', ' ') . '.';
             EcritureComptable::withoutGlobalScopes()->where('operation_id', $operation->id)->where('comptaflow_sync_status', '!=', 'synced')
                 ->update(['comptaflow_sync_status' => 'failed', 'comptaflow_sync_error' => $motif]);
-            self::journal()->warning('Opération déséquilibrée non déversée', [
+            $this->journal()->warning('Opération déséquilibrée non déversée', [
                 'operation_id' => $operation->id,
                 'solde'        => $solde,
             ]);
@@ -125,7 +125,7 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
         if ($anomalie = self::anomalie($operation->ecritures)) {
             EcritureComptable::withoutGlobalScopes()->where('operation_id', $operation->id)->where('comptaflow_sync_status', '!=', 'synced')
                 ->update(['comptaflow_sync_status' => 'failed', 'comptaflow_sync_error' => $anomalie]);
-            self::journal()->warning('Opération non déversée : contrôle avant envoi', [
+            $this->journal()->warning('Opération non déversée : contrôle avant envoi', [
                 'operation_id' => $operation->id,
                 'anomalie'     => $anomalie,
             ]);
@@ -138,7 +138,7 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
             ->values();
 
         if ($lignes->isEmpty()) {
-            $this->transmettreJustificatif($operation, $entreprise);
+            $this->justificatifSansRisque($operation, $entreprise);
             return;
         }
 
@@ -184,16 +184,16 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
                 ]);
 
                 if (empty($refus)) {
-                    self::journal()->info('Opération reçue par Comptaflow', ['operation' => $this->operationId, 'lignes' => count($ids)]);
+                    $this->journal()->info('Opération reçue par Comptaflow', ['operation' => $this->operationId, 'lignes' => count($ids)]);
                 }
 
                 if (!empty($refus)) {
-                    self::journal()->warning('Opération partiellement refusée par Comptaflow', [
+                    $this->journal()->warning('Opération partiellement refusée par Comptaflow', [
                         'operation_id' => $operation->id,
                         'refus'        => $refus,
                     ]);
                 } else {
-                    $this->transmettreJustificatif($operation, $entreprise);
+                    $this->justificatifSansRisque($operation, $entreprise);
                 }
 
                 return;
@@ -214,7 +214,7 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
                 'comptaflow_sync_error' => $motif,
             ]);
 
-            self::journal()->warning('Opération refusée par Comptaflow', [
+            $this->journal()->warning('Opération refusée par Comptaflow', [
                 'operation_id' => $operation->id,
                 'statut'       => $reponse->status(),
                 'corps'        => mb_substr($reponse->body(), 0, 500),
@@ -223,7 +223,7 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
             EcritureComptable::withoutGlobalScope(\App\Modules\Admin\Scopes\PeriodeScope::class)->whereIn('id', $ids)
                 ->update(['comptaflow_sync_status' => 'failed', 'comptaflow_sync_error' => mb_substr($e->getMessage(), 0, 4000)]);
 
-            self::journal()->error('Déversement de l\'opération impossible', [
+            $this->journal()->error('Déversement de l\'opération impossible', [
                 'operation_id' => $operation->id,
                 'erreur'       => $e->getMessage(),
             ]);
@@ -231,6 +231,24 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
         }
     }
 
+
+    /**
+     * Le justificatif ne défait jamais l'opération (24/11/2026). Comptaflow a
+     * déjà reçu et enregistré les écritures : un PDF manquant les repassait en
+     * « échec » et relançait l'envoi trois fois, alors que tout était arrivé.
+     * Le manque est seulement noté au journal.
+     */
+    private function justificatifSansRisque(Operation $operation, Entreprise $entreprise): void
+    {
+        try {
+            $this->transmettreJustificatif($operation, $entreprise);
+        } catch (\Throwable $e) {
+            $this->journal()->warning('Justificatif PDF non transmis (les écritures, elles, sont reçues)', [
+                'operation_id' => $operation->id,
+                'erreur' => $e->getMessage(),
+            ]);
+        }
+    }
 
     /**
      * Construit ou récupère le PDF source de la pièce, puis le rattache à
@@ -255,12 +273,17 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
                 ->first();
 
             $chemin = $facture?->cheminDuPdf();
-            if (!$chemin || !is_file($chemin)) {
-                throw new \RuntimeException("Le PDF source de la facture FNE reçue {$reference} est introuvable.");
+            if ($chemin && is_file($chemin)) {
+                $pdf = file_get_contents($chemin);
+                $nom = basename($chemin);
+            } elseif ($facture) {
+                // 24/11/2026 : le PDF du portail n'est pas toujours relevé.
+                // Une copie établie d'après le relevé sert de justificatif.
+                $pdf = app(DocumentPdfService::class)->factureRecue($facture, $entreprise);
+                $nom = 'Facture-recue-' . preg_replace('/[^A-Za-z0-9-]/', '-', $reference) . '.pdf';
+            } else {
+                throw new \RuntimeException("La facture FNE reçue {$reference} est introuvable dans Selflow : pas de justificatif.");
             }
-
-            $pdf = file_get_contents($chemin);
-            $nom = basename($chemin);
         } elseif (in_array($type, ['FactureVente', 'AvoirVente', 'ReglementVente'], true)) {
             $vente = Vente::withoutGlobalScopes()
                 ->with(['pointDeVente.entreprise', 'client', 'beneficiaire', 'apporteur', 'details.produit', 'parent'])
@@ -328,7 +351,7 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
             );
         }
 
-        self::journal()->info('Justificatif PDF transmis à Comptaflow', [
+        $this->journal()->info('Justificatif PDF transmis à Comptaflow', [
             'operation_id' => $operation->id,
             'operation_source' => $operationSource,
             'sha256' => hash('sha256', $pdf),
@@ -443,7 +466,7 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
      */
     public function failed(?\Throwable $e): void
     {
-        self::journal()->error('Envoi de l\'opération abandonné', ['operation' => $this->operationId, 'erreur' => $e?->getMessage()]);
+        $this->journal()->error('Envoi de l\'opération abandonné', ['operation' => $this->operationId, 'erreur' => $e?->getMessage()]);
 
         \App\Modules\Admin\Modeles\EcritureComptable::withoutGlobalScopes()
             ->where('operation_id', $this->operationId)
@@ -454,9 +477,12 @@ class DeverserOperationComptaflow implements ShouldQueue, ShouldBeUnique
             ]);
     }
 
-    /** Le journal du déversement : le fichier général et `logs/comptaflow/JJMMAA-comptaflow-deversement.log`. */
-    private static function journal(): \Psr\Log\LoggerInterface
+    /** Le journal du déversement, rangé par entreprise (NCC et nom), 24/11/2026. */
+    private function journal(): \Psr\Log\LoggerInterface
     {
-        return Log::stack(array_values(array_unique([config('logging.default'), 'comptaflow_deversement'])));
+        static $parOperation = [];
+        $entreprise = $parOperation[$this->operationId] ??= Entreprise::find(Operation::withoutGlobalScopes()->whereKey($this->operationId)->value('entreprise_id'));
+
+        return \App\Support\Journaux::deversement($entreprise);
     }
 }

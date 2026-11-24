@@ -252,7 +252,7 @@ class DeversementHistoriqueService
 
         MettreEnFileDeversementComptaflow::dispatch($entreprise->id);
         self::noterLeDebut($entreprise, false);
-        self::journalDeversement()->info('Opérations « en cours » sans travail en file : remises en file', ['entreprise_id' => $entreprise->id, 'en_cours' => $enCours]);
+        \App\Support\Journaux::deversement($entreprise)->info('Opérations « en cours » sans travail en file : remises en file', ['entreprise_id' => $entreprise->id, 'en_cours' => $enCours]);
 
         return true;
     }
@@ -277,7 +277,13 @@ class DeversementHistoriqueService
     private static function chrono(Entreprise $entreprise, int $recues, int $restantes, int $enCours): ?array
     {
         $depart = \Illuminate\Support\Facades\Cache::get('deversement_debut_' . $entreprise->id);
-        if (! is_array($depart) || ($restantes === 0 && $enCours === 0)) {
+        // Plus rien en cours (tout reçu, ou le reste en échec) : le minuteur
+        // s'arrête (24/11/2026 : il comptait alors que tout avait échoué).
+        if (! is_array($depart) || $enCours === 0) {
+            if ($enCours === 0) {
+                \Illuminate\Support\Facades\Cache::forget('deversement_debut_' . $entreprise->id);
+            }
+
             return null;
         }
         $ecoule = max(1, now()->timestamp - (int) $depart['debut']);
@@ -301,11 +307,6 @@ class DeversementHistoriqueService
             ->whereDoesntHave('ecritures', function ($q) {
                 $q->withoutGlobalScopes()->where(fn ($qs) => $qs->whereNull('comptaflow_sync_status')->orWhere('comptaflow_sync_status', '!=', 'synced'));
             });
-    }
-
-    private static function journalDeversement(): \Psr\Log\LoggerInterface
-    {
-        return \Illuminate\Support\Facades\Log::stack(array_values(array_unique([config('logging.default'), 'comptaflow_deversement'])));
     }
 
     /** @return array{en_attente:int, plus_ancienne_minutes:?int, bloquee:bool} */

@@ -144,6 +144,22 @@ class DocumentPdfService
         ], 'A4', $entreprise->nom . ' — Inventaire ' . $donnees['site']->nom);
     }
 
+    /**
+     * La facture reçue du portail, en copie PDF (24/11/2026) : le justificatif
+     * envoyé à Comptaflow quand le PDF du portail n'a pas été relevé.
+     */
+    public function factureRecue(\App\Modules\Admin\Modeles\PortailFneFactureRecue $facture, \App\Modules\Admin\Modeles\Entreprise $entreprise): string
+    {
+        $facture->loadMissing('lignes');
+        $qr = null;
+        try {
+            $qr = \App\Modules\Admin\Services\QrCodeFneService::imageDeVerification($facture->urlDeVerification(), 110);
+        } catch (\Throwable) {
+        }
+
+        return $this->rendre('admin::fne.facture-recue-pdf', ['facture' => $facture, 'entreprise' => $entreprise, 'qr' => $qr]);
+    }
+
     /** La liste des entreprises du superadministrateur, en A4 paysage (23/11/2026). */
     public function listeEntreprises(array $donnees): string
     {

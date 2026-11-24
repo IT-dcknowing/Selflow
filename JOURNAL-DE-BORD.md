@@ -11605,6 +11605,27 @@ choix du superadmin par entreprise ; les DNS sont gérés par DC-Knowing ;
 - Proposition laboratoire (prestataire externe payeur + patients multiples)
   envoyée au propriétaire, en attente de validation avant tout code.
 
+
+### Lot 162 — Déversement : justificatif sans risque, minuteur arrêté, journaux par entreprise — **TERMINÉ le 24/11/2026**
+
+- **« Le PDF source de la facture FNE reçue … est introuvable »** : les 4
+  opérations étaient reçues par Comptaflow ; le justificatif, envoyé après,
+  levait une erreur qui repassait les lignes en échec et relançait trois
+  fois. Le justificatif ne défait plus jamais l'opération (simple
+  avertissement au journal), et une facture reçue sans PDF relevé reçoit une
+  copie PDF établie d'après le relevé (`DocumentPdfService::factureRecue`,
+  vue `fne/facture-recue-pdf`, hors du dossier gelé). « Relancer les échecs »
+  remet les 4 en ordre (Comptaflow est idempotent).
+- « 6 » : c'est le total des opérations de l'entreprise à transférer, pas les
+  lignes validées dans Comptaflow.
+- Minuteur : s'arrête dès que plus rien n'est en cours.
+- Journaux du déversement par entreprise :
+  `storage/logs/comptaflow/<NCC>-<Nom>/JJMMAA-comptaflow-deversement.log`, et
+  chaque ligne du journal général porte « NCC · Nom (#id) »
+  (`Journaux::deversement`).
+- Le bloc « Déverser tout l'historique » est dans la carte « Liaison
+  Comptaflow » de la section Comptabilité.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

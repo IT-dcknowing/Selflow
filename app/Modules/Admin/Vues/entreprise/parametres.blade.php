@@ -643,6 +643,43 @@
                                 @endif
                                 <a href="#comptaflow-liaison" style="color:var(--primary);font-weight:600;">Voir le détail</a>
                             </div>
+                            {{-- 24/11/2026 : le déversement vit dans la carte « Liaison Comptaflow ». --}}
+                            @if($entreprise->liaisonComptaflowActive())
+                    {{-- Lancer le déversement de tout ce que Selflow détient.
+                         Rien ne le permettait depuis un écran : une entreprise
+                         reliée après six mois d'activité gardait ses six mois,
+                         et seules les écritures créées ensuite partaient. --}}
+                    @php $etatDeversement = \App\Modules\Admin\Services\DeversementHistoriqueService::etat($entreprise); @endphp
+                    <div id="bloc-deversement-comptaflow" style="margin-top:14px;padding:12px 14px;background:#fff;border:1px solid var(--border);border-radius:8px;font-size:12.5px;line-height:1.7;">
+                        <strong>Déverser tout l'historique</strong>
+                        <div id="deversement-message" role="status" aria-live="polite" style="margin-top:5px;color:var(--text-2);">Chargement de l'état du transfert…</div>
+                        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px;">
+                            <div style="padding:8px;background:#f8fafc;border-radius:7px;"><small style="display:block;color:#64748b;">Total autorisé</small><strong id="devers-total">—</strong></div>
+                            <div style="padding:8px;background:#f0fdf4;border-radius:7px;"><small style="display:block;color:#15803d;">Reçues</small><strong id="devers-recues">—</strong></div>
+                            <div style="padding:8px;background:#fff7ed;border-radius:7px;"><small style="display:block;color:#c2410c;">Restantes</small><strong id="devers-restantes">—</strong></div>
+                            <div style="padding:8px;background:#fef2f2;border-radius:7px;"><small style="display:block;color:#b91c1c;">En échec</small><strong id="devers-echecs">—</strong></div>
+                        </div>
+                        <div style="height:10px;background:#e2e8f0;border-radius:99px;overflow:hidden;margin-top:12px;">
+                            <div id="devers-barre" style="height:100%;width:0%;background:#059669;border-radius:99px;transition:width .35s ease;"></div>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-top:3px;color:var(--text-3);font-size:11px;">
+                            <span id="devers-pourcentage">0 %</span><span id="devers-encours">0 opération en cours</span>
+                        </div>
+                        {{-- Le minuteur du transfert (24/11/2026). --}}
+                        <div id="devers-chrono" style="display:none;margin-top:8px;padding:8px 10px;border-radius:8px;background:#eff6ff;color:#1e3a8a;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;"></div>
+                        <div id="devers-erreurs" style="display:none;margin-top:10px;padding:9px 10px;background:#fff7f7;border:1px solid #fecaca;border-radius:6px;color:#991b1b;"></div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+                            <button type="button" id="btn-deverser-tout" onclick="lancerLeDeversementComptaflow()" class="btn btn-outline btn-sm" style="padding:7px 14px;">
+                                <i class="fas fa-cloud-arrow-up"></i> Lancer / reprendre le déversement
+                            </button>
+                            <button type="button" id="btn-reessayer-deversement" onclick="relancerEchecsComptaflow()" class="btn btn-outline btn-sm" style="padding:7px 14px;display:none;">
+                                <i class="fas fa-rotate-right"></i> Relancer les échecs
+                            </button>
+                            <span style="align-self:center;color:var(--text-3);font-size:11px;">Le transfert continue en arrière-plan. Vous pouvez quitter cette page.</span>
+                        </div>
+                        <div id="retour-deversement" style="display:none;margin-top:10px;padding:10px 12px;border-radius:6px;font-size:12px;line-height:1.5;"></div>
+                    </div>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -1648,40 +1685,7 @@
                         </div>
                     </div>
 
-                    {{-- Lancer le déversement de tout ce que Selflow détient.
-                         Rien ne le permettait depuis un écran : une entreprise
-                         reliée après six mois d'activité gardait ses six mois,
-                         et seules les écritures créées ensuite partaient. --}}
-                    @php $etatDeversement = \App\Modules\Admin\Services\DeversementHistoriqueService::etat($entreprise); @endphp
-                    <div id="bloc-deversement-comptaflow" style="margin-top:14px;padding:12px 14px;background:#fff;border:1px solid var(--border);border-radius:8px;font-size:12.5px;line-height:1.7;">
-                        <strong>Déverser tout l'historique</strong>
-                        <div id="deversement-message" role="status" aria-live="polite" style="margin-top:5px;color:var(--text-2);">Chargement de l'état du transfert…</div>
-                        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px;">
-                            <div style="padding:8px;background:#f8fafc;border-radius:7px;"><small style="display:block;color:#64748b;">Total autorisé</small><strong id="devers-total">—</strong></div>
-                            <div style="padding:8px;background:#f0fdf4;border-radius:7px;"><small style="display:block;color:#15803d;">Reçues</small><strong id="devers-recues">—</strong></div>
-                            <div style="padding:8px;background:#fff7ed;border-radius:7px;"><small style="display:block;color:#c2410c;">Restantes</small><strong id="devers-restantes">—</strong></div>
-                            <div style="padding:8px;background:#fef2f2;border-radius:7px;"><small style="display:block;color:#b91c1c;">En échec</small><strong id="devers-echecs">—</strong></div>
-                        </div>
-                        <div style="height:10px;background:#e2e8f0;border-radius:99px;overflow:hidden;margin-top:12px;">
-                            <div id="devers-barre" style="height:100%;width:0%;background:#059669;border-radius:99px;transition:width .35s ease;"></div>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;margin-top:3px;color:var(--text-3);font-size:11px;">
-                            <span id="devers-pourcentage">0 %</span><span id="devers-encours">0 opération en cours</span>
-                        </div>
-                        {{-- Le minuteur du transfert (24/11/2026). --}}
-                        <div id="devers-chrono" style="display:none;margin-top:8px;padding:8px 10px;border-radius:8px;background:#eff6ff;color:#1e3a8a;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;"></div>
-                        <div id="devers-erreurs" style="display:none;margin-top:10px;padding:9px 10px;background:#fff7f7;border:1px solid #fecaca;border-radius:6px;color:#991b1b;"></div>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
-                            <button type="button" id="btn-deverser-tout" onclick="lancerLeDeversementComptaflow()" class="btn btn-outline btn-sm" style="padding:7px 14px;">
-                                <i class="fas fa-cloud-arrow-up"></i> Lancer / reprendre le déversement
-                            </button>
-                            <button type="button" id="btn-reessayer-deversement" onclick="relancerEchecsComptaflow()" class="btn btn-outline btn-sm" style="padding:7px 14px;display:none;">
-                                <i class="fas fa-rotate-right"></i> Relancer les échecs
-                            </button>
-                            <span style="align-self:center;color:var(--text-3);font-size:11px;">Le transfert continue en arrière-plan. Vous pouvez quitter cette page.</span>
-                        </div>
-                        <div id="retour-deversement" style="display:none;margin-top:10px;padding:10px 12px;border-radius:6px;font-size:12px;line-height:1.5;"></div>
-                    </div>
+
 
                     <div id="modal-confirmation-deversement" aria-hidden="true" style="display:none;position:fixed;inset:0;z-index:10050;background:rgba(15,23,42,.58);align-items:center;justify-content:center;padding:20px;">
                         <div role="dialog" aria-modal="true" aria-labelledby="titre-modal-deversement" style="width:min(520px,100%);background:#fff;border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.28);padding:22px;color:#1e293b;">

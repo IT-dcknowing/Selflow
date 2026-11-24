@@ -66,7 +66,7 @@ class MettreEnFileDeversementComptaflow implements ShouldQueue, ShouldBeUnique
                         'comptaflow_sync_error' => 'Référentiel non synchronisé : ' . $referentiel['message'],
                     ]);
 
-                self::journal()->warning('Déversement des écritures suspendu : référentiel Comptaflow incomplet', [
+                $this->journal()->warning('Déversement des écritures suspendu : référentiel Comptaflow incomplet', [
                     'entreprise_id' => $entreprise->id,
                     'motif' => $referentiel['message'],
                 ]);
@@ -113,7 +113,7 @@ class MettreEnFileDeversementComptaflow implements ShouldQueue, ShouldBeUnique
                 'comptaflow_sync_error' => null,
             ]);
 
-        self::journal()->info('Opérations mises en file pour Comptaflow', ['nombre' => $operations->count(), 'premiere' => $operations->first(), 'derniere' => $operations->last()]);
+        $this->journal()->info('Opérations mises en file pour Comptaflow', ['nombre' => $operations->count(), 'premiere' => $operations->first(), 'derniere' => $operations->last()]);
 
         foreach ($operations as $operationId) {
             DeverserOperationComptaflow::dispatch($operationId);
@@ -128,9 +128,9 @@ class MettreEnFileDeversementComptaflow implements ShouldQueue, ShouldBeUnique
         }
     }
 
-    /** Le journal du déversement : le fichier général et `logs/comptaflow/JJMMAA-comptaflow-deversement.log`. */
-    private static function journal(): \Psr\Log\LoggerInterface
+    /** Le journal du déversement, rangé par entreprise (NCC et nom), 24/11/2026. */
+    private function journal(): \Psr\Log\LoggerInterface
     {
-        return Log::stack(array_values(array_unique([config('logging.default'), 'comptaflow_deversement'])));
+        return \App\Support\Journaux::deversement(Entreprise::find($this->entrepriseId));
     }
 }
