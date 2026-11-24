@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Emballages consignés')
-@section('topbar_titre', 'Stock — Emballages consignés')
+@section('topbar_titre', 'Stock · Emballages consignés')
 
 @section('contenu')
 @use(App\Modules\Admin\Modeles\Consignation)

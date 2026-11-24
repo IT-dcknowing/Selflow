@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
-@section('titre', 'Factures — Ventes')
-@section('topbar_titre', $type === 'avoir' ? 'Ventes — Avoirs' : 'Ventes — Factures & Commandes')
+@section('titre', 'Factures · Ventes')
+@section('topbar_titre', $type === 'avoir' ? 'Ventes · Avoirs' : 'Ventes · Factures & Commandes')
 
 @section('contenu')
 @php
@@ -20,7 +20,7 @@
             <h1><i class="fas fa-file-circle-minus" style="color:#e17055;"></i> Avoirs Clients</h1>
             <p>{{ $ventes->total() }} avoir(s) client(s) au total</p>
         @elseif($voirArchives)
-            <h1><i class="fas fa-archive"></i> Archives — {{ $etapeActive === 'Devis' ? 'Devis' : 'Bons de commande' }}</h1>
+            <h1><i class="fas fa-archive"></i> Archives · {{ $etapeActive === 'Devis' ? 'Devis' : 'Bons de commande' }}</h1>
             <p>Documents traités et archivés</p>
         @else
             <h1><i class="fas fa-file-invoice"></i> Cycles de vente</h1>

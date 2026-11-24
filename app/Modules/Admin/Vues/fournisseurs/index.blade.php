@@ -1,6 +1,6 @@
 ﻿@extends('admin::gabarits.application')
 @section('titre', 'Gestion fournisseurs')
-@section('topbar_titre', 'Catalogue — Fournisseurs')
+@section('topbar_titre', 'Catalogue · Fournisseurs')
 
 @section('contenu')
 {{-- Comptabilité éteinte : aucun compte à l'écran. Le serveur pose

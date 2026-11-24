@@ -17,7 +17,7 @@
 --}}
 @extends('admin::gabarits.application')
 @section('titre', 'Facture reçue ' . $facture->reference)
-@section('topbar_titre', 'Achats — Facture reçue du portail FNE')
+@section('topbar_titre', 'Achats · Facture reçue du portail FNE')
 
 @section('styles')
 <style>

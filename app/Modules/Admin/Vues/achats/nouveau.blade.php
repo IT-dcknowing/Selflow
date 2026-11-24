@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Nouveau bon d\'achat')
-@section('topbar_titre', 'Achats — Nouveau')
+@section('topbar_titre', 'Achats · Nouveau')
 
 @section('styles')
 <style>

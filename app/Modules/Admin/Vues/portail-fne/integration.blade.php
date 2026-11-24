@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Factures FNE à intégrer')
-@section('topbar_titre', 'Ventes — Factures FNE à intégrer')
+@section('topbar_titre', 'Ventes · Factures FNE à intégrer')
 
 @section('contenu')
 {{-- 24/11/2026 : en-tête compact. Le titre, le nombre en attente et les
@@ -94,7 +94,9 @@ document.addEventListener('DOMContentLoaded', function () {
     </div>
 @endif
 
-<div style="max-height:calc(100vh - 260px); overflow-y:auto; padding-right:6px; border-top:1px solid var(--border);">
+{{-- La liste à gauche, les groupes d'articles à droite (24/11/2026). --}}
+<div style="display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap;">
+<div style="flex:1 1 640px; min-width:0; max-height:calc(100vh - 220px); overflow-y:auto; padding-right:6px; border-top:1px solid var(--border);">
 @foreach($factures->getCollection()->groupBy(fn ($f) => $propositions[$f->id]['nature']) as $nature => $groupe)
 <h2 style="font-size:16px; margin:24px 0 10px;">{{ \App\Modules\Admin\Services\IntegrationFacturePortailService::LIBELLES[$nature] ?? 'Autres pièces' }} <span style="color:var(--text-3); font-weight:400;">({{ $groupe->count() }})</span></h2>
 @foreach($groupe as $facture)
@@ -211,5 +213,25 @@ document.addEventListener('DOMContentLoaded', function () {
 @endforeach
 @endforeach
 </div>
+@if(!empty($groupes))
+<aside class="card" style="flex:0 1 300px; min-width:260px; padding:14px 16px; position:sticky; top:80px;">
+    <div style="font-weight:800; font-size:14px; margin-bottom:4px;"><i class="fas fa-layer-group" style="color:var(--primary);"></i> Groupes d'articles</div>
+    <div style="font-size:11.5px; color:var(--text-3); margin-bottom:10px;">Les lignes des pièces de cette page, et le compte qui sera passé : vérifiez-le avant d'intégrer.</div>
+    @foreach($groupes as $nom => $g)
+        <div style="padding:8px 0; border-top:1px solid var(--border);">
+            <div style="display:flex; justify-content:space-between; gap:8px; font-size:12.5px;">
+                <strong style="{{ $g['libre'] ? 'color:#b45309;' : '' }}">{{ $nom }}</strong>
+                <span style="white-space:nowrap; color:var(--text-2);">{{ $g['lignes'] }} ligne(s)</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; gap:8px; font-size:12px; color:var(--text-2); margin-top:2px;">
+                <span>Compte{{ count($g['comptes']) > 1 ? 's' : '' }} : <strong style="font-family:ui-monospace,monospace;">{{ implode(', ', array_keys($g['comptes'])) }}</strong></span>
+                <span style="white-space:nowrap;">{{ number_format($g['montant'], 0, ',', ' ') }} F HT</span>
+            </div>
+        </div>
+    @endforeach
+</aside>
+@endif
+</div>
+
 <div style="margin-top:12px;">{{ $factures->links() }}</div>
 @endsection

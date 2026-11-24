@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Intégrations de paiement')
-@section('topbar_titre', 'Superadmin — Intégrations de paiement')
+@section('topbar_titre', 'Superadmin · Intégrations de paiement')
 
 @section('contenu')
 <div class="page-header">

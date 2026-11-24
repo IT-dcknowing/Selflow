@@ -1,7 +1,7 @@
 @extends('admin::gabarits.application')
 @use('App\Modules\Admin\Modeles\DemandeSticker', 'Demande')
 @section('titre', 'Commander des stickers')
-@section('topbar_titre', 'Fiscalité — Commander des stickers')
+@section('topbar_titre', 'Fiscalité · Commander des stickers')
 
 @section('contenu')
 <div class="page-header">

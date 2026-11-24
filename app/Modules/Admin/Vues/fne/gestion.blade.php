@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Gestion FNE')
-@section('topbar_titre', 'Gestion FNE — Documents normalisés DGI')
+@section('topbar_titre', 'Gestion FNE · Documents normalisés DGI')
 
 @section('styles')
 <style>

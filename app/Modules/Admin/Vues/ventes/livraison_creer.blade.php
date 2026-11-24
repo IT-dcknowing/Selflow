@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Créer un Bon de Livraison')
-@section('topbar_titre', 'Bon de Livraison — Création')
+@section('topbar_titre', 'Bon de Livraison · Création')
 
 @section('contenu')
 @php $isCaissier = request()->routeIs('caissier.*'); @endphp

@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Switch entreprise')
-@section('topbar_titre', 'Gouvernance — Switch entreprise')
+@section('topbar_titre', 'Gouvernance · Switch entreprise')
 
 @section('contenu')
 @php $f = fn ($n) => number_format((float) $n, 0, ',', ' '); @endphp

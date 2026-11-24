@@ -1,7 +1,7 @@
 @extends('admin::gabarits.application')
 
 @section('titre', 'Créer un Administrateur Interne')
-@section('topbar_titre', 'Administration Interne — Nouvel Administrateur')
+@section('topbar_titre', 'Administration Interne · Nouvel Administrateur')
 
 @section('contenu')
 <div class="page-header" style="margin-bottom: 20px;">

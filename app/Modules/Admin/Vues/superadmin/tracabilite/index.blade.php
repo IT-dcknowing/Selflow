@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Maintenance & traçabilité')
-@section('topbar_titre', 'SuperAdmin — Maintenance & traçabilité')
+@section('topbar_titre', 'SuperAdmin · Maintenance & traçabilité')
 
 @section('contenu')
 @php

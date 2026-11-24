@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Configuration des comptes')
-@section('topbar_titre', 'Comptabilité — Configuration des comptes')
+@section('topbar_titre', 'Comptabilité · Configuration des comptes')
 
 @use('App\Modules\Admin\Services\ImputationService', 'Imputation')
 

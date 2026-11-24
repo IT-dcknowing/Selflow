@@ -298,4 +298,22 @@ class IntegrationFacturesPortailFneTest extends TestCase
         \App\Modules\Admin\Services\PortailFneNotificationService::notifier($rapport(2000), 'Ventes');
         \Illuminate\Support\Facades\Notification::assertSentToTimes($admin, \App\Notifications\PortailFneRecuperationNotification::class, 2);
     }
+
+    public function test_le_panneau_regroupe_les_lignes_par_categorie_avec_leurs_comptes(): void
+    {
+        $boissons = \App\Modules\Admin\Modeles\Categorie::create(['entreprise_id' => $this->entreprise->id, 'nom' => 'Boissons', 'prefixe' => 'BOI']);
+        Produit::create(['entreprise_id' => $this->entreprise->id, 'reference' => 'DEPB-SUC-001', 'nom' => 'Casier sucrerie 30 cl', 'categorie_id' => $boissons->id,
+            'type' => 'marchandise', 'unite' => 'casier', 'prix_achat' => 30000, 'prix_vente' => 40000, 'taux_tva' => 18]);
+        $this->facture('1864699A26000000501', [], [
+            ['reference' => 'DEPB-SUC-001', 'description' => 'Casier sucrerie 30 cl', 'quantity' => 2, 'amount' => 40000],
+            ['description' => 'Livraison spéciale', 'quantity' => 1, 'amount' => 5000],
+        ]);
+        view()->share('errors', new \Illuminate\Support\ViewErrorBag());
+
+        $html = app(\App\Modules\Admin\Controleurs\IntegrationPortailFneControleur::class)->index()->render();
+        $this->assertStringContainsString("Groupes d'articles", $html);
+        $this->assertStringContainsString('Boissons', $html);
+        $this->assertStringContainsString('Lignes libres', $html);
+        $this->assertStringContainsString('701000', $html);
+    }
 }

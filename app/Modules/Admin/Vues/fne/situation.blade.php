@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Situation Générale')
-@section('topbar_titre', 'Situation Générale — Activité réelle de l\'entreprise')
+@section('topbar_titre', 'Situation Générale · Activité réelle de l\'entreprise')
 
 @section('styles')
 <style>

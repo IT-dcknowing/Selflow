@@ -1,6 +1,6 @@
 ﻿@extends('admin::gabarits.application')
 @section('titre', 'Gestion clients')
-@section('topbar_titre', 'Catalogue — Clients')
+@section('topbar_titre', 'Catalogue · Clients')
 
 @section('contenu')
 {{-- Comptabilité éteinte : aucun compte à l'écran. Le serveur pose

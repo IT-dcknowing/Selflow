@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
-@section('titre', 'Relevé de compte — ' . $tier->nom)
-@section('topbar_titre', 'Comptabilité — Relevé Tiers')
+@section('titre', 'Relevé de compte · ' . $tier->nom)
+@section('topbar_titre', 'Comptabilité · Relevé Tiers')
 
 @section('styles')
 <style>

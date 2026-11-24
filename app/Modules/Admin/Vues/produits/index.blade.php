@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Catalogue produits')
-@section('topbar_titre', 'Catalogue — Produits')
+@section('topbar_titre', 'Catalogue · Produits')
 
 @section('contenu')
 @php $comptaOuverte = auth()->user()->estSuperAdmin() || (bool) auth()->user()->entreprise?->comptabiliteOuverte(); @endphp

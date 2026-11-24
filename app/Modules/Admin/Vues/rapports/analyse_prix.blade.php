@@ -1,7 +1,7 @@
 @extends('admin::gabarits.application')
 
 @section('titre', 'Analyse des prix')
-@section('topbar_titre', 'Rapports — Analyse des prix')
+@section('topbar_titre', 'Rapports · Analyse des prix')
 
 @section('contenu')
 <div class="page-header">

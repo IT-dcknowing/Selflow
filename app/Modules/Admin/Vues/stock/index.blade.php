@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Gestion du stock')
-@section('topbar_titre', 'Stock — Inventaire')
+@section('topbar_titre', 'Stock · Inventaire')
 
 @section('contenu')
 <div class="page-header">

@@ -1,7 +1,7 @@
 @extends('admin::gabarits.application')
 
-@section('titre', 'Référentiel — ' . $profil->nom)
-@section('topbar_titre', 'Référentiel — ' . $profil->nom)
+@section('titre', 'Référentiel · ' . $profil->nom)
+@section('topbar_titre', 'Référentiel · ' . $profil->nom)
 
 @section('styles')
 <style>

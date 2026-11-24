@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 
-@section('titre', 'Tableau de bord — SuperAdmin')
+@section('titre', 'Tableau de bord · SuperAdmin')
 @section('topbar_titre', 'Tableau de bord SuperAdmin')
 
 @section('contenu')

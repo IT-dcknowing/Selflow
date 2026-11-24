@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', $bien->libelle)
-@section('topbar_titre', 'Immobilisation — ' . $bien->code)
+@section('topbar_titre', 'Immobilisation · ' . $bien->code)
 
 @section('contenu')
 @use(App\Modules\Admin\Modeles\Immobilisation)

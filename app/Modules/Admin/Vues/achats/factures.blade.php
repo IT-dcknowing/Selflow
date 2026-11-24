@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
-@section('titre', 'Factures — Achats')
-@section('topbar_titre', 'Achats — Factures & Commandes')
+@section('titre', 'Factures · Achats')
+@section('topbar_titre', 'Achats · Factures & Commandes')
 
 @section('contenu')
 <div class="page-header">

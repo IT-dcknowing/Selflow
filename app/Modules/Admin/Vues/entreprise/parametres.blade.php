@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Paramètres de l\'entreprise')
-@section('topbar_titre', 'Mon entreprise — Paramètres')
+@section('topbar_titre', 'Mon entreprise · Paramètres')
 
 {{-- La grille vivait en style écrit dans la balise, ce qui interdisait toute
      règle de largeur : un style de balise l'emporte sur la feuille, même sous

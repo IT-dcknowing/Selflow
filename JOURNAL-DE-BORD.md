@@ -11684,6 +11684,28 @@ option renommée « Prestataires », reprise des factures « apporteur »).
 - **Tirets** « — » retirés des listes déroulantes (68 options, 28 écrans).
 - `BrouillonsIdentiteRetoursTest` (3). Suite : 213, identiques à `main`.
 
+
+### Lot 165 — Menu Robot et Maintenance, filtres automatiques, titres sans tiret, groupes d'articles — **TERMINÉ le 24/11/2026**
+
+- **Achats** : le robot relève chaque jour les factures reçues depuis le
+  1er janvier ; le portail rend toujours les mêmes (6 pour DC-KNOWING CGA, 4
+  pour SAS'T), d'où « inchangé » : aucune nouvelle facture d'achat.
+- **Menu superadmin** : sections ROBOT (Robot FNE en direct, Retour robot) et
+  MAINTENANCE (Pannes & assistance, Maintenance & traçabilité, Corbeille,
+  Nettoyage des données), sorties de SUPERVISION.
+- **Filtres automatiques** (toute l'application) : dans un formulaire de
+  recherche (GET), taper filtre après 0,6 s, changer une liste ou une date
+  filtre aussitôt ; boutons « Filtrer », « Chercher », « Afficher » retirés ;
+  le curseur revient dans le champ. `data-filtre-manuel` garde le bouton.
+- **Tirets** : « — » remplacés par « · » dans les titres d'onglet, la barre
+  du haut (« Ventes · Factures FNE à intégrer / SAS'T · SAS'T PREVENT
+  COCODY ») et les titres de page (77 écrans).
+- **Factures FNE à intégrer** : panneau « Groupes d'articles » à droite :
+  lignes de la page par catégorie (articles stockés, prestations de
+  services), lignes libres à part, avec le nombre de lignes, le montant HT et
+  le compte qui sera passé.
+- Test ajouté à `IntegrationFacturesPortailFneTest`. Suite : 213, identiques à `main`.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

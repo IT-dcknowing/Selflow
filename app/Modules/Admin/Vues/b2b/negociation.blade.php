@@ -18,7 +18,7 @@
     $q = fn ($v) => rtrim(rtrim(number_format((float) $v, 3, ',', ' '), '0'), ',');
 @endphp
 @section('titre', 'B2B ' . $reference)
-@section('topbar_titre', 'B2B — ' . ($estClient ? 'Négociation avec mon fournisseur' : 'Demande de mon client'))
+@section('topbar_titre', 'B2B · ' . ($estClient ? 'Négociation avec mon fournisseur' : 'Demande de mon client'))
 
 @section('styles')
 <style>

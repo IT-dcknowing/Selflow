@@ -1,7 +1,7 @@
 @extends('admin::gabarits.application')
 @use('App\Modules\Admin\Modeles\Entreprise', 'Entreprise')
 @section('titre', 'Corbeille')
-@section('topbar_titre', 'SuperAdmin — Corbeille')
+@section('topbar_titre', 'SuperAdmin · Corbeille')
 
 @section('contenu')
 <div style="max-width:1100px; margin:0 auto;">

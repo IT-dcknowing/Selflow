@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Liaisons SELFLOW ↔ COMPTAFLOW')
-@section('topbar_titre', 'SuperAdmin — Liaisons inter-applications')
+@section('topbar_titre', 'SuperAdmin · Liaisons inter-applications')
 
 @section('styles')
 <style>

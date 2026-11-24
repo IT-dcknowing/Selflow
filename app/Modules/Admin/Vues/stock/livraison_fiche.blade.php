@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
-@section('titre', 'Vérification Livraison — ' . $vente->numero_facture)
-@section('topbar_titre', 'Stock — Livraison')
+@section('titre', 'Vérification Livraison · ' . $vente->numero_facture)
+@section('topbar_titre', 'Stock · Livraison')
 
 @section('contenu')
 <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">

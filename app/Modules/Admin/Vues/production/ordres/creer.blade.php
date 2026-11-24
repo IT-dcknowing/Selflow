@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Nouvel ordre de production')
-@section('topbar_titre', 'Production — Nouvel ordre')
+@section('topbar_titre', 'Production · Nouvel ordre')
 
 @section('styles')
 <style>

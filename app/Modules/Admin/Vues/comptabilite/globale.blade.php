@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Opération & Écriture Globale')
-@section('topbar_titre', 'Comptabilité — Grand Livre & Opérations')
+@section('topbar_titre', 'Comptabilité · Grand Livre & Opérations')
 
 @section('styles')
 <style>

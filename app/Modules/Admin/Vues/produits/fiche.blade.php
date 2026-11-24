@@ -1,5 +1,5 @@
 @extends('admin::gabarits.application')
-@section('titre', 'Fiche produit — ' . $produit->nom)
+@section('titre', 'Fiche produit · ' . $produit->nom)
 @section('topbar_titre', 'Fiche produit')
 
 @section('contenu')

@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'BAPA ' . $achat->numero_facture)
-@section('topbar_titre', 'Achats — BAPA')
+@section('topbar_titre', 'Achats · BAPA')
 
 @section('styles')
 <style>

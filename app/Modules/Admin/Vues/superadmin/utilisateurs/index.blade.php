@@ -1,7 +1,7 @@
 @extends('admin::gabarits.application')
 
 @section('titre', 'Supervision - Habilitations & Accès')
-@section('topbar_titre', 'Supervision — Habilitations & Accès')
+@section('topbar_titre', 'Supervision · Habilitations & Accès')
 
 @section('contenu')
 <div class="page-header" style="margin-bottom: 20px;">

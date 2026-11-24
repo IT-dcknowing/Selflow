@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Moyens de paiement')
-@section('topbar_titre', 'Trésorerie — Moyens de paiement')
+@section('topbar_titre', 'Trésorerie · Moyens de paiement')
 
 {{--
     La même table que les codes journaux, vue sans sa colonne de compte.

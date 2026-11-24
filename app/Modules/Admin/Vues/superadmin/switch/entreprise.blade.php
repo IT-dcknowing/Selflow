@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', $entreprise->nom)
-@section('topbar_titre', 'Gouvernance — ' . $entreprise->nom)
+@section('topbar_titre', 'Gouvernance · ' . $entreprise->nom)
 
 @section('contenu')
 @php

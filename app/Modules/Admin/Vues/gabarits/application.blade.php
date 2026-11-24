@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('titre', 'Tableau de bord') — Selflow</title>
+    <title>@yield('titre', 'Tableau de bord') · Selflow</title>
     @include('partials.icones-selflow')
     <link rel="stylesheet" href="{{ asset('vendor/inter/inter.css') }}">
     <link rel="stylesheet" href="{{ asset('vendor/fontawesome/css/all.min.css') }}">
@@ -914,14 +914,6 @@
                 <i class="fas fa-id-badge"></i> Identité des entreprises
             </a>
             @endif
-            @php $__enCorbeille = \App\Modules\Admin\Modeles\Entreprise::enCorbeille()->count(); @endphp
-            <a href="{{ route('superadmin.corbeille') }}" class="nav-item {{ request()->routeIs('superadmin.corbeille*') ? 'active' : '' }}">
-                <i class="fas fa-trash-can"></i> Corbeille
-                @if($__enCorbeille)<span style="margin-left:auto; background:#64748b; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700;">{{ $__enCorbeille }}</span>@endif
-            </a>
-            <a href="{{ route('superadmin.nettoyage.index') }}" class="nav-item {{ request()->routeIs('superadmin.nettoyage*') ? 'active' : '' }}">
-                <i class="fas fa-broom"></i> Nettoyage des données
-            </a>
             <a href="{{ route('superadmin.utilisateurs') }}" class="nav-item {{ request()->routeIs('superadmin.utilisateurs*') ? 'active' : '' }}">
                 <i class="fas fa-users-gear"></i> Habilitations &amp; Accès
             </a>
@@ -952,8 +944,11 @@
                 @if($__paiementsOuverts)<span style="margin-left:auto; background:#ef4444; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700;">{{ $__paiementsOuverts }}</span>@endif
             </a>
             @endif
+
+            {{-- 24/11/2026 : le robot et la maintenance ont chacun leur section. --}}
+            <div class="nav-section"><span>ROBOT</span></div>
             @php $__pannesOuvertes = \App\Modules\Admin\Modeles\PanneConsignee::ouvertes()->count(); @endphp
-            <a href="{{ route('superadmin.robot.index') }}" class="nav-item {{ request()->routeIs('superadmin.robot*') ? 'active' : '' }}">
+            <a href="{{ route('superadmin.robot.index') }}" class="nav-item {{ request()->routeIs('superadmin.robot.index') ? 'active' : '' }}">
                 <i class="fas fa-robot"></i> Robot FNE en direct
             </a>
             @php $__retoursRobot = count(\App\Modules\Admin\Services\ScraperPortailFneService::retoursDuRobot()); @endphp
@@ -961,6 +956,8 @@
                 <i class="fas fa-reply"></i> Retour robot
                 @if($__retoursRobot)<span style="margin-left:auto; background:#ef4444; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700;">{{ $__retoursRobot }}</span>@endif
             </a>
+
+            <div class="nav-section"><span>MAINTENANCE</span></div>
             <a href="{{ route('superadmin.pannes.index') }}" class="nav-item {{ request()->routeIs('superadmin.pannes*') ? 'active' : '' }}">
                 <i class="fas fa-bug"></i> Pannes &amp; assistance
                 @if($__pannesOuvertes)<span style="margin-left:auto; background:#ef4444; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700;">{{ $__pannesOuvertes }}</span>@endif
@@ -970,6 +967,14 @@
                 <i class="fas fa-chart-line"></i> Maintenance &amp; traçabilité
             </a>
             @endif
+            @php $__enCorbeille = \App\Modules\Admin\Modeles\Entreprise::enCorbeille()->count(); @endphp
+            <a href="{{ route('superadmin.corbeille') }}" class="nav-item {{ request()->routeIs('superadmin.corbeille*') ? 'active' : '' }}">
+                <i class="fas fa-trash-can"></i> Corbeille
+                @if($__enCorbeille)<span style="margin-left:auto; background:#64748b; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700;">{{ $__enCorbeille }}</span>@endif
+            </a>
+            <a href="{{ route('superadmin.nettoyage.index') }}" class="nav-item {{ request()->routeIs('superadmin.nettoyage*') ? 'active' : '' }}">
+                <i class="fas fa-broom"></i> Nettoyage des données
+            </a>
 
             <div class="nav-section"><span>INTÉGRATIONS</span></div>
             <a href="{{ route('superadmin.liaisons.index') }}" class="nav-item {{ request()->routeIs('superadmin.liaisons*') ? 'active' : '' }}">
@@ -1573,7 +1578,7 @@
     </button>
     <div class="topbar-title">
         @yield('topbar_titre', 'Tableau de bord')
-        <span>/ {{ auth()->user()->entreprise->nom ?? 'Selflow' }} — {{ session('apercu_pdv_nom') ?? session('point_de_vente_actif_nom') ?? (auth()->user()->estSuperAdmin() ? 'Siège' : 'aucun point de vente actif') }}</span>
+        <span>/ {{ auth()->user()->entreprise->nom ?? 'Selflow' }} · {{ session('apercu_pdv_nom') ?? session('point_de_vente_actif_nom') ?? (auth()->user()->estSuperAdmin() ? 'Siège' : 'aucun point de vente actif') }}</span>
     </div>
 
     <div style="display:flex; align-items:center; gap:16px;">
@@ -2533,6 +2538,50 @@ window.__csrf = '{{ csrf_token() }}';
 </script>
 
 <script>
+/*
+ * Les filtres s'appliquent d'eux-mêmes (24/11/2026) : dans un formulaire de
+ * recherche (méthode GET) de la page, taper filtre après une courte pause,
+ * changer une liste ou une date filtre aussitôt. Les boutons « Filtrer »,
+ * « Chercher » deviennent inutiles et sont retirés. La saisie garde le
+ * curseur après le rechargement. Un formulaire marqué data-filtre-manuel
+ * garde son bouton.
+ */
+(function () {
+    var CLE = 'selflow_filtre_focus';
+    function brancher() {
+        document.querySelectorAll('.main-content form').forEach(function (f) {
+            if ((f.getAttribute('method') || 'get').toLowerCase() !== 'get' || f.hasAttribute('data-filtre-manuel')) return;
+            var champsTexte = f.querySelectorAll('input[type="search"], input[type="text"], input:not([type])');
+            var listes = f.querySelectorAll('select, input[type="date"], input[type="month"]');
+            if (!champsTexte.length && !listes.length) return;
+            var minuterie = null;
+            var envoyer = function (champ) {
+                try { if (champ && champ.name) sessionStorage.setItem(CLE, JSON.stringify({ chemin: location.pathname, nom: champ.name, pos: (champ.value || '').length })); } catch (e) {}
+                if (typeof f.requestSubmit === 'function') f.requestSubmit(); else f.submit();
+            };
+            champsTexte.forEach(function (c) {
+                if (!c.name) return;
+                c.addEventListener('input', function () { clearTimeout(minuterie); minuterie = setTimeout(function () { envoyer(c); }, 600); });
+            });
+            listes.forEach(function (c) { if (c.name && !c.hasAttribute('onchange')) c.addEventListener('change', function () { envoyer(c); }); });
+            f.querySelectorAll('button[type="submit"], button:not([type]), input[type="submit"]').forEach(function (b) {
+                var t = (b.textContent || b.value || '').trim().toLowerCase();
+                var loupe = b.querySelector('.fa-magnifying-glass, .fa-search, .fa-filter');
+                if (/^(filtrer|chercher|rechercher|appliquer|afficher)$/.test(t) || (!t && loupe)) b.style.display = 'none';
+            });
+        });
+        try {
+            var v = JSON.parse(sessionStorage.getItem(CLE) || 'null');
+            sessionStorage.removeItem(CLE);
+            if (v && v.chemin === location.pathname) {
+                var champ = document.querySelector('.main-content form [name="' + v.nom + '"]');
+                if (champ && champ.focus) { champ.focus(); try { champ.setSelectionRange(v.pos, v.pos); } catch (e) {} }
+            }
+        } catch (e) {}
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', brancher); else brancher();
+})();
+
 /*
  * Après un enregistrement, la page revient là où l'on était (24/11/2026).
  * Chaque envoi de formulaire note la position ; la page qui suit, si c'est la

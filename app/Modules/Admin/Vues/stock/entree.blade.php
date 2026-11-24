@@ -1,7 +1,7 @@
 @extends('admin::gabarits.application')
 @use('App\Modules\Admin\Modeles\MouvementStock', 'Mvt')
 @section('titre', 'Entrée de stock')
-@section('topbar_titre', 'Stock — Entrée de stock')
+@section('topbar_titre', 'Stock · Entrée de stock')
 
 @section('contenu')
 <div class="page-header">

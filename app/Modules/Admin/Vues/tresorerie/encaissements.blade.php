@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Encaissements')
-@section('topbar_titre', 'Trésorerie — Encaissements')
+@section('topbar_titre', 'Trésorerie · Encaissements')
 
 @section('contenu')
 <div class="page-header">

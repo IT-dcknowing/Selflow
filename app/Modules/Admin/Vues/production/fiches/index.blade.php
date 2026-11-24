@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
-@section('titre', 'Recettes — Fiches Techniques')
-@section('topbar_titre', 'Production — Fiches Techniques')
+@section('titre', 'Recettes · Fiches Techniques')
+@section('topbar_titre', 'Production · Fiches Techniques')
 
 @section('contenu')
 <div class="page-header">

@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', $achat->type_facture === 'avoir' ? 'Facture d\'avoir fournisseur ' . $achat->numero_facture : 'Bon d\'achat ' . $achat->numero_facture)
-@section('topbar_titre', $achat->type_facture === 'avoir' ? 'Achats — Facture d\'avoir' : 'Achats — Détails')
+@section('topbar_titre', $achat->type_facture === 'avoir' ? 'Achats · Facture d\'avoir' : 'Achats · Détails')
 
 @section('styles')
 <style>

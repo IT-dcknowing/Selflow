@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Nouveau bien immobilisé')
-@section('topbar_titre', 'Comptabilité — Nouveau bien immobilisé')
+@section('topbar_titre', 'Comptabilité · Nouveau bien immobilisé')
 
 @section('contenu')
 <div class="page-header">

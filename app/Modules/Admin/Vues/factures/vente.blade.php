@@ -2,7 +2,7 @@
 {{-- Le titre dit la nature de la pièce : un devis et un bon de commande
      s'intitulaient « Facture » dans l'onglet du navigateur. --}}
 @section('titre', isset($bl) ? 'Bon de Livraison ' . $bl->numero_bl : $vente->libelleEtape() . ' ' . $vente->numero_facture)
-@section('topbar_titre', isset($bl) ? 'Ventes — Bons de Livraison' : 'Vente — ' . $vente->libelleEtape())
+@section('topbar_titre', isset($bl) ? 'Ventes · Bons de Livraison' : 'Vente · ' . $vente->libelleEtape())
 
 @section('styles')
 <style>

@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Traçabilité par entreprise')
-@section('topbar_titre', 'SuperAdmin — Traçabilité par entreprise')
+@section('topbar_titre', 'SuperAdmin · Traçabilité par entreprise')
 
 @section('contenu')
 <div style="max-width:1200px; margin:0 auto;">

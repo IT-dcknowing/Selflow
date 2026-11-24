@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Gestion FNE')
-@section('topbar_titre', 'SuperAdmin — Gestion des clés FNE (DGI)')
+@section('topbar_titre', 'SuperAdmin · Gestion des clés FNE (DGI)')
 
 @section('styles')
 <style>

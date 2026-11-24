@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Attributions')
-@section('topbar_titre', 'SuperAdmin — Attributions')
+@section('topbar_titre', 'SuperAdmin · Attributions')
 
 @section('styles')
 <style>

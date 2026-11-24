@@ -1,7 +1,7 @@
 @extends('admin::gabarits.application')
 @use('App\Modules\Admin\Modeles\DemandeSticker', 'Demande')
 @section('titre', 'Demandes de stickers')
-@section('topbar_titre', 'SuperAdmin — Demandes de stickers')
+@section('topbar_titre', 'SuperAdmin · Demandes de stickers')
 
 @section('contenu')
 <div style="max-width:1200px; margin:0 auto;">

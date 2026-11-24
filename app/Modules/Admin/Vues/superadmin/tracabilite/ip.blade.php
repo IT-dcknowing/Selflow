@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Activité de ' . $ip)
-@section('topbar_titre', 'SuperAdmin — Activité de ' . $ip)
+@section('topbar_titre', 'SuperAdmin · Activité de ' . $ip)
 
 @section('contenu')
 @php $f = fn ($n) => number_format((float) $n, 0, ',', ' '); @endphp

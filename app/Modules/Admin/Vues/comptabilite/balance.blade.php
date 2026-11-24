@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Balance de contrôle')
-@section('topbar_titre', 'Comptabilité — Balance de contrôle')
+@section('topbar_titre', 'Comptabilité · Balance de contrôle')
 
 @section('contenu')
 <div class="page-header">

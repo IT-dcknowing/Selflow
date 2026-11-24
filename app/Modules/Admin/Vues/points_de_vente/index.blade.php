@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Points de vente')
-@section('topbar_titre', 'Infrastructure — Points de vente')
+@section('topbar_titre', 'Infrastructure · Points de vente')
 
 @section('contenu')
 <div class="page-header">

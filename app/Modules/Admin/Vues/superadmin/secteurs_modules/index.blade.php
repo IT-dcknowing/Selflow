@@ -1,7 +1,7 @@
 @extends('admin::gabarits.application')
 
 @section('titre', 'Supervision - Secteurs & Modules')
-@section('topbar_titre', 'Supervision — Secteurs &amp; Modules')
+@section('topbar_titre', 'Supervision · Secteurs &amp; Modules')
 
 @section('styles')
 <style>

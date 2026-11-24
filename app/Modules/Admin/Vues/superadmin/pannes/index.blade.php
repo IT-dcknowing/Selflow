@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Pannes & assistance')
-@section('topbar_titre', 'SuperAdmin — Pannes & assistance')
+@section('topbar_titre', 'SuperAdmin · Pannes & assistance')
 
 @section('contenu')
 <div style="max-width:1200px; margin:0 auto;">

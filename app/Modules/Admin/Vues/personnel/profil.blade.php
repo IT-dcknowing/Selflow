@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Mon Profil')
-@section('topbar_titre', 'Utilisateur — Mon profil')
+@section('topbar_titre', 'Utilisateur · Mon profil')
 
 @section('contenu')
 <div class="page-header" style="margin-bottom: 24px;">

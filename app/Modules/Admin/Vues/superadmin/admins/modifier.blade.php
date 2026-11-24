@@ -1,7 +1,7 @@
 @extends('admin::gabarits.application')
 
 @section('titre', 'Modifier un Administrateur Interne')
-@section('topbar_titre', 'Administration Interne — Modifier l\'Administrateur')
+@section('topbar_titre', 'Administration Interne · Modifier l\'Administrateur')
 
 @section('contenu')
 <div class="page-header" style="margin-bottom: 20px;">

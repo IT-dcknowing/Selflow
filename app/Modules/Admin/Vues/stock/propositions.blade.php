@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Proposition entrée/sortie')
-@section('topbar_titre', 'Stock — Proposition entrée/sortie')
+@section('topbar_titre', 'Stock · Proposition entrée/sortie')
 
 @section('contenu')
 <div class="page-header">

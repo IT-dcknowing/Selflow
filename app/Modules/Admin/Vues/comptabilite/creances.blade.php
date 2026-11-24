@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Créances & Règlements')
-@section('topbar_titre', 'Comptabilité — Créances & Dettes')
+@section('topbar_titre', 'Comptabilité · Créances & Dettes')
 
 @section('styles')
 <style>

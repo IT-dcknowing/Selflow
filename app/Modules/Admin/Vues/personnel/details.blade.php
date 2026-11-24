@@ -1,6 +1,6 @@
 ﻿@extends('admin::gabarits.application')
 @section('titre', 'Détails du personnel')
-@section('topbar_titre', 'Personnels & Accès — Fiche individuelle')
+@section('topbar_titre', 'Personnels & Accès · Fiche individuelle')
 
 @section('contenu')
 <div class="page-header">

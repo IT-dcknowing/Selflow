@@ -1,7 +1,7 @@
 @extends('admin::gabarits.application')
 
-@section('titre', 'Supervision — Référentiel')
-@section('topbar_titre', 'Supervision — Référentiel de préparamétrage')
+@section('titre', 'Supervision · Référentiel')
+@section('topbar_titre', 'Supervision · Référentiel de préparamétrage')
 
 @section('styles')
 <style>

@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', ($mode === 'creation' ? 'Nouvelle Recette' : 'Modifier la Recette'))
-@section('topbar_titre', 'Production — Fiche Technique')
+@section('topbar_titre', 'Production · Fiche Technique')
 
 @section('styles')
 <style>

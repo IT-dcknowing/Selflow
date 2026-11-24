@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', "Libellés d'écriture")
-@section('topbar_titre', "Comptabilité — Libellés d'écriture")
+@section('topbar_titre', "Comptabilité · Libellés d'écriture")
 
 @section('contenu')
 <div class="page-header">

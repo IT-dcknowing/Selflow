@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Exercices antérieurs')
-@section('topbar_titre', 'SuperAdmin — Comptabilité des exercices antérieurs')
+@section('topbar_titre', 'SuperAdmin · Comptabilité des exercices antérieurs')
 
 @section('contenu')
 <div style="max-width:1100px;margin:0 auto;">

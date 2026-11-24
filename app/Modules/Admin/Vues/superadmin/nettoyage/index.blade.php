@@ -1,7 +1,7 @@
 @extends('admin::gabarits.application')
 
 @section('titre', 'Nettoyage des données')
-@section('topbar_titre', 'SuperAdmin — Nettoyage des données')
+@section('topbar_titre', 'SuperAdmin · Nettoyage des données')
 
 @section('contenu')
 <div style="max-width:1200px; margin:0 auto;">

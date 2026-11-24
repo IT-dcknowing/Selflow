@@ -46,7 +46,30 @@ class IntegrationPortailFneControleur extends Controller
             $f->id => $this->service->proposer($f, $entreprise),
         ]);
 
+        // Les lignes de la page, regroupées (24/11/2026) : par catégorie
+        // d'article, les prestations et les lignes libres à part, avec les
+        // comptes qui seront passés. On sait ainsi ce qu'il faut vérifier.
+        $groupes = [];
+        foreach ($propositions as $proposition) {
+            foreach ($proposition['lignes'] as $l) {
+                $produit = $l['produit'];
+                if ($produit) {
+                    $stocke = method_exists($produit, 'estStockable') ? $produit->estStockable() : ($produit->type !== 'service');
+                    $cle = ($stocke ? 'Articles stockés' : 'Prestations de services') . ' · ' . ($produit->categorie ?: 'Sans catégorie');
+                } else {
+                    $cle = str_starts_with((string) $l['compte'], '706') ? 'Lignes libres · prestations de services' : 'Lignes libres · hors catalogue';
+                }
+                $ligne = $l['ligne'];
+                $groupes[$cle] ??= ['lignes' => 0, 'montant' => 0.0, 'comptes' => [], 'libre' => ! $produit];
+                $groupes[$cle]['lignes']++;
+                $groupes[$cle]['montant'] += (float) $ligne->quantite * (float) $ligne->prix_unitaire * (1 - (float) $ligne->remise / 100);
+                $groupes[$cle]['comptes'][(string) $l['compte']] = true;
+            }
+        }
+        ksort($groupes);
+
         return view('admin::portail-fne.integration', [
+            'groupes'       => $groupes,
             'arrierePlan'   => \App\Modules\Admin\Services\IntegrationPortailEnArrierePlan::etat($entreprise->id),
             'factures'      => $factures,
             'propositions'  => $propositions,

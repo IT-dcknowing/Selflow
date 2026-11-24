@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Lettrage')
-@section('topbar_titre', 'Comptabilité — Lettrage')
+@section('topbar_titre', 'Comptabilité · Lettrage')
 
 @section('contenu')
 <div class="page-header">

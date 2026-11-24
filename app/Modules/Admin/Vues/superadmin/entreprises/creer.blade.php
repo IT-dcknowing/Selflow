@@ -1,7 +1,7 @@
 @extends('admin::gabarits.application')
 
 @section('titre', 'Supervision - Créer une entreprise')
-@section('topbar_titre', 'Supervision — Créer')
+@section('topbar_titre', 'Supervision · Créer')
 
 @section('contenu')
 <div class="page-header" style="margin-bottom: 20px;">

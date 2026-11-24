@@ -1,6 +1,6 @@
 @extends('admin::gabarits.application')
 @section('titre', 'Ordre de production ' . $ordre->code_ordre)
-@section('topbar_titre', 'Production — ' . $ordre->code_ordre)
+@section('topbar_titre', 'Production · ' . $ordre->code_ordre)
 
 @section('contenu')
 @use('App\Modules\Admin\Modeles\OrdreProduction')

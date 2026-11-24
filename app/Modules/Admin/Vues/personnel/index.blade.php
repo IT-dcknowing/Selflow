@@ -1,6 +1,6 @@
 ﻿@extends('admin::gabarits.application')
 @section('titre', 'Personnels & Accès')
-@section('topbar_titre', 'Points de vente — Personnels & Accès')
+@section('topbar_titre', 'Points de vente · Personnels & Accès')
 
 @section('styles')
 <style>
