@@ -77,6 +77,7 @@ class VerifierHabilitationRoute
         'superadmin.liaisons.renouveler_cle'   => 'gestion_comptaflow',
         'superadmin.liaisons.delierEntreprise' => 'gestion_comptaflow',
         'superadmin.liaisons.verifier'         => 'gestion_comptaflow',
+        'superadmin.liaisons.affecter_cabinet' => 'gestion_comptaflow',
 
         'superadmin.fne.index'          => 'gestion_fne',
         'superadmin.fne.cle_test'       => 'gestion_fne',

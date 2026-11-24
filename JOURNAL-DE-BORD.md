@@ -11735,6 +11735,38 @@ option renommée « Prestataires », reprise des factures « apporteur »).
 - Tests : `ConnexionFneEtatTest` (règle de grisage mise à jour, relever
   maintenant), `RecetteNouvelleEntrepriseTest`, `JournauxEtDeversementTest` (relance), `IntegrationFacturesPortailFneTest`. Suite : 213, identiques à la référence.
 
+### Lot 167 — Fiche FNE : diagnostic du robot ; cabinets Comptaflow à la liaison — **TERMINÉ le 24/11/2026**
+
+- **SAS'T (2196217J)** : `selflow:diagnostic-fiche` sur le serveur a montré
+  une connexion du robot « ok » mais **aucun fichier de fiche déposé** et
+  aucun relevé rangé : `fne.js` n'est jamais allé au bout pour ce NCC. La
+  commande lit désormais aussi le journal du robot de la fiche
+  (`laravel.log`, bloc « -- NCC -- » et lignes `fne[NCC]`) et ses captures
+  d'erreur (`SCRAPER-PORTAIL-FNE/erreurs/`). Causes possibles à départager
+  avec ce journal : échec sur la page « Paramétrage », ou attente du
+  navigateur (verrou) dépassée pendant que ventes, achats et avoirs
+  tournent.
+- **Accès à la création du dossier Comptaflow** : vérifiés des deux côtés.
+  Selflow envoie l'adresse et l'empreinte bcrypt du premier administrateur ;
+  Comptaflow crée le compte avec, sans lien d'activation. Si l'adresse
+  existe déjà chez Comptaflow, le compte existant n'est pas réécrit (son mot
+  de passe reste le sien). En mode « lier », aucun accès ne part.
+- **Cabinets Comptaflow** (facultatif) : à la liaison, liste avec recherche
+  des cabinets et de leurs membres : « espace du cabinet » (le dossier entre
+  dans le portefeuille, le gérant le voit) ou un membre précis (le dossier lui
+  est confié, rôle admin, et est rangé aussi dans son cabinet). Bouton
+  « cabinet » sur les liaisons actives pour affecter après coup. Le cabinet
+  et le membre s'affichent sous le dossier. Colonnes
+  `entreprises.comptaflow_cabinet_id/_nom/_membre` (migration
+  `2026_11_24_000004`, protégée).
+- **Côté Comptaflow** (dépôt hors de portée de cette session) : correctif
+  `correctifs-comptaflow/0001-…patch` : `POST /api/external/cabinets`,
+  `POST /api/external/companies/affecter`, `affectation` acceptée par
+  `companies/provision`, tests `AffectationCabinetSelflowTest` (non joués
+  ici : dépendances non téléchargeables). Tant qu'il n'est pas déployé,
+  l'écran le dit et la liaison fonctionne sans cabinet.
+- Tests : `LiaisonCabinetComptaflowTest` (6).
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

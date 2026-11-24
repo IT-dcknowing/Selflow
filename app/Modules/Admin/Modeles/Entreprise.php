@@ -86,6 +86,9 @@ class Entreprise extends Model
         'comptaflow_cle_indice',
         'comptaflow_cle_tournee_le',
         'comptaflow_rotation_echouee_le',
+        'comptaflow_cabinet_id',
+        'comptaflow_cabinet_nom',
+        'comptaflow_cabinet_membre',
         // Champs DGI / Fiscal
         'idu',
         'reference_cadastrale',

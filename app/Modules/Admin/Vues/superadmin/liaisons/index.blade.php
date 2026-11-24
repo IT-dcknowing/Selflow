@@ -279,6 +279,9 @@
                             @if(isset($dossiersComptaflow[(int) $ent->comptaflow_company_id]))
                                 <div style="font-size:11.5px; color:var(--text-2); margin-top:4px; font-weight:600;">{{ $dossiersComptaflow[(int) $ent->comptaflow_company_id] }}</div>
                             @endif
+                            @if($ent->comptaflow_cabinet_nom)
+                                <div style="font-size:11px; color:#6d28d9; margin-top:3px;"><i class="fas fa-briefcase"></i> {{ $ent->comptaflow_cabinet_nom }}{{ $ent->comptaflow_cabinet_membre ? ' · ' . $ent->comptaflow_cabinet_membre : '' }}</div>
+                            @endif
                         @else
                             <span style="color:var(--text-3); font-size:12px;">—</span>
                         @endif
@@ -343,6 +346,10 @@
                     <td style="text-align:center; white-space:nowrap;">
                         <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
                             @if($estLiee)
+                                <button type="button" class="btn btn-outline btn-sm" title="Affecter à un cabinet Comptaflow" style="padding:5px 8px;"
+                                        onclick="ouvrirCabinet(@js($ent->uuid), @js($ent->nom))">
+                                    <i class="fas fa-briefcase"></i>
+                                </button>
                                 <form method="POST" action="{{ route('superadmin.liaisons.verifier', $ent) }}" style="display:inline;">
                                     @csrf
                                     <button type="submit" class="btn btn-outline btn-sm" title="Vérifier la liaison auprès de Comptaflow" style="padding:5px 8px;">
@@ -482,6 +489,7 @@
                         @endforeach
                     </select>
                 </div>
+                @include('admin::superadmin.liaisons._choix-cabinet', ['idChoix' => 'liaison-cabinet', 'facultatif' => true])
                 <div>
                     <label class="form-label">Exercices Selflow à déverser</label>
                     <div id="liaison-annees" style="display:flex; gap:14px; flex-wrap:wrap;"></div>
@@ -501,7 +509,36 @@
     </div>
 </div>
 
+<div class="modal-overlay" id="modalCabinet">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 style="font-size:15px; font-weight:700; margin:0;">
+                <i class="fas fa-briefcase" style="color:var(--primary)"></i>
+                Cabinet Comptaflow · <span id="cabinet-nom"></span>
+            </h3>
+            <button type="button" onclick="document.getElementById('modalCabinet').style.display='none'"
+                    style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-3);">&times;</button>
+        </div>
+        <form method="POST" id="form-cabinet" action="" style="margin:0;">
+            @csrf
+            <div class="modal-body" style="font-size:13px;">
+                @include('admin::superadmin.liaisons._choix-cabinet', ['idChoix' => 'cabinet-choix', 'facultatif' => false])
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="document.getElementById('modalCabinet').style.display='none'">Annuler</button>
+                <button type="submit" class="btn btn-primary" {{ empty($cabinetsComptaflow['cabinets']) ? 'disabled' : '' }}><i class="fas fa-check"></i> Affecter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
+    var GABARIT_CABINET = "{{ route('superadmin.liaisons.affecter_cabinet', ['entreprise' => '__ID__']) }}";
+    function ouvrirCabinet(id, nom) {
+        document.getElementById('cabinet-nom').textContent = nom;
+        document.getElementById('form-cabinet').action = GABARIT_CABINET.replace('__ID__', id);
+        document.getElementById('modalCabinet').style.display = 'flex';
+    }
     var GABARIT_REFUS = "{{ route('superadmin.liaisons.refuser', ['entreprise' => '__ID__']) }}";
     var GABARIT_VALIDER = "{{ route('superadmin.liaisons.valider', ['entreprise' => '__ID__']) }}";
     var EXERCICES = @json($exercicesParUuid);

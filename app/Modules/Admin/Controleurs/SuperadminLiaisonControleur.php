@@ -70,9 +70,11 @@ class SuperadminLiaisonControleur extends Controller
         $bearerClientId = ParametrePlateforme::lire('comptaflow_client_id');
         $bearerConfigure = filled($bearerClientId) && filled(ParametrePlateforme::lire('comptaflow_client_secret_chiffre'));
 
+        $cabinetsComptaflow = LiaisonComptaflowService::cabinets();
+
         return view('admin::superadmin.liaisons.index', compact(
             'entreprises', 'demandes', 'comptaflowCompanies', 'dossiersComptaflow',
-            'exercices', 'anneesDemandees', 'bearerClientId', 'bearerConfigure'
+            'exercices', 'anneesDemandees', 'bearerClientId', 'bearerConfigure', 'cabinetsComptaflow'
         ));
     }
 
@@ -129,6 +131,8 @@ class SuperadminLiaisonControleur extends Controller
             'deverser'              => ['nullable', 'boolean'],
             'annees'                => ['nullable', 'array'],
             'annees.*'              => ['integer', 'between:2000,2100'],
+            // Facultatif (24/11/2026) : « c:ID » le cabinet, « u:ID:UID » un membre.
+            'cabinet'               => ['nullable', 'string', 'regex:/^(c:\d+|u:\d+:\d+)$/'],
         ], [
             'comptaflow_company_id.required_if' => 'Choisissez le dossier Comptaflow auquel lier l\'entreprise.',
         ]);
@@ -140,6 +144,8 @@ class SuperadminLiaisonControleur extends Controller
             'deverser'              => (bool) ($donnees['deverser'] ?? false),
             'annees'                => $donnees['annees'] ?? [],
             'par'                   => $request->user()?->id,
+            'cabinet_id'            => LiaisonComptaflowService::lireLeChoixDeCabinet($donnees['cabinet'] ?? null)['cabinet_id'] ?? null,
+            'cabinet_user_id'       => LiaisonComptaflowService::lireLeChoixDeCabinet($donnees['cabinet'] ?? null)['user_id'] ?? null,
         ]);
 
         if (!$resultat['success']) {
@@ -239,6 +245,22 @@ class SuperadminLiaisonControleur extends Controller
         $entreprise->update(['comptaflow_last_sync_at' => now()]);
 
         return back()->with('success', "✅ Liaison vérifiée pour « {$entreprise->nom} ».");
+    }
+
+    /**
+     * Affecter le dossier Comptaflow d'une entreprise déjà liée à un cabinet,
+     * ou à un membre précis du cabinet (24/11/2026).
+     */
+    public function affecterAuCabinet(Request $request, Entreprise $entreprise): RedirectResponse
+    {
+        $donnees = $request->validate([
+            'cabinet' => ['required', 'string', 'regex:/^(c:\d+|u:\d+:\d+)$/'],
+        ], ['cabinet.required' => 'Choisissez un cabinet ou un membre du cabinet.']);
+
+        $choix = LiaisonComptaflowService::lireLeChoixDeCabinet($donnees['cabinet']);
+        $resultat = LiaisonComptaflowService::affecterAuCabinet($entreprise, $choix['cabinet_id'], $choix['user_id']);
+
+        return back()->with($resultat['success'] ? 'success' : 'error', "« {$entreprise->nom} » : " . $resultat['message']);
     }
 
     /**

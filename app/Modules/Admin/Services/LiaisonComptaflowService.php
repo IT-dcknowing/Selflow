@@ -148,7 +148,7 @@ class LiaisonComptaflowService
 
         try {
             $reponse = Http::timeout(self::DELAI)
-                ->post(self::url('/api/external/companies/provision'), self::dossier($entreprise, $cible));
+                ->post(self::url('/api/external/companies/provision'), self::dossier($entreprise, $cible, self::affectationDemandee($options)));
         } catch (\Throwable $e) {
             Log::error('Provisionnement Comptaflow : ' . $e->getMessage());
 
@@ -198,6 +198,8 @@ class LiaisonComptaflowService
             'comptaflow_refus_motif'    => null,
         ])->save();
 
+        $noteCabinet = self::retenirLAffectation($entreprise, self::affectationDemandee($options), $reponse->json('affectation'));
+
         // Les exercices antérieurs cochés sont accordés ici, comme le serait
         // une demande de l'entreprise : c'est le même registre qui les laisse
         // partir (`DeversementHistoriqueService::exercicesPermis`).
@@ -239,7 +241,7 @@ class LiaisonComptaflowService
 
         return [
             'success' => true,
-            'message' => $message . $note,
+            'message' => $message . $note . $noteCabinet,
         ];
     }
 
@@ -750,7 +752,24 @@ class LiaisonComptaflowService
      *
      * @return array<string, mixed>
      */
-    private static function dossier(Entreprise $entreprise, ?int $dossierExistant = null): array
+    private static function dossier(Entreprise $entreprise, ?int $dossierExistant = null, ?array $affectation = null): array
+    {
+        $dossier = self::dossierSansAffectation($entreprise, $dossierExistant);
+
+        // Facultatif (24/11/2026) : le cabinet Comptaflow qui reçoit le
+        // dossier, et éventuellement le membre du cabinet à qui il est confié.
+        if (!empty($affectation['cabinet_id'])) {
+            $dossier['affectation'] = array_filter([
+                'cabinet_id' => (int) $affectation['cabinet_id'],
+                'user_id'    => !empty($affectation['user_id']) ? (int) $affectation['user_id'] : null,
+            ]);
+        }
+
+        return $dossier;
+    }
+
+    /** @return array<string, mixed> */
+    private static function dossierSansAffectation(Entreprise $entreprise, ?int $dossierExistant = null): array
     {
         if ($dossierExistant !== null) {
             // Un dossier qui existe déjà chez Comptaflow a ses propres comptes
@@ -855,6 +874,156 @@ class LiaisonComptaflowService
             'fin'     => $periode->date_fin->toDateString(),
             'libelle' => $periode->libelle ?: ('Exercice ' . $periode->date_debut->format('Y')),
         ];
+    }
+
+    // ── Les cabinets Comptaflow (24/11/2026) ─────────────────────────
+
+    /**
+     * Les cabinets de Comptaflow et leurs membres, pour la liste déroulante de
+     * la liaison. Deux minutes en mémoire, comme la liste des dossiers.
+     *
+     * @return array{disponible: bool, message: string, cabinets: array<int, array{id:int, nom:string, code:?string, membres: array<int, array{id:int, nom:string, email:?string, role:?string}>}>}
+     */
+    public static function cabinets(): array
+    {
+        if (!config('selflow.comptaflow_api_secret')) {
+            return ['disponible' => false, 'message' => "Le secret serveur n'est pas configuré (EXTERNAL_SYNC_SECRET).", 'cabinets' => []];
+        }
+
+        if (is_array($connus = Cache::get('comptaflow.cabinets'))) {
+            return $connus;
+        }
+
+        try {
+            $reponse = Http::timeout(5)->post(self::url('/api/external/cabinets'), [
+                'secret' => config('selflow.comptaflow_api_secret'),
+            ]);
+        } catch (\Throwable $e) {
+            return ['disponible' => false, 'message' => 'Comptaflow ne répond pas : ' . $e->getMessage(), 'cabinets' => []];
+        }
+
+        if (in_array($reponse->status(), [404, 405], true)) {
+            return ['disponible' => false, 'message' => "Comptaflow ne fournit pas encore la liste des cabinets (/api/external/cabinets) : sa mise à jour n'est pas déployée.", 'cabinets' => []];
+        }
+
+        if (!$reponse->successful() || !$reponse->json('success')) {
+            return ['disponible' => false, 'message' => 'Comptaflow a refusé la liste des cabinets (code ' . $reponse->status() . ').', 'cabinets' => []];
+        }
+
+        $cabinets = collect((array) $reponse->json('cabinets', []))
+            ->filter(fn ($c) => is_array($c) && !empty($c['id']))
+            ->map(fn ($c) => [
+                'id'      => (int) $c['id'],
+                'nom'     => (string) ($c['nom'] ?? ('Cabinet #' . $c['id'])),
+                'code'    => $c['code'] ?? null,
+                'membres' => collect((array) ($c['membres'] ?? []))
+                    ->filter(fn ($m) => is_array($m) && !empty($m['id']))
+                    ->map(fn ($m) => [
+                        'id'    => (int) $m['id'],
+                        'nom'   => trim((string) ($m['nom'] ?? '')) ?: ((string) ($m['email'] ?? ('Utilisateur #' . $m['id']))),
+                        'email' => $m['email'] ?? null,
+                        'role'  => $m['role'] ?? null,
+                    ])->values()->all(),
+            ])->values()->all();
+
+        $resultat = ['disponible' => true, 'message' => '', 'cabinets' => $cabinets];
+        Cache::put('comptaflow.cabinets', $resultat, 120);
+
+        return $resultat;
+    }
+
+    /**
+     * Le choix de la liste, « c:12 » (le cabinet 12) ou « u:12:40 » (le
+     * membre 40 du cabinet 12), en cabinet et membre.
+     *
+     * @return array{cabinet_id: int, user_id: ?int}|null
+     */
+    public static function lireLeChoixDeCabinet(?string $choix): ?array
+    {
+        if (preg_match('/^c:(\d+)$/', (string) $choix, $m)) {
+            return ['cabinet_id' => (int) $m[1], 'user_id' => null];
+        }
+        if (preg_match('/^u:(\d+):(\d+)$/', (string) $choix, $m)) {
+            return ['cabinet_id' => (int) $m[1], 'user_id' => (int) $m[2]];
+        }
+
+        return null;
+    }
+
+    /**
+     * Affecter le dossier d'une entreprise déjà liée.
+     *
+     * @return array{success: bool, message: string}
+     */
+    public static function affecterAuCabinet(Entreprise $entreprise, int $cabinetId, ?int $userId = null): array
+    {
+        if (!$entreprise->comptaflow_company_id) {
+            return ['success' => false, 'message' => "Cette entreprise n'a pas encore de dossier Comptaflow."];
+        }
+
+        try {
+            $reponse = Http::timeout(self::DELAI)->post(self::url('/api/external/companies/affecter'), [
+                'secret'             => config('selflow.comptaflow_api_secret'),
+                'selflow_company_id' => $entreprise->id,
+                'cabinet_id'         => $cabinetId,
+                'user_id'            => $userId,
+            ]);
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => 'Impossible de joindre Comptaflow : ' . $e->getMessage()];
+        }
+
+        if (in_array($reponse->status(), [404, 405], true) && !$reponse->json('message')) {
+            return ['success' => false, 'message' => "Comptaflow ne sait pas encore affecter un dossier à un cabinet : sa mise à jour n'est pas déployée."];
+        }
+
+        $affectation = ['cabinet_id' => $cabinetId, 'user_id' => $userId];
+        $retour = ['success' => (bool) $reponse->json('success'), 'message' => (string) ($reponse->json('message') ?? ('Code ' . $reponse->status()))];
+        if ($retour['success']) {
+            self::retenirLAffectation($entreprise, $affectation, $retour);
+        }
+
+        return $retour;
+    }
+
+    /** @param  array<string, mixed>  $options */
+    private static function affectationDemandee(array $options): ?array
+    {
+        return !empty($options['cabinet_id'])
+            ? ['cabinet_id' => (int) $options['cabinet_id'], 'user_id' => !empty($options['cabinet_user_id']) ? (int) $options['cabinet_user_id'] : null]
+            : null;
+    }
+
+    /**
+     * Range sur l'entreprise ce que Comptaflow a accepté, et dit ce qu'il en
+     * est. Un refus d'affectation ne défait pas la liaison.
+     */
+    private static function retenirLAffectation(Entreprise $entreprise, ?array $demande, mixed $retour): string
+    {
+        if (!$demande) {
+            return '';
+        }
+
+        if (!is_array($retour)) {
+            return " Attention : Comptaflow n'a rien dit de l'affectation au cabinet (sa mise à jour n'est peut-être pas déployée). Affectez-le depuis la liste des liaisons.";
+        }
+
+        if (empty($retour['success'])) {
+            return ' Affectation au cabinet refusée : ' . ($retour['message'] ?? 'motif inconnu') . '.';
+        }
+
+        if (\App\Support\Structure::aColonne('entreprises', 'comptaflow_cabinet_id')) {
+            $cabinet = collect(self::cabinets()['cabinets'])->firstWhere('id', (int) $demande['cabinet_id']);
+            $membre = $cabinet && $demande['user_id']
+                ? collect($cabinet['membres'])->firstWhere('id', (int) $demande['user_id'])
+                : null;
+            $entreprise->forceFill([
+                'comptaflow_cabinet_id'     => (int) $demande['cabinet_id'],
+                'comptaflow_cabinet_nom'    => $cabinet['nom'] ?? ('Cabinet #' . $demande['cabinet_id']),
+                'comptaflow_cabinet_membre' => $membre['nom'] ?? null,
+            ])->save();
+        }
+
+        return ' ' . ($retour['message'] ?? 'Dossier affecté au cabinet.');
     }
 
     private static function url(string $chemin): string

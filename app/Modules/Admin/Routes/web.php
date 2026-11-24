@@ -773,6 +773,8 @@ Route::prefix('superadmin')
             Route::post('/{entreprise}/renouveler-cle', [SuperadminLiaisonControleur::class, 'renouvelerLaCle'])->middleware('throttle:plateforme')->name('renouveler_cle');
             Route::delete('/{entreprise}/delierEntreprise', [SuperadminLiaisonControleur::class, 'delierEntreprise'])->name('delierEntreprise');
             Route::post('/{entreprise}/verifier', [SuperadminLiaisonControleur::class, 'verifierLiaison'])->middleware('throttle:plateforme')->name('verifier');
+            // Affecter le dossier Comptaflow à un cabinet, ou à un membre du cabinet (24/11/2026).
+            Route::post('/{entreprise}/cabinet', [SuperadminLiaisonControleur::class, 'affecterAuCabinet'])->middleware('throttle:plateforme')->name('affecter_cabinet');
         });
 
         // ── Gestion des clés FNE (DGI) ──

@@ -58,6 +58,15 @@ class DiagnosticFiche extends Command
             ? '   ' . ($etat['quand'] ?? '?') . ' : ' . ($etat['statut'] ?? '?') . ' — ' . ($etat['message'] ?? '') . ' (portail : ' . ($etat['portail'] ?? '?') . ')'
             : '   Aucune trace : le robot de la fiche (fne.js) n\'a jamais tourné pour ce NCC.');
 
+        $this->info("3 bis. Journal du robot de la fiche (fne.js)");
+        foreach ($this->journalDuRobot($ncc) as $ligne) {
+            $this->line('   ' . mb_strimwidth($ligne, 0, 220, '…'));
+        }
+        $captures = glob(base_path('SCRAPER-PORTAIL-FNE/erreurs/' . $ncc . '_*')) ?: [];
+        foreach (array_slice($captures, -3) as $c) {
+            $this->warn('   capture d\'erreur : ' . $c);
+        }
+
         $this->info("4. Fichiers déposés (" . config('selflow.portail_fne.dossier_import') . ')');
         $fichiers = glob(rtrim((string) config('selflow.portail_fne.dossier_import'), '/') . '/' . $ncc . '_*.{json,xlsx}', GLOB_BRACE) ?: [];
         foreach (array_slice($fichiers, -6) as $f) {
@@ -109,6 +118,51 @@ class DiagnosticFiche extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Les dernières lignes du robot de la fiche pour ce NCC, lues dans
+     * laravel.log (fne.js y écrit sur le serveur Linux).
+     *
+     * @return array<int, string>
+     */
+    private function journalDuRobot(string $ncc): array
+    {
+        $fichier = storage_path('logs/laravel.log');
+        if (!is_file($fichier)) {
+            return ['(laravel.log introuvable)'];
+        }
+        $taille = filesize($fichier);
+        $h = fopen($fichier, 'r');
+        fseek($h, max(0, $taille - 3_000_000));
+        $texte = (string) stream_get_contents($h);
+        fclose($h);
+        $lignes = preg_split('/\R/', $texte) ?: [];
+
+        $retenues = [];
+        $dansLeBloc = false;
+        foreach ($lignes as $ligne) {
+            if (str_contains($ligne, "-- {$ncc} --")) {
+                $retenues = [];
+                $dansLeBloc = true;
+                continue;
+            }
+            if (str_contains($ligne, "fne[{$ncc}]")) {
+                $retenues[] = trim($ligne);
+                continue;
+            }
+            if ($dansLeBloc) {
+                if (preg_match('/^-- \S+ --$/', trim($ligne))) {
+                    $dansLeBloc = false;
+                    continue;
+                }
+                if (preg_match('/\bfne\.(INFO|ERREUR|ALERTE)|^\s{3}\S/', $ligne)) {
+                    $retenues[] = trim($ligne);
+                }
+            }
+        }
+
+        return $retenues === [] ? ['Aucune trace de fne.js pour ce NCC dans laravel.log : la fiche n\'a jamais été lancée.'] : array_slice($retenues, -25);
     }
 
     private function montrer(mixed $v): string

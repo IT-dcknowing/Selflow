@@ -1,0 +1,434 @@
+From 93ff3b301507507da8603f8a164fb67843c3b2c2 Mon Sep 17 00:00:00 2001
+From: Selflow <noreply@anthropic.com>
+Date: Tue, 24 Nov 2026 12:53:22 +0000
+Subject: [PATCH] =?UTF-8?q?Cabinets=20:=20liste=20pour=20Selflow=20et=20af?=
+ =?UTF-8?q?fectation=20des=20dossiers=20li=C3=A9s?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- POST /api/external/cabinets : cabinets actifs, gérant et collaborateurs.
+- POST /api/external/companies/affecter : dossier lié affecté au cabinet,
+  ou confié à un membre (rangé aussi dans le cabinet).
+- companies/provision accepte `affectation` {cabinet_id, user_id}
+  facultative, en création comme en liaison ; son résultat revient dans
+  la réponse sans défaire la liaison.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Ge9RzFy2MEnUpyUhPESWb4
+---
+ .../Api/ExternalCabinetController.php         | 97 +++++++++++++++++++
+ .../Api/ExternalCompanyController.php         | 37 +++++++
+ app/Services/AffectationCabinetSelflow.php    | 65 +++++++++++++
+ routes/api.php                                |  8 ++
+ .../Feature/AffectationCabinetSelflowTest.php | 93 ++++++++++++++++++
+ 5 files changed, 300 insertions(+)
+ create mode 100644 app/Http/Controllers/Api/ExternalCabinetController.php
+ create mode 100644 app/Services/AffectationCabinetSelflow.php
+ create mode 100644 tests/Feature/AffectationCabinetSelflowTest.php
+
+diff --git a/app/Http/Controllers/Api/ExternalCabinetController.php b/app/Http/Controllers/Api/ExternalCabinetController.php
+new file mode 100644
+index 0000000..df54c81
+--- /dev/null
++++ b/app/Http/Controllers/Api/ExternalCabinetController.php
+@@ -0,0 +1,97 @@
++<?php
++
++namespace App\Http\Controllers\Api;
++
++use App\Http\Controllers\Controller;
++use App\Models\Cabinet;
++use App\Models\Company;
++use App\Services\AffectationCabinetSelflow;
++use Illuminate\Http\Request;
++use Illuminate\Support\Facades\DB;
++use Illuminate\Support\Facades\Validator;
++
++/**
++ * Les cabinets, vus depuis Selflow (24/11/2026).
++ *
++ * Entre serveurs, au secret partagé, comme `list-companies` : Selflow liste
++ * les cabinets et leurs membres pour sa liste déroulante, puis affecte le
++ * dossier lié au cabinet ou à un membre.
++ */
++class ExternalCabinetController extends Controller
++{
++    private function secretRefuse(Request $request): bool
++    {
++        $attendu = config('external_sync.external_sync_secret');
++        $fourni = $request->input('secret') ?? $request->header('X-Sync-Secret');
++
++        return empty($attendu) || empty($fourni) || !hash_equals($attendu, $fourni);
++    }
++
++    /** POST /api/external/cabinets */
++    public function lister(Request $request)
++    {
++        if ($this->secretRefuse($request)) {
++            return response()->json(['success' => false, 'message' => 'Accès non autorisé.'], 401);
++        }
++
++        $cabinets = Cabinet::where('is_active', true)->with('gerant')->orderBy('nom')->get();
++        $membres = DB::table('cabinet_user')
++            ->join('users', 'cabinet_user.user_id', '=', 'users.id')
++            ->whereIn('cabinet_user.cabinet_id', $cabinets->pluck('id'))
++            ->get(['cabinet_user.cabinet_id', 'cabinet_user.role', 'users.id', 'users.name', 'users.last_name', 'users.email_adresse'])
++            ->groupBy('cabinet_id');
++
++        return response()->json([
++            'success' => true,
++            'cabinets' => $cabinets->map(function (Cabinet $c) use ($membres) {
++                $liste = collect($membres[$c->id] ?? [])->map(fn ($m) => [
++                    'id' => (int) $m->id,
++                    'nom' => trim(($m->name ?? '') . ' ' . ($m->last_name ?? '')),
++                    'email' => $m->email_adresse,
++                    'role' => $m->role,
++                ]);
++                if ($c->gerant && !$liste->contains('id', (int) $c->gerant->id)) {
++                    $liste->prepend([
++                        'id' => (int) $c->gerant->id,
++                        'nom' => trim(($c->gerant->name ?? '') . ' ' . ($c->gerant->last_name ?? '')),
++                        'email' => $c->gerant->email_adresse,
++                        'role' => 'gerant',
++                    ]);
++                }
++
++                return [
++                    'id' => $c->id,
++                    'nom' => $c->nom,
++                    'code' => $c->code,
++                    'membres' => $liste->values(),
++                ];
++            })->values(),
++        ]);
++    }
++
++    /** POST /api/external/companies/affecter — dossier déjà lié. */
++    public function affecter(Request $request)
++    {
++        if ($this->secretRefuse($request)) {
++            return response()->json(['success' => false, 'message' => 'Accès non autorisé.'], 401);
++        }
++
++        $v = Validator::make($request->all(), [
++            'selflow_company_id' => 'required|integer|min:1',
++            'cabinet_id' => 'required|integer|min:1',
++            'user_id' => 'nullable|integer|min:1',
++        ]);
++        if ($v->fails()) {
++            return response()->json(['success' => false, 'message' => 'Données invalides.', 'errors' => $v->errors()], 422);
++        }
++
++        $company = Company::where('selflow_company_id', $request->integer('selflow_company_id'))->first();
++        if (!$company) {
++            return response()->json(['success' => false, 'message' => 'Aucun dossier Comptaflow lié à cette entreprise Selflow.'], 404);
++        }
++
++        $resultat = AffectationCabinetSelflow::appliquer($company, $request->integer('cabinet_id'), $request->integer('user_id') ?: null);
++
++        return response()->json($resultat, $resultat['success'] ? 200 : 422);
++    }
++}
+diff --git a/app/Http/Controllers/Api/ExternalCompanyController.php b/app/Http/Controllers/Api/ExternalCompanyController.php
+index d129fa4..00f48e9 100644
+--- a/app/Http/Controllers/Api/ExternalCompanyController.php
++++ b/app/Http/Controllers/Api/ExternalCompanyController.php
+@@ -120,6 +120,11 @@ public function provision(Request $request)
+             'exercice.debut'              => 'required_with:exercice|date',
+             'exercice.fin'                => 'required_with:exercice|date|after:exercice.debut',
+             'exercice.libelle'            => 'nullable|string|max:150',
++            // Facultatif (24/11/2026) : le cabinet qui reçoit le dossier, et
++            // éventuellement le membre du cabinet à qui il est confié.
++            'affectation'                 => 'nullable|array',
++            'affectation.cabinet_id'      => 'nullable|integer|min:1',
++            'affectation.user_id'         => 'nullable|integer|min:1',
+         ]);
+ 
+         if ($validator->fails()) {
+@@ -217,6 +222,7 @@ public function provision(Request $request)
+ 
+             $this->synchroniserLiaisonApplicationSelflow(Company::find($resultat['company_id']));
+ 
++            $affectation = $this->affecter(Company::find($resultat['company_id']), $request);
+             Log::info('Liaison Selflow : dossier Comptaflow existant rattaché', [
+                 'company_id' => $resultat['company_id'],
+                 'selflow_company_id' => $selflowId,
+@@ -226,6 +232,7 @@ public function provision(Request $request)
+                 'success' => true,
+                 'company_id' => $resultat['company_id'],
+                 'sync_key' => $resultat['sync_key'],
++                'affectation' => $affectation ?? null,
+             ]);
+         }
+ 
+@@ -262,6 +269,7 @@ public function provision(Request $request)
+ 
+             $this->synchroniserLiaisonApplicationSelflow($existante);
+ 
++            $affectation = $this->affecter($existante, $request);
+             Log::info('Liaison Selflow : provision rejouée, même dossier et même clé', [
+                 'company_id'         => $existante->id,
+                 'selflow_company_id' => $existante->selflow_company_id,
+@@ -271,6 +279,7 @@ public function provision(Request $request)
+                 'success'    => true,
+                 'company_id' => $existante->id,
+                 'sync_key'   => $cle,
++                'affectation' => $affectation ?? null,
+             ]);
+         }
+ 
+@@ -283,12 +292,14 @@ public function provision(Request $request)
+                 $cle = $existante->poserUneCleDeLiaison();
+                 DB::commit();
+ 
++                $affectation = $this->affecter($existante, $request);
+                 $this->synchroniserLiaisonApplicationSelflow($existante);
+ 
+                 return response()->json([
+                     'success'    => true,
+                     'company_id' => $existante->id,
+                     'sync_key'   => $cle,
++                    'affectation' => $affectation ?? null,
+                 ]);
+             }
+ 
+@@ -356,6 +367,7 @@ public function provision(Request $request)
+ 
+             $this->synchroniserLiaisonApplicationSelflow($company);
+ 
++            $affectation = $this->affecter($company, $request);
+             Log::info('Liaison Selflow : dossier provisionné', [
+                 'company_id'         => $company->id,
+                 'selflow_company_id' => $company->selflow_company_id,
+@@ -368,6 +380,7 @@ public function provision(Request $request)
+                 'success'    => true,
+                 'company_id' => $company->id,
+                 'sync_key'   => $cle,
++                'affectation' => $affectation ?? null,
+             ]);
+ 
+         } catch (\Throwable $e) {
+@@ -383,6 +396,30 @@ public function provision(Request $request)
+         }
+     }
+ 
++    /**
++     * Affectation facultative au cabinet (24/11/2026). Son échec ne défait pas
++     * la liaison : il est rendu dans la réponse, Selflow l'affiche.
++     *
++     * @return array{success: bool, message: string}|null
++     */
++    private function affecter(?Company $company, Request $request): ?array
++    {
++        $cabinet = (int) $request->input('affectation.cabinet_id');
++        if (!$company || $cabinet <= 0) {
++            return null;
++        }
++
++        try {
++            return \App\Services\AffectationCabinetSelflow::appliquer(
++                $company, $cabinet, ((int) $request->input('affectation.user_id')) ?: null
++            );
++        } catch (\Throwable $e) {
++            Log::error('Liaison Selflow : affectation au cabinet impossible', ['company_id' => $company->id, 'error' => $e->getMessage()]);
++
++            return ['success' => false, 'message' => 'Affectation au cabinet impossible : ' . $e->getMessage()];
++        }
++    }
++
+     /**
+      * Maintient le registre COMPTA-APK cohérent avec le provisionnement
+      * historique SELFLOW. Une nouvelle liaison réactive uniquement le lien
+diff --git a/app/Services/AffectationCabinetSelflow.php b/app/Services/AffectationCabinetSelflow.php
+new file mode 100644
+index 0000000..a56e60c
+--- /dev/null
++++ b/app/Services/AffectationCabinetSelflow.php
+@@ -0,0 +1,65 @@
++<?php
++
++namespace App\Services;
++
++use App\Models\Cabinet;
++use App\Models\Company;
++use Illuminate\Support\Facades\DB;
++
++/**
++ * Affecter un dossier ouvert depuis Selflow à un cabinet (24/11/2026).
++ *
++ * Deux portées, au choix du superadministrateur de Selflow :
++ *
++ *   - **le cabinet seul** : `companies.cabinet_id`. Le dossier entre dans le
++ *     portefeuille du cabinet, et son gérant le voit dans son espace
++ *     (`Rattachements::comptabilitesDe`) ;
++ *   - **un membre précis du cabinet** : le dossier est rangé dans le cabinet
++ *     (son groupe) ET confié à ce membre (`company_user`, rôle admin), qui le
++ *     voit dans son propre espace.
++ *
++ * Rien n'est retiré : un rattachement existant reste en place.
++ */
++class AffectationCabinetSelflow
++{
++    /**
++     * @return array{success: bool, message: string}
++     */
++    public static function appliquer(Company $company, ?int $cabinetId, ?int $userId = null): array
++    {
++        if (!$cabinetId) {
++            return ['success' => true, 'message' => 'Aucun cabinet choisi.'];
++        }
++
++        $cabinet = Cabinet::where('id', $cabinetId)->where('is_active', true)->first();
++        if (!$cabinet) {
++            return ['success' => false, 'message' => 'Cabinet introuvable ou inactif.'];
++        }
++
++        if ($userId) {
++            $membre = (int) $cabinet->user_id === $userId
++                || DB::table('cabinet_user')->where('cabinet_id', $cabinet->id)->where('user_id', $userId)->exists();
++            if (!$membre) {
++                return ['success' => false, 'message' => "Cet utilisateur n'est pas membre du cabinet « {$cabinet->nom} »."];
++            }
++        }
++
++        DB::transaction(function () use ($company, $cabinet, $userId) {
++            $company->forceFill(['cabinet_id' => $cabinet->id])->save();
++
++            if ($userId && (int) $company->user_id !== $userId) {
++                DB::table('company_user')->updateOrInsert(
++                    ['company_id' => $company->id, 'user_id' => $userId],
++                    ['role' => 'admin', 'updated_at' => now(), 'created_at' => now()]
++                );
++            }
++        });
++
++        return [
++            'success' => true,
++            'message' => $userId
++                ? "Dossier affecté au cabinet « {$cabinet->nom} » et confié au membre choisi."
++                : "Dossier affecté au cabinet « {$cabinet->nom} ».",
++        ];
++    }
++}
+diff --git a/routes/api.php b/routes/api.php
+index d3a12b8..ba6ca5e 100644
+--- a/routes/api.php
++++ b/routes/api.php
+@@ -193,6 +193,14 @@
+     Route::post('/companies/rotate-key', [\App\Http\Controllers\Api\ExternalCompanyController::class, 'rotateKey'])
+         ->middleware(['integration.auth', 'throttle:20,1'])
+         ->name('api.external.companies.rotate-key');
++    // Cabinets (24/11/2026) : Selflow les liste à la liaison et y affecte
++    // le dossier, au cabinet ou à un membre précis.
++    Route::post('/cabinets', [\App\Http\Controllers\Api\ExternalCabinetController::class, 'lister'])
++        ->middleware('throttle:30,1')
++        ->name('api.external.cabinets');
++    Route::post('/companies/affecter', [\App\Http\Controllers\Api\ExternalCabinetController::class, 'affecter'])
++        ->middleware('throttle:30,1')
++        ->name('api.external.companies.affecter');
+     Route::post('/companies/verify', [\App\Http\Controllers\Api\ExternalCompanyController::class, 'verify'])
+         ->middleware(['integration.auth', 'throttle:60,1'])
+         ->name('api.external.companies.verify');
+diff --git a/tests/Feature/AffectationCabinetSelflowTest.php b/tests/Feature/AffectationCabinetSelflowTest.php
+new file mode 100644
+index 0000000..a4426f5
+--- /dev/null
++++ b/tests/Feature/AffectationCabinetSelflowTest.php
+@@ -0,0 +1,93 @@
++<?php
++
++namespace Tests\Feature;
++
++use Illuminate\Database\Schema\Blueprint;
++use Illuminate\Support\Facades\DB;
++use Illuminate\Support\Facades\Schema;
++use Tests\TestCase;
++
++/**
++ * 24/11/2026 : Selflow liste les cabinets et y affecte le dossier qu'il a
++ * ouvert, au cabinet (son espace) ou à un membre précis du cabinet.
++ */
++class AffectationCabinetSelflowTest extends TestCase
++{
++    private const SECRET = 'secret-serveur-de-test';
++
++    protected function setUp(): void
++    {
++        parent::setUp();
++        config(['external_sync.external_sync_secret' => self::SECRET]);
++
++        foreach (['company_user', 'cabinet_user', 'cabinets', 'companies', 'users'] as $t) {
++            Schema::dropIfExists($t);
++        }
++        Schema::create('users', function (Blueprint $t) {
++            $t->id(); $t->string('name')->nullable(); $t->string('last_name')->nullable(); $t->string('email_adresse')->nullable();
++            $t->unsignedBigInteger('company_id')->nullable(); $t->string('role')->nullable(); $t->string('password')->nullable(); $t->timestamps();
++        });
++        Schema::create('companies', function (Blueprint $t) {
++            $t->id(); $t->string('company_name')->nullable(); $t->unsignedBigInteger('user_id')->nullable();
++            $t->unsignedBigInteger('cabinet_id')->nullable(); $t->unsignedBigInteger('selflow_company_id')->nullable(); $t->timestamps();
++        });
++        Schema::create('cabinets', function (Blueprint $t) {
++            $t->id(); $t->string('nom'); $t->string('code')->nullable(); $t->unsignedBigInteger('user_id'); $t->boolean('is_active')->default(true); $t->timestamps();
++        });
++        Schema::create('cabinet_user', function (Blueprint $t) {
++            $t->id(); $t->unsignedBigInteger('cabinet_id'); $t->unsignedBigInteger('user_id'); $t->string('role')->default('collaborateur'); $t->timestamps();
++        });
++        Schema::create('company_user', function (Blueprint $t) {
++            $t->id(); $t->unsignedBigInteger('company_id'); $t->unsignedBigInteger('user_id'); $t->string('role')->default('comptable'); $t->timestamps();
++        });
++
++        DB::table('users')->insert([
++            ['id' => 40, 'name' => 'Yao', 'last_name' => 'Koffi', 'email_adresse' => 'yao@cabinet.ci'],
++            ['id' => 41, 'name' => 'Ble', 'last_name' => 'Ines', 'email_adresse' => 'ines@cabinet.ci'],
++            ['id' => 50, 'name' => 'Client', 'last_name' => 'SAS', 'email_adresse' => 'client@sast.ci'],
++        ]);
++        DB::table('cabinets')->insert(['id' => 7, 'nom' => 'Cabinet Yao', 'code' => 'CAB-YAO-ABC123', 'user_id' => 40, 'is_active' => true]);
++        DB::table('cabinet_user')->insert(['cabinet_id' => 7, 'user_id' => 41, 'role' => 'collaborateur']);
++        DB::table('companies')->insert(['id' => 42, 'company_name' => "SAS'T", 'user_id' => 50, 'selflow_company_id' => 91]);
++    }
++
++    public function test_la_liste_des_cabinets_exige_le_secret(): void
++    {
++        $this->postJson('/api/external/cabinets', ['secret' => 'faux'])->assertStatus(401);
++    }
++
++    public function test_la_liste_donne_le_gerant_et_les_collaborateurs(): void
++    {
++        $r = $this->postJson('/api/external/cabinets', ['secret' => self::SECRET])->assertOk();
++
++        $this->assertSame('Cabinet Yao', $r->json('cabinets.0.nom'));
++        $ids = collect($r->json('cabinets.0.membres'))->pluck('id')->all();
++        $this->assertEqualsCanonicalizing([40, 41], $ids);
++    }
++
++    public function test_affecter_a_l_espace_du_cabinet(): void
++    {
++        $this->postJson('/api/external/companies/affecter', ['secret' => self::SECRET, 'selflow_company_id' => 91, 'cabinet_id' => 7])
++            ->assertOk()->assertJson(['success' => true]);
++
++        $this->assertSame(7, (int) DB::table('companies')->where('id', 42)->value('cabinet_id'));
++        $this->assertSame(0, DB::table('company_user')->count());
++    }
++
++    public function test_affecter_a_un_membre_le_range_aussi_dans_le_cabinet(): void
++    {
++        $this->postJson('/api/external/companies/affecter', ['secret' => self::SECRET, 'selflow_company_id' => 91, 'cabinet_id' => 7, 'user_id' => 41])
++            ->assertOk();
++
++        $this->assertSame(7, (int) DB::table('companies')->where('id', 42)->value('cabinet_id'));
++        $this->assertTrue(DB::table('company_user')->where(['company_id' => 42, 'user_id' => 41, 'role' => 'admin'])->exists());
++    }
++
++    public function test_un_non_membre_est_refuse(): void
++    {
++        $this->postJson('/api/external/companies/affecter', ['secret' => self::SECRET, 'selflow_company_id' => 91, 'cabinet_id' => 7, 'user_id' => 50])
++            ->assertStatus(422);
++
++        $this->assertNull(DB::table('companies')->where('id', 42)->value('cabinet_id'));
++    }
++}
+-- 
+2.43.0
+
