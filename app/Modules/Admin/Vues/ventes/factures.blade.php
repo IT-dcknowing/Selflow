@@ -173,9 +173,9 @@
     @if($etapeActive === 'Facture')
     @if($gestionApporteurs ?? false)
     <div class="form-group" style="margin-bottom:0;min-width:190px;">
-        <label class="form-label" style="font-size:11px;text-transform:uppercase;font-weight:700;color:var(--text-3);margin-bottom:4px;display:block;">Apporteur</label>
+        <label class="form-label" style="font-size:11px;text-transform:uppercase;font-weight:700;color:var(--text-3);margin-bottom:4px;display:block;">Prestataire externe</label>
         <select name="apporteur_filtre" class="form-control" onchange="document.getElementById('formFiltreVentes').submit();">
-            <option value="">— Tous les apporteurs —</option>
+            <option value="">— Tous les prestataires —</option>
             @foreach($apporteurs as $apporteur)
             <option value="{{ $apporteur->id }}" {{ (string)request('apporteur_filtre') === (string)$apporteur->id ? 'selected' : '' }}>{{ $apporteur->nom }}</option>
             @endforeach

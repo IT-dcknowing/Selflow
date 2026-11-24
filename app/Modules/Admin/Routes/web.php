@@ -534,6 +534,9 @@ Route::prefix('admin')
             });
         });
 
+        // Prestataires externes d'un laboratoire (24/11/2026).
+        Route::get('/prestataires-externes', [\App\Modules\Admin\Controleurs\PrestataireExterneControleur::class, 'index'])->name('prestataires_externes.index');
+
         // Les prestataires d'une entreprise de service (23/11/2026, module sur mesure).
         Route::prefix('prestataires')->name('intervenants.')->group(function () {
             Route::get('/', [\App\Modules\Admin\Controleurs\IntervenantControleur::class, 'index'])->name('index');

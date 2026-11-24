@@ -74,6 +74,23 @@ class VenteControleur
         $gestionApporteurs = $entreprise->aAttribution('apporteurs');
         $pointDeVenteId = self::siteDeVente($entreprise);
 
+        // Prestataire externe et patients (24/11/2026, option « Prestataires ») :
+        // le prestataire paie ; sans lui, le patient paie ; plusieurs patients
+        // sans prestataire = une facture par patient.
+        // Les champs viennent du formulaire (toujours envoyés, même vides) :
+        // l'API et les autres écrans, qui ne les ont pas, gardent leur logique.
+        if ($gestionApporteurs && ($request->has('patients') || $request->has('prestataire_id') || $request->has('prestataire_nom'))) {
+            [$prestataireId, $patients] = $this->resoudrePrestataireEtPatients($request, $entreprise, (int) $pointDeVenteId);
+            if (! $prestataireId && $patients === []) {
+                return back()->withInput()->with('error', 'Choisissez un prestataire externe ou saisissez au moins un patient.');
+            }
+            if (! $prestataireId && count($patients) > 1 && ! $request->boolean('_par_patient')) {
+                return $this->uneFactureParPatient($request, $patients);
+            }
+            $request->merge(['apporteur_id' => $prestataireId ?: null, 'client_id' => $patients !== [] ? reset($patients) : null]);
+            $request->attributes->set('patients_vente', $patients);
+        }
+
         $request->validate(array_merge([
             'client_id' => ['nullable', 'integer', Appartenance::a('clients', 'id')],
             'apporteur_id' => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('clients', 'id')->where('entreprise_id', $entreprise->id)->where('est_apporteur', true)],
@@ -413,7 +430,7 @@ class VenteControleur
                     'remise_taux' => $remiseLigne,
                     'montant_tva' => $tva,
                     'montant_ttc' => $ht + $tva,
-                ] + self::intervenantDeLaLigne($article));
+                ] + self::intervenantDeLaLigne($article) + self::patientDeLaLigne($article, $request));
 
                 // Taxes de la ligne : celles de la fiche produit, ou celles
                 // saisies directement sur une ligne libre.
@@ -535,6 +552,7 @@ class VenteControleur
             }
 
             $venteId = $vente->id;
+            self::rattacherLesPatients($vente->id, $request);
         }); // fin DB::transaction
         } catch (\InvalidArgumentException|\DomainException $e) {
             \App\Modules\Admin\Services\EnvoiUniqueService::liberer($request, 'vente');
@@ -1206,7 +1224,7 @@ class VenteControleur
                     'remise_taux' => $remiseLigne,
                     'montant_tva' => $tva,
                     'montant_ttc' => $ht + $tva,
-                ] + self::intervenantDeLaLigne($article));
+                ] + self::intervenantDeLaLigne($article) + self::patientDeLaLigne($article, $request));
 
                 self::copierTaxesProduitSurLigne($detail, $produit);
                 if (!$produit) {
@@ -2066,6 +2084,128 @@ class VenteControleur
     /**
      * Passer un devis/commande au statut Envoyé.
      */
+    /**
+     * Le prestataire externe et les patients saisis (24/11/2026). Un nom
+     * nouveau devient un tiers : prestataire (hôpital, clinique) ou patient.
+     *
+     * @return array{0: ?int, 1: array<string, int>} [prestataire, clé saisie => patient]
+     */
+    private function resoudrePrestataireEtPatients(Request $request, $entreprise, int $siteId): array
+    {
+        $prestataireId = null;
+        if ($request->filled('prestataire_id')) {
+            $prestataireId = Client::where('entreprise_id', $entreprise->id)->where('est_apporteur', true)->whereKey((int) $request->input('prestataire_id'))->value('id');
+        }
+        if (! $prestataireId && trim((string) $request->input('prestataire_nom')) !== '') {
+            $prestataireId = $this->tiersParNom($entreprise, trim((string) $request->input('prestataire_nom')), true);
+        }
+
+        $patients = [];
+        foreach ((array) $request->input('patients', []) as $cle) {
+            $cle = trim((string) $cle);
+            if (str_starts_with($cle, 'id:')) {
+                $id = Client::where('entreprise_id', $entreprise->id)->whereKey((int) substr($cle, 3))->value('id');
+            } elseif (str_starts_with($cle, 'nom:') && trim(substr($cle, 4)) !== '') {
+                $id = $this->tiersParNom($entreprise, mb_substr(trim(substr($cle, 4)), 0, 150), false);
+            } else {
+                $id = null;
+            }
+            if ($id) {
+                $patients[$cle] = (int) $id;
+            }
+        }
+
+        return [$prestataireId ? (int) $prestataireId : null, $patients];
+    }
+
+    /** Le tiers de ce nom, ou un nouveau, numéroté comme tout client. */
+    private function tiersParNom($entreprise, string $nom, bool $prestataire): int
+    {
+        $existant = Client::where('entreprise_id', $entreprise->id)->where('nom', $nom)
+            ->where('est_apporteur', $prestataire)->value('id');
+        if ($existant) {
+            return (int) $existant;
+        }
+        $compte = \App\Modules\Admin\Services\ImputationService::compteDeTiers($entreprise, 'client', null);
+
+        return (int) Client::create([
+            'entreprise_id' => $entreprise->id,
+            'nom' => $nom,
+            'type_facturation' => $prestataire ? 'B2B' : 'B2C',
+            'compte_comptable' => $compte,
+            'numero_tiers' => \App\Modules\Admin\Services\NumerotationTiersService::pourClient($entreprise, (string) $compte, $nom),
+            'est_apporteur' => $prestataire,
+        ])->id;
+    }
+
+    /**
+     * Plusieurs patients sans prestataire : une facture par patient, avec les
+     * lignes affectées à chacun (24/11/2026, choix du propriétaire).
+     */
+    private function uneFactureParPatient(Request $request, array $patients): RedirectResponse
+    {
+        $articles = array_values((array) $request->input('articles', []));
+        $sansPatient = array_filter($articles, fn ($a) => ! isset($patients[(string) ($a['patient'] ?? '')]));
+        if ($sansPatient !== []) {
+            return back()->withInput()->with('error', 'Sans prestataire externe, chaque patient reçoit sa propre facture : affectez chaque analyse à un patient (« Pour : … »).');
+        }
+
+        $faites = 0;
+        $derniere = null;
+        foreach ($patients as $cle => $id) {
+            $lignes = array_values(array_filter($articles, fn ($a) => (string) ($a['patient'] ?? '') === (string) $cle));
+            if ($lignes === []) {
+                continue;
+            }
+            $sous = $request->duplicate();
+            $sous->setLaravelSession($request->session());
+            $sous->setUserResolver($request->getUserResolver());
+            $sous->setRouteResolver($request->getRouteResolver());
+            $sous->merge(['patients' => ['id:' . $id], 'prestataire_id' => null, 'prestataire_nom' => null,
+                'articles' => array_map(fn ($a) => array_merge($a, ['patient' => 'id:' . $id]), $lignes), '_par_patient' => 1, 'montant_paye' => null,
+                // Un jeton anti-double-envoi par facture de patient : le même
+                // jeton aurait fait refuser la deuxième.
+                'jeton_envoi' => $request->filled('jeton_envoi') ? substr((string) $request->input('jeton_envoi'), 0, 50) . '-p' . $id : null]);
+            $avant = Vente::withoutGlobalScopes()->max('id');
+            $derniere = $this->enregistrer($sous);
+            if ((int) Vente::withoutGlobalScopes()->max('id') > (int) $avant) {
+                $faites++;
+            } else {
+                return $derniere;
+            }
+        }
+
+        return ($derniere ?? back())->with('succes', $faites . ' facture(s) établie(s) : une par patient.');
+    }
+
+    /** Les patients d'une facture (table `vente_patients`). */
+    private static function rattacherLesPatients(int $venteId, Request $request): void
+    {
+        $patients = (array) $request->attributes->get('patients_vente', []);
+        if ($patients === [] || ! \App\Support\Structure::aTable('vente_patients')) {
+            return;
+        }
+        foreach (array_unique(array_values($patients)) as $clientId) {
+            \App\Modules\Admin\Modeles\VentePatient::firstOrCreate(['vente_id' => $venteId, 'client_id' => (int) $clientId]);
+        }
+    }
+
+    /** Le patient de la ligne (« Pour : … »), s'il est l'un des patients de la facture. */
+    private static function patientDeLaLigne(array $article, Request $request): array
+    {
+        $patients = (array) $request->attributes->get('patients_vente', []);
+        $cle = (string) ($article['patient'] ?? '');
+        if ($patients === [] || ! \App\Support\Structure::aColonne('vente_details', 'patient_id')) {
+            return [];
+        }
+        if (isset($patients[$cle])) {
+            return ['patient_id' => $patients[$cle]];
+        }
+
+        // Un seul patient : toutes ses lignes sont les siennes.
+        return count($patients) === 1 ? ['patient_id' => reset($patients)] : [];
+    }
+
     /**
      * Qui a réalisé la prestation de cette ligne (module « prestataires » de
      * l'espace sur mesure, 23/11/2026). Seulement un prestataire de

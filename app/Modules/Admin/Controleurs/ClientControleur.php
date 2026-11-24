@@ -38,6 +38,14 @@ class ClientControleur
             });
         }
 
+        // Patients / Prestataires externes (24/11/2026, option « Prestataires »).
+        $typeTiers = $entreprise->aAttribution('apporteurs') ? (string) $request->input('type_tiers', '') : '';
+        if ($typeTiers === 'patients') {
+            $query->where(fn ($q) => $q->where('est_apporteur', false)->orWhereNull('est_apporteur'));
+        } elseif ($typeTiers === 'prestataires') {
+            $query->where('est_apporteur', true);
+        }
+
         $clients = $query->paginate(15, ['*'], 'page_local')->withQueryString();
 
         $clientsComptaflow = Client::where('entreprise_id', $entreprise->id)
@@ -50,7 +58,7 @@ class ClientControleur
 
         $filtreSite = \App\Modules\Admin\Services\SiteConsulte::pourLaVue($site);
 
-        return view('admin::clients.index', compact('clients', 'clientsComptaflow', 'comptes', 'entreprise', 'search', 'filtreSite'));
+        return view('admin::clients.index', compact('clients', 'clientsComptaflow', 'comptes', 'entreprise', 'search', 'filtreSite', 'typeTiers'));
     }
 
     public function creer(Request $request): RedirectResponse

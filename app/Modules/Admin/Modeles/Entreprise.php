@@ -809,7 +809,8 @@ class Entreprise extends Model
         // comptabilité ouverte ne suffit plus à les proposer.
         'immobilisations'      => 'Immobilisations — biens, dotations et cessions',
         'balance'              => 'Balance de contrôle — accordée à part : la balance se tient dans Comptaflow',
-        'apporteurs'           => 'Gestion des apporteurs — tiers payants distincts des bénéficiaires de soins',
+        // Renommée le 24/11/2026 (propriétaire) : « Prestataires ».
+        'apporteurs'           => 'Prestataires externes et patients — le prestataire (hôpital, clinique) paie, les patients sont rattachés à la facture',
     ];
 
     /** La balance de contrôle est-elle accordée à cette entreprise ? */

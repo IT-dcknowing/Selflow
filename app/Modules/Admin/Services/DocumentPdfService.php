@@ -302,6 +302,8 @@ class DocumentPdfService
                 'ncc'      => $vente->client?->ncc,
                 'rccm'     => $vente->client?->rccm,
             ],
+            // Les patients de la facture et leur sous-total (24/11/2026).
+            'patients' => \App\Modules\Admin\Modeles\VentePatient::detailPour((int) $vente->id),
             'beneficiaire' => $vente->beneficiaire_id ? [
                 'nom' => $vente->beneficiaire?->nom,
                 'adresse' => $vente->beneficiaire?->adresse,

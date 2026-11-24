@@ -330,14 +330,14 @@
                     </div>
                     @if($gestionApporteurs ?? false)
                     <div class="form-group" data-pas="2">
-                        <label class="form-label">Apporteur / tiers payant</label>
+                        <label class="form-label">Prestataire externe (payeur)</label>
                         <select name="apporteur_id" class="form-control">
-                            <option value="">— Aucun apporteur —</option>
+                            <option value="">— Aucun prestataire : le patient paie —</option>
                             @foreach($apporteurs as $apporteur)
                             <option value="{{ $apporteur->id }}" {{ (int)$vente->apporteur_id === (int)$apporteur->id ? 'selected' : '' }}>{{ $apporteur->nom }}</option>
                             @endforeach
                         </select>
-                        <small style="color:var(--text-3);font-size:11px;">L'apporteur devient le payeur ; le client reste le bénéficiaire des soins.</small>
+                        <small style="color:var(--text-3);font-size:11px;">Le prestataire devient le payeur ; le client reste le patient de la facture.</small>
                     </div>
                     @endif
                     <div class="form-group">

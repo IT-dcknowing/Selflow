@@ -154,7 +154,20 @@
         </td>
     </tr>
 </table>
-@if(!empty($beneficiaire))
+{{-- Les patients de la facture, avec le sous-total de chacun (24/11/2026,
+     prestataires externes). Hors du bloc de certification. --}}
+@if(!empty($patients))
+<table style="margin-top:5pt;">
+    <tr><td class="cadre" style="padding:5pt 8pt;">
+        <div class="intitule">{{ count($patients) > 1 ? 'Patients' : 'Patient' }}</div>
+        @foreach($patients as $p)
+            <div><strong>{{ $p['nom'] }}</strong>
+                <span class="discret">@if($p['tel']) · Tél : {{ $p['tel'] }}@endif
+                @if($p['lignes']) · {{ $p['lignes'] }} analyse(s) · {{ number_format($p['total'], 0, ',', ' ') }} F @endif</span></div>
+        @endforeach
+    </td></tr>
+</table>
+@elseif(!empty($beneficiaire))
 <table style="margin-top:5pt;">
     <tr><td class="cadre" style="padding:5pt 8pt;">
         <div class="intitule">Bénéficiaire des soins</div>

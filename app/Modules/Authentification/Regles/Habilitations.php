@@ -357,6 +357,7 @@ class Habilitations
         'admin.ventes.envoyer'                       => 'factures_vente',
         'admin.ventes.envoyer_email'                 => 'factures_vente',
         'admin.intervenants.index'                   => 'factures_vente',
+        'admin.prestataires_externes.index'          => 'factures_vente',
         'admin.intervenants.creer'                   => 'factures_vente',
         'admin.intervenants.basculer'                => 'factures_vente',
         'admin.ventes.convertir.commande'            => 'factures_vente',

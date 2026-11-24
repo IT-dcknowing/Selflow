@@ -470,6 +470,83 @@
                          certifiée — voir `factures/ticket.blade.php`. --}}
                     @php $entrepriseCourante = Auth::user()->entreprise; @endphp
 
+                    @if($gestionApporteurs ?? false)
+                    {{-- Prestataire externe (payeur) et patients (24/11/2026) :
+                         le prestataire paie ; sans lui, le patient paie ;
+                         plusieurs patients sans prestataire = une facture par
+                         patient. Un nom nouveau est enregistré tout seul. --}}
+                    <div class="form-group" data-pas="2">
+                        <label class="form-label" for="prestataireSaisie"><i class="fas fa-hospital"></i> Prestataire externe (payeur)</label>
+                        <input type="text" id="prestataireSaisie" list="listePrestataires" class="form-control" autocomplete="off"
+                               placeholder="Hôpital, clinique… (choisir ou taper un nouveau nom)">
+                        <datalist id="listePrestataires">
+                            @foreach($apporteurs as $apporteur)<option value="{{ $apporteur->nom }}" data-id="{{ $apporteur->id }}"></option>@endforeach
+                        </datalist>
+                        <input type="hidden" name="prestataire_id" id="prestataireId">
+                        <input type="hidden" name="prestataire_nom" id="prestataireNom">
+                    </div>
+                    <div class="form-group" data-pas="2">
+                        <label class="form-label" for="saisiePatient"><i class="fas fa-user-injured"></i> Patient(s)</label>
+                        <div id="etiquettesPatients" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;"></div>
+                        <input type="text" id="saisiePatient" list="listePatients" class="form-control" autocomplete="off"
+                               placeholder="Nom du patient, puis Entrée (autant que nécessaire)">
+                        <datalist id="listePatients">
+                            @foreach($clients as $client)<option value="{{ $client->nom }}" data-id="{{ $client->id }}"></option>@endforeach
+                        </datalist>
+                        <div id="champsPatients"></div>
+                        <small style="display:block;margin-top:5px;color:var(--text-3);font-size:11px;line-height:1.5;">
+                            Au moins l'un des deux. Avec un prestataire, c'est lui qui paie et les patients sont rattachés à sa facture.
+                            Sans prestataire, le patient paie ; plusieurs patients = une facture par patient (affectez chaque analyse avec « Pour »).
+                        </small>
+                    </div>
+                    <script>
+                    // Les patients de la vente : [{cle: 'id:12' | 'nom:Kouassi Aya', nom}]
+                    window.PATIENTS_VENTE = [];
+                    (function () {
+                        var saisie = document.getElementById('saisiePatient');
+                        var liste = document.getElementById('listePatients');
+                        var etiquettes = document.getElementById('etiquettesPatients');
+                        var champs = document.getElementById('champsPatients');
+                        function idDe(datalist, nom) {
+                            var o = Array.prototype.find.call(datalist.options, function (x) { return x.value.toLowerCase() === nom.toLowerCase(); });
+                            return o ? o.dataset.id : null;
+                        }
+                        function dessiner() {
+                            etiquettes.innerHTML = ''; champs.innerHTML = '';
+                            window.PATIENTS_VENTE.forEach(function (p, i) {
+                                var t = document.createElement('span');
+                                t.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;background:var(--bg3);border:1px solid var(--border);font-size:12.5px;font-weight:600;';
+                                t.textContent = p.nom + (p.cle.indexOf('nom:') === 0 ? ' (nouveau)' : '');
+                                var x = document.createElement('button'); x.type = 'button'; x.textContent = '✕'; x.setAttribute('aria-label', 'Retirer');
+                                x.style.cssText = 'border:0;background:none;cursor:pointer;color:var(--text-3);font-size:12px;padding:0;';
+                                x.onclick = function () { window.PATIENTS_VENTE.splice(i, 1); dessiner(); };
+                                t.appendChild(x); etiquettes.appendChild(t);
+                                var h = document.createElement('input'); h.type = 'hidden'; h.name = 'patients[]'; h.value = p.cle; champs.appendChild(h);
+                            });
+                            if (typeof renderPanier === 'function') renderPanier();
+                        }
+                        function ajouter() {
+                            var nom = saisie.value.trim().replace(/\s+/g, ' ');
+                            if (!nom) return;
+                            var id = idDe(liste, nom);
+                            var cle = id ? 'id:' + id : 'nom:' + nom;
+                            if (!window.PATIENTS_VENTE.some(function (p) { return p.cle.toLowerCase() === cle.toLowerCase(); })) window.PATIENTS_VENTE.push({ cle: cle, nom: nom });
+                            saisie.value = ''; dessiner();
+                        }
+                        saisie.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); ajouter(); } });
+                        saisie.addEventListener('change', function () { if (idDe(liste, saisie.value.trim())) ajouter(); });
+                        saisie.addEventListener('blur', ajouter);
+
+                        var prestataire = document.getElementById('prestataireSaisie');
+                        prestataire.addEventListener('input', function () {
+                            var nom = prestataire.value.trim();
+                            var id = idDe(document.getElementById('listePrestataires'), nom);
+                            document.getElementById('prestataireId').value = id || '';
+                            document.getElementById('prestataireNom').value = id ? '' : nom;
+                        });
+                    })();
+                    </script>
+                    @else
                     <div class="form-group" data-pas="2">
                         <label class="form-label">Client (optionnel)</label>
                         <select name="client_id" class="form-control">
@@ -479,29 +556,6 @@
                             @endforeach
                         </select>
                     </div>
-                    @if($gestionApporteurs ?? false)
-                    <div class="form-group" data-pas="2">
-                        <label class="form-label">Apporteur / tiers payant (facultatif)</label>
-                        <select name="apporteur_id" id="apporteurVente" class="form-control">
-                            <option value="">— Aucun apporteur : le client reste payeur —</option>
-                            @foreach($apporteurs as $apporteur)
-                            <option value="{{ $apporteur->id }}">{{ $apporteur->nom }}{{ $apporteur->telephone ? ' — '.$apporteur->telephone : '' }}</option>
-                            @endforeach
-                            @if($apporteurs->isEmpty())
-                            <option value="__ajouter__">＋ Ajouter un apporteur</option>
-                            @endif
-                        </select>
-                        <small style="display:block;margin-top:5px;color:var(--text-3);font-size:11px;">Si un apporteur est choisi, il devient le tiers payeur de la facture ; le client sélectionné reste le bénéficiaire des soins.</small>
-                        <a href="{{ route('admin.clients.index') }}" style="display:inline-block;margin-top:6px;font-size:12px;color:var(--primary);font-weight:700;">＋ Ajouter / gérer les apporteurs</a>
-                    </div>
-                    <script>
-                    document.addEventListener('DOMContentLoaded', function () {
-                        const select = document.getElementById('apporteurVente');
-                        if (select) select.addEventListener('change', function () {
-                            if (this.value === '__ajouter__') window.location.href = @json(route('admin.clients.index'));
-                        });
-                    });
-                    </script>
                     @endif
                     <div class="form-group" data-pas="2">
                         <label class="form-label" for="dateVente">Date d'établissement de la facture <span style="color:var(--danger)">*</span></label>
@@ -888,6 +942,20 @@
 @section('scripts')
 <script>
 // Prestataires (« Réalisé par »), module de l'espace sur mesure (23/11/2026).
+// Le patient de chaque ligne (« Pour »), 24/11/2026.
+function selecteurPatient(id, item) {
+    var patients = window.PATIENTS_VENTE || [];
+    if (!patients.length) return '';
+    var options = patients.map(function (p) { return '<option value="' + p.cle.replace(/"/g, '&quot;') + '" ' + ((item.patient || '') === p.cle ? 'selected' : '') + '>' + p.nom.replace(/</g, '&lt;') + '</option>'; }).join('');
+    return '<label>Pour <select class="form-control form-control-sm" onchange="saisirPatientLigne(\'' + id + '\', this.value)" style="width:140px;"><option value="">—</option>' + options + '</select></label>';
+}
+function saisirPatientLigne(id, val) {
+    if (!panier[id]) return;
+    panier[id].patient = val;
+    var champ = document.querySelector('input.article-input[data-patient="' + id + '"]');
+    if (champ) champ.value = val;
+    if (typeof savePanier === 'function') savePanier();
+}
 const INTERVENANTS = @json(\App\Modules\Admin\Modeles\Intervenant::pourLaVente(auth()->user()->entreprise));
 function selecteurIntervenant(id, item) {
     if (!INTERVENANTS.length) return '';
@@ -1521,6 +1589,7 @@ function renderPanier() {
                         ${selecteurCodeTva(id, item)}
                     </label>
                     ${selecteurIntervenant(id, item)}
+                    ${selecteurPatient(id, item)}
                 </div>
                 ${alerteCodeTva(item)}
             </div>
@@ -1536,7 +1605,7 @@ function renderPanier() {
         container.appendChild(div);
 
         const form = document.getElementById('formVente');
-        ['produit_id', 'quantite', 'libelle_virtuel', 'prix_unitaire', 'unite', 'tva', 'remise_taux', 'code_tva', 'ajouter_catalogue', 'intervenant_id'].forEach(field => {
+        ['produit_id', 'quantite', 'libelle_virtuel', 'prix_unitaire', 'unite', 'tva', 'remise_taux', 'code_tva', 'ajouter_catalogue', 'intervenant_id', 'patient'].forEach(field => {
             const input = document.createElement('input');
             input.type = 'hidden';
             input.name = `articles[${idx}][${field}]`;
@@ -1549,6 +1618,10 @@ function renderPanier() {
                 input.value = item.isVirtual ? item.nom : '';
             } else if (field === 'prix_unitaire') {
                 input.value = item.prix;
+            } else if (field === 'patient') {
+                if (!(window.PATIENTS_VENTE || []).length) return;
+                input.value = item.patient || '';
+                input.dataset.patient = id;
             } else if (field === 'intervenant_id') {
                 if (!INTERVENANTS.length) return;
                 input.value = item.intervenant_id || '';

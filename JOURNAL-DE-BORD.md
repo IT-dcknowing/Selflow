@@ -11626,6 +11626,33 @@ choix du superadmin par entreprise ; les DNS sont gérés par DC-Knowing ;
 - Le bloc « Déverser tout l'historique » est dans la carte « Liaison
   Comptaflow » de la section Comptabilité.
 
+
+### Lot 163 — Laboratoire : prestataires externes et patients — **TERMINÉ le 24/11/2026**
+
+Validé par le propriétaire (choix : une facture par patient sans prestataire,
+option renommée « Prestataires », reprise des factures « apporteur »).
+- Option superadmin `apporteurs` renommée « Prestataires externes et
+  patients ».
+- **Vente** : « Prestataire externe (payeur) » (liste avec recherche, nom
+  nouveau créé comme prestataire) et « Patient(s) » (étiquettes ; nom
+  nouveau créé comme patient). Au moins l'un des deux. Prestataire choisi :
+  il est le payeur (client de la facture, FNE à son nom), les patients sont
+  rattachés (`vente_patients`). Sans prestataire : le patient paie ; plusieurs
+  patients = une facture par patient (`uneFactureParPatient`, chaque analyse
+  affectée par « Pour », jeton anti-double-envoi dérivé par patient).
+  Chaque ligne porte son patient (`vente_details.patient_id`).
+- **Documents** : bloc « Patients » (nom, nombre d'analyses, sous-total) sur
+  la facture écran et le PDF, à la place de « Bénéficiaire des soins », hors
+  du bloc de certification. FNE inchangée.
+- **Tiers** : onglets Tous / Patients / Prestataires externes ; la case
+  « apporteur » devient « Prestataire externe ».
+- **Page « Prestataires externes »** : factures, patients envoyés, chiffre
+  d'affaires, reste à encaisser, par période.
+- Migration `2026_11_24_000002` : `vente_patients`, `vente_details.patient_id`,
+  reprise des factures apporteur (bénéficiaire → patient). Modèle
+  `VentePatient` (le modèle `Vente`, du périmètre FNE, n'est pas touché).
+- `LaboratoirePrestatairesPatientsTest` (5). Suite : 213, identiques à `main`.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |
