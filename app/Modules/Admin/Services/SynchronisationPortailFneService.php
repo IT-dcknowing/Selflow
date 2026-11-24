@@ -23,6 +23,9 @@ use Illuminate\Support\Facades\Log;
  */
 class SynchronisationPortailFneService
 {
+    /** Le seuil d'alerte des stickers quand le portail dit 0. */
+    public const SEUIL_STICKERS_PAR_DEFAUT = 5;
+
     /**
      * @return array<string, array{avant: mixed, apres: mixed}> ce qui a changé
      */
@@ -50,6 +53,12 @@ class SynchronisationPortailFneService
 
         foreach ($champs as $champ) {
             $portail = $fiche->{$champ};
+
+            // Un seuil d'alerte des stickers à 0 au portail n'alerterait jamais :
+            // Selflow écrit 5, sa valeur par défaut (24/11/2026, propriétaire).
+            if ($champ === 'sticker_solde_alerte' && $portail !== null && trim((string) $portail) !== '' && (int) $portail <= 0) {
+                $portail = self::SEUIL_STICKERS_PAR_DEFAUT;
+            }
 
             // Une valeur que le portail n'a pas rendue n'efface rien. Une case
             // DÉCOCHÉE, elle, est une valeur : `false` doit décocher aussi

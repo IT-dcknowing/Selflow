@@ -11786,6 +11786,20 @@ option renommée « Prestataires », reprise des factures « apporteur »).
 - Sur le serveur, `node` n'est pas dans le PATH : le chemin est dans
   `PORTAIL_FNE_NODE` du `.env`.
 
+### Lot 169 — Seuil des stickers jamais à 0 ; cabinets Comptaflow fusionnés — **TERMINÉ le 24/11/2026**
+
+- SAS'T : fiche reprise (IDU, commune, quartier, référence cadastrale,
+  mentions…), vérifiée sur le serveur avec `selflow:diagnostic-fiche`.
+- **Seuil d'alerte des stickers** : un 0 rendu par le portail est repris
+  comme **5** (propriétaire : « si c'est 0, on doit écrire 5 ») ;
+  migration `2026_11_24_000005` qui passe à 5 les 0 déjà en base. Le
+  formulaire refusait déjà 0 (min:1) et la colonne vaut 5 par défaut.
+  `AlerteStickersService` (gelé) n'est pas touché.
+- Comptaflow : branche `affectation-cabinets-selflow` fusionnée dans `main`
+  et poussée (demande du propriétaire).
+- Test : `ConnexionFneEtatTest::test_un_seuil_de_stickers_a_zero_au_portail_devient_5`.
+  Suite : 213, identiques à la référence.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

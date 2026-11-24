@@ -222,6 +222,16 @@ class ConnexionFneEtatTest extends TestCase
         $this->assertStringContainsString('Option BAPA de votre espace FNE : <strong>cochée</strong>', $page);
     }
 
+    public function test_un_seuil_de_stickers_a_zero_au_portail_devient_5(): void
+    {
+        $this->entreprise->update(['possede_compte_fne' => true, 'sticker_solde_alerte' => 12]);
+        $this->releve(['sticker_solde_alerte' => 0]);
+
+        SynchronisationPortailFneService::reprendre($this->entreprise->fresh());
+
+        $this->assertSame(5, (int) $this->entreprise->fresh()->sticker_solde_alerte);
+    }
+
     public function test_un_releve_muet_sur_le_timbre_ne_change_rien(): void
     {
         // Un relevé qui ne rend pas l'option ne prouve rien : rien ne change.
