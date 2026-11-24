@@ -3,20 +3,26 @@
 @section('topbar_titre', 'Ventes — Factures FNE à intégrer')
 
 @section('contenu')
-<div class="page-header">
-    <div>
-        <h1><i class="fas fa-file-import"></i> Factures FNE à intégrer</h1>
-        <p>Les pièces certifiées sur le portail de la DGI, hors de Selflow : factures et avoirs, émis et reçus. Une fois intégrées,
-           ce sont des ventes, des achats et des avoirs comme les autres : ils comptent dans les listes, les soldes des tiers et la comptabilité.
-           Ce que Selflow a déjà enregistré n'est jamais repris.</p>
+{{-- 24/11/2026 : en-tête compact. Le titre, le nombre en attente et les
+     boutons sur une seule ligne ; l'explication se déplie au besoin. --}}
+<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; min-width:0;">
+        <h1 style="font-size:20px; margin:0; white-space:nowrap;"><i class="fas fa-file-import" style="color:var(--primary);"></i> Factures FNE à intégrer</h1>
+        @if($factures->total() > 0)
+            <span style="background:#fef3c7; color:#92400e; border-radius:20px; padding:3px 10px; font-size:12px; font-weight:800; white-space:nowrap;">{{ $factures->total() }} en attente</span>
+        @endif
+        <details style="font-size:12.5px; color:var(--text-2);">
+            <summary style="cursor:pointer; color:var(--primary); font-weight:600; list-style:none;"><i class="fas fa-circle-info"></i> De quoi s'agit-il ?</summary>
+            <div style="margin-top:6px; max-width:640px; line-height:1.6;">Les pièces certifiées sur le portail de la DGI, hors de Selflow : factures et avoirs, émis et reçus. Une fois intégrées, ce sont des ventes, des achats et des avoirs comme les autres : elles comptent dans les listes, les soldes des tiers et la comptabilité. Ce que Selflow a déjà enregistré n'est jamais repris.</div>
+        </details>
     </div>
-    <div style="display:flex; gap:8px; align-items:flex-start;">
-        <a href="{{ route('admin.ventes.factures') }}" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Retour aux factures de vente</a>
+    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <a href="{{ route('admin.ventes.factures') }}" class="btn btn-outline btn-sm" style="white-space:nowrap;"><i class="fas fa-arrow-left"></i> Factures de vente</a>
         @if($factures->isNotEmpty())
-        <button type="button" class="btn btn-outline" id="btn-reconnus" onclick="toutIntegrer(true)">
+        <button type="button" class="btn btn-outline btn-sm" id="btn-reconnus" onclick="toutIntegrer(true)" style="white-space:nowrap;">
             <i class="fas fa-id-card"></i> Intégrer les reconnus par NCC
         </button>
-        <button type="button" class="btn btn-primary" id="btn-tout-integrer" onclick="toutIntegrer(false)">
+        <button type="button" class="btn btn-primary btn-sm" id="btn-tout-integrer" onclick="toutIntegrer(false)" style="white-space:nowrap;">
             <i class="fas fa-check-double"></i> Tout intégrer
         </button>
         @endif
@@ -88,9 +94,6 @@ document.addEventListener('DOMContentLoaded', function () {
     </div>
 @endif
 
-@if($factures->total() > 0)
-<p style="color:var(--text-3); font-size:13px; margin:0 0 8px;">{{ $factures->total() }} pièce(s) en attente.</p>
-@endif
 <div style="max-height:calc(100vh - 260px); overflow-y:auto; padding-right:6px; border-top:1px solid var(--border);">
 @foreach($factures->getCollection()->groupBy(fn ($f) => $propositions[$f->id]['nature']) as $nature => $groupe)
 <h2 style="font-size:16px; margin:24px 0 10px;">{{ \App\Modules\Admin\Services\IntegrationFacturePortailService::LIBELLES[$nature] ?? 'Autres pièces' }} <span style="color:var(--text-3); font-weight:400;">({{ $groupe->count() }})</span></h2>

@@ -1977,26 +1977,25 @@
             && !auth()->user()->entreprise->souscription_terminee_le
             && auth()->user()->role === 'admin'
             && !request()->routeIs('admin.souscription.*'))
-            <div data-visite-banniere
-                 style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;
-                        background:var(--bg3, #EFF6FF); border:1px solid var(--primary-halo, #BFDBFE); border-radius:12px;
-                        padding:16px 20px; margin-bottom:20px;">
-                <div style="flex:1; min-width:260px;">
-                    <div style="font-weight:700; font-size:14px; color:var(--marque-900, #1e3a8a); margin-bottom:3px;">
-                        Configurez votre métier en cinq minutes
-                    </div>
-                    <div style="font-size:13px; color:var(--marque-700, #1d4ed8); line-height:1.55;">
-                        Selflow remplira votre catalogue, votre plan comptable et vos journaux
-                        à partir de votre activité. Il vous restera à saisir vos prix &mdash;
-                        eux seuls varient selon la zone et la période, nous ne pouvons pas les deviner.
-                    </div>
-                </div>
+            {{-- 24/11/2026 : une ligne, et masquable (le choix est retenu par le navigateur). --}}
+            <div data-visite-banniere id="banniere-configurer-metier"
+                 style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+                        background:var(--bg3, #EFF6FF); border:1px solid var(--primary-halo, #BFDBFE); border-radius:10px;
+                        padding:8px 12px; margin-bottom:14px; font-size:13px;">
+                <i class="fas fa-wand-magic-sparkles" style="color:var(--marque-700, #1d4ed8);"></i>
+                <span style="flex:1; min-width:200px; color:var(--marque-900, #1e3a8a);">
+                    <strong>Configurez votre métier en cinq minutes</strong>
+                    <span style="color:var(--marque-700, #1d4ed8);"> · catalogue, plan comptable et journaux remplis d'après votre activité ; il vous restera à saisir vos prix.</span>
+                </span>
                 <a href="{{ route('admin.souscription.index') }}"
-                   style="white-space:nowrap; background:var(--marque-700, #1d4ed8); color:#fff; padding:9px 16px;
-                          border-radius:8px; font-weight:600; font-size:13px; text-decoration:none;">
+                   style="white-space:nowrap; background:var(--marque-700, #1d4ed8); color:#fff; padding:6px 12px;
+                          border-radius:7px; font-weight:600; font-size:12.5px; text-decoration:none;">
                     Commencer
                 </a>
+                <button type="button" aria-label="Masquer" title="Masquer" onclick="try{localStorage.setItem('selflow_banniere_metier','0')}catch(e){} this.parentElement.remove();"
+                        style="border:0; background:none; color:var(--text-3); cursor:pointer; font-size:15px; padding:0 4px;">✕</button>
             </div>
+            <script>try { if (localStorage.getItem('selflow_banniere_metier') === '0') { var __b = document.getElementById('banniere-configurer-metier'); if (__b) __b.remove(); } } catch (e) {}</script>
         @endif
 
         @unless(request()->routeIs('superadmin.*'))

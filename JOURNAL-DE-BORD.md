@@ -11595,6 +11595,16 @@ choix du superadmin par entreprise ; les DNS sont gérés par DC-Knowing ;
   défilent.
 - `JournauxEtDeversementTest` (2). Suite : 213, identiques à `main`.
 
+
+### Lot 161 — En-têtes compacts — **TERMINÉ le 24/11/2026**
+
+- « Factures FNE à intégrer » : titre, nombre en attente et boutons sur une
+  ligne ; l'explication se déplie (« De quoi s'agit-il ? »).
+- Bannière « Configurez votre métier » : une ligne, masquable (retenu par le
+  navigateur).
+- Proposition laboratoire (prestataire externe payeur + patients multiples)
+  envoyée au propriétaire, en attente de validation avant tout code.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |
