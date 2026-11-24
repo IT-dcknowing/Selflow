@@ -38,7 +38,7 @@ class JournaliserVisite
                 return $reponse;
             }
 
-            Visite::create([
+            $ligne = [
                 'ip'             => $request->ip(),
                 'methode'        => $request->method(),
                 'chemin'         => mb_substr($request->path(), 0, 500),
@@ -49,7 +49,13 @@ class JournaliserVisite
                 'agent'          => mb_substr((string) $request->userAgent(), 0, 255),
                 'session_id'     => $request->hasSession() ? mb_substr($request->session()->getId(), 0, 64) : null,
                 'cree_le'        => now(),
-            ]);
+            ];
+            // Le nom de la route (24/11/2026) : les temps se regroupent par
+            // page ou par bouton dans Maintenance › Temps d'affichage.
+            if (\App\Support\Structure::aColonne('visites', 'route')) {
+                $ligne['route'] = mb_substr((string) $request->route()?->getName(), 0, 150) ?: null;
+            }
+            Visite::create($ligne);
         } catch (\Throwable $e) {
             // La traçabilité ne doit jamais gêner la requête.
         }

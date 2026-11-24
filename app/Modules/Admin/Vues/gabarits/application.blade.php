@@ -970,6 +970,9 @@
             <a href="{{ route('superadmin.tracabilite.index') }}" class="nav-item {{ request()->routeIs('superadmin.tracabilite*') ? 'active' : '' }}">
                 <i class="fas fa-chart-line"></i> Maintenance &amp; traçabilité
             </a>
+            <a href="{{ route('superadmin.temps_affichage') }}" class="nav-item {{ request()->routeIs('superadmin.temps_affichage') ? 'active' : '' }}">
+                <i class="fas fa-stopwatch"></i> Temps d'affichage
+            </a>
             @endif
             @php $__enCorbeille = \App\Modules\Admin\Modeles\Entreprise::enCorbeille()->count(); @endphp
             <a href="{{ route('superadmin.corbeille') }}" class="nav-item {{ request()->routeIs('superadmin.corbeille*') ? 'active' : '' }}">
@@ -2380,6 +2383,30 @@ document.addEventListener('DOMContentLoaded', () => {
 @endif
 </script>
 
+@auth
+@unless(auth()->user()->estSuperAdmin())
+<script>
+// Temps d'affichage de la page (24/11/2026, Maintenance › Temps d'affichage) :
+// mesuré par le navigateur, envoyé une fois, sans rien retarder.
+(function () {
+    var route = @json(\Illuminate\Support\Facades\Route::currentRouteName());
+    if (!route || !window.performance || !navigator.sendBeacon) return;
+    window.addEventListener('load', function () {
+        setTimeout(function () {
+            var nav = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0]) || null;
+            var ms = nav ? Math.round(nav.loadEventEnd || nav.domContentLoadedEventEnd) : Math.round(performance.now());
+            if (!ms || ms < 0) return;
+            var d = new FormData();
+            d.append('_token', document.querySelector('meta[name=csrf-token]').content);
+            d.append('route', route);
+            d.append('ms', Math.min(ms, 120000));
+            navigator.sendBeacon(@json(route('mesure.affichage')), d);
+        }, 0);
+    });
+})();
+</script>
+@endunless
+@endauth
 @yield('scripts')
 
 @unless(request()->boolean('integre'))

@@ -15,7 +15,7 @@ class Visite extends Model
 
     protected $fillable = [
         'ip', 'methode', 'chemin', 'statut', 'duree_ms',
-        'utilisateur_id', 'entreprise_id', 'agent', 'session_id', 'cree_le',
+        'utilisateur_id', 'entreprise_id', 'agent', 'session_id', 'cree_le', 'route',
     ];
 
     protected $casts = ['cree_le' => 'datetime'];

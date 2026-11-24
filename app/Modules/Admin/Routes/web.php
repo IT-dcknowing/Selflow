@@ -611,6 +611,11 @@ Route::prefix('admin')
         });
     });
 
+// ── Temps d'affichage mesuré par le navigateur (24/11/2026) ──
+Route::post('/mesure-affichage', [\App\Modules\Admin\Controleurs\TempsAffichageControleur::class, 'noter'])
+    ->middleware(['auth', 'throttle:120,1'])
+    ->name('mesure.affichage');
+
 // ── Visite guidee de premiere utilisation ──
 Route::prefix('admin/visite')
     ->middleware(['auth'])
@@ -825,6 +830,7 @@ Route::prefix('superadmin')
         Route::get('/robot', [\App\Modules\Admin\Controleurs\SuperadminRobotControleur::class, 'index'])->name('robot.index');
         Route::get('/robot/donnees', [\App\Modules\Admin\Controleurs\SuperadminRobotControleur::class, 'donnees'])->name('robot.donnees');
         Route::get('/robot/retours', [\App\Modules\Admin\Controleurs\SuperadminRobotControleur::class, 'retours'])->name('robot.retours');
+        Route::get('/temps-affichage', [\App\Modules\Admin\Controleurs\TempsAffichageControleur::class, 'index'])->name('temps_affichage');
 
         // ── Groupes d'entreprises (23/11/2026) ──
         Route::prefix('groupes')->name('groupes.')->group(function () {
