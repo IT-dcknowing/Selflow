@@ -542,6 +542,40 @@
             .stats-grid { grid-template-columns: 1fr; }
         }
 
+        /* ── Taille d'affichage et écrans de toutes tailles (24/11/2026) ──
+           Sur un portable (1280 à 1600 px), les pages se lisaient comme
+           zoomées : il fallait réduire le navigateur à 90 %. Le contenu prend
+           maintenant cette échelle de lui-même ; le menu ne bouge pas. */
+        @media (min-width: 769px) and (max-width: 1600px) {
+            .main-content { zoom: .9; padding: 22px 24px; }
+        }
+        @media (max-width: 1024px) {
+            .main-content [style*="grid-template-columns:repeat(4"], .main-content [style*="grid-template-columns: repeat(4"] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+        }
+        @media (max-width: 768px) {
+            .main-content { padding: 14px 12px; }
+            .page-header { flex-direction: column; align-items: stretch !important; gap: 10px; }
+            .page-header h1 { font-size: 20px; }
+            .main-content .card { max-width: 100%; overflow-x: auto; }
+            .main-content [style*="display:grid"], .main-content [style*="display: grid"] { grid-template-columns: minmax(0, 1fr) !important; }
+            .main-content [style*="display:flex"], .main-content [style*="display: flex"] { flex-wrap: wrap; }
+            .main-content input, .main-content select, .main-content textarea { max-width: 100%; }
+            .main-content img { max-width: 100%; height: auto; }
+            .modal { width: calc(100vw - 20px) !important; max-width: calc(100vw - 20px) !important; max-height: 92vh; overflow-y: auto; }
+            .topbar-clock { display: none; }
+            /* Le titre tient sur une ligne : la barre ne grandit plus et ne
+               recouvre plus le haut de la page. */
+            .topbar-title { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+            .topbar-title span { display: none; }
+            /* Les grilles de cartes des écrans (déclarées en classe) : 2 colonnes. */
+            .main-content .kpi-grid, .main-content .stats-grid, .main-content [class*="grid"]:not(table) { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+        }
+        @media (max-width: 480px) {
+            .main-content .kpi-grid, .main-content .stats-grid { grid-template-columns: minmax(0, 1fr) !important; }
+            .main-content { padding: 12px 8px; }
+            .main-content .btn { padding-left: 10px; padding-right: 10px; }
+        }
+
         /* ── Alerte de stickers ──
            Deployable, presente sur toutes les pages tant que le stock est bas.
            Elle n'est pas refermable definitivement : un stock epuise arrete la
@@ -2495,6 +2529,64 @@ window.__csrf = '{{ csrf_token() }}';
  * « Actualiser » des écrans FNE : relève tout le portail — ventes, achats,
  * avoirs —, attend la fin, range, puis rafraîchit l'écran (23/11/2026).
  */
+// 24/11/2026 : le suivi survit au changement de page. Le départ est noté
+// dans le navigateur ; chaque page reprend le suivi et affiche un badge
+// flottant avec le temps écoulé, jusqu'au résultat.
+var CLE_RELEVE_FNE = 'selflow_releve_fne_' + @json((string) (auth()->user()?->entreprise_id ?? ''));
+function lireReleveFne() { try { var v = JSON.parse(localStorage.getItem(CLE_RELEVE_FNE) || 'null'); return v && (Date.now() - v.debut) < 40 * 60000 ? v : null; } catch (e) { return null; } }
+function noterReleveFne(v) { try { v ? localStorage.setItem(CLE_RELEVE_FNE, JSON.stringify(v)) : localStorage.removeItem(CLE_RELEVE_FNE); } catch (e) {} }
+
+function badgeReleveFne() {
+    var b = document.getElementById('badge-releve-fne');
+    if (!b) {
+        b = document.createElement('div');
+        b.id = 'badge-releve-fne';
+        b.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:99990;background:#0f172a;color:#fff;border-radius:12px;padding:10px 14px;font:600 12.5px Inter,sans-serif;box-shadow:0 12px 30px rgba(2,6,23,.35);display:flex;gap:10px;align-items:center;font-variant-numeric:tabular-nums;';
+        document.body.appendChild(b);
+    }
+    return b;
+}
+var __tickReleveFne = null;
+function afficherBadgeReleveFne(debut) {
+    var b = badgeReleveFne();
+    var dessiner = function () {
+        var s = Math.max(0, Math.round((Date.now() - debut) / 1000));
+        b.innerHTML = '<i class="fas fa-rotate fa-spin"></i> Relevé du portail FNE en cours · ' + String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0')
+            + '<span style="font-weight:500;opacity:.7;">(ventes, achats, avoirs)</span>';
+    };
+    dessiner();
+    clearInterval(__tickReleveFne);
+    __tickReleveFne = setInterval(dessiner, 1000);
+}
+function fermerBadgeReleveFne() { clearInterval(__tickReleveFne); var b = document.getElementById('badge-releve-fne'); if (b) b.remove(); }
+
+function suivreReleveFne(finir) {
+    var v = lireReleveFne();
+    if (!v) { if (finir) finir(); return; }
+    afficherBadgeReleveFne(v.debut);
+    fetch(@json(route('admin.fne.actualiser_tout.statut')), { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (x) {
+            if (!x.ok || x.d.status !== 'success') throw new Error('echec');
+            if (!x.d.termine) { setTimeout(function () { suivreReleveFne(finir); }, 5000); return; }
+            noterReleveFne(null);
+            fermerBadgeReleveFne();
+            var n = x.d.import || {};
+            var total = ['ventes', 'achats', 'avoirs'].reduce(function (t, k) { return t + ((n[k] || {}).importes || 0); }, 0);
+            var duree = Math.round((Date.now() - v.debut) / 1000);
+            if (window.selflowToast) {
+                window.selflowToast({
+                    type: 'succes', titre: 'Portail FNE actualisé en ' + Math.floor(duree / 60) + ' min ' + (duree % 60) + ' s',
+                    message: total + ' relevé(s) nouveau(x).' + (x.d.a_integrer ? ' ' + x.d.a_integrer + ' facture(s) du portail attendent dans « Factures FNE à intégrer ».' : ''),
+                    actions: x.d.a_integrer && x.d.lien_integration ? [{ url: x.d.lien_integration, label: 'Voir les factures à intégrer' }] : undefined,
+                    duree: 8000
+                });
+            }
+            if (finir) finir();
+        })
+        .catch(function () { noterReleveFne(null); fermerBadgeReleveFne(); if (window.selflowErreurTache) window.selflowErreurTache(); if (finir) finir(); });
+}
+
 window.actualiserToutFne = function (bouton, apres) {
     if (bouton && bouton.disabled) return;
     var libelle = bouton ? bouton.innerHTML : '';
@@ -2504,22 +2596,6 @@ window.actualiserToutFne = function (bouton, apres) {
     };
     if (bouton) { bouton.disabled = true; bouton.innerHTML = '<i class="fas fa-rotate fa-spin"></i> Relevé du portail…'; }
 
-    var suivre = function () {
-        fetch(@json(route('admin.fne.actualiser_tout.statut')), { headers: { 'Accept': 'application/json' } })
-            .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-            .then(function (x) {
-                if (!x.ok || x.d.status !== 'success') throw new Error('echec');
-                if (!x.d.termine) { setTimeout(suivre, 5000); return; }
-                if (window.selflowToast) {
-                    var n = x.d.import || {};
-                    var total = ['ventes', 'achats', 'avoirs'].reduce(function (t, k) { return t + ((n[k] || {}).importes || 0); }, 0);
-                    window.selflowToast({ type: 'succes', titre: 'Portail FNE actualisé', message: total + ' relevé(s) nouveau(x) intégré(s).', duree: 3000 });
-                }
-                finir();
-            })
-            .catch(function () { if (window.selflowErreurTache) window.selflowErreurTache(); finir(); });
-    };
-
     fetch(@json(route('admin.fne.actualiser_tout')), {
         method: 'POST',
         headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': window.__csrf || '' }
@@ -2528,10 +2604,15 @@ window.actualiserToutFne = function (bouton, apres) {
         .then(function (x) {
             if (x.statut === 429) { if (window.selflowPatienter) window.selflowPatienter(x.d.attendre_secondes); finir(); return; }
             if (!x.ok || x.d.status !== 'success') throw new Error('echec');
-            setTimeout(suivre, 5000);
+            noterReleveFne({ debut: Date.now() });
+            setTimeout(function () { suivreReleveFne(finir); }, 3000);
+            afficherBadgeReleveFne(Date.now());
         })
         .catch(function () { if (window.selflowErreurTache) window.selflowErreurTache(); finir(); });
 };
+
+// Une page ouverte pendant un relevé reprend son suivi.
+document.addEventListener('DOMContentLoaded', function () { if (lireReleveFne()) suivreReleveFne(null); });
 </script>
 @endif
 

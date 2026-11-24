@@ -195,7 +195,7 @@
                         @csrf
                         <input type="hidden" name="timbre_quittance" value="{{ $row['timbre_quittance'] ? '0' : '1' }}">
                         <button type="submit" class="btn btn-outline"
-                                style="font-size:11.5px; padding:5px 9px; white-space:nowrap; color:{{ $row['timbre_quittance'] ? 'var(--success)' : 'var(--text-3)' }};"
+                                style="font-size:11.5px; padding:5px 9px; white-space:nowrap; {{ $row['timbre_quittance'] ? 'color:#047857; border-color:#6ee7b7; background:#ecfdf5; font-weight:700;' : 'color:var(--text-3);' }}"
                                 title="Reporter l'option cochée sur l'espace FNE de l'entreprise">
                             <i class="fas {{ $row['timbre_quittance'] ? 'fa-toggle-on' : 'fa-toggle-off' }}"></i>
                             {{ $row['timbre_quittance'] ? 'Appliqué' : 'Non appliqué' }}
@@ -206,7 +206,8 @@
                     <form method="POST" action="{{ route('superadmin.fne.telechargement', $row['entreprise']) }}" style="margin:0;">
                         @csrf
                         <input type="hidden" name="telechargement_actif" value="{{ $row['telechargement_actif'] ? '0' : '1' }}">
-                        <button type="submit" class="btn btn-outline" style="font-size:11.5px;padding:5px 9px;white-space:nowrap;">
+                        {{-- Ce qui est activé se lit en vert (24/11/2026). --}}
+                        <button type="submit" class="btn btn-outline" style="font-size:11.5px;padding:5px 9px;white-space:nowrap; {{ $row['telechargement_actif'] ? 'color:#047857; border-color:#6ee7b7; background:#ecfdf5; font-weight:700;' : 'color:var(--text-3);' }}">
                             <i class="fas {{ $row['telechargement_actif'] ? 'fa-toggle-on' : 'fa-toggle-off' }}"></i>
                             {{ $row['telechargement_actif'] ? 'Activé' : 'Désactivé' }}
                         </button>

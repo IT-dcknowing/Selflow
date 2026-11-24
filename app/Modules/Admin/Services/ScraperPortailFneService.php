@@ -294,21 +294,23 @@ class ScraperPortailFneService
      */
     public static function sorties(?string $type = null): string
     {
+        // Un dossier par type, un fichier par jour (24/11/2026) :
+        // logs/achat/241126-portail-fne-achat.log, etc.
         $fichiers = [
-            'achats' => storage_path('logs/portail-fne-achat.log'),
-            'ventes' => storage_path('logs/portail-fne-vente.log'),
-            'avoirs' => storage_path('logs/portail-fne-avoir.log'),
+            'achats' => \App\Support\Journaux::chemin('achat'),
+            'ventes' => \App\Support\Journaux::chemin('vente'),
+            'avoirs' => \App\Support\Journaux::chemin('avoir'),
         ];
 
         if ($type !== null) {
-            return $fichiers[$type] ?? storage_path('logs/portail-fne-sorties.log');
+            return $fichiers[$type] ?? \App\Support\Journaux::chemin('sorties');
         }
 
         // Sur le serveur Linux, les sorties générales rejoignent laravel.log.
         // Sous Windows, garder un fichier distinct évite le verrouillage du
         // fichier par appendOutputTo pendant que Monolog écrit dedans.
         return PHP_OS_FAMILY === 'Windows'
-            ? (string) config('selflow.portail_fne.sorties', storage_path('logs/portail-fne-sorties.log'))
+            ? (string) config('selflow.portail_fne.sorties', \App\Support\Journaux::chemin('sorties'))
             : storage_path('logs/laravel.log');
     }
 

@@ -539,7 +539,7 @@ class FneDashboardControleur
             return $this->erreurReleve((!empty($processus['interrompu'])
                     ? 'Le scraper des factures d’achat s’est arrêté sans terminer (plantage au démarrage ou navigateur interrompu par le serveur).'
                     : 'Le scraper des factures d’achat s’est terminé en erreur (code ' . (int) $processus['exit_code'] . ').')
-                    . ' Consultez storage/logs/portail-fne-achat.log.', 502);
+                    . ' Consultez storage/logs/achat/ (journal du jour).', 502);
         }
         $verrou = ScraperPortailFneService::verrouAchats($login);
         if ($processus) {
@@ -616,7 +616,7 @@ class FneDashboardControleur
             return $this->erreurReleve((!empty($processus['interrompu'])
                     ? 'Le scraper des factures de vente s’est arrêté sans terminer (plantage au démarrage ou navigateur interrompu par le serveur).'
                     : 'Le scraper des factures de vente s’est terminé en erreur (code ' . (int) $processus['exit_code'] . ').')
-                    . ' Consultez storage/logs/portail-fne-vente.log.', 502);
+                    . ' Consultez storage/logs/vente/ (journal du jour).', 502);
         }
         $verrou = ScraperPortailFneService::verrouVentes($login);
         if ($processus) {
@@ -724,7 +724,7 @@ class FneDashboardControleur
             return $this->erreurReleve((!empty($processus['interrompu'])
                     ? 'Le scraper des avoirs s’est arrêté sans terminer (plantage au démarrage ou navigateur interrompu par le serveur).'
                     : 'Le scraper des avoirs s’est terminé en erreur (code ' . (int) $processus['exit_code'] . ').')
-                    . ' Consultez storage/logs/portail-fne-avoir.log.', 502);
+                    . ' Consultez storage/logs/avoir/ (journal du jour).', 502);
         }
         $verrou = ScraperPortailFneService::verrouAvoirs($login);
         if ($processus) {
@@ -896,9 +896,19 @@ class FneDashboardControleur
             Log::warning('[relevé FNE] actualisation partielle, en échec : ' . implode(', ', $echecs), ['login' => $login]);
         }
 
+        // Ce qui attend dans « Factures FNE à intégrer » (24/11/2026) : les
+        // factures relevées ne comptent dans Selflow qu'une fois intégrées.
+        $aIntegrer = 0;
+        try {
+            $aIntegrer = app(\App\Modules\Admin\Services\IntegrationFacturePortailService::class)->enAttente(Auth::user()->entreprise)->count();
+        } catch (\Throwable) {
+        }
+
         return response()->json([
             'status'  => 'success',
             'termine' => true,
+            'a_integrer' => $aIntegrer,
+            'lien_integration' => \Illuminate\Support\Facades\Route::has('admin.ventes.portail_fne.index') ? route('admin.ventes.portail_fne.index') : null,
             'import'  => collect($rapports)->map(fn ($r) => [
                 'importes' => $r['importes'] ?? 0,
                 'erreurs'  => $r['erreurs'] ?? 0,
@@ -910,7 +920,7 @@ class FneDashboardControleur
      * L'échec d'un relevé du portail, dit à l'utilisateur sans son détail.
      *
      * Le 23/11/2026, l'écran affichait « le scraper s'est arrêté sans terminer…
-     * consultez storage/logs/portail-fne-vente.log » : rien que l'utilisateur
+     * consultez storage/logs/vente/ (journal du jour) » : rien que l'utilisateur
      * puisse faire, et un chemin du serveur qu'il n'a pas à voir. Le détail
      * part au journal, avec l'entreprise et l'utilisateur ; l'écran ne reçoit
      * que le message de l'assistance.

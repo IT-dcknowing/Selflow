@@ -1668,6 +1668,8 @@
                         <div style="display:flex;justify-content:space-between;margin-top:3px;color:var(--text-3);font-size:11px;">
                             <span id="devers-pourcentage">0 %</span><span id="devers-encours">0 opération en cours</span>
                         </div>
+                        {{-- Le minuteur du transfert (24/11/2026). --}}
+                        <div id="devers-chrono" style="display:none;margin-top:8px;padding:8px 10px;border-radius:8px;background:#eff6ff;color:#1e3a8a;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;"></div>
                         <div id="devers-erreurs" style="display:none;margin-top:10px;padding:9px 10px;background:#fff7f7;border:1px solid #fecaca;border-radius:6px;color:#991b1b;"></div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
                             <button type="button" id="btn-deverser-tout" onclick="lancerLeDeversementComptaflow()" class="btn btn-outline btn-sm" style="padding:7px 14px;">
@@ -1940,6 +1942,28 @@ function formaterMotifDeversement(motif) {
     });
 }
 
+// Le minuteur du transfert (24/11/2026) : temps écoulé qui avance, temps
+// restant qui décompte, chaque seconde, entre deux relevés de l'état.
+var __chronoDeversement = null, __tickDeversement = null;
+function minuteurDeversement(chrono, repriseAuto) {
+    var zone = document.getElementById('devers-chrono');
+    if (!zone) return;
+    if (!chrono) { zone.style.display = 'none'; clearInterval(__tickDeversement); __tickDeversement = null; return; }
+    __chronoDeversement = { recu: Date.now(), ecoule: chrono.ecoule, reste: chrono.reste_estime, cadence: chrono.secondes_par_operation, faites: chrono.faites, repriseAuto: !!repriseAuto };
+    var mmss = function (s) { s = Math.max(0, Math.round(s)); var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return (h ? h + ' h ' : '') + String(m).padStart(2, '0') + ':' + String(x).padStart(2, '0'); };
+    var dessiner = function () {
+        var c = __chronoDeversement; if (!c) return;
+        var passe = (Date.now() - c.recu) / 1000;
+        zone.style.display = 'block';
+        zone.innerHTML = '<i class="fas fa-stopwatch"></i> Écoulé ' + mmss(c.ecoule + passe)
+            + ' &nbsp;·&nbsp; <i class="fas fa-hourglass-half"></i> Reste estimé ' + mmss(c.reste - passe)
+            + ' &nbsp;·&nbsp; ≈ ' + c.cadence + ' s par opération' + (c.faites ? ' (' + c.faites + ' reçue(s) depuis le départ)' : '')
+            + (c.repriseAuto ? '<br><span style="font-weight:500;color:#475569;">Des opérations attendaient sans envoi : elles viennent d’être remises en file.</span>' : '');
+    };
+    dessiner();
+    if (!__tickDeversement) __tickDeversement = setInterval(dessiner, 1000);
+}
+
 function afficherEtatDeversement(etat) {
     if (!etat) return;
     document.getElementById('devers-total').textContent = etat.total ?? 0;
@@ -1949,6 +1973,7 @@ function afficherEtatDeversement(etat) {
     document.getElementById('devers-pourcentage').textContent = (etat.progression ?? 0) + ' %';
     document.getElementById('devers-barre').style.width = Math.max(0, Math.min(100, etat.progression ?? 0)) + '%';
     document.getElementById('devers-encours').textContent = (etat.en_cours ?? 0) + ' opération(s) en cours';
+    minuteurDeversement(etat.chrono || null, etat.reprise_auto);
 
     var message = document.getElementById('deversement-message');
     if ((etat.total ?? 0) === 0) {

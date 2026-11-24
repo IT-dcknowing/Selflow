@@ -11571,6 +11571,30 @@ choix du superadmin par entreprise ; les DNS sont gérés par DC-Knowing ;
 - Comptaflow : exercice 2026 mis par défaut par le propriétaire.
 - Suite : 213, identiques à `main`.
 
+
+### Lot 160 — Déversement minuté et repris, relevé suivi d'une page à l'autre, journaux rangés, écran — **TERMINÉ le 24/11/2026**
+
+- **Déversement Comptaflow** : 128 opérations « en cours » sans aucun travail
+  dans la file (envois perdus) : `DeversementHistoriqueService::etat()` les
+  remet en file d'elles-mêmes (au plus une fois toutes les 3 min), et le dit.
+  Minuteur sous la barre : temps écoulé qui avance, temps restant estimé qui
+  décompte, cadence mesurée (≈ 4 s par opération avec le justificatif PDF).
+- **« Actualiser » (FNE)** : le suivi survit au changement de page (départ noté
+  dans le navigateur) ; badge flottant avec minuteur sur toutes les pages ;
+  à la fin, durée, nombre de relevés et nombre de factures qui attendent dans
+  « Factures FNE à intégrer », avec le lien.
+- **Journaux rangés** : `storage/logs/<type>/JJMMAA-<nom>.log` (achat, vente,
+  avoir, portail-fne, comptaflow), un fichier par jour
+  (`App\Support\Journaux`, canal `App\Logging\JournalQuotidien` dont le
+  chemin se recalcule à chaque écriture ; un `path` imposé reste possible).
+  La sortie du robot, la page Robot FNE et les messages suivent.
+- **Superadmin, Gestion FNE** : « Activé » et « Appliqué » en vert.
+- **Écran** : de 769 à 1600 px, le contenu prend l'échelle 90 % (fini le zoom
+  arrière du navigateur) ; sur téléphone, titre sur une ligne, grilles sur
+  deux colonnes puis une, fenêtres à la largeur de l'écran, tableaux qui
+  défilent.
+- `JournauxEtDeversementTest` (2). Suite : 213, identiques à `main`.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

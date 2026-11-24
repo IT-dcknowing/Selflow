@@ -50,6 +50,7 @@ class DeversementHistoriqueService
         // asynchrone et met les opérations en file par lots de 100.
         if ($nombreAEnvoyer > 0) {
             MettreEnFileDeversementComptaflow::dispatch($entreprise->id);
+            self::noterLeDebut($entreprise);
         }
 
         // Ce qui ne partira pas, et pourquoi : une opération déséquilibrée
@@ -111,6 +112,7 @@ class DeversementHistoriqueService
 
         if ($nombreEchecs > 0) {
             MettreEnFileDeversementComptaflow::dispatch($entreprise->id, 0, true);
+            self::noterLeDebut($entreprise);
         }
 
         return [
@@ -227,7 +229,83 @@ class DeversementHistoriqueService
             'progression' => $total > 0 ? (int) floor(($recues / $total) * 100) : 100,
             'erreurs' => $erreurs,
             'file' => $file,
+            'chrono' => self::chrono($entreprise, $recues, $restantes, $enCours),
+            'reprise_auto' => self::reprendreLesOrphelines($entreprise, $enCours, $file),
         ];
+    }
+
+    /**
+     * Des lignes « en cours » sans aucun travail dans la file (24/11/2026) :
+     * leur envoi a été perdu (verrou resté, file vidée, processus tué). Rien
+     * ne les aurait jamais reprises. Elles sont remises en file d'elles-mêmes,
+     * au plus une fois toutes les 3 minutes.
+     */
+    private static function reprendreLesOrphelines(Entreprise $entreprise, int $enCours, array $file): bool
+    {
+        if ($enCours === 0 || ($file['en_attente'] ?? 0) > 0 || config('queue.default') !== 'database'
+            || $entreprise->comptaflow_sync_status !== 'active' || !$entreprise->comptaflow_sync_key) {
+            return false;
+        }
+        if (! \Illuminate\Support\Facades\Cache::add('deversement_reprise_' . $entreprise->id, now()->timestamp, 180)) {
+            return false;
+        }
+
+        MettreEnFileDeversementComptaflow::dispatch($entreprise->id);
+        self::noterLeDebut($entreprise, false);
+        self::journalDeversement()->info('Opérations « en cours » sans travail en file : remises en file', ['entreprise_id' => $entreprise->id, 'en_cours' => $enCours]);
+
+        return true;
+    }
+
+    /** Le départ du transfert, pour le minuteur (24/11/2026). */
+    private static function noterLeDebut(Entreprise $entreprise, bool $forcer = true): void
+    {
+        $cle = 'deversement_debut_' . $entreprise->id;
+        if ($forcer || ! \Illuminate\Support\Facades\Cache::has($cle)) {
+            \Illuminate\Support\Facades\Cache::put($cle, [
+                'debut' => now()->timestamp,
+                'recues' => (clone self::requeteRecues($entreprise))->count(),
+            ], now()->addDay());
+        }
+    }
+
+    /**
+     * Temps écoulé depuis le départ, cadence mesurée et temps restant estimé.
+     * Sans mesure encore (rien reçu depuis le départ), 4 s par opération :
+     * l'envoi et son justificatif PDF, d'après le journal du 24/11/2026.
+     */
+    private static function chrono(Entreprise $entreprise, int $recues, int $restantes, int $enCours): ?array
+    {
+        $depart = \Illuminate\Support\Facades\Cache::get('deversement_debut_' . $entreprise->id);
+        if (! is_array($depart) || ($restantes === 0 && $enCours === 0)) {
+            return null;
+        }
+        $ecoule = max(1, now()->timestamp - (int) $depart['debut']);
+        $faites = max(0, $recues - (int) $depart['recues']);
+        $parOperation = $faites > 0 ? $ecoule / $faites : 4.0;
+
+        return [
+            'debut' => (int) $depart['debut'],
+            'ecoule' => $ecoule,
+            'faites' => $faites,
+            'secondes_par_operation' => round($parOperation, 1),
+            'reste_estime' => (int) ceil($restantes * $parOperation),
+        ];
+    }
+
+    private static function requeteRecues(Entreprise $entreprise)
+    {
+        return Operation::where('entreprise_id', $entreprise->id)
+            ->where('est_equilibree', true)
+            ->whereHas('ecritures', fn ($q) => $q->withoutGlobalScopes())
+            ->whereDoesntHave('ecritures', function ($q) {
+                $q->withoutGlobalScopes()->where(fn ($qs) => $qs->whereNull('comptaflow_sync_status')->orWhere('comptaflow_sync_status', '!=', 'synced'));
+            });
+    }
+
+    private static function journalDeversement(): \Psr\Log\LoggerInterface
+    {
+        return \Illuminate\Support\Facades\Log::stack(array_values(array_unique([config('logging.default'), 'comptaflow_deversement'])));
     }
 
     /** @return array{en_attente:int, plus_ancienne_minutes:?int, bloquee:bool} */

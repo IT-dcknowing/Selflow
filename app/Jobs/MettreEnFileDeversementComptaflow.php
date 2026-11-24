@@ -128,7 +128,7 @@ class MettreEnFileDeversementComptaflow implements ShouldQueue, ShouldBeUnique
         }
     }
 
-    /** Le journal du déversement : le fichier général et `logs/comptaflow-deversement.log`. */
+    /** Le journal du déversement : le fichier général et `logs/comptaflow/JJMMAA-comptaflow-deversement.log`. */
     private static function journal(): \Psr\Log\LoggerInterface
     {
         return Log::stack(array_values(array_unique([config('logging.default'), 'comptaflow_deversement'])));

@@ -102,8 +102,10 @@ return [
         // Le déversement des écritures vers Comptaflow, dans son propre fichier
         // (23/11/2026) : chaque mise en file, chaque opération reçue ou refusée.
         'comptaflow_deversement' => [
-            'driver' => 'single',
-            'path' => storage_path('logs/comptaflow-deversement.log'),
+            // Un dossier par type, un fichier par jour (24/11/2026) : App\Support\Journaux.
+            'driver' => 'custom',
+            'via' => \App\Logging\JournalQuotidien::class,
+            'type' => 'comptaflow',
             'level' => 'debug',
             'replace_placeholders' => true,
         ],
@@ -116,20 +118,26 @@ return [
         ],
 
         'portail_fne_achat' => [
-            'driver' => 'single',
-            'path' => storage_path('logs/portail-fne-achat.log'),
+            // Un dossier par type, un fichier par jour (24/11/2026) : App\Support\Journaux.
+            'driver' => 'custom',
+            'via' => \App\Logging\JournalQuotidien::class,
+            'type' => 'achat',
             'level' => env('PORTAIL_FNE_JOURNAL_NIVEAU', 'debug'),
             'replace_placeholders' => true,
         ],
         'portail_fne_vente' => [
-            'driver' => 'single',
-            'path' => storage_path('logs/portail-fne-vente.log'),
+            // Un dossier par type, un fichier par jour (24/11/2026) : App\Support\Journaux.
+            'driver' => 'custom',
+            'via' => \App\Logging\JournalQuotidien::class,
+            'type' => 'vente',
             'level' => env('PORTAIL_FNE_JOURNAL_NIVEAU', 'debug'),
             'replace_placeholders' => true,
         ],
         'portail_fne_avoir' => [
-            'driver' => 'single',
-            'path' => storage_path('logs/portail-fne-avoir.log'),
+            // Un dossier par type, un fichier par jour (24/11/2026) : App\Support\Journaux.
+            'driver' => 'custom',
+            'via' => \App\Logging\JournalQuotidien::class,
+            'type' => 'avoir',
             'level' => env('PORTAIL_FNE_JOURNAL_NIVEAU', 'debug'),
             'replace_placeholders' => true,
         ],

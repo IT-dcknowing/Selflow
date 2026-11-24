@@ -119,8 +119,9 @@ class SuperadminRobotControleur extends Controller
     {
         $lignes = [];
         foreach (['vente', 'achat', 'avoir'] as $nom) {
-            $fichier = storage_path("logs/portail-fne-{$nom}.log");
-            if (!is_file($fichier)) {
+            // Le journal du jour, rangé par dossier (24/11/2026).
+            $fichier = \App\Support\Journaux::dernier($nom);
+            if (!$fichier || !is_file($fichier)) {
                 continue;
             }
             foreach ($this->queue($fichier, 80) as $ligne) {
