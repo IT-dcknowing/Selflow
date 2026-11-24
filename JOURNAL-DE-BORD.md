@@ -11767,6 +11767,25 @@ option renommée « Prestataires », reprise des factures « apporteur »).
   l'écran le dit et la liaison fonctionne sans cabinet.
 - Tests : `LiaisonCabinetComptaflowTest` (6).
 
+### Lot 168 — Relevé de la fiche dédié et prioritaire ; correctif Comptaflow poussé — **TERMINÉ le 24/11/2026**
+
+- SAS'T : la fiche a été déposée à 13:00 (`2196217J_20261124.json` et
+  `.xlsx`) ; elle se range au passage suivant de `portail-fne:importer`, ou
+  tout de suite avec `selflow:diagnostic-fiche 2196217J --appliquer`.
+- **Relevé dédié** (propriétaire : « le lancer séparément, destiné
+  uniquement à cette tâche ») : `fne.js <NCC> --fiche-seule` fait connexion,
+  Paramétrage, fiche et points de facturation, sans les factures reçues
+  (achats.js les relève). Il est **prioritaire** : il pose
+  `navigateur.priorite` dans le dossier d'import ; ventes, achats et avoirs
+  en attente lui laissent le navigateur ; il attend jusqu'à 30 min
+  (`FNE_ATTENTE_FICHE_MS`) au lieu de 12. « Relever maintenant » et
+  « Actualiser » le lancent ainsi. Le passage de nuit reste complet.
+- Comptaflow : correctif du lot 167 poussé sur la branche
+  `affectation-cabinets-selflow` de `IT-dcknowing/comptaflow` (non fusionné
+  dans `main`).
+- Sur le serveur, `node` n'est pas dans le PATH : le chemin est dans
+  `PORTAIL_FNE_NODE` du `.env`.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

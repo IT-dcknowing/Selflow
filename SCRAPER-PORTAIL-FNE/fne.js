@@ -232,6 +232,32 @@ const PAUSE_ENTRE_ESSAIS_MS = Number(process.env.FNE_PAUSE_ENTRE_ESSAIS_MS || 15
 
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+/*
+ * Relevé de la fiche seule (24/11/2026, propriétaire : « le lancer
+ * séparément, destiné uniquement à cette tâche »). `--fiche-seule` : connexion,
+ * Paramétrage, fiche et points de facturation, sans les factures reçues (que
+ * achats.js relève de son côté). Il passe en priorité : les autres scrapers en
+ * attente du navigateur lui laissent la place, et il attend jusqu'à 30 min
+ * au lieu de 12 sans abandonner.
+ */
+const FICHE_SEULE = process.argv.includes('--fiche-seule');
+const ATTENTE_FICHE_MS = Number(process.env.FNE_ATTENTE_FICHE_MS || 30 * 60 * 1000);
+
+function fichierDePriorite() {
+  return path.join(dossierDepot(), 'navigateur.priorite');
+}
+
+/** Un relevé prioritaire attend-il le navigateur (et ce n'est pas nous) ? */
+function prioriteAutrui() {
+  try {
+    const p = JSON.parse(fs.readFileSync(fichierDePriorite(), 'utf-8'));
+    if (Number(p.pid) === process.pid) return false;
+    if (processusVivant(Number(p.pid))) return true;
+    fs.unlinkSync(fichierDePriorite());
+  } catch (_) { /* pas de priorité */ }
+  return false;
+}
+
 function processusVivant(pid) {
   if (!Number.isInteger(pid) || pid <= 0) return false;
   try {
@@ -246,10 +272,35 @@ function processusVivant(pid) {
 /** Prend le verrou du navigateur ; rend la fonction qui le relâche. */
 async function prendreLeNavigateur(script) {
   const fichier = path.join(dossierDepot(), 'navigateur.lock');
-  const limite  = Date.now() + ATTENTE_NAVIGATEUR_MS;
+  const prioritaire = FICHE_SEULE && script === 'fne';
+  const limite  = Date.now() + (prioritaire ? ATTENTE_FICHE_MS : ATTENTE_NAVIGATEUR_MS);
   let annonce   = false;
 
+  if (prioritaire) {
+    try { fs.writeFileSync(fichierDePriorite(), JSON.stringify({ pid: process.pid, depuis: instant() })); } catch (_) { /* sans priorité */ }
+    const lever = () => {
+      try {
+        const p = JSON.parse(fs.readFileSync(fichierDePriorite(), 'utf-8'));
+        if (Number(p.pid) === process.pid) fs.unlinkSync(fichierDePriorite());
+      } catch (_) { /* déjà levée */ }
+    };
+    process.once('exit', lever);
+  }
+
   for (;;) {
+    // La fiche passe devant : tant qu'elle attend, les autres ne prennent pas
+    // le navigateur qui se libère.
+    if (!prioritaire && prioriteAutrui()) {
+      if (Date.now() > limite) {
+        throw new Error('Navigateur réservé au relevé de la fiche depuis trop longtemps : relevé reporté.');
+      }
+      if (!annonce) {
+        journaliser(script, 'INFO', '   Relevé de la fiche prioritaire en attente : on lui laisse la place...');
+        annonce = true;
+      }
+      await pause(3000);
+      continue;
+    }
     try {
       const fd = fs.openSync(fichier, 'wx');
       fs.writeSync(fd, JSON.stringify({ pid: process.pid, script, depuis: instant() }));
@@ -842,7 +893,9 @@ async function releverUnLogin(navigateur, login, motDePasse, dossier) {
     // Leur échec ne perd pas le relevé : la fiche et les points sont déjà
     // déposés, et c'est eux que la certification attend. On le dit, et on rend
     // la main.
-    try {
+    if (FICHE_SEULE) {
+      dire('INFO', '   Fiche seule : les factures reçues sont relevées par achats.js.');
+    } else try {
       await releverDansLaSession(page, autorisation, login, path.join(dossier, 'achats'));
     } catch (erreur) {
       dire('ALERTE', `   /!\ Factures reçues non relevées : ${erreur.message}`);

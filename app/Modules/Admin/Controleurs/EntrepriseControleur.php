@@ -202,7 +202,7 @@ class EntrepriseControleur
             return response()->json(['ok' => false, 'message' => "Le relevé automatique de votre espace FNE n'est pas encore activé par l'assistance."], 422);
         }
 
-        $lance = \App\Modules\Admin\Services\ScraperPortailFneService::lancerPourLogin($login);
+        $lance = \App\Modules\Admin\Services\ScraperPortailFneService::lancerPourLogin($login, true);
 
         return response()->json([
             'ok' => $lance,

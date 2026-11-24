@@ -836,7 +836,7 @@ class FneDashboardControleur
             // 24/11/2026 : la fiche « Paramétrage » aussi (IDU, commune,
             // quartier, local, mentions, pied de page, points de facturation).
             // Sans elle, ces champs restaient vides dans Selflow.
-            'fiche' => ScraperPortailFneService::lancerPourLogin($login),
+            'fiche' => ScraperPortailFneService::lancerPourLogin($login, true),
             'ventes' => ScraperPortailFneService::lancerVentes($login),
             'achats' => ScraperPortailFneService::lancerAchats($login),
             'avoirs' => ScraperPortailFneService::lancerAvoirs($login),

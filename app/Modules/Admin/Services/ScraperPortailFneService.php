@@ -465,7 +465,7 @@ class ScraperPortailFneService
         return $ok;
     }
 
-    public static function lancerPourLogin(?string $login): bool
+    public static function lancerPourLogin(?string $login, bool $ficheSeule = false): bool
     {
         $login = trim((string) $login);
 
@@ -498,7 +498,9 @@ class ScraperPortailFneService
         $script = (string) config('selflow.portail_fne.scraper.script');
 
         try {
-            self::detacher([$node, $script, $login], self::sorties(), $login);
+            // `--fiche-seule` (24/11/2026) : un relevé dédié à la fiche, prioritaire
+            // sur le navigateur, sans les factures reçues qu'achats.js relève.
+            self::detacher(array_merge([$node, $script, $login], $ficheSeule ? ['--fiche-seule'] : []), self::sorties(), $login);
 
             self::tracer('info', "fne[{$login}] : relève lancée en arrière-plan.", [
                 'node'   => $node,
