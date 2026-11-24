@@ -23,6 +23,17 @@ class AdressePortailFne
 {
     public static function enProduction(?FneCredential $acces): bool
     {
+        // Le choix du superadmin l'emporte (24/11/2026) : une entreprise sans
+        // clé, ni de test ni de production, se relève quand même, sur le
+        // portail qu'il désigne. Sans choix, la règle des clés.
+        $choix = $acces?->portail_releve;
+        if ($choix === 'production') {
+            return trim((string) (config('selflow.portail_fne.url_production') ?: config('selflow.fne_api_url_production'))) !== '';
+        }
+        if ($choix === 'test') {
+            return false;
+        }
+
         return $acces !== null
             && $acces->statut === 'validee'
             && trim((string) (config('selflow.portail_fne.url_production') ?: config('selflow.fne_api_url_production'))) !== '';

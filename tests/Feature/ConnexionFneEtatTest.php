@@ -240,13 +240,14 @@ class ConnexionFneEtatTest extends TestCase
             ->assertSessionHasErrors('type_facture');
     }
 
-    public function test_sans_compte_le_releve_ne_touche_a_rien(): void
+    /** 24/11/2026, propriétaire : « le système doit mettre à jour », compte déclaré ou non. */
+    public function test_sans_compte_declare_le_releve_met_les_coordonnees_a_jour(): void
     {
         $this->entreprise->update(['possede_compte_fne' => false, 'email' => 'moi@dck.ci']);
         $this->releve(['email' => 'portail@dck.ci']);
 
-        $this->assertSame([], SynchronisationPortailFneService::reprendre($this->entreprise->fresh()));
-        $this->assertSame('moi@dck.ci', $this->entreprise->fresh()->email);
+        $this->assertArrayHasKey('email', SynchronisationPortailFneService::reprendre($this->entreprise->fresh()));
+        $this->assertSame('portail@dck.ci', $this->entreprise->fresh()->email);
     }
 
     public function test_enregistrer_les_parametres_garde_les_valeurs_du_portail(): void

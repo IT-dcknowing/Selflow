@@ -28,14 +28,9 @@ class SynchronisationPortailFneService
      */
     public static function reprendre(Entreprise $entreprise): array
     {
-        // Un compte FNE déclaré, ou un relevé autorisé par le superadmin (NCC et
-        // mot de passe fournis, téléchargement activé) : dans les deux cas,
-        // l'entreprise a un espace FNE, et ce qu'il déclare fait foi (23/11/2026).
-        $releveAutorise = (bool) \App\Modules\Admin\Modeles\FneCredential::where('entreprise_id', $entreprise->id)
-            ->where('telechargement_actif', true)->exists();
-        if ($entreprise->possede_compte_fne !== true && ! $releveAutorise) {
-            return [];
-        }
+        // Le portail fait foi pour toute entreprise dont il a été relevé
+        // (24/11/2026, propriétaire : « le système doit mettre à jour ») : la
+        // fiche existe, donc l'espace FNE existe.
 
         $fiche = PortailFneFiche::where('entreprise_id', $entreprise->id)
             ->orderByDesc('date_scraping')->orderByDesc('id')
@@ -47,7 +42,16 @@ class SynchronisationPortailFneService
 
         $changements = [];
 
-        foreach (array_merge(Entreprise::CHAMPS_REPRIS_DU_PORTAIL_FNE, Entreprise::OPTIONS_REPRISES_DU_PORTAIL_FNE) as $champ) {
+        // Les coordonnées et le paramétrage se reprennent pour toute
+        // entreprise. Les trois options fiscales (timbre de quittance,
+        // bordereau d'achat, seuil des stickers) changent ce que la facture
+        // contient : elles ne suivent le portail que pour une entreprise qui a
+        // déclaré son compte FNE (règle de conformité, CycleFneTroisCasTest).
+        $champs = $entreprise->possede_compte_fne === true
+            ? array_merge(Entreprise::CHAMPS_REPRIS_DU_PORTAIL_FNE, Entreprise::OPTIONS_REPRISES_DU_PORTAIL_FNE)
+            : array_values(array_diff(Entreprise::CHAMPS_REPRIS_DU_PORTAIL_FNE, ['sticker_solde_alerte']));
+
+        foreach ($champs as $champ) {
             $portail = $fiche->{$champ};
 
             // Une valeur que le portail n'a pas rendue n'efface rien. Une case

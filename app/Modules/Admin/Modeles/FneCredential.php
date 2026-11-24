@@ -28,6 +28,9 @@ class FneCredential extends Model
         'acces_mot_de_passe',
         'acces_fourni_at',
         'telechargement_actif',
+        // Le portail des relevés, choisi par le superadmin (24/11/2026) :
+        // 'test', 'production', ou vide (déduit des clés).
+        'portail_releve',
     ];
 
     protected function casts(): array

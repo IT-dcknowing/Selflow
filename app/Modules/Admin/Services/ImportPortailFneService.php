@@ -319,10 +319,9 @@ class ImportPortailFneService
             // directement dans Selflow. Les points de facturation déclarés au
             // portail et absents de Selflow y sont créés (dans la limite de
             // l'offre), sans attendre qu'on ouvre l'écran des points de vente.
-            // Seulement quand le superadmin a activé le téléchargement : sans
-            // lui, l'écran des points de vente propose, l'entreprise valide.
-            if ($entreprise && $type !== PortailFneImport::TYPE_FICHE
-                && \App\Modules\Admin\Modeles\FneCredential::where('entreprise_id', $entreprise->id)->where('telechargement_actif', true)->exists()) {
+            // Pour toutes les entreprises (24/11/2026, propriétaire : « le
+            // système doit mettre à jour »).
+            if ($entreprise && $type !== PortailFneImport::TYPE_FICHE) {
                 try {
                     app(PointsDeVentePortailService::class)->importer($entreprise->fresh());
                 } catch (Throwable $e) {

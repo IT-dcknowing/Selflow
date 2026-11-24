@@ -88,4 +88,20 @@ class SiteDeVenteEtPortailTest extends TestCase
             @unlink($dossier . '/9999999Z.json');
         }
     }
+
+    public function test_le_superadmin_choisit_le_portail_meme_sans_aucune_cle(): void
+    {
+        config(['selflow.fne_api_url_production' => 'https://www.services.fne.dgi.gouv.ci/ws', 'selflow.fne_api_url_sandbox' => 'http://54.247.95.108/ws']);
+        $acces = \App\Modules\Admin\Modeles\FneCredential::create(['entreprise_id' => $this->e->id, 'ncc_associe' => '2196217J']);
+        $this->assertSame('http://54.247.95.108/fr/login', \App\Modules\Admin\Services\AdressePortailFne::connexion($acces), 'Sans clé : le test, comme avant.');
+
+        $sa = Utilisateur::create(['nom' => 'S', 'prenom' => 'A', 'email' => 'sa@x.ci', 'password' => bcrypt('x'), 'role' => 'superadmin', 'statut' => 'actif']);
+        $sa->forceFill(['habilitations' => ['gestion_fne']])->save();
+        $this->actingAs($sa)->post(route('superadmin.fne.portail', $this->e), ['portail_releve' => 'production'])->assertSessionHas('success');
+
+        $this->assertSame('https://www.services.fne.dgi.gouv.ci/fr/login', \App\Modules\Admin\Services\AdressePortailFne::connexion($acces->fresh()));
+
+        $this->post(route('superadmin.fne.portail', $this->e), ['portail_releve' => 'auto']);
+        $this->assertNull($acces->fresh()->portail_releve);
+    }
 }

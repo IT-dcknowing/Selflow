@@ -191,7 +191,12 @@ class ImportPortailFneTest extends TestCase
         $this->assertSame('30/07/2026 10:38', $point->cree_a->format('d/m/Y H:i'));
     }
 
-    public function test_le_releve_ne_modifie_pas_l_entreprise(): void
+    /**
+     * 24/11/2026, propriétaire : « le système doit mettre à jour ». Le relevé
+     * modifiait l'entreprise seulement si elle déclarait un compte FNE ; il la
+     * met désormais à jour dans tous les cas : le portail fait foi.
+     */
+    public function test_le_releve_met_l_entreprise_a_jour(): void
     {
         $entreprise = $this->uneEntreprise([
             'ncc'                  => '1864699A',
@@ -212,16 +217,15 @@ class ImportPortailFneTest extends TestCase
 
         $entreprise->refresh();
 
-        $this->assertNull($entreprise->commune);
+        $this->assertSame('COCODY', $entreprise->commune, 'Les coordonnées suivent le portail.');
+
+        // Les options fiscales, non : sans compte FNE déclaré, elles ne
+        // bougent pas (elles changent le contenu des factures). L'écart se voit.
         $this->assertFalse((bool) $entreprise->timbre_quittance);
         $this->assertFalse((bool) $entreprise->bapa);
         $this->assertSame(5, (int) $entreprise->sticker_solde_alerte);
-
-        // L'écart est visible, il n'est simplement pas appliqué.
         $ecarts = PortailFneFiche::sole()->ecartsAvecEntreprise();
-
         $this->assertArrayHasKey('timbre_quittance', $ecarts);
-        $this->assertArrayHasKey('sticker_solde_alerte', $ecarts);
         $this->assertSame(5000, $ecarts['sticker_solde_alerte']['portail']);
     }
 

@@ -1973,6 +1973,25 @@ function afficherEtatDeversement(etat) {
         message.style.color = '#c2410c';
     }
 
+    // 24/11/2026 : Comptaflow sur une autre année que Selflow. Le motif est
+    // dit en clair dans une boîte qui s'efface, une fois par affichage.
+    if (!window.__exerciceComptaflowSignale && etat.erreurs && etat.erreurs.length) {
+        var motifExercice = etat.erreurs.map(function (e) { return e.motif || ''; }).find(function (m) { return /exercices ne se recouvrent pas/i.test(m); });
+        if (motifExercice && window.selflowToast) {
+            var annees = (motifExercice.match(/(\d{2}\/\d{2}\/)(\d{4})/g) || []).map(function (d) { return d.slice(-4); });
+            var anneeSelflow = annees[0] || '', anneeComptaflow = annees[2] || '';
+            window.selflowToast({
+                type: 'erreur',
+                titre: 'Comptaflow est sur une autre année',
+                message: 'Veuillez sélectionner l’exercice ' + (anneeSelflow || 'en cours') + ' dans Comptaflow (Gérer les exercices › par défaut)'
+                    + (anneeComptaflow ? ' : Comptaflow travaille actuellement sur ' + anneeComptaflow + '.' : '.')
+                    + ' Puis cliquez sur « Relancer les échecs ».',
+                duree: 8000
+            });
+            window.__exerciceComptaflowSignale = true;
+        }
+    }
+
     var erreurs = document.getElementById('devers-erreurs');
     var retry = document.getElementById('btn-reessayer-deversement');
     if (etat.erreurs && etat.erreurs.length) {

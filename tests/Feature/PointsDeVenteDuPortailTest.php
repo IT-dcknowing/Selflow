@@ -306,7 +306,10 @@ class PointsDeVenteDuPortailTest extends TestCase
         $apres = $this->getJson(route('admin.pdv.etat_du_portail'))->assertOk()->json();
 
         $this->assertNotSame($avant['empreinte'], $apres['empreinte']);
-        $this->assertSame(2, $apres['a_creer']);
+        // 24/11/2026 : le relevé crée lui-même les points absents de Selflow.
+        $this->assertSame(0, $apres['a_creer']);
+        $this->assertEqualsCanonicalizing(['FACTURATION SIEGE', 'teste'],
+            \App\Modules\Admin\Modeles\PointDeVente::where('entreprise_id', $this->entreprise->id)->whereIn('nom', ['FACTURATION SIEGE', 'teste'])->pluck('nom')->all());
     }
 
     public function test_le_lancement_repond_au_bouton_sans_recharger_la_page(): void
@@ -325,6 +328,8 @@ class PointsDeVenteDuPortailTest extends TestCase
         // « le relevé n'est pas arrivé » — alors qu'il était arrivé, et n'avait
         // simplement rien de neuf à déclarer. La date du dépôt le dit.
         $this->relever(['FACTURATION SIEGE']);
+        // Le point déclaré est déjà dans Selflow (le relevé le crée, 24/11/2026).
+        app(\App\Modules\Admin\Services\PointsDeVentePortailService::class)->importer($this->entreprise);
 
         $avant = $this->getJson(route('admin.pdv.etat_du_portail'))->assertOk()->json();
 

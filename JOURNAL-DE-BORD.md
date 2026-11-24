@@ -11533,6 +11533,30 @@ choix du superadmin par entreprise ; les DNS sont gérés par DC-Knowing ;
   (exercice 2026 par défaut), puis « Relancer les échecs ».
 - `SiteDeVenteEtPortailTest` (4). Suite : 213, identiques à `main`.
 
+
+### Lot 158 — Portail des relevés choisi par le superadmin, exercice Comptaflow, paramétrage pour tous — **TERMINÉ le 24/11/2026**
+
+- **Cause de l'échec de 2196217J** (trouvée par le propriétaire) : l'entreprise
+  n'a aucune clé ; sans clé validée, `AdressePortailFne` visait le portail de
+  test, où le compte n'existe pas. Le robot n'a pas besoin de clé (NCC et mot
+  de passe). Superadmin › Gestion FNE › « Gérer le compte » : section
+  « Portail où chercher les factures », boutons Test / Production / Selon les
+  clés (`fne_credentials.portail_releve`, migration `2026_11_24_000001`,
+  route `superadmin.fne.portail`) ; le relevé est relancé aussitôt. Aucun
+  effet sur la certification (FneService n'utilise pas cette règle).
+- **Comptaflow sur une autre année** : boîte d'erreur de 8 s « Veuillez
+  sélectionner l'exercice 2026 dans Comptaflow… Comptaflow travaille
+  actuellement sur 2025 », tirée du motif renvoyé.
+- **Paramétrage mis à jour pour toutes les entreprises** (propriétaire : « le
+  système doit mettre à jour ») : coordonnées et mentions reprises du
+  portail, points de facturation créés à l'import, compte FNE déclaré ou non.
+  **Exception maintenue (règle de conformité)** : timbre de quittance, BAPA et
+  seuil des stickers changent le contenu des factures ; ils ne suivent le
+  portail que pour une entreprise au compte FNE déclaré (CycleFneTroisCasTest).
+  Tests mis à jour : ImportPortailFneTest, ConnexionFneEtatTest,
+  PointsDeVenteDuPortailTest ; ajout à SiteDeVenteEtPortailTest (5).
+- Suite : 213, identiques à `main`.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

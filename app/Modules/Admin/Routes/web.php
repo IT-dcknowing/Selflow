@@ -787,6 +787,7 @@ Route::prefix('superadmin')
             // choix de l'entreprise : il se reporte ici, avec les clés.
             Route::post('/{entreprise}/timbre', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'basculerTimbre'])->name('timbre');
             Route::post('/{entreprise}/telechargement', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'basculerTelechargement'])->name('telechargement');
+            Route::post('/{entreprise}/portail', [\App\Modules\Admin\Controleurs\SuperadminFneControleur::class, 'choisirPortail'])->name('portail');
         });
 
         // ── Paiements d'abonnement déclarés par référence (16/10/2026) ──

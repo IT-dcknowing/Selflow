@@ -357,6 +357,36 @@ class SuperadminFneControleur extends Controller
     /**
      * Autoriser ou suspendre le téléchargement automatique des documents FNE.
      */
+    /**
+     * Le portail où chercher les factures de l'entreprise (24/11/2026) : test
+     * ou production, ou « selon les clés ». Le relevé est relancé aussitôt si
+     * le téléchargement est activé.
+     */
+    public function choisirPortail(Request $request, Entreprise $entreprise): RedirectResponse
+    {
+        $choix = $request->validate(['portail_releve' => ['required', 'in:test,production,auto']])['portail_releve'];
+        if (! \App\Support\Structure::aColonne('fne_credentials', 'portail_releve')) {
+            return back()->with('error', 'Lancez d\'abord « php artisan migrate --force » sur le serveur.');
+        }
+        if ($choix === 'production' && trim((string) (config('selflow.portail_fne.url_production') ?: config('selflow.fne_api_url_production'))) === '') {
+            return back()->with('error', 'L\'adresse du portail de production n\'est pas configurée (FNE_API_URL_PRODUCTION dans .env).');
+        }
+
+        $credential = FneCredential::firstOrNew(['entreprise_id' => $entreprise->id]);
+        $credential->portail_releve = $choix === 'auto' ? null : $choix;
+        $credential->save();
+
+        if ($credential->telechargement_actif && $credential->ncc_associe) {
+            \App\Modules\Admin\Services\ScraperPortailFneService::lancerPourLogin((string) $credential->ncc_associe);
+        }
+        Log::notice('[FNE] Portail des relevés « ' . $choix . ' » pour entreprise #' . $entreprise->id . ' par superadmin #' . Auth::id());
+
+        $libelle = ['test' => 'le portail de TEST', 'production' => 'le portail de PRODUCTION', 'auto' => 'le portail déduit des clés'][$choix];
+
+        return back()->with('success', '« ' . $entreprise->nom . ' » : les factures seront cherchées sur ' . $libelle . '.'
+            . ($credential->telechargement_actif ? ' Relevé relancé.' : ''));
+    }
+
     public function basculerTelechargement(Request $request, Entreprise $entreprise): RedirectResponse
     {
         $request->validate(['telechargement_actif' => ['required', 'in:0,1']]);

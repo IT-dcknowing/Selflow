@@ -221,7 +221,7 @@
                          numéro, chaque appel du modal répondait 404, et l'écran le
                          prenait pour une coupure réseau. --}}
                     <button class="btn btn-outline" style="font-size:12px; padding:6px 10px;"
-                            onclick="ouvrirModalGestion(@js($row['entreprise']->getRouteKey()), @js($row['entreprise']->nom))">
+                            onclick="ouvrirModalGestion(@js($row['entreprise']->getRouteKey()), @js($row['entreprise']->nom), @js($row['credential']?->portail_releve ?? ''), @js(\App\Modules\Admin\Services\AdressePortailFne::enProduction($row['credential']) ? 'production' : 'test'))">
                         <i class="fas fa-gear"></i> Gérer le compte
                     </button>
                 </td>
@@ -280,6 +280,19 @@
 </form>
                     <div id="accesFneFourniLe" style="font-size:11px; color:var(--text-3); margin-top:8px;"></div>
                     <div id="accesFneMessage" style="font-size:12px; color:var(--text-3); margin-top:8px;">Chargement des accès…</div>
+                </div>
+
+                {{-- Où chercher les factures (24/11/2026) : même sans aucune clé. --}}
+                <div style="margin-bottom:18px; padding:14px; border:1px solid var(--border); border-radius:10px; background:#fffbeb;">
+                    <h4 style="font-size:14px; margin:0 0 4px;"><i class="fas fa-satellite-dish" style="color:#d97706;"></i> Portail où chercher les factures</h4>
+                    <p style="font-size:12px; color:var(--text-2); margin:0 0 10px;">Le robot se connecte au portail FNE avec le NCC et le mot de passe : il n'a pas besoin de clé. Cochez le portail où se trouve le compte de l'entreprise.
+                        Actuellement : <strong id="portailActuel"></strong>.</p>
+                    <form method="POST" id="formPortail" style="display:flex; gap:8px; flex-wrap:wrap; margin:0;">
+                        @csrf
+                        <button type="submit" name="portail_releve" value="test" class="btn btn-outline btn-portail" data-valeur="test" style="font-size:12px;"><i class="fas fa-flask"></i> Test</button>
+                        <button type="submit" name="portail_releve" value="production" class="btn btn-outline btn-portail" data-valeur="production" style="font-size:12px;"><i class="fas fa-industry"></i> Production</button>
+                        <button type="submit" name="portail_releve" value="auto" class="btn btn-outline btn-portail" data-valeur="" style="font-size:12px;"><i class="fas fa-key"></i> Selon les clés</button>
+                    </form>
                 </div>
 
                 <div style="margin-bottom:18px; padding-bottom:18px; border-bottom:1px solid var(--border);">
@@ -345,8 +358,16 @@ function afficherErreurMdp(message) {
     document.getElementById('erreurMdp').style.display = 'block';
 }
 
-function ouvrirModalGestion(entrepriseId, nom) {
+function ouvrirModalGestion(entrepriseId, nom, portailChoisi, portailEffectif) {
     entrepriseCourante = entrepriseId;
+    // Le portail des relevés (24/11/2026).
+    document.getElementById('formPortail').action = "{{ route('superadmin.fne.portail', ':id') }}".replace(':id', encodeURIComponent(entrepriseId));
+    document.getElementById('portailActuel').textContent = (portailEffectif === 'production' ? 'PRODUCTION' : 'TEST') + (portailChoisi ? ' (choisi)' : ' (déduit des clés)');
+    document.querySelectorAll('.btn-portail').forEach(function (b) {
+        const choisi = b.dataset.valeur === (portailChoisi || '');
+        b.classList.toggle('btn-primary', choisi);
+        b.classList.toggle('btn-outline', !choisi);
+    });
     motDePasseValide = null;
     document.getElementById('modalEntNom').textContent = nom;
     document.getElementById('etapeMotDePasse').style.display = 'block';
