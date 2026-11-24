@@ -909,6 +909,11 @@
             <a href="{{ route('superadmin.groupes.index') }}" class="nav-item {{ request()->routeIs('superadmin.groupes*') ? 'active' : '' }}">
                 <i class="fas fa-diagram-project"></i> Groupes d'entreprises
             </a>
+            @if(in_array('identite_entreprises', (array) (auth()->user()->habilitations ?? []), true))
+            <a href="{{ route('superadmin.identites.index') }}" class="nav-item {{ request()->routeIs('superadmin.identites*') ? 'active' : '' }}">
+                <i class="fas fa-id-badge"></i> Identité des entreprises
+            </a>
+            @endif
             @php $__enCorbeille = \App\Modules\Admin\Modeles\Entreprise::enCorbeille()->count(); @endphp
             <a href="{{ route('superadmin.corbeille') }}" class="nav-item {{ request()->routeIs('superadmin.corbeille*') ? 'active' : '' }}">
                 <i class="fas fa-trash-can"></i> Corbeille
@@ -950,6 +955,11 @@
             @php $__pannesOuvertes = \App\Modules\Admin\Modeles\PanneConsignee::ouvertes()->count(); @endphp
             <a href="{{ route('superadmin.robot.index') }}" class="nav-item {{ request()->routeIs('superadmin.robot*') ? 'active' : '' }}">
                 <i class="fas fa-robot"></i> Robot FNE en direct
+            </a>
+            @php $__retoursRobot = count(\App\Modules\Admin\Services\ScraperPortailFneService::retoursDuRobot()); @endphp
+            <a href="{{ route('superadmin.robot.retours') }}" class="nav-item {{ request()->routeIs('superadmin.robot.retours') ? 'active' : '' }}">
+                <i class="fas fa-reply"></i> Retour robot
+                @if($__retoursRobot)<span style="margin-left:auto; background:#ef4444; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px; font-weight:700;">{{ $__retoursRobot }}</span>@endif
             </a>
             <a href="{{ route('superadmin.pannes.index') }}" class="nav-item {{ request()->routeIs('superadmin.pannes*') ? 'active' : '' }}">
                 <i class="fas fa-bug"></i> Pannes &amp; assistance
@@ -2519,6 +2529,32 @@ window.__csrf = '{{ csrf_token() }}';
         if (f.duree > 0) { setTimeout(fermer, f.duree); }
         else if (!persistants[f.type]) { setTimeout(fermer, 6000); }
     }
+})();
+</script>
+
+<script>
+/*
+ * Après un enregistrement, la page revient là où l'on était (24/11/2026).
+ * Chaque envoi de formulaire note la position ; la page qui suit, si c'est la
+ * même adresse et dans les 30 secondes, y retourne sans saut vers le haut.
+ */
+(function () {
+    var CLE = 'selflow_position_apres_envoi';
+    document.addEventListener('submit', function (e) {
+        var f = e.target;
+        if (!f || (f.method || '').toLowerCase() !== 'post' || f.target === '_blank') return;
+        try { sessionStorage.setItem(CLE, JSON.stringify({ chemin: location.pathname, y: window.scrollY, t: Date.now() })); } catch (err) {}
+    }, true);
+    try {
+        var v = JSON.parse(sessionStorage.getItem(CLE) || 'null');
+        sessionStorage.removeItem(CLE);
+        if (v && v.chemin === location.pathname && (Date.now() - v.t) < 30000 && !location.hash) {
+            if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+            var aller = function () { window.scrollTo(0, v.y); };
+            document.addEventListener('DOMContentLoaded', aller);
+            window.addEventListener('load', aller);
+        }
+    } catch (err) {}
 })();
 </script>
 

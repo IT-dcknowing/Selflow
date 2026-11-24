@@ -29,7 +29,7 @@
         <label>Mois</label>
         <select id="f-mois" class="form-control" data-annee="{{ $anneeExercice }}"
                 onchange="rafraichirSemainesFne(); {{ $onChange }}">
-            <option value="tous">— Tous les mois —</option>
+            <option value="tous">Tous les mois</option>
             @foreach(['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'] as $i => $nom)
                 <option value="{{ $i + 1 }}">{{ $nom }}</option>
             @endforeach
@@ -39,7 +39,7 @@
     <div class="form-group">
         <label>Semaine</label>
         <select id="f-semaine" class="form-control" onchange="{{ $onChange }}">
-            <option value="tous">— Toutes les semaines —</option>
+            <option value="tous">Toutes les semaines</option>
             @for($s = 1; $s <= 53; $s++)
                 <option value="{{ $s }}">Semaine {{ $s }}</option>
             @endfor
@@ -49,7 +49,7 @@
     <div class="form-group">
         <label>Jour</label>
         <select id="f-jour" class="form-control" onchange="{{ $onChange }}">
-            <option value="tous">— Tous les jours —</option>
+            <option value="tous">Tous les jours</option>
             @for($j = 1; $j <= 31; $j++)
                 <option value="{{ $j }}">{{ $j }}</option>
             @endfor
@@ -111,7 +111,7 @@ function rafraichirSemainesFne() {
     var moisVal = moisSelect.value;
     var choisie = semaineSelect.value;
 
-    semaineSelect.innerHTML = '<option value="tous">— Toutes les semaines —</option>';
+    semaineSelect.innerHTML = '<option value="tous">Toutes les semaines</option>';
 
     if (moisVal === 'tous') {
         for (var s = 1; s <= 53; s++) {

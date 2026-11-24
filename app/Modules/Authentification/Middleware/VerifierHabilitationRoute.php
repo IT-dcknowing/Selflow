@@ -102,6 +102,7 @@ class VerifierHabilitationRoute
         'superadmin.pannes.index'      => 'tableau_de_bord_superadmin',
         'superadmin.robot.index'       => 'tableau_de_bord_superadmin',
         'superadmin.robot.donnees'     => 'tableau_de_bord_superadmin',
+        'superadmin.robot.retours'     => 'tableau_de_bord_superadmin',
         'superadmin.pannes.corriger'   => 'tableau_de_bord_superadmin',
         'superadmin.pannes.assistance' => 'tableau_de_bord_superadmin',
         // Couper la plateforme pour tous : réservé à l'administration interne.
@@ -113,6 +114,8 @@ class VerifierHabilitationRoute
         'superadmin.tracabilite.debloquer' => 'administration_interne',
         'superadmin.tracabilite.basculer'  => 'administration_interne',
         // L'assistance : entrer dans l'espace d'une entreprise.
+        'superadmin.identites.index'        => 'identite_entreprises',
+        'superadmin.identites.enregistrer'  => 'identite_entreprises',
         'superadmin.sur_mesure.index'       => 'gestion_entreprises',
         'superadmin.sur_mesure.procedure'   => 'gestion_entreprises',
         'superadmin.sur_mesure.modifier'    => 'gestion_entreprises',

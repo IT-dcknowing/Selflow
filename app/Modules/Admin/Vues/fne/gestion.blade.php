@@ -63,7 +63,7 @@
     @php
         $__cx = $connexionPortail;
         [$__titre, $__fond, $__bord, $__texte] = match ($__cx['statut']) {
-            'identifiants' => ['Accès de connexion FNE incorrects', '#fef2f2', '#fecaca', '#991b1b'],
+            'identifiants' => ['Accès FNE refusé', '#fef2f2', '#fecaca', '#991b1b'],
             'mot_de_passe' => ['Le portail FNE demande de changer le mot de passe', '#fffbeb', '#fde68a', '#92400e'],
             'portail' => ['Le portail FNE de la DGI est en erreur', '#fffbeb', '#fde68a', '#92400e'],
             default => ['Connexion au portail FNE impossible', '#fffbeb', '#fde68a', '#92400e'],
@@ -73,7 +73,7 @@
         <strong><i class="fas fa-plug-circle-xmark"></i> {{ $__titre }}</strong>
         <span style="opacity:.8;"> · {{ \Illuminate\Support\Carbon::parse($__cx['quand'])->timezone(config('app.timezone'))->format('d/m/Y à H:i') }} · compte {{ $__cx['login'] }}</span><br>
         @if($__cx['statut'] === 'identifiants')
-            Le NCC et le mot de passe enregistrés ne permettent pas d'entrer sur le portail. Vérifiez-les (ils doivent être exactement ceux de votre espace FNE), puis enregistrez-les de nouveau.
+            Accès refusé : le NCC et le mot de passe enregistrés ne permettent pas d'entrer sur le portail. Vérifiez-les (ils doivent être exactement ceux de votre espace FNE), ou vérifiez que l'entreprise a bien un compte FNE : un NCC seul ne suffit pas.
         @elseif($__cx['statut'] === 'mot_de_passe')
             Connectez-vous une fois vous-même sur le portail FNE, changez le mot de passe, puis enregistrez le nouveau dans Selflow.
         @elseif($__cx['statut'] === 'portail')

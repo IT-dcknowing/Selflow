@@ -153,7 +153,7 @@
                             <td>{{ $l['nom'] }} <span style="color:var(--text-3);">× {{ $q($l['quantite']) }}</span></td>
                             <td>
                                 <select name="produits[{{ $i }}]" class="form-control" style="font-size:12.5px;">
-                                    <option value="">— Choisir —</option>
+                                    <option value="">Choisir</option>
                                     @foreach($catalogue as $p)
                                         <option value="{{ $p->id }}" @selected(($correspondances[$i] ?? null) === $p->id)>{{ $p->nom }}{{ $p->reference ? ' (' . $p->reference . ')' : '' }}</option>
                                     @endforeach

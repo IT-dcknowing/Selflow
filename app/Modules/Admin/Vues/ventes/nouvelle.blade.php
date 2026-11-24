@@ -302,6 +302,7 @@
 </div>
 
 <form method="POST" action="{{ $routeEnregistrer }}" id="formVente" data-pas-courant="1">
+    <input type="hidden" name="brouillon_id" id="brouillonId" value="{{ $brouillon?->id }}">
 @csrf
 {{-- Un formulaire ne s'enregistre qu'une fois (26/10/2026) : le serveur
      ignore un second envoi qui porte le même jeton. --}}
@@ -480,7 +481,7 @@
                         <input type="text" id="prestataireSaisie" list="listePrestataires" class="form-control" autocomplete="off"
                                placeholder="Hôpital, clinique… (choisir ou taper un nouveau nom)">
                         <datalist id="listePrestataires">
-                            @foreach($apporteurs as $apporteur)<option value="{{ $apporteur->nom }}" data-id="{{ $apporteur->id }}"></option>@endforeach
+                            @foreach($apporteurs as $apporteur)<option value="{{ $apporteur->nom }}" data-id="{{ $apporteur->id }}" label="{{ $apporteur->est_apporteur ? 'Prestataire' : 'Client existant' }}"></option>@endforeach
                         </datalist>
                         <input type="hidden" name="prestataire_id" id="prestataireId">
                         <input type="hidden" name="prestataire_nom" id="prestataireNom">
@@ -533,6 +534,10 @@
                             if (!window.PATIENTS_VENTE.some(function (p) { return p.cle.toLowerCase() === cle.toLowerCase(); })) window.PATIENTS_VENTE.push({ cle: cle, nom: nom });
                             saisie.value = ''; dessiner();
                         }
+                        window.ajouterPatientVente = function (cle, nom) {
+                            if (!window.PATIENTS_VENTE.some(function (p) { return p.cle === cle; })) window.PATIENTS_VENTE.push({ cle: cle, nom: nom });
+                            dessiner();
+                        };
                         saisie.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); ajouter(); } });
                         saisie.addEventListener('change', function () { if (idDe(liste, saisie.value.trim())) ajouter(); });
                         saisie.addEventListener('blur', ajouter);
@@ -550,7 +555,7 @@
                     <div class="form-group" data-pas="2">
                         <label class="form-label">Client (optionnel)</label>
                         <select name="client_id" class="form-control">
-                            <option value="">— Client de passage —</option>
+                            <option value="">Client de passage</option>
                             @foreach($clients as $client)
                             <option value="{{ $client->id }}">{{ $client->nom }}</option>
                             @endforeach
@@ -657,7 +662,7 @@
                                 <label class="form-label">Sélectionner la Banque <span style="color:var(--danger)">*</span></label>
                                 <div style="display:flex; gap:8px;">
                                     <select name="banque_id" id="banqueSelect" class="form-control" style="flex:1;">
-                                        <option value="">— Choisir un compte banque —</option>
+                                        <option value="">Choisir un compte banque</option>
                                         @foreach($banques as $b)
                                         <option value="{{ $b->id }}">{{ $b->intitule }} ({{ $b->code }})</option>
                                         @endforeach
@@ -668,7 +673,7 @@
                             <div class="form-group" style="margin-bottom: 12px;">
                                 <label class="form-label">Moyen de paiement bancaire <span style="color:var(--danger)">*</span></label>
                                 <select name="moyen_bancaire" id="moyenBancaireSelect" class="form-control">
-                                    <option value="">— Moyen de paiement —</option>
+                                    <option value="">Moyen de paiement</option>
                                     <option value="carte">Carte bancaire</option>
                                     <option value="virement">Virement</option>
                                     <option value="cheque">Chèque</option>
@@ -690,7 +695,7 @@
                                 @php $__mobiles = \App\Modules\Admin\Modeles\CodeJournal::mobileMoney()->where('entreprise_id', auth()->user()->entreprise_id)->orderBy('intitule')->get(); @endphp
                                 <select id="mobileMoneyOperateurSelect" name="mobile_money_journal_id" class="form-control"
                                         onchange="document.getElementById('mobileMoneyOperateurInput').value = this.selectedOptions[0]?.dataset.code || ''">
-                                    <option value="">— Sélectionner l'opérateur —</option>
+                                    <option value="">Sélectionner l'opérateur</option>
                                     @foreach($__mobiles as $m)
                                     <option value="{{ $m->id }}" data-code="{{ $m->code }}">{{ $m->intitule }}</option>
                                     @endforeach
@@ -774,6 +779,10 @@
                 <div data-pas="4" style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
                     <button type="submit" class="btn btn-success" id="btnValider" style="width:100%; justify-content:center;" disabled>
                         <i class="fas fa-check-circle"></i> <span id="labelBtnValiderVente">Valider et facturer</span>
+                    </button>
+                    {{-- Le brouillon (24/11/2026) : enregistrer sans facturer. --}}
+                    <button type="button" class="btn btn-outline" id="btnBrouillon" onclick="enregistrerBrouillonVente()" style="width:100%; justify-content:center;">
+                        <i class="fas fa-file-pen"></i> Enregistrer en brouillon
                     </button>
                 </div>
 
@@ -942,12 +951,48 @@
 @section('scripts')
 <script>
 // Prestataires (« Réalisé par »), module de l'espace sur mesure (23/11/2026).
+// ── Brouillons de vente (24/11/2026) ──
+@if(session('brouillon_enregistre'))
+try { localStorage.removeItem('selflow_vente_panier'); } catch (e) {}
+@endif
+@if($brouillon)
+// Le brouillon rouvert remplace le panier en cours.
+try { localStorage.setItem('selflow_vente_panier', JSON.stringify({ portee: @js(auth()->user()->entreprise_id . ':' . ($pointDeVenteId ?? '') . ':' . auth()->id()), articles: @json($brouillon->donnees['panier'] ?? new \stdClass) })); } catch (e) {}
+document.addEventListener('DOMContentLoaded', function () {
+    var d = @json($brouillon->donnees);
+    var champ = function (nom, valeur) { var el = document.querySelector('#formVente [name="' + nom + '"]'); if (el && valeur !== undefined && valeur !== null) el.value = valeur; };
+    champ('client_id', d.client_id); champ('date_vente', d.date_vente);
+    if (d.prestataire_nom || d.prestataire_id) {
+        var ps = document.getElementById('prestataireSaisie');
+        if (ps) { ps.value = d.prestataire_nom || (Array.prototype.find.call(document.getElementById('listePrestataires').options, function (o) { return o.dataset.id == d.prestataire_id; }) || {}).value || ''; ps.dispatchEvent(new Event('input')); }
+    }
+    (d.patients || []).forEach(function (cle) {
+        if (!window.ajouterPatientVente) return;
+        var nom = cle.indexOf('nom:') === 0 ? cle.slice(4) : ((Array.prototype.find.call((document.getElementById('listePatients') || {}).options || [], function (o) { return 'id:' + o.dataset.id === cle; }) || {}).value || cle);
+        window.ajouterPatientVente(cle, nom);
+    });
+    if (window.selflowToast) window.selflowToast({ type: 'info', titre: 'Brouillon rouvert', message: 'Vérifiez, modifiez si besoin, puis validez la facture.', duree: 4000 });
+});
+@endif
+function enregistrerBrouillonVente() {
+    if (!Object.keys(panier || {}).length) { alert('Ajoutez au moins un article avant d\'enregistrer le brouillon.'); return; }
+    var source = document.getElementById('formVente');
+    var f = document.createElement('form');
+    f.method = 'POST';
+    f.action = @json(route(request()->routeIs('caissier.*') ? 'caissier.ventes.brouillons.enregistrer' : 'admin.ventes.brouillons.enregistrer'));
+    var ajouter = function (nom, valeur) { var i = document.createElement('input'); i.type = 'hidden'; i.name = nom; i.value = valeur == null ? '' : valeur; f.appendChild(i); };
+    new FormData(source).forEach(function (valeur, nom) { if (nom.indexOf('articles[') !== 0) ajouter(nom, valeur); });
+    ajouter('panier_json', JSON.stringify(panier));
+    document.body.appendChild(f);
+    f.submit();
+}
+
 // Le patient de chaque ligne (« Pour »), 24/11/2026.
 function selecteurPatient(id, item) {
     var patients = window.PATIENTS_VENTE || [];
     if (!patients.length) return '';
     var options = patients.map(function (p) { return '<option value="' + p.cle.replace(/"/g, '&quot;') + '" ' + ((item.patient || '') === p.cle ? 'selected' : '') + '>' + p.nom.replace(/</g, '&lt;') + '</option>'; }).join('');
-    return '<label>Pour <select class="form-control form-control-sm" onchange="saisirPatientLigne(\'' + id + '\', this.value)" style="width:140px;"><option value="">—</option>' + options + '</select></label>';
+    return '<label>Pour <select class="form-control form-control-sm" onchange="saisirPatientLigne(\'' + id + '\', this.value)" style="width:140px;"><option value="">Choisir</option>' + options + '</select></label>';
 }
 function saisirPatientLigne(id, val) {
     if (!panier[id]) return;
@@ -961,7 +1006,7 @@ function selecteurIntervenant(id, item) {
     if (!INTERVENANTS.length) return '';
     const options = INTERVENANTS.map(i => `<option value="${i.id}" ${String(item.intervenant_id || '') === String(i.id) ? 'selected' : ''}>${i.nom.replace(/</g, '&lt;')}</option>`).join('');
     return `<label>Réalisé par
-        <select class="form-control form-control-sm" onchange="saisirIntervenant('${id}', this.value)" style="width: 140px;"><option value="">—</option>${options}</select>
+        <select class="form-control form-control-sm" onchange="saisirIntervenant('${id}', this.value)" style="width: 140px;"><option value="">Choisir</option>${options}</select>
     </label>`;
 }
 function saisirIntervenant(id, val) {

@@ -83,7 +83,7 @@ class SiteDeVenteEtPortailTest extends TestCase
         @mkdir($dossier, 0775, true);
         file_put_contents($dossier . '/9999999Z.json', json_encode(['quand' => now()->toIso8601String(), 'statut' => 'identifiants', 'message' => 'x', 'portail' => 'https://exemple']));
         try {
-            $this->actingAs($admin)->get(route('admin.fne.gestion'))->assertOk()->assertSee('Accès de connexion FNE incorrects');
+            $this->actingAs($admin)->get(route('admin.fne.gestion'))->assertOk()->assertSee('Accès FNE refusé');
         } finally {
             @unlink($dossier . '/9999999Z.json');
         }

@@ -11653,6 +11653,37 @@ option renommée « Prestataires », reprise des factures « apporteur »).
   `VentePatient` (le modèle `Vente`, du périmètre FNE, n'est pas touché).
 - `LaboratoirePrestatairesPatientsTest` (5). Suite : 213, identiques à `main`.
 
+
+### Lot 164 — Brouillons, identité des entreprises, retour robot, fiche du portail, tirets — **TERMINÉ le 24/11/2026**
+
+- **Laboratoire** : les clients existants (non classés) sont proposés des
+  deux côtés ; un client choisi comme prestataire le devient.
+- **Brouillons de vente** : « Enregistrer en brouillon » dans la vente
+  (table `brouillons_vente`, migration `2026_11_24_000003` : ni facture, ni
+  stock, ni écriture, ni FNE) ; Factures vente › « Brouillons » ; « Passer en
+  facture » rouvre la vente remplie (panier, client, prestataire, patients) ;
+  le brouillon facturé disparaît.
+- **Superadmin** : la fiche « Modifier » corrige l'e-mail de l'entreprise, son
+  téléphone et l'adresse de connexion du responsable. Nouvelle habilitation
+  `identite_entreprises` (support) et page « Identité des entreprises » :
+  nom, e-mail, téléphone, connexion du responsable, chaque modification
+  tracée. La création superadmin a été vérifiée : elle porte déjà le même
+  parcours que l'inscription publique (entreprise, responsable, FNE, offre,
+  domaine) et s'affiche sans erreur ; à préciser avec le propriétaire si un
+  écart précis est constaté sur le serveur.
+- **Retour robot** (superadmin) : les connexions au portail qui ont échoué,
+  par entreprise : « Accès refusé : vérifiez le NCC et le mot de passe, ou
+  que l'entreprise a bien un compte FNE », portail en erreur, mot de passe à
+  changer. Compteur dans le menu.
+- **Fiche du portail** : « Actualiser » relève aussi la fiche « Paramétrage »
+  (IDU, commune, quartier, local, mentions, pied de page) ; le login est le
+  NCC de l'entreprise, sinon celui de son compte FNE.
+- **Après un enregistrement**, la page revient à la position où l'on était
+  (plus de saut en haut). Le passage de tous les formulaires sans rechargement
+  reste à faire écran par écran.
+- **Tirets** « — » retirés des listes déroulantes (68 options, 28 écrans).
+- `BrouillonsIdentiteRetoursTest` (3). Suite : 213, identiques à `main`.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

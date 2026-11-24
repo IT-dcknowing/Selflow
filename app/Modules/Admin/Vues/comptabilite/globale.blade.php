@@ -122,7 +122,7 @@
     <div class="filter-group" style="min-width:170px;">
         <span class="filter-label">Type d'opération</span>
         <select name="type_operation" class="form-control" style="height:40px;" onchange="this.form.submit()">
-            <option value="">— Tous —</option>
+            <option value="">Tous</option>
             <option value="recette" {{ $typeOp === 'recette' ? 'selected' : '' }}>Entrée (Recette)</option>
             <option value="depense" {{ $typeOp === 'depense' ? 'selected' : '' }}>Sortie (Dépense)</option>
         </select>
@@ -133,7 +133,7 @@
     <div class="filter-group" style="min-width: 240px;">
         <span class="filter-label">Point de vente</span>
         <select name="point_de_vente_id" class="form-control" style="height:40px;" onchange="this.form.submit()">
-            <option value="">— Tous les points de vente —</option>
+            <option value="">Tous les points de vente</option>
             @foreach($pointsDeVente as $pdv)
             <option value="{{ $pdv->id }}" {{ $pdvFilter == $pdv->id ? 'selected' : '' }}>
                 {{ $pdv->nom }} ({{ $pdv->ville }})

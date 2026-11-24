@@ -323,7 +323,7 @@
                 <div class="form-group" style="grid-column:1/-1;">
                     <label class="form-label">Type de facturation <span style="color:#E53E3E">*</span></label>
                     <select name="type_facturation" id="fnew_type_facturation" class="form-control" onchange="toggleNccFournisseur('fnew')">
-                        <option value="">— Sélectionner le type —</option>
+                        <option value="">Sélectionner le type</option>
                         <option value="B2B" selected>B2B — Entreprise à Entreprise (NCC requis)</option>
                         <option value="B2C">B2C — Entreprise à Particulier</option>
                         <option value="B2G">B2G — Entreprise à État / Collectivité</option>
@@ -364,7 +364,7 @@
                         <div class="form-group" style="margin-bottom:0;">
                             <label class="form-label">Régime d'imposition</label>
                             <select name="regime_imposition" class="form-control">
-                                <option value="">— Non renseigné —</option>
+                                <option value="">Non renseigné</option>
                                 {{-- La liste de l'entreprise, et non une copie : « TEE
                                      (Taxe sur l'Entreprise Employeuse) », « RS » et
                                      « Exonéré » ne désignaient aucun régime. --}}
@@ -436,7 +436,7 @@
                 <div class="form-group" style="grid-column:1/-1;">
                     <label class="form-label">Type de facturation <span style="color:#E53E3E">*</span></label>
                     <select name="type_facturation" id="fedit_type_facturation" class="form-control" onchange="toggleNccFournisseur('fedit')">
-                        <option value="">— Sélectionner le type —</option>
+                        <option value="">Sélectionner le type</option>
                         <option value="B2B">B2B — Entreprise à Entreprise (NCC requis)</option>
                         <option value="B2C">B2C — Entreprise à Particulier</option>
                         <option value="B2G">B2G — Entreprise à État / Collectivité</option>
@@ -476,7 +476,7 @@
                         <div class="form-group" style="margin-bottom:0;">
                             <label class="form-label">Régime d'imposition</label>
                             <select name="regime_imposition" id="edit_regime_imposition" class="form-control">
-                                <option value="">— Non renseigné —</option>
+                                <option value="">Non renseigné</option>
                                 {{-- La liste de l'entreprise, et non une copie : « TEE
                                      (Taxe sur l'Entreprise Employeuse) », « RS » et
                                      « Exonéré » ne désignaient aucun régime. --}}

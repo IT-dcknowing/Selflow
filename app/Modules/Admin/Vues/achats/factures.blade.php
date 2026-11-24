@@ -167,7 +167,7 @@
     <div class="form-group" style="margin-bottom:0;">
         <label class="form-label" style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-3); margin-bottom:4px; display:block;">Statut</label>
         <select name="statut_filtre" class="form-control" onchange="document.getElementById('formFiltreAchats').submit();">
-            <option value="">— Tous —</option>
+            <option value="">Tous</option>
             @foreach(['Payé', 'Avance', 'Crédit'] as $s)
                 <option value="{{ $s }}" {{ request('statut_filtre') === $s ? 'selected' : '' }}>{{ $s }}</option>
             @endforeach
@@ -179,7 +179,7 @@
     <div class="form-group" style="margin-bottom:0;">
         <label class="form-label" style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-3); margin-bottom:4px; display:block;">Statut DGI</label>
         <select name="dgi_filtre" class="form-control" onchange="document.getElementById('formFiltreAchats').submit();">
-            <option value="">— Tous —</option>
+            <option value="">Tous</option>
             <option value="oui" {{ request('dgi_filtre') === 'oui' ? 'selected' : '' }}>Normalisé (DGI)</option>
             <option value="non" {{ request('dgi_filtre') === 'non' ? 'selected' : '' }}>Non normalisé</option>
         </select>

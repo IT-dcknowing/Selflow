@@ -570,9 +570,9 @@ async function essayerDeSeConnecter(page, login, motDePasse) {
       .catch(() => '');
     if (/password|mot-de-passe|reset|change/i.test(adresse)) return { statut: 'mot_de_passe', message: 'le portail demande de changer le mot de passe (première connexion ?)' };
     if (/notre côté|notre cote|travaillons|erreur serveur|server error|500|indisponible|réessayer/i.test(message)) return { statut: 'portail', message: `le portail de la DGI a répondu par une erreur de son côté (« ${message} »)` };
-    if (/incorrect|invalide|erron|mauvais|inexistant|wrong|invalid/i.test(message)) return { statut: 'identifiants', message: `accès de connexion FNE incorrects (« ${message} »)` };
+    if (/incorrect|invalide|erron|mauvais|inexistant|wrong|invalid/i.test(message)) return { statut: 'identifiants', message: `accès refusé (« ${message} ») : vérifiez le NCC et le mot de passe, ou que l'entreprise a bien un compte FNE` };
     if (message) return { statut: 'autre', message: `le portail a affiché : « ${message} »` };
-    if (/login|connexion|signin|auth/i.test(adresse) || adresse === process.env.FNE_URL) return { statut: 'identifiants', message: 'accès de connexion FNE incorrects : le portail est resté sur la page de connexion' };
+    if (/login|connexion|signin|auth/i.test(adresse) || adresse === process.env.FNE_URL) return { statut: 'identifiants', message: 'accès refusé : le portail est resté sur la page de connexion. Vérifiez le NCC et le mot de passe, ou que l\'entreprise a bien un compte FNE' };
     return { statut: 'autre', message: `le portail a ouvert une autre page que le tableau de bord (${adresse})` };
   }
 }

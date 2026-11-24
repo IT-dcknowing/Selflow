@@ -251,7 +251,7 @@ class ReleveDesVentesVerrouTest extends TestCase
         $this->assertNotSame(429, $controleur->actualiserVentes()->getStatusCode(), 'Après cinq minutes, on peut relancer.');
     }
 
-    public function test_actualiser_tout_lance_les_trois_releves(): void
+    public function test_actualiser_tout_lance_la_fiche_et_les_trois_releves(): void
     {
         config([
             'selflow.portail_fne.scraper.achats_actif'  => true,
@@ -264,7 +264,7 @@ class ReleveDesVentesVerrouTest extends TestCase
         $reponse = app(FneDashboardControleur::class)->actualiserTout();
 
         $this->assertSame(200, $reponse->getStatusCode());
-        $this->assertEqualsCanonicalizing(['ventes', 'achats', 'avoirs'], $reponse->getData(true)['lances']);
+        $this->assertEqualsCanonicalizing(['fiche', 'ventes', 'achats', 'avoirs'], $reponse->getData(true)['lances']);
         $this->assertSame(429, app(FneDashboardControleur::class)->actualiserTout()->getStatusCode());
 
         Cache::forget(ScraperPortailFneService::verrouAchats(self::NCC));

@@ -139,7 +139,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <span style="color:var(--text-3);">qui a reçu la pièce</span>
                 @endif
                 <select name="point_de_vente_id" class="form-control" required>
-                    <option value="">— Choisir —</option>
+                    <option value="">Choisir</option>
                     @foreach($pointsDeVente as $site)
                         <option value="{{ $site->id }}" @selected($p['point_de_vente']?->id === $site->id)>{{ $site->nom }}</option>
                     @endforeach

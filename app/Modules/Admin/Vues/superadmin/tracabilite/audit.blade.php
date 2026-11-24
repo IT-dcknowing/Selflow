@@ -14,7 +14,7 @@
             <div class="form-group" style="margin:0;">
                 <label class="form-label" style="font-size:11px;">Entreprise</label>
                 <select name="entreprise" class="form-control">
-                    <option value="">— Toutes —</option>
+                    <option value="">Toutes</option>
                     @foreach($entreprises as $e)
                         <option value="{{ $e->id }}" {{ (string) ($filtres['entreprise'] ?? '') === (string) $e->id ? 'selected' : '' }}>{{ $e->nom }}</option>
                     @endforeach

@@ -808,9 +808,21 @@ class FneDashboardControleur
      * Le bouton ne faisait que relire la base. Les trois relevés passent l'un
      * après l'autre, par le verrou du navigateur.
      */
+    /**
+     * Le login du portail : le NCC de l'entreprise, sinon celui de son compte
+     * FNE (24/11/2026 : une entreprise sans NCC sur sa fiche ne se relevait pas).
+     */
+    private static function loginDuPortail(): string
+    {
+        $entreprise = Auth::user()?->entreprise;
+        $ncc = trim((string) ($entreprise?->ncc ?? ''));
+
+        return $ncc !== '' ? $ncc : trim((string) \App\Modules\Admin\Modeles\FneCredential::where('entreprise_id', (int) $entreprise?->id)->value('ncc_associe'));
+    }
+
     public function actualiserTout(): JsonResponse
     {
-        $login = trim((string) (Auth::user()?->entreprise?->ncc ?? ''));
+        $login = self::loginDuPortail();
 
         if ($login === '') {
             return $this->erreurReleve('NCC de l’entreprise introuvable.', 422);
@@ -821,6 +833,10 @@ class FneDashboardControleur
         }
 
         $lances = array_filter([
+            // 24/11/2026 : la fiche « Paramétrage » aussi (IDU, commune,
+            // quartier, local, mentions, pied de page, points de facturation).
+            // Sans elle, ces champs restaient vides dans Selflow.
+            'fiche' => ScraperPortailFneService::lancerPourLogin($login),
             'ventes' => ScraperPortailFneService::lancerVentes($login),
             'achats' => ScraperPortailFneService::lancerAchats($login),
             'avoirs' => ScraperPortailFneService::lancerAvoirs($login),
@@ -849,7 +865,7 @@ class FneDashboardControleur
     /** Suit les trois relevés, puis range ce qu'ils ont déposé. */
     public function statutActualisationTout(): JsonResponse
     {
-        $login = trim((string) (Auth::user()?->entreprise?->ncc ?? ''));
+        $login = self::loginDuPortail();
 
         if ($login === '') {
             return $this->erreurReleve('NCC de l’entreprise introuvable.', 422);

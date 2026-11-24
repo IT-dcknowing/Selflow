@@ -51,7 +51,7 @@
         </label>
         <select name="point_de_vente_id" class="form-control" style="width:auto; min-width:220px;"
                 onchange="this.form.submit()">
-            <option value="">— Choisir un site —</option>
+            <option value="">Choisir un site</option>
             @foreach($pointsDeVente as $site)
                 <option value="{{ $site->id }}" {{ (int) $pointDeVenteId === (int) $site->id ? 'selected' : '' }}>
                     {{ $site->nom }}

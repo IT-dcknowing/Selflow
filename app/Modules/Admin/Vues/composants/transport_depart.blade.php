@@ -27,7 +27,7 @@
         <div class="form-group" style="margin-bottom:0;{{ old('livreur_type') === 'prestataire' ? 'display:none;' : '' }}" data-livreur="personnel">
             <label class="form-label">Livreur <span style="color:var(--danger)">*</span></label>
             <select name="livreur_utilisateur_id" class="form-control">
-                <option value="">— Choisir —</option>
+                <option value="">Choisir</option>
                 @foreach($livreurs as $l)
                     <option value="{{ $l->id }}" {{ (string) old('livreur_utilisateur_id') === (string) $l->id ? 'selected' : '' }}>{{ trim($l->prenom . ' ' . $l->nom) }}</option>
                 @endforeach

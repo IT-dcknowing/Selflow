@@ -42,12 +42,13 @@ class VenteControleur
         $pointDeVenteId = self::siteDeVente($entreprise);
         $clients = Client::obtenirClientsPrioritaires($entreprise->id, (int) $pointDeVenteId ?: null);
         $gestionApporteurs = $entreprise->aAttribution('apporteurs');
+        // 24/11/2026 : les clients créés avant l'option ne disent pas s'ils sont
+        // patients ou prestataires. Ils sont proposés des deux côtés (les
+        // prestataires en tête) ; celui qu'on choisit comme prestataire le devient.
         $apporteurs = $gestionApporteurs
-            ? Client::where('entreprise_id', $entreprise->id)->where('est_apporteur', true)->duSite((int) $pointDeVenteId ?: null)->orderBy('nom')->get()
+            ? Client::where('entreprise_id', $entreprise->id)->duSite((int) $pointDeVenteId ?: null)
+                ->orderByDesc('est_apporteur')->orderBy('nom')->get()
             : collect();
-        if ($gestionApporteurs) {
-            $clients = $clients->where('est_apporteur', false)->values();
-        }
         // Archiver un article, c'est dire qu'on ne le vend plus. La caisse le
         // proposait quand même : le filtre ne vivait que sur l'écran du
         // catalogue.
@@ -65,7 +66,10 @@ class VenteControleur
         $categories = $produits->pluck('categorie')->unique()->sort()->values();
         $banques = CodeJournal::banques()->where('entreprise_id', $entreprise->id)->orderBy('intitule')->get();
 
-        return view('admin::ventes.nouvelle', compact('clients', 'apporteurs', 'gestionApporteurs', 'produits', 'categories', 'pointDeVenteId', 'banques'));
+        // Un brouillon rouvert (« Passer en facture », 24/11/2026).
+        $brouillon = \App\Modules\Admin\Controleurs\BrouillonVenteControleur::pourLaVente(request()->integer('brouillon') ?: null);
+
+        return view('admin::ventes.nouvelle', compact('clients', 'apporteurs', 'gestionApporteurs', 'produits', 'categories', 'pointDeVenteId', 'banques', 'brouillon'));
     }
 
     public function enregistrer(Request $request): RedirectResponse
@@ -588,6 +592,11 @@ class VenteControleur
         // La pièce s'affiche aussitôt, prête à imprimer (retour du
         // 18/10/2026) : qui n'a pas la liste des factures revient à l'écran de
         // vente, et la facture s'y ouvre quand même.
+        // Le brouillon devenu facture disparaît de la liste des brouillons.
+        if ($venteCreee && $request->filled('brouillon_id') && \App\Support\Structure::aTable('brouillons_vente')) {
+            \App\Modules\Admin\Modeles\BrouillonVente::where('entreprise_id', $entreprise->id)->whereKey((int) $request->input('brouillon_id'))->delete();
+        }
+
         $prefixe = request()->routeIs('caissier.*') ? 'caissier' : 'admin';
         $retour = \App\Modules\Authentification\Regles\Habilitations::ouvre(Auth::user(), $routeRetour)
             ? redirect()->route($routeRetour, ['etape' => $etape])
@@ -2094,7 +2103,14 @@ class VenteControleur
     {
         $prestataireId = null;
         if ($request->filled('prestataire_id')) {
-            $prestataireId = Client::where('entreprise_id', $entreprise->id)->where('est_apporteur', true)->whereKey((int) $request->input('prestataire_id'))->value('id');
+            $choisi = Client::where('entreprise_id', $entreprise->id)->whereKey((int) $request->input('prestataire_id'))->first();
+            if ($choisi) {
+                // Un client existant choisi comme prestataire le devient.
+                if (! $choisi->est_apporteur) {
+                    $choisi->forceFill(['est_apporteur' => true])->save();
+                }
+                $prestataireId = $choisi->id;
+            }
         }
         if (! $prestataireId && trim((string) $request->input('prestataire_nom')) !== '') {
             $prestataireId = $this->tiersParNom($entreprise, trim((string) $request->input('prestataire_nom')), true);

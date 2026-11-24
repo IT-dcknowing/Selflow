@@ -177,7 +177,7 @@
             <div class="form-group" style="margin:0;">
                 <label class="form-label" style="font-size:11px;">Client <span style="color:var(--danger)">*</span></label>
                 <select name="tiers_id" class="form-control" required>
-                    <option value="">— Choisir le client d'abord —</option>
+                    <option value="">Choisir le client d'abord</option>
                     @foreach($clients as $t)
                     <option value="{{ $t->id }}">{{ $t->nom }}</option>
                     @endforeach
@@ -321,7 +321,7 @@
             <div class="form-group" style="margin:0;">
                 <label class="form-label" style="font-size:11px;">Fournisseur <span style="color:var(--danger)">*</span></label>
                 <select name="tiers_id" class="form-control" required>
-                    <option value="">— Choisir le fournisseur d'abord —</option>
+                    <option value="">Choisir le fournisseur d'abord</option>
                     @foreach($fournisseurs as $t)
                     <option value="{{ $t->id }}">{{ $t->nom }}</option>
                     @endforeach
@@ -425,7 +425,7 @@
                 <div class="form-group">
                     <label class="form-label">Sélectionner la Banque <span style="color:var(--danger)">*</span></label>
                     <select name="banque_id" id="reglementBanqueSelect" class="form-control">
-                        <option value="">— Choisir un compte banque —</option>
+                        <option value="">Choisir un compte banque</option>
                         @foreach($banques as $b)
                         <option value="{{ $b->id }}">{{ $b->intitule }} ({{ $b->code }})</option>
                         @endforeach
@@ -434,7 +434,7 @@
                 <div class="form-group">
                     <label class="form-label">Moyen de paiement bancaire <span style="color:var(--danger)">*</span></label>
                     <select name="moyen_bancaire" id="reglementMoyenBancaire" class="form-control">
-                        <option value="">— Sélectionner le moyen —</option>
+                        <option value="">Sélectionner le moyen</option>
                         <option value="carte">Carte bancaire</option>
                         <option value="virement">Virement</option>
                         <option value="cheque">Chèque</option>
@@ -490,7 +490,7 @@ function ouvrirModalReglement(type, btn) {
 
     // Remplir le sélecteur de factures
     const select = document.getElementById('reglementFactureSelect');
-    select.innerHTML = '<option value="">— Choisir une facture —</option>';
+    select.innerHTML = '<option value="">Choisir une facture</option>';
     
     tierData.invoices.forEach(inv => {
         const opt = document.createElement('option');

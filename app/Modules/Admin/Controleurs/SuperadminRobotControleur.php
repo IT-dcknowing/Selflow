@@ -27,6 +27,12 @@ class SuperadminRobotControleur extends Controller
         'avoirs' => ['libelle' => 'Avoirs', 'import' => ImportAvoirsService::TYPE, 'journal' => 'avoir'],
     ];
 
+    /** « Retour robot » (24/11/2026) : les connexions au portail qui ont échoué. */
+    public function retours(): \Illuminate\View\View
+    {
+        return view('admin::superadmin.robot.retours', ['retours' => \App\Modules\Admin\Services\ScraperPortailFneService::retoursDuRobot()]);
+    }
+
     public function index(): View
     {
         return view('admin::superadmin.robot.index');

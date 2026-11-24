@@ -49,7 +49,7 @@
         <div class="form-group" style="margin-bottom:0;">
             <label class="form-label" style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:var(--text-3); margin-bottom:6px;"><i class="fas fa-store"></i> Point de vente</label>
             <select name="point_de_vente_id" class="form-control" style="padding:8px 12px; font-size:13px;" onchange="document.getElementById('formFiltreTresorerie').submit();" @if(Auth::user()->estCaissier()) disabled @endif>
-                <option value="tous" {{ $pointDeVenteId === 'tous' ? 'selected' : '' }}>— Tous les sites —</option>
+                <option value="tous" {{ $pointDeVenteId === 'tous' ? 'selected' : '' }}>Tous les sites</option>
                 @foreach($pointsDeVente as $pdv)
                     <option value="{{ $pdv->id }}" {{ $pointDeVenteId == $pdv->id ? 'selected' : '' }}>{{ $pdv->nom }}</option>
                 @endforeach
@@ -63,7 +63,7 @@
         <div class="form-group" style="margin-bottom:0;">
             <label class="form-label" style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:var(--text-3); margin-bottom:6px;"><i class="fas fa-credit-card"></i> Moyen de Paiement</label>
             <select name="mode_paiement" class="form-control" style="padding:8px 12px; font-size:13px;" onchange="document.getElementById('formFiltreTresorerie').submit();">
-                <option value="">— Tous —</option>
+                <option value="">Tous</option>
                 @foreach($modesDisponibles as $m)
                     <option value="{{ $m }}" {{ request('mode_paiement') === $m ? 'selected' : '' }}>{{ $m }}</option>
                 @endforeach
@@ -74,7 +74,7 @@
         <div class="form-group" style="margin-bottom:0;">
             <label class="form-label" style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:var(--text-3); margin-bottom:6px;"><i class="fas fa-bank"></i> Banque / Moyen bancaire</label>
             <select name="moyen_bancaire" class="form-control" style="padding:8px 12px; font-size:13px;" onchange="document.getElementById('formFiltreTresorerie').submit();">
-                <option value="">— Toutes —</option>
+                <option value="">Toutes</option>
                 @foreach($moyensBancairesDisponibles as $mb)
                     <option value="{{ $mb }}" {{ request('moyen_bancaire') === $mb ? 'selected' : '' }}>{{ $mb }}</option>
                 @endforeach

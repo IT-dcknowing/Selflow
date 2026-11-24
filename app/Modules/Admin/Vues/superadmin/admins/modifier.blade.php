@@ -101,6 +101,10 @@
                             'titre' => 'Administration interne',
                             'desc'  => 'Création, édition et suppression des autres super-administrateurs de la plateforme.'
                         ],
+                        'identite_entreprises' => [
+                            'titre' => 'Identité des entreprises (support)',
+                            'desc'  => 'Modifier le nom d\'une entreprise, son e-mail et l\'adresse de connexion de son responsable.'
+                        ],
                         'gestion_secteurs_modules' => [
                             'titre' => 'Secteurs & Modules',
                             'desc'  => 'Configuration globale des modules autorisés par défaut pour chaque secteur d\'activité.'

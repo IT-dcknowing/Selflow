@@ -55,6 +55,8 @@ class Habilitations
         'administration_interne',
         'gestion_secteurs_modules',
         'gestion_vitrine',
+        // Le support : nom et adresses e-mail des entreprises (24/11/2026).
+        'identite_entreprises',
     ];
 
     /**
@@ -356,6 +358,9 @@ class Habilitations
         'admin.ventes.facturer'                      => 'factures_vente',
         'admin.ventes.envoyer'                       => 'factures_vente',
         'admin.ventes.envoyer_email'                 => 'factures_vente',
+        'admin.ventes.brouillons'                    => 'nouvelle_vente',
+        'admin.ventes.brouillons.enregistrer'        => 'nouvelle_vente',
+        'admin.ventes.brouillons.supprimer'          => 'nouvelle_vente',
         'admin.intervenants.index'                   => 'factures_vente',
         'admin.prestataires_externes.index'          => 'factures_vente',
         'admin.intervenants.creer'                   => 'factures_vente',

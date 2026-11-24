@@ -322,7 +322,7 @@
                     <div class="form-group">
                         <label class="form-label">Client (optionnel)</label>
                         <select name="client_id" class="form-control">
-                            <option value="">— Client de passage —</option>
+                            <option value="">Client de passage</option>
                             @foreach($clients as $client)
                             <option value="{{ $client->id }}" {{ (int)($vente->beneficiaire_id ?: $vente->client_id) === (int)$client->id ? 'selected' : '' }}>{{ $client->nom }}</option>
                             @endforeach
@@ -332,7 +332,7 @@
                     <div class="form-group" data-pas="2">
                         <label class="form-label">Prestataire externe (payeur)</label>
                         <select name="apporteur_id" class="form-control">
-                            <option value="">— Aucun prestataire : le patient paie —</option>
+                            <option value="">Aucun prestataire : le patient paie</option>
                             @foreach($apporteurs as $apporteur)
                             <option value="{{ $apporteur->id }}" {{ (int)$vente->apporteur_id === (int)$apporteur->id ? 'selected' : '' }}>{{ $apporteur->nom }}</option>
                             @endforeach
@@ -364,7 +364,7 @@
                             <label class="form-label">Sélectionner la Banque <span style="color:var(--danger)">*</span></label>
                             <div style="display:flex; gap:8px;">
                                 <select name="banque_id" id="banqueSelect" class="form-control" style="flex:1;" {{ $modeSimple === 'Banque' ? 'required' : '' }}>
-                                    <option value="">— Choisir un compte banque —</option>
+                                    <option value="">Choisir un compte banque</option>
                                     @foreach($banques as $b)
                                     <option value="{{ $b->id }}" {{ $selectedBanqueId === $b->id ? 'selected' : '' }}>{{ $b->intitule }} ({{ $b->code }})</option>
                                     @endforeach
@@ -375,7 +375,7 @@
                         <div class="form-group" style="margin-bottom: 12px;">
                             <label class="form-label">Moyen de paiement bancaire <span style="color:var(--danger)">*</span></label>
                             <select name="moyen_bancaire" id="moyenBancaireSelect" class="form-control" {{ $modeSimple === 'Banque' ? 'required' : '' }}>
-                                <option value="">— Moyen de paiement —</option>
+                                <option value="">Moyen de paiement</option>
                                 <option value="carte" {{ $vente->moyen_bancaire === 'carte' ? 'selected' : '' }}>Carte bancaire</option>
                                 <option value="virement" {{ $vente->moyen_bancaire === 'virement' ? 'selected' : '' }}>Virement</option>
                                 <option value="cheque" {{ $vente->moyen_bancaire === 'cheque' ? 'selected' : '' }}>Chèque</option>
@@ -510,7 +510,7 @@ function selecteurIntervenant(id, item) {
     if (!INTERVENANTS.length) return '';
     const options = INTERVENANTS.map(i => `<option value="${i.id}" ${String(item.intervenant_id || '') === String(i.id) ? 'selected' : ''}>${i.nom.replace(/</g, '&lt;')}</option>`).join('');
     return `<label>Réalisé par
-        <select class="form-control form-control-sm" onchange="saisirIntervenant('${id}', this.value)" style="width: 140px;"><option value="">—</option>${options}</select>
+        <select class="form-control form-control-sm" onchange="saisirIntervenant('${id}', this.value)" style="width: 140px;"><option value="">Choisir</option>${options}</select>
     </label>`;
 }
 function saisirIntervenant(id, val) {

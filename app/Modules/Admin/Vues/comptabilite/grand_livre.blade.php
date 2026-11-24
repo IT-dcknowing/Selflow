@@ -15,7 +15,7 @@
     <div class="card" style="padding:14px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
         <label class="form-label" style="margin:0; font-weight:700;">Du compte</label>
         <select name="compte_debut" class="form-control" style="width:auto; min-width:200px;">
-            <option value="">— Le premier —</option>
+            <option value="">Le premier</option>
             @foreach($comptes as $c)
                 <option value="{{ $c->numero }}" {{ $compteDebut === $c->numero ? 'selected' : '' }}>
                     {{ $c->numero }} — {{ $c->libelle }}
@@ -25,7 +25,7 @@
 
         <label class="form-label" style="margin:0; font-weight:700;">au compte</label>
         <select name="compte_fin" class="form-control" style="width:auto; min-width:200px;">
-            <option value="">— Le dernier —</option>
+            <option value="">Le dernier</option>
             @foreach($comptes as $c)
                 <option value="{{ $c->numero }}" {{ $compteFin === $c->numero ? 'selected' : '' }}>
                     {{ $c->numero }} — {{ $c->libelle }}

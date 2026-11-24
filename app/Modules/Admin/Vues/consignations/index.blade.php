@@ -64,14 +64,14 @@
                 <label class="form-label">{{ $auClient ? 'Client' : 'Fournisseur' }}</label>
                 @if($auClient)
                     <select name="client_id" class="form-control" required>
-                        <option value="">—</option>
+                        <option value="">Choisir</option>
                         @foreach($clients as $c)
                             <option value="{{ $c->id }}">{{ $c->nom }}</option>
                         @endforeach
                     </select>
                 @else
                     <select name="fournisseur_id" class="form-control" required>
-                        <option value="">—</option>
+                        <option value="">Choisir</option>
                         @foreach($fournisseurs as $f)
                             <option value="{{ $f->id }}">{{ $f->nom }}</option>
                         @endforeach
@@ -82,7 +82,7 @@
             <div class="form-group">
                 <label class="form-label">Emballage</label>
                 <select name="produit_id" class="form-control">
-                    <option value="">— hors catalogue —</option>
+                    <option value="">hors catalogue</option>
                     @foreach($emballages as $e)
                         <option value="{{ $e->id }}" data-prix="{{ $e->prix_consignation }}">
                             {{ $e->nom }} ({{ number_format($e->prix_consignation, 0, ',', ' ') }} F)

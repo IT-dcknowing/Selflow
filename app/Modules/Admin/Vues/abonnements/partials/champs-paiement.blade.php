@@ -29,7 +29,7 @@
         <div style="font-size:11.5px; color:#92400e; margin-bottom:8px;">Déposez le montant sur le numéro du cabinet communiqué par l'assistance.</div>
     @endif
     <select name="operateur_paiement" style="width:100%; height:36px; border:1px solid #E2E8F0; border-radius:8px; padding:4px 8px; margin-bottom:6px; font-family:inherit;">
-        <option value="">— Opérateur utilisé —</option>
+        <option value="">Opérateur utilisé</option>
         @foreach(\App\Modules\Admin\Regles\PaiementParReference::OPERATEURS as $code => $libelle)
             <option value="{{ $code }}">{{ $libelle }}</option>
         @endforeach

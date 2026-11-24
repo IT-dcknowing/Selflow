@@ -87,6 +87,7 @@
                                     'gestion_comptaflow'        => 'Liaisons COMPTAFLOW',
                                     'gestion_fne'               => 'Gestion FNE',
                                     'administration_interne'    => 'Administration Interne',
+                                    'identite_entreprises'      => 'Identité des entreprises',
                                 ];
                             @endphp
                             @if(count($habs) > 0)

@@ -33,7 +33,7 @@
             <div class="form-group">
                 <label class="form-label">Site</label>
                 <select name="point_de_vente_id" class="form-control">
-                    <option value="">—</option>
+                    <option value="">Choisir</option>
                     @foreach($pointsDeVente as $pdv)
                         <option value="{{ $pdv->id }}" @selected(old('point_de_vente_id') == $pdv->id)>{{ $pdv->nom }}</option>
                     @endforeach
@@ -43,7 +43,7 @@
             <div class="form-group">
                 <label class="form-label">Fournisseur</label>
                 <select name="fournisseur_id" class="form-control">
-                    <option value="">—</option>
+                    <option value="">Choisir</option>
                     @foreach($fournisseurs as $f)
                         <option value="{{ $f->id }}" @selected(old('fournisseur_id') == $f->id)>{{ $f->nom }}</option>
                     @endforeach

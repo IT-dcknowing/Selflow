@@ -47,6 +47,25 @@
                         <label class="form-label">Fonction du Gérant</label>
                         <input type="text" name="gerant_fonction" class="form-control" placeholder="Ex: Directeur Général" value="{{ old('gerant_fonction', $entreprise->gerant_fonction) }}">
                     </div>
+                    {{-- 24/11/2026 : les adresses e-mail se corrigent ici. --}}
+                    @php $__responsable = \App\Modules\Admin\Controleurs\IdentiteEntrepriseControleur::responsable($entreprise); @endphp
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div class="form-group">
+                            <label class="form-label">E-mail de l'entreprise</label>
+                            <input type="email" name="email" class="form-control" value="{{ old('email', $entreprise->email) }}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Téléphone</label>
+                            <input type="text" name="telephone" class="form-control" value="{{ old('telephone', $entreprise->telephone) }}">
+                        </div>
+                    </div>
+                    @if($__responsable)
+                    <div class="form-group">
+                        <label class="form-label">Adresse de connexion du responsable ({{ trim($__responsable->prenom . ' ' . $__responsable->nom) }})</label>
+                        <input type="email" name="responsable_email" class="form-control" value="{{ old('responsable_email', $__responsable->email) }}" required>
+                        <small style="color:var(--text-3); font-size:11.5px;">C'est avec elle qu'il se connecte. La changer ne change pas son mot de passe.</small>
+                    </div>
+                    @endif
                     
                     @include('admin::superadmin.entreprises.partials.abonnement', ['entreprise' => $entreprise])
 

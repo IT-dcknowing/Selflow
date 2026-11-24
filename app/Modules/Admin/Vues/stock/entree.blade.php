@@ -43,7 +43,7 @@
     <div class="card" style="padding:14px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; border-left:4px solid {{ $modeTous ? '#7c3aed' : ($couleursSites[$pointDeVenteId] ?? 'var(--border)') }};">
         <label class="form-label" style="margin:0; font-weight:700;"><i class="fas fa-store" style="color:var(--text-2);"></i> Vue des articles</label>
         <select name="point_de_vente_id" id="filtreSiteEntree" class="form-control" style="width:auto; min-width:240px; font-weight:700; border-width:2px;" onchange="this.form.submit()">
-            <option value="" {{ $selectionSite === '' ? 'selected' : '' }}>— Choisir un point de vente —</option>
+            <option value="" {{ $selectionSite === '' ? 'selected' : '' }}>Choisir un point de vente</option>
             <option value="tout" data-couleur="#7c3aed" style="color:#7c3aed; font-weight:700;" {{ $modeTous ? 'selected' : '' }}>TOUS LES POINTS DE VENTE</option>
             @foreach($pointsDeVente as $site)
                 <option value="{{ $site->id }}" data-couleur="{{ $couleursSites[$site->id] ?? '#475569' }}" style="color:{{ $couleursSites[$site->id] ?? '#475569' }}; font-weight:700;" {{ (string) $selectionSite === (string) $site->id ? 'selected' : '' }}>{{ $site->nom }}</option>
@@ -137,7 +137,7 @@
     <tr style="border-top:1px solid var(--border);">
         <td style="padding:8px 14px; min-width:260px;">
             <select class="form-control champ-produit" required>
-                <option value="">— Choisir un article —</option>
+                <option value="">Choisir un article</option>
                 @foreach($produits as $produit)
                     @foreach($produit->stocks as $fiche)
                         @php

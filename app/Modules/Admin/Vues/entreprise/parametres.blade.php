@@ -506,7 +506,7 @@
                             <div class="form-group" style="margin-bottom:0;">
                                 <label class="form-label">Forme juridique</label>
                                 <select name="forme_juridique" class="form-control">
-                                    <option value="">— Choisir —</option>
+                                    <option value="">Choisir</option>
                                     @foreach(['Entreprise individuelle','SARL','SARL Unipersonnelle','SA','SAS','SNC','GIE','Coopérative','Association'] as $fj)
                                         <option value="{{ $fj }}" {{ old('forme_juridique', $entreprise->forme_juridique) === $fj ? 'selected' : '' }}>{{ $fj }}</option>
                                     @endforeach
@@ -544,7 +544,7 @@
                                      certaines, alors que la DGI les cite parmi les
                                      regimes ouvrant droit a l'exoneration legale. --}}
                                 <select name="regime_imposition" class="form-control">
-                                    <option value="">— Choisir un régime —</option>
+                                    <option value="">Choisir un régime</option>
                                     @foreach(\App\Modules\Admin\Modeles\Entreprise::REGIMES_IMPOSITION as $code => $libelle)
                                         <option value="{{ $code }}" {{ old('regime_imposition', $entreprise->regime_imposition) === $code ? 'selected' : '' }}>{{ $libelle }}</option>
                                     @endforeach

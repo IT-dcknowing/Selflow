@@ -26,7 +26,7 @@
     <div class="card" style="padding:14px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
         <label class="form-label" style="margin:0; font-weight:700;">Compte à lettrer</label>
         <select name="compte" class="form-control" style="width:auto; min-width:300px;" onchange="this.form.submit()">
-            <option value="">— Choisir un compte —</option>
+            <option value="">Choisir un compte</option>
             @foreach($comptes as $c)
                 <option value="{{ $c->numero }}" {{ $compte === $c->numero ? 'selected' : '' }}>
                     {{ $c->numero }} — {{ $c->libelle }}

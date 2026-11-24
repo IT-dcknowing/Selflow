@@ -69,6 +69,16 @@
 {{-- Onglets du workflow vente --}}
 @if($type !== 'avoir')
 <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:1.5px solid var(--border); padding-bottom:12px; flex-wrap:wrap; align-items:center;">
+    {{-- Les brouillons (24/11/2026). --}}
+    @php
+        $__nbBrouillons = \App\Support\Structure::aTable('brouillons_vente')
+            ? \App\Modules\Admin\Modeles\BrouillonVente::where('entreprise_id', auth()->user()->entreprise_id)->count() : 0;
+    @endphp
+    <a href="{{ route($isCaissier ? 'caissier.ventes.brouillons' : 'admin.ventes.brouillons') }}"
+       style="display:flex; align-items:center; gap:8px; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:700; font-size:13.5px; background:#fff; color:var(--text-2); border:0.5px dashed var(--border);">
+        <i class="fas fa-file-pen" style="font-size:14px; color:#b45309;"></i> Brouillons
+        <span style="background:#fef3c7; color:#92400e; border-radius:10px; padding:1px 8px; font-size:11.5px;">{{ $__nbBrouillons }}</span>
+    </a>
     <a href="{{ route($routeBase, ['etape' => 'Devis']) }}"
        style="display:flex; align-items:center; gap:8px; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:700; font-size:13.5px; transition:all 0.2s;
               {{ $etapeActive === 'Devis' && !$voirArchives ? 'background:#0D1B3E; color:#fff;' : 'background:#fff; color:var(--text-2); border:0.5px solid var(--border);' }}">
@@ -175,7 +185,7 @@
     <div class="form-group" style="margin-bottom:0;min-width:190px;">
         <label class="form-label" style="font-size:11px;text-transform:uppercase;font-weight:700;color:var(--text-3);margin-bottom:4px;display:block;">Prestataire externe</label>
         <select name="apporteur_filtre" class="form-control" onchange="document.getElementById('formFiltreVentes').submit();">
-            <option value="">— Tous les prestataires —</option>
+            <option value="">Tous les prestataires</option>
             @foreach($apporteurs as $apporteur)
             <option value="{{ $apporteur->id }}" {{ (string)request('apporteur_filtre') === (string)$apporteur->id ? 'selected' : '' }}>{{ $apporteur->nom }}</option>
             @endforeach
@@ -185,7 +195,7 @@
     <div class="form-group" style="margin-bottom:0;">
         <label class="form-label" style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-3); margin-bottom:4px; display:block;">Statut</label>
         <select name="statut_filtre" class="form-control" onchange="document.getElementById('formFiltreVentes').submit();">
-            <option value="">— Tous —</option>
+            <option value="">Tous</option>
             @foreach(['Payé', 'Avance', 'Crédit'] as $s)
                 <option value="{{ $s }}" {{ request('statut_filtre') === $s ? 'selected' : '' }}>{{ $s }}</option>
             @endforeach
@@ -194,7 +204,7 @@
     <div class="form-group" style="margin-bottom:0;">
         <label class="form-label" style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-3); margin-bottom:4px; display:block;">Statut DGI</label>
         <select name="dgi_filtre" class="form-control" onchange="document.getElementById('formFiltreVentes').submit();">
-            <option value="">— Tous —</option>
+            <option value="">Tous</option>
             <option value="oui" {{ request('dgi_filtre') === 'oui' ? 'selected' : '' }}>Normalisée (DGI)</option>
             <option value="non" {{ request('dgi_filtre') === 'non' ? 'selected' : '' }}>Non normalisée</option>
         </select>
@@ -1346,7 +1356,7 @@ function selectionnerFacturePourAvoir(id) {
                 <div style="margin-bottom:12px;">
                     <label style="font-weight:600; font-size:12px; display:block; margin-bottom:4px;">Sélectionner la banque *</label>
                     <select name="banque_id" id="bl-banque-select-list" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
-                        <option value="">— Choisir la banque —</option>
+                        <option value="">Choisir la banque</option>
                         @if(isset($banques))
                         @foreach($banques as $b)
                             <option value="{{ $b->id }}">{{ $b->intitule }} ({{ $b->code }})</option>
@@ -1357,7 +1367,7 @@ function selectionnerFacturePourAvoir(id) {
                 <div style="margin-bottom:12px;">
                     <label style="font-weight:600; font-size:12px; display:block; margin-bottom:4px;">Moyen de paiement bancaire *</label>
                     <select name="moyen_bancaire" id="bl-moyen-select-list" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
-                        <option value="">— Choisir le moyen —</option>
+                        <option value="">Choisir le moyen</option>
                         <option value="carte">Carte bancaire</option>
                         <option value="virement">Virement</option>
                         <option value="cheque">Chèque</option>

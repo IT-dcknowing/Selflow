@@ -122,7 +122,7 @@
                 <div class="form-group" id="groupeFournisseurSelect">
                     <label class="form-label">Fournisseur <span style="color:var(--danger)">*</span></label>
                     <select name="fournisseur_id" id="fournisseurSelect" class="form-control" required onchange="basculerB2b()">
-                        <option value="">— Choisir un fournisseur —</option>
+                        <option value="">Choisir un fournisseur</option>
                         @foreach($fournisseurs as $f)
                         <option value="{{ $f->id }}">{{ $f->nom }}</option>
                         @endforeach
@@ -205,7 +205,7 @@
                                 <label class="form-label" style="font-size:12px; color:var(--text-2);">Banque</label>
                                 <div style="display:flex; gap:8px;">
                                     <select name="banque_id" id="banqueSelect" class="form-control" style="flex:1;">
-                                        <option value="">— Choisir —</option>
+                                        <option value="">Choisir</option>
                                         @foreach($banques as $b)
                                         <option value="{{ $b->id }}">{{ $b->intitule }} ({{ $b->code }})</option>
                                         @endforeach
@@ -216,7 +216,7 @@
                             <div class="form-group" style="margin-bottom:8px;">
                                 <label class="form-label" style="font-size:12px; color:var(--text-2);">Moyen bancaire</label>
                                 <select name="moyen_bancaire" id="moyenBancaireSelect" class="form-control">
-                                    <option value="">— Moyen —</option>
+                                    <option value="">Moyen</option>
                                     <option value="carte">Carte bancaire</option>
                                     <option value="virement">Virement</option>
                                     <option value="cheque">Chèque</option>
@@ -237,7 +237,7 @@
                                 @php $__mobiles = \App\Modules\Admin\Modeles\CodeJournal::mobileMoney()->where('entreprise_id', auth()->user()->entreprise_id)->orderBy('intitule')->get(); @endphp
                                 <select id="mobileMoneyOperateurSelect" name="mobile_money_journal_id" class="form-control"
                                         onchange="document.getElementById('mobileMoneyOperateurInput').value = this.selectedOptions[0]?.dataset.code || ''">
-                                    <option value="">— Sélectionner l'opérateur —</option>
+                                    <option value="">Sélectionner l'opérateur</option>
                                     @foreach($__mobiles as $m)
                                     <option value="{{ $m->id }}" data-code="{{ $m->code }}">{{ $m->intitule }}</option>
                                     @endforeach
@@ -484,7 +484,7 @@ function ajouterLigne(prefill = null) {
             
             <div class="sel-container" style="${isLibre ? 'display:none;' : 'display:block;'}">
                 <select name="articles[${idx}][produit_id]" class="form-control produit-sel" onchange="majPrix(this, ${idx}); savePanier();" ${isLibre ? '' : 'required'}>
-                    <option value="">— Choisir —</option>${opts}
+                    <option value="">Choisir</option>${opts}
                 </select>
             </div>
             

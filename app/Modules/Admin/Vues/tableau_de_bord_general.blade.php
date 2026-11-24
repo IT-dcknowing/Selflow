@@ -42,21 +42,21 @@
     </span>
 
     <select id="filtre-mois" style="padding:7px 12px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:13px;font-family:inherit;color:#374151;background:#fff;cursor:pointer;outline:none;" onchange="appliquerFiltresTdb()">
-        <option value="tous">— Tous les mois —</option>
+        <option value="tous">Tous les mois</option>
         @foreach(['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'] as $i => $m)
             <option value="{{ $i + 1 }}">{{ $m }}</option>
         @endforeach
     </select>
 
     <select id="filtre-semaine" style="padding:7px 12px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:13px;font-family:inherit;color:#374151;background:#fff;cursor:pointer;outline:none;" onchange="appliquerFiltresTdb()">
-        <option value="tous">— Toutes les semaines —</option>
+        <option value="tous">Toutes les semaines</option>
         @for($s = 1; $s <= 53; $s++)
             <option value="{{ $s }}">Semaine {{ $s }}</option>
         @endfor
     </select>
 
     <select id="filtre-jour" style="padding:7px 12px;border:1.5px solid #E5E7EB;border-radius:8px;font-size:13px;font-family:inherit;color:#374151;background:#fff;cursor:pointer;outline:none;" onchange="appliquerFiltresTdb()">
-        <option value="tous">— Tous les jours —</option>
+        <option value="tous">Tous les jours</option>
         @for($j = 1; $j <= 31; $j++)
             <option value="{{ $j }}">Jour {{ $j }}</option>
         @endfor
@@ -512,7 +512,7 @@ function updateWeeksSelect() {
     const moisVal = moisSelect.value;
     const selectedWeek = semaineSelect.value;
 
-    semaineSelect.innerHTML = '<option value="tous">— Toutes les semaines —</option>';
+    semaineSelect.innerHTML = '<option value="tous">Toutes les semaines</option>';
 
     if (moisVal === 'tous') {
         for (let s = 1; s <= 53; s++) {

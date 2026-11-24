@@ -36,7 +36,7 @@
                 <div>
                     <label class="form-label" for="entrepriseNettoyage">Entreprise</label>
                     <select class="form-control" name="entreprise_id" id="entrepriseNettoyage" required>
-                        <option value="">— Sélectionner —</option>
+                        <option value="">Sélectionner</option>
                         @foreach($entreprises as $entreprise)
                             <option value="{{ $entreprise->id }}" data-nom="{{ $entreprise->nom }}" {{ old('entreprise_id') == $entreprise->id ? 'selected' : '' }}>{{ $entreprise->nom }}</option>
                         @endforeach

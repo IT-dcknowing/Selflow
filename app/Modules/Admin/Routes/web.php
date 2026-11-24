@@ -37,6 +37,10 @@ Route::prefix('admin')
         // ── Ventes ──
         Route::prefix('ventes')->name('ventes.')->middleware(['modules:ventes', 'inscription.complete'])->group(function () {
             Route::get('/nouvelle', [VenteControleur::class, 'nouvelle'])->name('nouvelle');
+            // Les brouillons de vente (24/11/2026).
+            Route::get('/brouillons', [\App\Modules\Admin\Controleurs\BrouillonVenteControleur::class, 'index'])->name('brouillons');
+            Route::post('/brouillons', [\App\Modules\Admin\Controleurs\BrouillonVenteControleur::class, 'enregistrer'])->name('brouillons.enregistrer');
+            Route::delete('/brouillons/{brouillon}', [\App\Modules\Admin\Controleurs\BrouillonVenteControleur::class, 'supprimer'])->name('brouillons.supprimer');
             // La dernière facture du vendeur, pour qui n'a pas la liste (20/10/2026).
             Route::get('/derniere-facture', [VenteControleur::class, 'derniereFacture'])->name('derniere');
             Route::post('/enregistrer', [VenteControleur::class, 'enregistrer'])->name('enregistrer');
@@ -817,6 +821,7 @@ Route::prefix('superadmin')
         // ── Le robot du portail FNE, en direct (23/11/2026) ──
         Route::get('/robot', [\App\Modules\Admin\Controleurs\SuperadminRobotControleur::class, 'index'])->name('robot.index');
         Route::get('/robot/donnees', [\App\Modules\Admin\Controleurs\SuperadminRobotControleur::class, 'donnees'])->name('robot.donnees');
+        Route::get('/robot/retours', [\App\Modules\Admin\Controleurs\SuperadminRobotControleur::class, 'retours'])->name('robot.retours');
 
         // ── Groupes d'entreprises (23/11/2026) ──
         Route::prefix('groupes')->name('groupes.')->group(function () {
@@ -826,6 +831,10 @@ Route::prefix('superadmin')
             Route::post('/{groupe}/basculer', [\App\Modules\Admin\Controleurs\GroupeEntreprisesControleur::class, 'basculer'])->name('basculer');
             Route::delete('/{groupe}', [\App\Modules\Admin\Controleurs\GroupeEntreprisesControleur::class, 'supprimer'])->name('supprimer');
         });
+
+        // ── Identité des entreprises, pour le support (24/11/2026) ──
+        Route::get('/identites', [\App\Modules\Admin\Controleurs\IdentiteEntrepriseControleur::class, 'index'])->name('identites.index');
+        Route::post('/identites/{entreprise}', [\App\Modules\Admin\Controleurs\IdentiteEntrepriseControleur::class, 'enregistrer'])->name('identites.enregistrer');
 
         // ── Selflow sur mesure (23/11/2026) ──
         Route::prefix('sur-mesure')->name('sur_mesure.')->group(function () {
@@ -881,6 +890,10 @@ Route::prefix('caissier')
 
         Route::prefix('ventes')->name('ventes.')->group(function () {
             Route::get('/nouvelle', [VenteControleur::class, 'nouvelle'])->name('nouvelle');
+            // Les brouillons de vente (24/11/2026).
+            Route::get('/brouillons', [\App\Modules\Admin\Controleurs\BrouillonVenteControleur::class, 'index'])->name('brouillons');
+            Route::post('/brouillons', [\App\Modules\Admin\Controleurs\BrouillonVenteControleur::class, 'enregistrer'])->name('brouillons.enregistrer');
+            Route::delete('/brouillons/{brouillon}', [\App\Modules\Admin\Controleurs\BrouillonVenteControleur::class, 'supprimer'])->name('brouillons.supprimer');
             // La dernière facture du vendeur, pour qui n'a pas la liste (20/10/2026).
             Route::get('/derniere-facture', [VenteControleur::class, 'derniereFacture'])->name('derniere');
             Route::post('/enregistrer', [VenteControleur::class, 'enregistrer'])->name('enregistrer');

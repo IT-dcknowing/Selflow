@@ -120,7 +120,7 @@
             <div class="champ">
                 <label for="{{ $prefixeId }}-regime">Régime d'imposition</label>
                 <select id="{{ $prefixeId }}-regime" name="regime_imposition" data-fne-regime>
-                    <option value="">— Choisir —</option>
+                    <option value="">Choisir</option>
                     @foreach(\App\Modules\Admin\Modeles\Entreprise::REGIMES_IMPOSITION as $code => $libelle)
                         <option value="{{ $code }}" {{ old('regime_imposition') === $code ? 'selected' : '' }}>{{ $libelle }}</option>
                     @endforeach

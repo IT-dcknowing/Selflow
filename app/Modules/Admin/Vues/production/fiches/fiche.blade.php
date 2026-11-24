@@ -120,7 +120,7 @@
                                         @forelse($unites as $u)
                                             <option value="{{ $u }}" {{ $detailObj->unite == $u ? 'selected' : '' }}>{{ $u }}</option>
                                         @empty
-                                            <option value="">—</option>
+                                            <option value="">Choisir</option>
                                         @endforelse
                                     </select>
                                 </div>
@@ -237,7 +237,7 @@
             <div>
                 <label class="form-label" style="font-size:10px;">Unité</label>
                 <select name="ingredients[${rowIndex}][unite]" class="form-control unite-select" required>
-                    <option value="">—</option>
+                    <option value="">Choisir</option>
                 </select>
             </div>
             <div style="padding-top:20px;">

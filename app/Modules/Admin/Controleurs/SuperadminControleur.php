@@ -532,7 +532,20 @@ class SuperadminControleur
             'secteur_activite'        => ['nullable', 'array'],
             'secteur_activite.*'      => ['string', Rule::in(Categorie::domaines())],
             'modules_actifs'          => ['required', 'array'],
-        ]);
+            // Les adresses e-mail (24/11/2026).
+            'email'                   => ['nullable', 'email', 'max:150'],
+            'telephone'               => ['nullable', 'string', 'max:30'],
+            'responsable_email'       => ['nullable', 'email', 'max:150', Rule::unique('utilisateurs', 'email')->ignore(
+                \App\Modules\Admin\Controleurs\IdentiteEntrepriseControleur::responsable($entreprise)?->id
+            )],
+        ], ['responsable_email.unique' => 'Cette adresse est déjà utilisée par un autre compte.']);
+
+        if ($request->has('email')) {
+            $entreprise->forceFill(['email' => $request->input('email'), 'telephone' => $request->input('telephone', $entreprise->telephone)])->save();
+        }
+        if ($request->filled('responsable_email') && ($responsable = \App\Modules\Admin\Controleurs\IdentiteEntrepriseControleur::responsable($entreprise))) {
+            $responsable->forceFill(['email' => strtolower(trim((string) $request->input('responsable_email')))])->save();
+        }
 
         // Conserver tous les modules activés par défaut même lors d'une mise à jour
         $tousModules = ['principal', 'ventes', 'achats', 'stock', 'production', 'comptabilite', 'points_de_vente', 'personnel', 'b2b', 'fne'];

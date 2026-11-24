@@ -61,7 +61,7 @@
                 @endif
                 <label class="form-label">Opérateur utilisé <span style="color:var(--danger)">*</span></label>
                 <select name="operateur_paiement" class="form-control" required style="margin-bottom:10px;">
-                    <option value="">— Choisir l'opérateur —</option>
+                    <option value="">Choisir l'opérateur</option>
                     @foreach(\App\Modules\Admin\Regles\PaiementParReference::OPERATEURS as $code => $libelle)
                         <option value="{{ $code }}" @selected(old('operateur_paiement') === $code)>{{ $libelle }}</option>
                     @endforeach

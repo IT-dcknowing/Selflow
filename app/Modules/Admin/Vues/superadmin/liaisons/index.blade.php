@@ -474,7 +474,7 @@
                         <span><strong>Lier à un dossier existant</strong><br><small style="color:var(--text-3);">{{ empty($dossiersComptaflow) ? 'Comptaflow ne répond pas ou ne connaît aucun dossier.' : 'Chaque côté garde ses accès d\'origine.' }}</small></span>
                     </label>
                     <select name="comptaflow_company_id" id="liaison-dossier" class="form-control" style="margin-top:8px; display:none;">
-                        <option value="">— Choisir le dossier Comptaflow —</option>
+                        <option value="">Choisir le dossier Comptaflow</option>
                         @foreach($dossiersComptaflow as $idDossier => $nomDossier)
                             <option value="{{ $idDossier }}" {{ in_array($idDossier, $dejaLies, true) ? 'disabled' : '' }}>
                                 #{{ $idDossier }} — {{ $nomDossier }}{{ in_array($idDossier, $dejaLies, true) ? ' (déjà lié)' : '' }}

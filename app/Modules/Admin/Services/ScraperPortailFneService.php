@@ -370,6 +370,29 @@ class ScraperPortailFneService
         return is_array($etat) ? $etat + ['login' => $login] : null;
     }
 
+    /**
+     * Les connexions du robot qui ont échoué, toutes entreprises (24/11/2026,
+     * « Retour robot » du superadmin), la plus récente d'abord.
+     *
+     * @return array<int, array>
+     */
+    public static function retoursDuRobot(): array
+    {
+        $retours = [];
+        foreach (glob(base_path('SCRAPER-PORTAIL-FNE/etat-connexion/*.json')) ?: [] as $fichier) {
+            $etat = self::etatConnexion(pathinfo($fichier, PATHINFO_FILENAME));
+            if ($etat && ($etat['statut'] ?? 'ok') !== 'ok') {
+                $acces = \App\Modules\Admin\Services\AdressePortailFne::pourLogin($etat['login'])
+                    ?? \App\Modules\Admin\Modeles\FneCredential::where('ncc_associe', $etat['login'])->first();
+                $etat['entreprise'] = $acces?->entreprise_id ? \App\Modules\Admin\Modeles\Entreprise::find($acces->entreprise_id) : null;
+                $retours[] = $etat;
+            }
+        }
+        usort($retours, fn ($a, $b) => strcmp((string) ($b['quand'] ?? ''), (string) ($a['quand'] ?? '')));
+
+        return $retours;
+    }
+
     private static function loginsAutorises(): array
     {
         return FneCredential::query()
