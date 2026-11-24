@@ -183,8 +183,12 @@ class Achat extends Model
 
     public function paiements(): HasMany
     {
+        // Dans l'entreprise de la pièce seulement (24/11/2026) : deux entreprises
+        // peuvent porter le même numéro de pièce. Hors chargement groupé, où
+        // la pièce n'est pas encore connue.
         return $this->hasMany(TresorerieJournal::class, 'reference_document', 'numero_facture')
-            ->where('type_operation', 'Décaissement');
+            ->where('type_operation', 'Décaissement')
+            ->when($this->point_de_vente_id, fn ($q) => $q->deLEntreprise(TresorerieJournal::entrepriseDeLaPiece($this)));
     }
 
     /**

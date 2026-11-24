@@ -297,7 +297,7 @@ class BonLivraisonControleur extends Controller
 
         $vente = $bl->bonDeCommande;
         $vendeur = $vente->utilisateur;
-        $dejaPaye = TresorerieJournal::where('reference_document', $vente->numero_facture)->sum('montant_entree');
+        $dejaPaye = TresorerieJournal::encaissePour($vente);
 
         // Ce que la facture de ce bon demandera au client : les quantités
         // livrées, aux prix et remises de la commande. La modale proposait le

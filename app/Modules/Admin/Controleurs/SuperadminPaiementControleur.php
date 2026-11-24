@@ -29,15 +29,19 @@ class SuperadminPaiementControleur
         // abonnements en cours, bientôt à terme et à terme, et chacun se
         // prolonge ou se met à jour à tout moment, sans attendre l'échéance.
         $vue = $request->query('vue') === 'paiements' || $statut ? 'paiements' : 'abonnements';
-        $entreprises = \App\Modules\Admin\Modeles\Entreprise::query()->horsCorbeille()
-            ->whereNotNull('abonnement_expire_le')
-            ->orderBy('abonnement_expire_le')
-            ->get(['id', 'uuid', 'nom', 'ncc', 'plan_abonnement', 'abonnement_statut', 'abonnement_expire_le']);
+        // Toutes les entreprises (24/11/2026, propriétaire : « je dois voir ici
+        // tous les abonnements, même les antérieurs ») : celles sans échéance
+        // ont leur propre groupe, l'offre Business (25 000 F) proposée.
+        $toutes = \App\Modules\Admin\Modeles\Entreprise::query()->horsCorbeille()
+            ->orderBy('abonnement_expire_le')->orderBy('nom')
+            ->get(['id', 'uuid', 'nom', 'ncc', 'plan_abonnement', 'abonnement_statut', 'abonnement_expire_le', 'created_at']);
+        $entreprises = $toutes->filter(fn ($e) => $e->abonnement_expire_le !== null)->values();
         $maintenant = now();
         $abonnements = [
             'a_terme' => $entreprises->filter(fn ($e) => $e->abonnement_expire_le->lt($maintenant))->values(),
             'bientot' => $entreprises->filter(fn ($e) => $e->abonnement_expire_le->gte($maintenant) && $e->abonnement_expire_le->lte($maintenant->copy()->addDays(10)))->values(),
             'en_cours' => $entreprises->filter(fn ($e) => $e->abonnement_expire_le->gt($maintenant->copy()->addDays(10)))->values(),
+            'sans_echeance' => $toutes->filter(fn ($e) => $e->abonnement_expire_le === null)->sortBy('nom')->values(),
         ];
 
         return view('admin::superadmin.paiements.index', [
@@ -47,7 +51,7 @@ class SuperadminPaiementControleur
                     ->orWhere(fn ($e) => $e->where('statut', 'echec')->where('updated_at', '>=', now()->subDays(30))))
                 ->latest()->limit(50)->get(),
             'abonnements' => $abonnements,
-            'sansEcheance' => \App\Modules\Admin\Modeles\Entreprise::query()->horsCorbeille()->whereNull('abonnement_expire_le')->count(),
+            'sansEcheance' => $abonnements['sans_echeance']->count(),
             'paiements' => PaiementAbonnement::with(['entreprise', 'utilisateur', 'traitePar'])
                 ->when($statut, fn ($q) => $q->where('statut', $statut))
                 ->orderByRaw("CASE WHEN statut IN ('recu','en_cours') THEN 0 ELSE 1 END")

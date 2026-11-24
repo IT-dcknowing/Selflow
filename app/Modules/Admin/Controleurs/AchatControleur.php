@@ -748,8 +748,7 @@ class AchatControleur
         );
 
         $achat->load(['details.produit', 'fournisseur', 'pointDeVente.entreprise']);
-        $dejaPaye = \App\Modules\Admin\Modeles\TresorerieJournal::where('reference_document', $achat->numero_facture)
-            ->sum('montant_sortie');
+        $dejaPaye = \App\Modules\Admin\Modeles\TresorerieJournal::decaissePour($achat);
 
         $modele = (int) request()->query('modele', 1);
 
@@ -764,7 +763,7 @@ class AchatControleur
     {
         $this->autoriserAcces($achat);
         $achat->load(['fournisseur', 'pointDeVente.entreprise', 'details.produit']);
-        $dejaPaye = \App\Modules\Admin\Modeles\TresorerieJournal::where('reference_document', $achat->numero_facture)->sum('montant_sortie');
+        $dejaPaye = \App\Modules\Admin\Modeles\TresorerieJournal::decaissePour($achat);
         // Les banques, pour le règlement saisi à « Valider & Facturer ».
         $banques = CodeJournal::banques()->where('entreprise_id', Auth::user()->entreprise_id)->orderBy('intitule')->get();
         return view('admin::factures.achat', compact('achat', 'dejaPaye', 'banques'));
@@ -782,7 +781,7 @@ class AchatControleur
         $this->autoriserAcces($achat);
         abort_unless($achat->type_facture === 'bapa' && $achat->etape === 'Facture', 404);
         $achat->load(['fournisseur', 'pointDeVente.entreprise', 'details.produit']);
-        $dejaPaye = \App\Modules\Admin\Modeles\TresorerieJournal::where('reference_document', $achat->numero_facture)->sum('montant_sortie');
+        $dejaPaye = \App\Modules\Admin\Modeles\TresorerieJournal::decaissePour($achat);
         return view('admin::factures.bapa', compact('achat', 'dejaPaye'));
     }
 

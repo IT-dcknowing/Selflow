@@ -379,8 +379,8 @@ class RapportControleur
 
         // Ce que les clients doivent, ce que l'entreprise doit (pièces à crédit
         // ou en avance, moins ce que la trésorerie a déjà encaissé ou payé).
-        $reste = function ($pieces, string $colonne) {
-            $regles = TresorerieJournal::whereIn('reference_document', $pieces->pluck('numero_facture')->filter())
+        $reste = function ($pieces, string $colonne) use ($entreprise) {
+            $regles = TresorerieJournal::deLEntreprise($entreprise->id)->whereIn('reference_document', $pieces->pluck('numero_facture')->filter())
                 ->groupBy('reference_document')->select('reference_document', DB::raw("SUM({$colonne}) as total"))
                 ->pluck('total', 'reference_document');
 

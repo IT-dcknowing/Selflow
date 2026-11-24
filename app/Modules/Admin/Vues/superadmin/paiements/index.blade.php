@@ -28,6 +28,7 @@
             'a_terme' => ['À terme', 'L\'échéance est passée : l\'entreprise est bloquée ou le sera à sa prochaine connexion.', '#b91c1c', '#fef2f2', 'fa-circle-xmark'],
             'bientot' => ['Bientôt à terme (10 jours ou moins)', 'À relancer, ou à prolonger dès maintenant.', '#b45309', '#fffbeb', 'fa-hourglass-half'],
             'en_cours' => ['En cours', 'Plus de 10 jours avant l\'échéance. Une prolongation s\'ajoute à l\'échéance actuelle.', '#047857', '#ecfdf5', 'fa-circle-check'],
+            'sans_echeance' => ['Sans échéance', 'Entreprises antérieures, en essai ou à l\'offre à choisir : fixez leur abonnement (Business, 25 000 F/mois, proposé par défaut). Les mois partent d\'aujourd\'hui.', '#475569', '#f8fafc', 'fa-calendar-plus'],
         ];
         $offresProlongeables = collect(Abonnements::offres())->only([Abonnements::SOLO, Abonnements::BUSINESS, Abonnements::PREMIUM, Abonnements::SUR_MESURE]);
     @endphp
@@ -56,9 +57,6 @@
         </div>
     @endif
 
-    @if($sansEcheance)
-        <p style="font-size:12.5px; color:var(--text-3); margin:-6px 0 14px;">{{ $sansEcheance }} entreprise{{ $sansEcheance > 1 ? 's' : '' }} sans échéance (essai, inscription en attente ou offre à choisir) : elles se gèrent depuis Entreprises.</p>
-    @endif
 
     @foreach($groupes as $cle => [$titre, $aide, $couleur, $fond, $icone])
         <div class="card" id="groupe-{{ $cle }}" style="padding:0; margin-bottom:16px; overflow:hidden;">
@@ -68,25 +66,31 @@
             </div>
             @forelse($abonnements[$cle] as $e)
                 @php
-                    $jours = (int) now()->startOfDay()->diffInDays($e->abonnement_expire_le->copy()->startOfDay(), false);
+                    $jours = $e->abonnement_expire_le ? (int) now()->startOfDay()->diffInDays($e->abonnement_expire_le->copy()->startOfDay(), false) : null;
+                    $offreProposee = array_key_exists((string) $e->plan_abonnement, $offresProlongeables->all()) ? $e->plan_abonnement : Abonnements::BUSINESS;
                 @endphp
                 <div style="display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; align-items:center; padding:12px 18px; border-bottom:1px solid var(--border);">
                     <div style="min-width:220px;">
                         <strong>{{ $e->nom }}</strong>
                         <div style="font-size:12px; color:var(--text-3);">
+                            @if($jours === null)
+                                {{ $e->plan_abonnement ? Abonnements::libelle($e->plan_abonnement) : 'Offre non choisie' }} · {{ ['essai' => 'en essai', 'a_regler' => 'à régler', 'actif' => 'actif', 'sur_devis' => 'sur devis'][$e->abonnement_statut] ?? 'sans abonnement' }}
+                                · créée le {{ $e->created_at?->format('d/m/Y') }} · <strong style="color:{{ $couleur }};">aucune échéance</strong>
+                            @else
                             {{ Abonnements::libelle($e->plan_abonnement) }} · échéance le {{ $e->abonnement_expire_le->format('d/m/Y') }}
                             · <strong style="color:{{ $couleur }};">{{ $jours < 0 ? 'échu depuis ' . abs($jours) . ' j' : ($jours === 0 ? 'aujourd\'hui' : $jours . ' j restants') }}</strong>
+                            @endif
                         </div>
                     </div>
                     <details style="flex:1; min-width:280px; max-width:640px;">
-                        <summary class="btn btn-outline btn-sm" style="list-style:none; display:inline-flex; float:right;"><i class="fas fa-rotate"></i> Prolonger / mettre à jour</summary>
+                        <summary class="btn btn-outline btn-sm" style="list-style:none; display:inline-flex; float:right;"><i class="fas fa-rotate"></i> {{ $jours === null ? 'Fixer l\'abonnement' : 'Prolonger / mettre à jour' }}</summary>
                         <form method="POST" action="{{ route('superadmin.paiements.prolonger', $e) }}" style="clear:both; display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; align-items:end; padding-top:10px;"
                               onsubmit="return confirm('Enregistrer la mise à jour de l\'abonnement de {{ addslashes($e->nom) }} ?');">
                             @csrf
                             <label style="font-size:12px; font-weight:700;">Offre
                                 <select name="offre" class="form-control">
                                     @foreach($offresProlongeables as $code => $o)
-                                        <option value="{{ $code }}" @selected($e->plan_abonnement === $code)>{{ $o['nom'] }}{{ $o['prix'] ? ' · ' . number_format($o['prix'], 0, ',', ' ') . ' F/mois' : '' }}</option>
+                                        <option value="{{ $code }}" @selected($offreProposee === $code)>{{ $o['nom'] }}{{ $o['prix'] ? ' · ' . number_format($o['prix'], 0, ',', ' ') . ' F/mois' : '' }}</option>
                                     @endforeach
                                 </select>
                             </label>

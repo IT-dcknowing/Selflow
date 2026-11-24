@@ -207,7 +207,7 @@ class ComptabiliteControleur
 
         // Optimisation N+1 : Charger la somme des règlements de trésorerie en une seule requête
         $venteRefs = $ventesImpayees->pluck('numero_facture');
-        $reglementsVentes = TresorerieJournal::whereIn('reference_document', $venteRefs)
+        $reglementsVentes = TresorerieJournal::deLEntreprise($entreprise->id)->whereIn('reference_document', $venteRefs)
             ->groupBy('reference_document')
             ->select('reference_document', DB::raw('SUM(montant_entree) as total_regle'))
             ->pluck('total_regle', 'reference_document');
@@ -284,7 +284,7 @@ class ComptabiliteControleur
 
         // Optimisation N+1 : Charger la somme des règlements d'achats en une seule requête
         $achatRefs = $achatsImpayes->pluck('numero_facture');
-        $reglementsAchats = TresorerieJournal::whereIn('reference_document', $achatRefs)
+        $reglementsAchats = TresorerieJournal::deLEntreprise($entreprise->id)->whereIn('reference_document', $achatRefs)
             ->groupBy('reference_document')
             ->select('reference_document', DB::raw('SUM(montant_sortie) as total_regle'))
             ->pluck('total_regle', 'reference_document');
@@ -481,7 +481,7 @@ class ComptabiliteControleur
 
             // Optimisation N+1 : Charger tous les règlements liés en une seule requête
             $invoiceRefs = $invoices->pluck('numero_facture');
-            $reglementsGrouped = TresorerieJournal::whereIn('reference_document', $invoiceRefs)
+            $reglementsGrouped = TresorerieJournal::deLEntreprise($entreprise->id)->whereIn('reference_document', $invoiceRefs)
                 ->orderBy('date_operation')
                 ->get()
                 ->groupBy('reference_document');
@@ -521,7 +521,7 @@ class ComptabiliteControleur
 
             // Optimisation N+1 : Charger tous les règlements liés en une seule requête
             $invoiceRefs = $invoices->pluck('numero_facture');
-            $reglementsGrouped = TresorerieJournal::whereIn('reference_document', $invoiceRefs)
+            $reglementsGrouped = TresorerieJournal::deLEntreprise($entreprise->id)->whereIn('reference_document', $invoiceRefs)
                 ->orderBy('date_operation')
                 ->get()
                 ->groupBy('reference_document');
@@ -637,7 +637,7 @@ class ComptabiliteControleur
                 $pdvId = $vente->point_de_vente_id;
                 
                 // Calcul du reste à payer
-                $dejaPaye = TresorerieJournal::where('reference_document', $numFacture)->sum('montant_entree');
+                $dejaPaye = TresorerieJournal::deLEntreprise($entreprise->id)->where('reference_document', $numFacture)->sum('montant_entree');
                 // Le dû comprend taxes parafiscales et timbre (20/10/2026),
                 // comme la page des créances et le plafond de la trésorerie.
                 $du = (float) $vente->montant_ttc + (float) $vente->montant_autres_taxes + (float) $vente->timbre_quittance;
@@ -696,7 +696,7 @@ class ComptabiliteControleur
                 $pdvId = $achat->point_de_vente_id;
                 
                 // Calcul du reste à payer
-                $dejaPaye = TresorerieJournal::where('reference_document', $numFacture)->sum('montant_sortie');
+                $dejaPaye = TresorerieJournal::deLEntreprise($entreprise->id)->where('reference_document', $numFacture)->sum('montant_sortie');
                 $reste = $achat->montant_ttc - $dejaPaye;
 
                 if ($montant > $reste) {

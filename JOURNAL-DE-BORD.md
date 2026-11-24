@@ -11800,6 +11800,33 @@ option renommée « Prestataires », reprise des factures « apporteur »).
 - Test : `ConnexionFneEtatTest::test_un_seuil_de_stickers_a_zero_au_portail_devient_5`.
   Suite : 213, identiques à la référence.
 
+### Lot 170 — « Déjà payé » cloisonné par entreprise (urgence) ; tous les abonnements ; délier d'un clic ; maquette du tableau de bord — **TERMINÉ le 24/11/2026**
+
+- **Urgence** : une facture de 3 000 F affichait « Montant réglé 551 704 F ».
+  `tresorerie_journal` n'a pas d'`entreprise_id` ; « déjà payé » sommait
+  tous les encaissements portant le même numéro de facture, **toutes
+  entreprises confondues**. Portée `TresorerieJournal::deLEntreprise()`
+  (par les points de vente) et `encaissePour()` / `decaissePour()` ;
+  appliquées à l'écran et aux PDF de vente, d'achat, du ticket, du bon de
+  livraison, aux créances et relevés de tiers, au rapport d'activité, au
+  solde client et aux relations `paiements()` de Vente/Achat. **Plus grave
+  encore** : la modification d'une vente supprimait les lignes de
+  trésorerie du même numéro dans les autres entreprises ; désormais
+  limitée à l'entreprise. Aucun champ FNE touché.
+- **Abonnement / réabonnement** : les entreprises sans échéance (61) ont
+  leur groupe « Sans échéance », avec offre et statut ; « Fixer
+  l'abonnement » propose Business (25 000 F/mois) par défaut, les mois
+  partant d'aujourd'hui.
+- **Liaisons Comptaflow** : le badge « Active » devient « Désactiver » au
+  survol et délie (clé révoquée, dossier gardé chez Comptaflow) après
+  confirmation.
+- **Tableau de bord** : maquette `maquettes/tableau-de-bord-proposition.png`
+  (quatre indicateurs, courbe comparée à la période précédente, « À traiter
+  maintenant », ventes par site, trésorerie, meilleurs articles), en
+  attente de l'accord du propriétaire avant application.
+- Tests : `DejaPayeParEntrepriseTest`, `AbonnementsSansEcheanceTest`.
+  Suite : 213, identiques à la référence.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

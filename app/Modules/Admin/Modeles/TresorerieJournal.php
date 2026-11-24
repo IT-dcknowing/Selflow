@@ -28,6 +28,46 @@ class TresorerieJournal extends Model
     }
 
     /**
+     * Les lignes d'une seule entreprise (24/11/2026).
+     *
+     * La table n'a pas de colonne `entreprise_id` : elle se rattache par le
+     * point de vente. Les sommes « déjà payé » se faisaient sur le seul numéro
+     * de pièce, et deux entreprises numérotent leurs factures de la même façon :
+     * une facture de 3 000 F affichait 551 704 F réglés, encaissés sous le même
+     * numéro par une autre entreprise.
+     */
+    public function scopeDeLEntreprise($query, ?int $entrepriseId)
+    {
+        return $query->whereIn(
+            'point_de_vente_id',
+            PointDeVente::withoutGlobalScopes()->where('entreprise_id', (int) $entrepriseId)->select('id')
+        );
+    }
+
+    /** L'entreprise d'une pièce (vente ou achat), par son point de vente. */
+    public static function entrepriseDeLaPiece(Model $piece): ?int
+    {
+        $id = $piece->entreprise_id
+            ?? PointDeVente::withoutGlobalScopes()->whereKey($piece->point_de_vente_id)->value('entreprise_id');
+
+        return $id ? (int) $id : (auth()->user()?->entreprise_id ? (int) auth()->user()->entreprise_id : null);
+    }
+
+    /** Ce qui a été encaissé sur une pièce de vente, dans son entreprise. */
+    public static function encaissePour(Model $vente): float
+    {
+        return (float) static::deLEntreprise(static::entrepriseDeLaPiece($vente))
+            ->where('reference_document', $vente->numero_facture)->sum('montant_entree');
+    }
+
+    /** Ce qui a été décaissé sur une pièce d'achat, dans son entreprise. */
+    public static function decaissePour(Model $achat): float
+    {
+        return (float) static::deLEntreprise(static::entrepriseDeLaPiece($achat))
+            ->where('reference_document', $achat->numero_facture)->sum('montant_sortie');
+    }
+
+    /**
      * Ce qui entre en caisse pour une pièce de vente ne dépasse pas ce qui
      * reste dû sur elle — retour du 16/10/2026.
      *

@@ -890,7 +890,7 @@ class VenteControleur
         $vente->load(['details.produit', 'details.taxes', 'taxesPersonnalisees', 'client', 'apporteur', 'beneficiaire', 'pointDeVente.entreprise']);
 
         // Calculer ce qui a été effectivement payé
-        $dejaPaye = TresorerieJournal::where('reference_document', $vente->numero_facture)->sum('montant_entree');
+        $dejaPaye = TresorerieJournal::encaissePour($vente);
 
         // Les banques, pour le règlement saisi à « Valider & Facturer ».
         $banques = CodeJournal::banques()->where('entreprise_id', Auth::user()->entreprise_id)->orderBy('intitule')->get();
@@ -914,7 +914,7 @@ class VenteControleur
         self::verifierLAccesALaPiece($vente);
 
         $vente->load(['details.produit', 'details.taxes', 'taxesPersonnalisees', 'client', 'apporteur', 'beneficiaire', 'pointDeVente.entreprise', 'parent']);
-        $dejaPaye = TresorerieJournal::where('reference_document', $vente->numero_facture)->sum('montant_entree');
+        $dejaPaye = TresorerieJournal::encaissePour($vente);
 
         // Le modele choisi a l'ecran suit la piece : on telechargeait
         // toujours le premier, quel que soit l'onglet actif.
@@ -937,7 +937,7 @@ class VenteControleur
         self::verifierLAccesALaPiece($vente);
 
         $vente->load(['details.produit', 'client', 'pointDeVente.entreprise']);
-        $dejaPaye = TresorerieJournal::where('reference_document', $vente->numero_facture)->sum('montant_entree');
+        $dejaPaye = TresorerieJournal::encaissePour($vente);
 
         return response($pdf->recuDeVente($vente, (float) $dejaPaye), 200, [
             'Content-Type' => 'application/pdf',
@@ -951,7 +951,7 @@ class VenteControleur
         self::verifierLAccesALaPiece($vente);
 
         $vendeur = $vente->utilisateur;
-        $dejaPaye = TresorerieJournal::where('reference_document', $vente->numero_facture)->sum('montant_entree');
+        $dejaPaye = TresorerieJournal::encaissePour($vente);
 
         // Le bon de livraison imprimé avec le ticket : celui de cette vente —
         // le bon qu'elle facture, ou un bon de la commande qu'elle solde —, et
@@ -1103,7 +1103,7 @@ class VenteControleur
 
             // 2. Supprimer les anciens détails et écritures de trésorerie
             VenteDetail::where('vente_id', $vente->id)->delete();
-            TresorerieJournal::where('reference_document', $vente->numero_facture)->delete();
+            TresorerieJournal::deLEntreprise(TresorerieJournal::entrepriseDeLaPiece($vente))->where('reference_document', $vente->numero_facture)->delete();
 
             // 3. Recalculer avec les nouveaux articles
             $montantHt = 0;

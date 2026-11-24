@@ -35,6 +35,11 @@
         padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
     }
     .badge-active   { background: #ecfdf5; color: #065f46; }
+    .badge-bascule { border:none; cursor:pointer; font:inherit; }
+    .badge-bascule .libelle-delier { display:none; }
+    .badge-bascule:hover { background:#fef2f2; color:#991b1b; }
+    .badge-bascule:hover .libelle-actif { display:none; }
+    .badge-bascule:hover .libelle-delier { display:inline; }
     .badge-inactive { background: #f1f5f9; color: #64748b; }
     .badge-error    { background: #fef2f2; color: #991b1b; }
     .badge-attente  { background: #fffbeb; color: #92400e; }
@@ -288,9 +293,14 @@
                     </td>
                     <td>
                         @if($estLiee)
-                            <span class="liaison-badge badge-active">
-                                <i class="fas fa-circle" style="font-size:7px;"></i> Active
-                            </span>
+                            {{-- 24/11/2026 : comme « Valider » active, cliquer sur « Active » délie. --}}
+                            <form method="POST" action="{{ route('superadmin.liaisons.delierEntreprise', $ent) }}" style="display:inline;"
+                                  onsubmit="return confirm('Désactiver la liaison de « {{ addslashes($ent->nom) }} » ? La clé sera révoquée chez Comptaflow ; le dossier et ses écritures y restent.')">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="liaison-badge badge-active badge-bascule" title="Cliquer pour désactiver (délier)">
+                                    <i class="fas fa-circle" style="font-size:7px;"></i> <span class="libelle-actif">Active</span><span class="libelle-delier">Désactiver</span>
+                                </button>
+                            </form>
                             <span class="direction-arrow">
                                 <i class="fas fa-arrow-right arrow-icon"></i> selflow déverse
                             </span>

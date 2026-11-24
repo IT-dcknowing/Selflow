@@ -83,7 +83,7 @@ class SoldeClientService
     private static function reste(Vente $vente): float
     {
         $du = (float) $vente->montant_ttc + (float) $vente->montant_autres_taxes + (float) $vente->timbre_quittance;
-        $regle = (float) TresorerieJournal::where('reference_document', $vente->numero_facture)->sum('montant_entree');
+        $regle = TresorerieJournal::encaissePour($vente);
         $reste = round($du - $regle, 2);
 
         return $reste > 0.5 ? $reste : 0.0;
