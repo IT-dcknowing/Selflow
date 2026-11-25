@@ -11885,6 +11885,15 @@ option renommée « Prestataires », reprise des factures « apporteur »).
 - Tests : `TempsAffichageTest`, `CategoriesParSecteurTest`,
   `ParcoursDomainesEtModulesTest`. Suite : 212 (une de moins que la référence).
 
+### Lot 173 — Panne SF-261125-3EF038 (route `mesure.affichage`) — **TERMINÉ le 25/11/2026**
+
+- `/caissier` tombait : « Route [mesure.affichage] not defined ». Le gabarit
+  mis à jour appelait une route que le cache de routes du serveur ne
+  connaissait pas encore (mise à jour fusionnée sans `optimize:clear`). Le
+  script de mesure et le lien « Temps d'affichage » ne s'affichent plus
+  que si leur route existe (`Route::has`) : un cache en retard ne fait plus
+  tomber les pages.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

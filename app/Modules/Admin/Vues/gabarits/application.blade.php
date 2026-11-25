@@ -970,9 +970,11 @@
             <a href="{{ route('superadmin.tracabilite.index') }}" class="nav-item {{ request()->routeIs('superadmin.tracabilite*') ? 'active' : '' }}">
                 <i class="fas fa-chart-line"></i> Maintenance &amp; traçabilité
             </a>
+            @if(\Illuminate\Support\Facades\Route::has('superadmin.temps_affichage'))
             <a href="{{ route('superadmin.temps_affichage') }}" class="nav-item {{ request()->routeIs('superadmin.temps_affichage') ? 'active' : '' }}">
                 <i class="fas fa-stopwatch"></i> Temps d'affichage
             </a>
+            @endif
             @endif
             @php $__enCorbeille = \App\Modules\Admin\Modeles\Entreprise::enCorbeille()->count(); @endphp
             <a href="{{ route('superadmin.corbeille') }}" class="nav-item {{ request()->routeIs('superadmin.corbeille*') ? 'active' : '' }}">
@@ -2384,7 +2386,9 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 @auth
-@unless(auth()->user()->estSuperAdmin())
+{{-- Route::has : un cache de routes antérieur à la mise à jour ne doit pas
+     faire tomber toutes les pages (SF-261125-3EF038). --}}
+@if(!auth()->user()->estSuperAdmin() && \Illuminate\Support\Facades\Route::has('mesure.affichage'))
 <script>
 // Temps d'affichage de la page (24/11/2026, Maintenance › Temps d'affichage) :
 // mesuré par le navigateur, envoyé une fois, sans rien retarder.
@@ -2405,7 +2409,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 })();
 </script>
-@endunless
+@endif
 @endauth
 @yield('scripts')
 
