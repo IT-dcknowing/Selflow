@@ -49,8 +49,10 @@ class ModeleLibelle extends Model
      * @var array<string, array{operation: string, ligne: string}>
      */
     public const DEFAUTS = [
-        'FactureVente'   => ['operation' => '{nature}',              'ligne' => '{piece} / {role}'],
-        'ReglementVente' => ['operation' => 'Règlement client',      'ligne' => 'Rglt/{piece}/{reference}/Vente {produits}'],
+        // 25/11/2026 (propriétaire) : « Fact n° {numéro FNE, sinon Selflow} /
+        // libellé de l'opération », et « Rglt/Fact n° … » pour le règlement.
+        'FactureVente'   => ['operation' => 'Fact n° {fact} / {nature}',      'ligne' => 'Fact n° {fact} / {role}'],
+        'ReglementVente' => ['operation' => 'Rglt/Fact n° {fact} / {nature}', 'ligne' => 'Rglt/Fact n° {fact} / {nature} / {reference}'],
         'AvoirVente'     => ['operation' => 'Avoir client',          'ligne' => '{piece} / {role}'],
         'FactureAchat'   => ['operation' => '{nature}',              'ligne' => '{piece} / {role}'],
         'ReglementAchat' => ['operation' => 'Règlement fournisseur', 'ligne' => 'Rglt/{piece}/{reference}/Achat {produits}'],
@@ -64,6 +66,7 @@ class ModeleLibelle extends Model
      */
     public const JETONS = [
         '{piece}'          => "Le numéro de la pièce — facture, avoir, opération diverse",
+        '{fact}'           => 'Le numéro de la facture : celui de la FNE (sans le NCC) si elle est certifiée, sinon celui de Selflow',
         '{tiers}'          => 'Le nom du client ou du fournisseur',
         '{produits}'       => 'Les articles de la pièce, au plus trois, puis « … »',
         '{point_de_vente}' => 'Le nom du site où la pièce a été établie',

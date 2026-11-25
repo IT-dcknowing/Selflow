@@ -11960,6 +11960,45 @@ option renommée « Prestataires », reprise des factures « apporteur »).
   date saisie à la main recalcule les jours. Vérifié au navigateur
   (17/12/2026 + 2 mois = 17/02/2027, 50 000 F ; Premium : 90 000 F).
 
+### Lot 179 — Factures du portail : articles au catalogue, secteur déduit, client divers, libellés « Fact n° », robot — **TERMINÉ le 25/11/2026**
+
+- **Articles au catalogue** : à l'intégration d'une facture FNE (vente,
+  avoir, achat), toute ligne sans article devient un produit : prix du
+  portail, compte retenu, TVA de la ligne, type déduit (706 en vente, hors
+  601-603 en achat, ou unité de temps → service ; sinon marchandise). Plus
+  de ligne libre. Une pièce suivante retrouve l'article.
+- **Domaine et secteur déduits** (`ClassementParReferentielService`) : le
+  nom de l'article est comparé aux 638 articles types et aux familles du
+  référentiel ; au-delà de la moitié des mots en commun, l'article prend la
+  catégorie de la famille (créée au besoin, rattachée à son domaine et à
+  son secteur) et l'entreprise reçoit le secteur et le domaine, sans
+  recopier tout le catalogue. Non reconnu : pas de catégorie.
+- **Client divers** : un client sans NCC (B2C) va sous « Client divers »
+  (410000) ; son nom reste sur la vente (`ventes.nom_client_origine`,
+  affiché sous le client dans la liste des factures).
+- **Libellés** (défauts de `ModeleLibelle`, jeton `{fact}`) : vente
+  « Fact n° {n°} / {nature} » (lignes « Fact n° {n°} / {rôle} »),
+  règlement « Rglt/Fact n° {n°} / {nature} » (référence du chèque ou du
+  virement à la suite si elle existe), trésorerie « Fact n° {n°} / … ».
+  {n°} = numéro FNE sans le NCC qui le précède, sinon numéro Selflow
+  (`ComptabiliteService::numeroDeFacture`, lecture seule de `numero_fne`).
+  Les gabarits posés par une entreprise restent les siens.
+- **NCC** : celui des accès FNE (superadmin) passe sur la fiche quand elle
+  n'en a pas (`FneCredential::saved`, migration `2026_11_25_000003`). Le
+  RCCM n'est pas sur la page Paramétrage du portail : le robot ne peut pas
+  le reprendre.
+- **Robot** : cocher le téléchargement lance fiche, ventes, achats et avoirs
+  (`ScraperPortailFneService::lancerTout`) ; toutes les 30 minutes, un
+  relevé en échec passager (portail, interruption, jamais lancé) est
+  relancé (`relancerLesEchecs`) ; un mot de passe refusé ne l'est pas (la
+  DGI bloquerait le compte). Portail par défaut : **production** ; le test
+  seulement s'il est choisi (« Par défaut (production) » remplace « Selon
+  les clés »).
+- Migrations `2026_11_25_000002` et `000003`. Tests mis à jour sur les
+  règles changées (libellés, portail par défaut, ligne libre) et ajoutés :
+  `IntegrationFacturesPortailFneTest` (+4), `LibellesEcritureTest` (+1),
+  `NccDesAccesFneTest`, `RelanceDesEchecsDuRobotTest`. Suite : 212.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

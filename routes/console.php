@@ -226,6 +226,13 @@ if (config('selflow.portail_fne.scraper.actif')) {
         return sprintf('%02d:%02d', intdiv($total, 60), $total % 60);
     };
 
+    // Les échecs passagers sont relancés sans attendre le passage suivant
+    // (25/11/2026) ; un mot de passe refusé ne l'est pas (voir la méthode).
+    Schedule::call(fn () => $scraperFne::relancerLesEchecs())
+        ->everyThirtyMinutes()
+        ->name('selflow-portail-fne-relances')
+        ->withoutOverlapping(30);
+
     foreach (array_values($passages) as $rang => $heure) {
         if ($decaler($heure, 0) === null) {
             continue;

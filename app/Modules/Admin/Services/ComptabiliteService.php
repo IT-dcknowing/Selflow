@@ -292,8 +292,9 @@ class ComptabiliteService
         // `array_merge` et non `+` : l'union de tableaux garde la valeur de
         // gauche sur une clé déjà présente, et `reference` y vaut `null`. La
         // référence du règlement n'aurait jamais atteint le libellé.
+        // La nature de la facture réglée : « Rglt/Fact n° … / Vente de marchandises ».
         $jetons = array_merge(
-            self::jetonsVente($vente, $refDoc, $codeJournal, $date),
+            self::jetonsVente($vente, $refDoc, $codeJournal, $date, self::ventilationVente($vente)),
             ['produits' => $libelleProduits, 'reference' => $refPaiement],
         );
         $libellePaiement = LibelleEcritureService::ligne($entrepriseId, 'ReglementVente', '', $jetons);
@@ -809,7 +810,7 @@ class ComptabiliteService
     {
         $ventilation = self::ventilationVente($vente);
         $libelleGeneral = self::libelleGeneralVente($ventilation);
-        return $libelleGeneral . ' — ' . $vente->numero_facture;
+        return 'Fact n° ' . self::numeroDeFacture($vente) . ' / ' . $libelleGeneral;
     }
 
     /**
@@ -1227,12 +1228,29 @@ class ComptabiliteService
      * @param  array{comptes: array<string, array{montant: float, produits: array<int, string>}>, tva: array<string, float>}|null  $ventilation
      * @return array<string, string|null>
      */
+    /**
+     * Le numéro de facture des libellés (25/11/2026, propriétaire) : celui de
+     * la FNE quand la pièce est certifiée, sans le NCC qui le précède
+     * (« 2196217J26000000123 » → « 26000000123 ») ; sinon celui de Selflow.
+     * Lecture seule de `numero_fne` : rien de ce que la FNE transmet ne change.
+     */
+    public static function numeroDeFacture(Vente $vente): string
+    {
+        $fne = trim((string) ($vente->numero_fne ?? ''));
+        if ($fne !== '') {
+            return preg_replace('/^\d{7}[A-Z]/', '', $fne) ?: $fne;
+        }
+
+        return (string) $vente->numero_facture;
+    }
+
     private static function jetonsVente(Vente $vente, ?string $refDoc, string $codeJournal, string $date, ?array $ventilation = null): array
     {
         [$produits] = self::libelleEtDescriptionProduits($vente->loadMissing('details.produit')->details);
 
         return [
             'piece'          => $refDoc,
+            'fact'           => self::numeroDeFacture($vente),
             'tiers'          => $vente->client?->nom,
             'produits'       => $produits,
             'point_de_vente' => $vente->pointDeVente?->nom,

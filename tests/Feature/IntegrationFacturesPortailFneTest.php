@@ -132,12 +132,76 @@ class IntegrationFacturesPortailFneTest extends TestCase
 
         $vente = $this->service->integrer($f, $this->entreprise, Auth::id());
 
-        $this->assertSame('706000', $vente->details->first()->compte_vente);
+        // 25/11/2026 : la ligne entre au catalogue, en service, avec son compte et son prix.
+        $article = $vente->details->first()->produit;
+        $this->assertNotNull($article, 'L\'article du portail est créé au catalogue.');
+        $this->assertSame('Mission de conseil fiscal', $article->nom);
+        $this->assertSame('service', $article->type);
+        $this->assertSame('706000', $article->compte_vente);
+        $this->assertEquals(100, (float) $article->prix_vente);
         $this->assertSame('Crédit', $vente->statut, 'Un paiement différé reste à régler.');
         $this->assertSame('SPLENDID GROUP', $vente->client?->nom, 'Le client nommé par la facture est créé.');
         $this->assertSame('2101234B', $vente->client?->ncc);
         $this->assertTrue(EcritureComptable::where('reference_document', $vente->numero_facture)->where('compte_credit', '706000')->exists(),
             'Le chiffre d’affaires d’une prestation va en 706000.');
+    }
+
+    public function test_une_marchandise_du_portail_entre_au_catalogue_comme_stockable(): void
+    {
+        $vente = $this->service->integrer($this->facture('REF-CAT-1', [], [['reference' => 'HUI-5L', 'description' => 'Huile Dinor 5 L', 'quantity' => 2, 'amount' => 7500]]),
+            $this->entreprise, Auth::id());
+
+        $article = $vente->details->first()->produit;
+        $this->assertSame('HUI-5L', $article->reference);
+        $this->assertSame('marchandise', $article->type);
+        $this->assertEquals(7500, (float) $article->prix_vente);
+        $this->assertNotEmpty($article->compte_vente);
+
+        // La pièce suivante retrouve l'article au lieu d'en créer un second.
+        $this->service->integrer($this->facture('REF-CAT-2', [], [['reference' => 'HUI-5L', 'description' => 'Huile Dinor 5 L', 'quantity' => 1, 'amount' => 7500]]),
+            $this->entreprise, Auth::id());
+        $this->assertSame(1, Produit::where('entreprise_id', $this->entreprise->id)->where('reference', 'HUI-5L')->count());
+    }
+
+    public function test_un_client_sans_ncc_va_sous_client_divers_avec_son_nom_garde(): void
+    {
+        $vente = $this->service->integrer($this->facture('REF-B2C-1', ['clientCompanyName' => 'KOUAME ALAIN', 'clientNcc' => ''],
+            [['description' => 'Sucre', 'quantity' => 1, 'amount' => 1000]]), $this->entreprise, Auth::id());
+
+        $this->assertSame(\App\Modules\Admin\Modeles\Client::NUMERO_DIVERS, $vente->client->numero_tiers);
+        $this->assertSame('Client divers', $vente->client->nom);
+        $this->assertSame('KOUAME ALAIN', $vente->fresh()->nom_client_origine);
+        $this->assertFalse(\App\Modules\Admin\Modeles\Client::where('entreprise_id', $this->entreprise->id)->where('nom', 'KOUAME ALAIN')->exists());
+    }
+
+    public function test_l_article_cree_prend_la_categorie_le_secteur_et_le_domaine_du_referentiel(): void
+    {
+        $this->seed(\Database\Seeders\ReferentielSeeder::class);
+        \App\Modules\Admin\Services\ClassementParReferentielService::oublier();
+
+        $vente = $this->service->integrer($this->facture('REF-REF-1', [], [['description' => 'Riz parfumé sac 25 kg', 'quantity' => 2, 'amount' => 16000]]),
+            $this->entreprise, Auth::id());
+
+        $article = $vente->details->first()->produit->fresh();
+        $this->assertNotNull($article->categorie_id, 'L\'article est rangé dans une catégorie du référentiel.');
+        $categorie = \App\Modules\Admin\Modeles\Categorie::find($article->categorie_id);
+        $this->assertNotNull($categorie->domaine_configuration);
+        $this->assertNotNull($categorie->metier_configuration);
+
+        $e = $this->entreprise->fresh();
+        $this->assertTrue($e->profils()->exists(), 'Le secteur est inscrit à l\'entreprise.');
+        $this->assertContains($categorie->domaine_configuration, (array) $e->domaines_souscrits);
+    }
+
+    public function test_un_article_que_le_referentiel_ne_connait_pas_reste_sans_categorie(): void
+    {
+        $this->seed(\Database\Seeders\ReferentielSeeder::class);
+        \App\Modules\Admin\Services\ClassementParReferentielService::oublier();
+
+        $vente = $this->service->integrer($this->facture('REF-REF-2', [], [['description' => 'Xyzzy quux', 'quantity' => 1, 'amount' => 500]]),
+            $this->entreprise, Auth::id());
+
+        $this->assertNull($vente->details->first()->produit->fresh()->categorie_id);
     }
 
     public function test_valider_une_proposition_sort_le_stock_et_refuser_ne_bouge_rien(): void

@@ -60,6 +60,24 @@ class FneCredential extends Model
      */
     protected $hidden = ['cle_test', 'cle_reelle', 'acces_mot_de_passe'];
 
+    /**
+     * Le NCC saisi par le superadministrateur dans les accès FNE passe sur la
+     * fiche de l'entreprise quand elle n'en a pas (25/11/2026) : il restait
+     * vide dans Paramètres alors que le superadmin l'avait renseigné.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (FneCredential $acces) {
+            $ncc = strtoupper(preg_replace('/\s+/', '', (string) $acces->ncc_associe));
+            if ($ncc === '' || !$acces->entreprise_id) {
+                return;
+            }
+            Entreprise::whereKey($acces->entreprise_id)
+                ->where(fn ($q) => $q->whereNull('ncc')->orWhere('ncc', ''))
+                ->update(['ncc' => $ncc]);
+        });
+    }
+
     public function entreprise(): BelongsTo
     {
         return $this->belongsTo(Entreprise::class, 'entreprise_id');

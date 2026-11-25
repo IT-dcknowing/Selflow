@@ -292,7 +292,7 @@
                         @csrf
                         <button type="submit" name="portail_releve" value="test" class="btn btn-outline btn-portail" data-valeur="test" style="font-size:12px;"><i class="fas fa-flask"></i> Test</button>
                         <button type="submit" name="portail_releve" value="production" class="btn btn-outline btn-portail" data-valeur="production" style="font-size:12px;"><i class="fas fa-industry"></i> Production</button>
-                        <button type="submit" name="portail_releve" value="auto" class="btn btn-outline btn-portail" data-valeur="" style="font-size:12px;"><i class="fas fa-key"></i> Selon les clés</button>
+                        <button type="submit" name="portail_releve" value="auto" class="btn btn-outline btn-portail" data-valeur="" style="font-size:12px;"><i class="fas fa-rotate-left"></i> Par défaut (production)</button>
                     </form>
                 </div>
 

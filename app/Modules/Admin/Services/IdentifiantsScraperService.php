@@ -175,7 +175,8 @@ class IdentifiantsScraperService
             strtoupper(trim($login)), 'Accès FNE fournis : relever le paramétrage', $entreprise->id
         );
 
-        ScraperPortailFneService::lancerPourLogin(strtoupper(trim($login)));
+        // Fiche, ventes, achats et avoirs, tout de suite (25/11/2026).
+        ScraperPortailFneService::lancerTout($login);
 
         return true;
     }

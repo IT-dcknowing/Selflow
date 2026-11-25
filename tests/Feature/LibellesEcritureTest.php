@@ -119,7 +119,20 @@ class LibellesEcritureTest extends TestCase
 
         ComptabiliteService::genererEcrituresVente($vente, 0, 'Crédit');
 
-        $this->assertSame('Vente de marchandises', $this->operation('FactureVente')->libelle_general);
+        // 25/11/2026 (propriétaire) : « Fact n° {numéro} / libellé de l'opération ».
+        $this->assertSame('Fact n° ' . $vente->numero_facture . ' / Vente de marchandises', $this->operation('FactureVente')->libelle_general);
+    }
+
+    public function test_une_facture_certifiee_porte_le_numero_fne_sans_le_ncc(): void
+    {
+        $vente = $this->vente();
+        $vente->forceFill(['numero_fne' => '2196217J26000000123'])->saveQuietly();
+
+        ComptabiliteService::genererEcrituresVente($vente->fresh(), 7670, 'Espèces');
+
+        $this->assertSame('Fact n° 26000000123 / Vente de marchandises', $this->operation('FactureVente')->libelle_general);
+        $this->assertSame('Rglt/Fact n° 26000000123 / Vente de marchandises',
+            EcritureComptable::where('compte_debit', '571000')->value('libelle'));
     }
 
     public function test_sans_gabarit_les_lignes_de_vente_gardent_l_ancien_libelle(): void
@@ -129,12 +142,12 @@ class LibellesEcritureTest extends TestCase
         ComptabiliteService::genererEcrituresVente($vente, 0, 'Crédit');
 
         $this->assertSame(
-            $vente->numero_facture . ' / Facturation Vente',
+            'Fact n° ' . $vente->numero_facture . ' / Facturation Vente',
             EcritureComptable::where('compte_debit', '411000')->value('libelle')
         );
 
         $this->assertSame(
-            $vente->numero_facture . ' / TVA Collectée Vente',
+            'Fact n° ' . $vente->numero_facture . ' / TVA Collectée Vente',
             EcritureComptable::where('compte_credit', '443100')->value('libelle')
         );
     }
@@ -165,7 +178,7 @@ class LibellesEcritureTest extends TestCase
 
         $libelle = EcritureComptable::where('compte_debit', '571000')->value('libelle');
 
-        $this->assertSame('Rglt/' . $vente->numero_facture . '/Vente Ciment 50 kg', $libelle);
+        $this->assertSame('Rglt/Fact n° ' . $vente->numero_facture . ' / Vente de marchandises', $libelle);
         $this->assertStringNotContainsString('//', (string) $libelle);
     }
 
@@ -249,7 +262,7 @@ class LibellesEcritureTest extends TestCase
         $vente = $this->vente(['client_id' => null]);
         ComptabiliteService::genererEcrituresVente($vente, 0, 'Crédit');
 
-        $this->assertSame('Vente de marchandises', $this->operation('FactureVente')->libelle_general);
+        $this->assertSame('Fact n° ' . $vente->numero_facture . ' / Vente de marchandises', $this->operation('FactureVente')->libelle_general);
     }
 
     /**
@@ -297,7 +310,7 @@ class LibellesEcritureTest extends TestCase
         $vente = $this->vente();
         ComptabiliteService::genererEcrituresVente($vente, 0, 'Crédit');
 
-        $this->assertSame('Vente de marchandises', $this->operation('FactureVente')->libelle_general);
+        $this->assertSame('Fact n° ' . $vente->numero_facture . ' / Vente de marchandises', $this->operation('FactureVente')->libelle_general);
     }
 
     // ── L'écran de paramétrage ──────────────────────────────────────

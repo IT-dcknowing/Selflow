@@ -155,10 +155,10 @@ document.addEventListener('DOMContentLoaded', function () {
                         Retrouvé par son NCC, ou créé à l’intégration.
                     @elseif($estAvoir)
                         Le client de la facture d’origine.
+                    @elseif(!empty($p['client_divers']))
+                        Sans NCC : rangé sous « Client divers », le nom est gardé sur la facture.
                     @elseif($p['client'])
                         Client existant de Selflow.
-                    @elseif($p['client_ncc'] === '' && in_array(\Illuminate\Support\Str::lower($p['client_nom']), ['client de passage', 'passage'], true))
-                        Vente de passage, sans fiche client.
                     @else
                         Sera créé à l’intégration.
                     @endif

@@ -8,6 +8,7 @@ use App\Modules\Admin\Modeles\Client;
 use App\Modules\Admin\Modeles\Entreprise;
 use App\Modules\Admin\Modeles\PointDeVente;
 use App\Modules\Admin\Modeles\PortailFneFactureRecue;
+use App\Modules\Admin\Modeles\PortailFneFactureRecueLigne;
 use App\Modules\Admin\Modeles\Produit;
 use App\Modules\Admin\Modeles\PropositionStock;
 use App\Modules\Admin\Modeles\TresorerieJournal;
@@ -211,7 +212,8 @@ class IntegrationFacturePortailService
             'nature'         => $nature,
             'point_de_vente' => $this->pointDeVentePour($entreprise, $nomSite),
             'nom_point_de_vente' => $nomSite,
-            'client'         => $estAchat ? null : $this->clientPour($entreprise, $brut),
+            'client'         => $estAchat ? null : (trim((string) ($brut['clientNcc'] ?? '')) === '' ? null : $this->clientPour($entreprise, $brut)),
+            'client_divers'  => !$estAchat && trim((string) ($brut['clientNcc'] ?? '')) === '',
             'client_nom'     => $estAchat
                 ? ($facture->emetteur_nom ?: 'Fournisseur')
                 : (trim((string) ($brut['clientCompanyName'] ?? '')) ?: 'Client de passage'),
@@ -318,7 +320,10 @@ class IntegrationFacturePortailService
             }
 
             $brut   = (array) ($facture->contenu_brut ?? []);
-            $client = $proposition['client'] ?? $this->creerClient($entreprise, $brut);
+            // Un client sans NCC (B2C) va sous « Client divers » (25/11/2026,
+            // propriétaire) ; son nom reste sur la vente (`nom_client_origine`).
+            $b2c    = trim((string) ($brut['clientNcc'] ?? '')) === '';
+            $client = $b2c ? Client::divers($entreprise) : ($proposition['client'] ?? $this->creerClient($entreprise, $brut));
             $mode   = $proposition['mode_paiement'];
             $credit = $mode === 'Crédit';
             $numero = NumerotationService::genererNumeroVente($entreprise->id, 'Facture', null, $pdv->id);
@@ -352,24 +357,19 @@ class IntegrationFacturePortailService
                 'fne_timbre_fiscal'    => (float) ($facture->timbre_fiscal ?? 0),
                 'autres_mentions'      => 'Facture émise sur le portail FNE de la DGI, reprise dans Selflow.',
             ]);
+            $this->noterLeNomDuClient($vente, $brut);
 
             $avecCompte = \App\Support\Structure::aColonne('vente_details', 'compte_vente');
 
             foreach ($proposition['lignes'] as $i => $p) {
-                $ligne   = $p['ligne'];
-                $produit = $p['produit'];
-
-                if (array_key_exists('produit_id', $choix['lignes'][$i] ?? [])) {
-                    $choisi  = $choix['lignes'][$i]['produit_id'];
-                    $produit = $choisi ? Produit::where('entreprise_id', $entreprise->id)->find((int) $choisi) : null;
-                }
-
+                $ligne    = $p['ligne'];
+                $compte   = trim((string) ($choix['lignes'][$i]['compte'] ?? '')) ?: $p['compte'];
+                $produit  = $this->produitChoisi($p, $choix, $i, $entreprise, $compte, false);
                 $quantite = (float) $ligne->quantite;
                 $prix     = (float) $ligne->prix_unitaire;
                 $remise   = (float) ($ligne->remise ?? 0);
                 $ht       = round($quantite * $prix * (1 - $remise / 100), 2);
                 $tva      = round($ht * $p['taux'] / 100, 2);
-                $compte   = trim((string) ($choix['lignes'][$i]['compte'] ?? '')) ?: $p['compte'];
 
                 $detail = VenteDetail::create(array_filter([
                     'vente_id'          => $vente->id,
@@ -502,6 +502,7 @@ class IntegrationFacturePortailService
                 'fne_timbre_fiscal'   => (float) ($facture->timbre_fiscal ?? 0),
                 'autres_mentions'     => 'Avoir émis sur le portail FNE de la DGI, repris dans Selflow.',
             ]);
+            $this->noterLeNomDuClient($avoir, (array) ($facture->contenu_brut ?? []));
 
             $this->lignesDeVente($avoir, $proposition, $choix, $entreprise, $pdvId, 'entree', $numero);
 
@@ -588,13 +589,13 @@ class IntegrationFacturePortailService
 
             foreach ($proposition['lignes'] as $i => $p) {
                 $ligne = $p['ligne'];
-                $produit = $this->produitChoisi($p, $choix, $i, $entreprise);
+                $compte   = trim((string) ($choix['lignes'][$i]['compte'] ?? '')) ?: $p['compte'];
+                $produit  = $this->produitChoisi($p, $choix, $i, $entreprise, $compte, true);
                 $quantite = (float) $ligne->quantite;
                 $prix     = (float) $ligne->prix_unitaire;
                 $remise   = (float) ($ligne->remise ?? 0);
                 $ht       = round($quantite * $prix * (1 - $remise / 100), 2);
                 $tva      = round($ht * $p['taux'] / 100, 2);
-                $compte   = trim((string) ($choix['lignes'][$i]['compte'] ?? '')) ?: $p['compte'];
 
                 $detail = AchatDetail::create(array_filter([
                     'achat_id'              => $achat->id,
@@ -662,13 +663,13 @@ class IntegrationFacturePortailService
 
         foreach ($proposition['lignes'] as $i => $p) {
             $ligne = $p['ligne'];
-            $produit = $this->produitChoisi($p, $choix, $i, $entreprise);
+            $compte   = trim((string) ($choix['lignes'][$i]['compte'] ?? '')) ?: $p['compte'];
+            $produit  = $this->produitChoisi($p, $choix, $i, $entreprise, $compte, false);
             $quantite = (float) $ligne->quantite;
             $prix     = (float) $ligne->prix_unitaire;
             $remise   = (float) ($ligne->remise ?? 0);
             $ht       = round($quantite * $prix * (1 - $remise / 100), 2);
             $tva      = round($ht * $p['taux'] / 100, 2);
-            $compte   = trim((string) ($choix['lignes'][$i]['compte'] ?? '')) ?: $p['compte'];
 
             $detail = VenteDetail::create(array_filter([
                 'vente_id'          => $vente->id,
@@ -689,15 +690,74 @@ class IntegrationFacturePortailService
         }
     }
 
-    private function produitChoisi(array $p, array $choix, int $i, Entreprise $entreprise): ?Produit
+    private function produitChoisi(array $p, array $choix, int $i, Entreprise $entreprise, string $compte, bool $estAchat): Produit
     {
+        $produit = $p['produit'];
         if (array_key_exists('produit_id', $choix['lignes'][$i] ?? [])) {
             $choisi = $choix['lignes'][$i]['produit_id'];
-
-            return $choisi ? Produit::where('entreprise_id', $entreprise->id)->find((int) $choisi) : null;
+            $produit = $choisi ? Produit::where('entreprise_id', $entreprise->id)->find((int) $choisi) : null;
         }
 
-        return $p['produit'];
+        // 25/11/2026 (propriétaire) : toute ligne du portail entre au
+        // catalogue. Plus de ligne libre : l'article est créé avec son compte,
+        // son prix et son type, et sert aux pièces suivantes.
+        return $produit ?? $this->creerArticle($entreprise, $p['ligne'], $compte, (float) $p['taux'], $estAchat);
+    }
+
+    /**
+     * L'article d'une ligne du portail, créé au catalogue (25/11/2026).
+     *
+     * Le portail ne dit pas si l'article se stocke : le compte retenu le dit.
+     * Une prestation (706 en vente ; hors 601-603 en achat) ou une unité de
+     * temps (heure, jour, forfait…) donne un service ; le reste, une
+     * marchandise.
+     */
+    private function creerArticle(Entreprise $entreprise, PortailFneFactureRecueLigne $ligne, string $compte, float $taux, bool $estAchat): Produit
+    {
+        $nom = trim((string) ($ligne->designation ?: 'Article du portail FNE'));
+        $deja = $this->articlePour($entreprise, $ligne->reference_article, $nom);
+        if ($deja) {
+            return $deja;
+        }
+
+        $unite = Str::lower(Str::ascii((string) $ligne->unite));
+        $prestation = $estAchat
+            ? !in_array(substr($compte, 0, 3), ['601', '602', '603'], true)
+            : str_starts_with($compte, '706');
+        if (preg_match('/\b(heure|h|jour|j|forfait|prestation|mois|seance|nuit|semaine)s?\b/', $unite)) {
+            $prestation = true;
+        }
+
+        $reference = trim((string) $ligne->reference_article);
+        $referenceLibre = $reference !== ''
+            && !Produit::where('entreprise_id', $entreprise->id)->where('reference', $reference)->exists();
+
+        $prix = (float) $ligne->prix_unitaire;
+
+        $produit = Produit::create(array_filter([
+            'entreprise_id'   => $entreprise->id,
+            'reference'       => $referenceLibre ? $reference : null,
+            'nom'             => mb_substr($nom, 0, 255),
+            'type'            => $prestation ? 'service' : 'marchandise',
+            'unite'           => $ligne->unite ?: 'Unité',
+            'prix_vente'      => $estAchat ? 0 : $prix,
+            'prix_achat'      => $estAchat ? $prix : 0,
+            'taux_tva'        => $taux,
+            'code_tva_manuel' => false,
+            'compte_vente'    => $estAchat ? null : $compte,
+            'compte_achat'    => $estAchat ? $compte : null,
+            'statut'          => 'actif',
+        ], fn ($v) => $v !== null));
+
+        // Le domaine et le secteur se déduisent de l'article (25/11/2026) ;
+        // un échec de classement n'empêche jamais l'intégration.
+        try {
+            \App\Modules\Admin\Services\ClassementParReferentielService::rattacher($entreprise, $produit);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[portail FNE] article non classé', ['produit' => $produit->id, 'erreur' => $e->getMessage()]);
+        }
+
+        return $produit;
     }
 
     private function proposerMouvement(Entreprise $entreprise, int $pdvId, ?Produit $produit, string $sens, float $quantite, string $numero, ?Vente $vente, ?int $detailId = null): void
@@ -761,6 +821,15 @@ class IntegrationFacturePortailService
         }
 
         return $sites->count() === 1 ? $sites->first() : null;
+    }
+
+    /** Le nom du client porté par la pièce du portail, gardé sur la vente. */
+    private function noterLeNomDuClient(Vente $vente, array $brut): void
+    {
+        $nom = trim((string) ($brut['clientCompanyName'] ?? ''));
+        if ($nom !== '' && \App\Support\Structure::aColonne('ventes', 'nom_client_origine')) {
+            $vente->forceFill(['nom_client_origine' => mb_substr($nom, 0, 255)])->saveQuietly();
+        }
     }
 
     private function clientPour(Entreprise $entreprise, array $brut): ?Client

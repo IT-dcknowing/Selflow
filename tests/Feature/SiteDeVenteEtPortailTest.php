@@ -93,13 +93,13 @@ class SiteDeVenteEtPortailTest extends TestCase
     {
         config(['selflow.fne_api_url_production' => 'https://www.services.fne.dgi.gouv.ci/ws', 'selflow.fne_api_url_sandbox' => 'http://54.247.95.108/ws']);
         $acces = \App\Modules\Admin\Modeles\FneCredential::create(['entreprise_id' => $this->e->id, 'ncc_associe' => '2196217J']);
-        $this->assertSame('http://54.247.95.108/fr/login', \App\Modules\Admin\Services\AdressePortailFne::connexion($acces), 'Sans clé : le test, comme avant.');
+        $this->assertSame('https://www.services.fne.dgi.gouv.ci/fr/login', \App\Modules\Admin\Services\AdressePortailFne::connexion($acces), 'Sans choix : la production (25/11/2026).');
 
         $sa = Utilisateur::create(['nom' => 'S', 'prenom' => 'A', 'email' => 'sa@x.ci', 'password' => bcrypt('x'), 'role' => 'superadmin', 'statut' => 'actif']);
         $sa->forceFill(['habilitations' => ['gestion_fne']])->save();
-        $this->actingAs($sa)->post(route('superadmin.fne.portail', $this->e), ['portail_releve' => 'production'])->assertSessionHas('success');
+        $this->actingAs($sa)->post(route('superadmin.fne.portail', $this->e), ['portail_releve' => 'test'])->assertSessionHas('success');
 
-        $this->assertSame('https://www.services.fne.dgi.gouv.ci/fr/login', \App\Modules\Admin\Services\AdressePortailFne::connexion($acces->fresh()));
+        $this->assertSame('http://54.247.95.108/fr/login', \App\Modules\Admin\Services\AdressePortailFne::connexion($acces->fresh()), 'Le test, choisi par le superadmin.');
 
         $this->post(route('superadmin.fne.portail', $this->e), ['portail_releve' => 'auto']);
         $this->assertNull($acces->fresh()->portail_releve);

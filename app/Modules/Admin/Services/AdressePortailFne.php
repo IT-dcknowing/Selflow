@@ -34,9 +34,10 @@ class AdressePortailFne
             return false;
         }
 
-        return $acces !== null
-            && $acces->statut === 'validee'
-            && trim((string) (config('selflow.portail_fne.url_production') ?: config('selflow.fne_api_url_production'))) !== '';
+        // Sans choix : la production (25/11/2026, propriétaire : « par
+        // défaut, même si ça n'a pas été cliqué, la production »). Le test ne
+        // se relève que si le superadmin l'a choisi.
+        return trim((string) (config('selflow.portail_fne.url_production') ?: config('selflow.fne_api_url_production'))) !== '';
     }
 
     /** L'hôte du portail, sans barre finale : `http://54.247.95.108`. */

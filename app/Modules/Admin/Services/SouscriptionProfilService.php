@@ -166,7 +166,7 @@ class SouscriptionProfilService
      *
      * @return array{0: Categorie, 1: bool} la catégorie, et si elle vient d'être créée
      */
-    private static function categoriePour(Entreprise $entreprise, Famille $famille): array
+    public static function categoriePour(Entreprise $entreprise, Famille $famille): array
     {
         $profil = $famille->profil;
         $domaine = $profil?->categorie?->nom;

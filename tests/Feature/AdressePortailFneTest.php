@@ -27,12 +27,18 @@ class AdressePortailFneTest extends TestCase
         $this->assertSame('https://fne.exemple.ci/fr/login', AdressePortailFne::connexion($this->acces('validee')));
     }
 
-    public function test_un_acces_de_test_vise_le_test(): void
+    public function test_sans_choix_du_superadmin_le_portail_est_la_production(): void
     {
+        // 25/11/2026 (propriétaire) : la production par défaut, même avec une
+        // simple clé de test ; le test seulement si le superadmin le choisit.
         config(['selflow.fne_api_url_production' => 'https://fne.exemple.ci/ws', 'selflow.fne_api_url_sandbox' => 'http://54.247.95.108/ws']);
 
-        $this->assertSame('http://54.247.95.108', AdressePortailFne::hote($this->acces('test')));
-        $this->assertSame('http://54.247.95.108', AdressePortailFne::hote(null));
+        $this->assertSame('https://fne.exemple.ci', AdressePortailFne::hote($this->acces('test')));
+        $this->assertSame('https://fne.exemple.ci', AdressePortailFne::hote(null));
+
+        $choisi = $this->acces('test');
+        $choisi->forceFill(['portail_releve' => 'test']);
+        $this->assertSame('http://54.247.95.108', AdressePortailFne::hote($choisi));
     }
 
     public function test_sans_adresse_de_production_on_reste_sur_le_test_comme_la_certification(): void

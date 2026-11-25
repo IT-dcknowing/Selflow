@@ -418,6 +418,64 @@ class ScraperPortailFneService
             ->exists();
     }
 
+    /**
+     * Tous les relevés d'un login : fiche (dédiée), ventes, achats, avoirs
+     * (25/11/2026, propriétaire : « dès que le téléchargement est coché, les
+     * factures doivent être lancées »).
+     *
+     * @return array<string, bool>
+     */
+    public static function lancerTout(string $login): array
+    {
+        $login = strtoupper(trim($login));
+
+        return [
+            'fiche'  => self::lancerPourLogin($login, true),
+            'ventes' => self::lancerVentes($login),
+            'achats' => self::lancerAchats($login),
+            'avoirs' => self::lancerAvoirs($login),
+        ];
+    }
+
+    /**
+     * Relancer, sans attendre le passage suivant, les relevés dont la dernière
+     * connexion a échoué pour une raison passagère (25/11/2026, propriétaire :
+     * « même s'il y a un échec, relancer après, de façon automatique »).
+     *
+     * - portail injoignable, robot interrompu, ou jamais lancé : relancé,
+     *   au plus une fois toutes les 30 minutes ;
+     * - identifiants refusés : NON relancé. Répéter un mot de passe faux
+     *   ferait bloquer le compte de l'entreprise par la DGI ; il repart dès
+     *   que les accès sont corrigés, et « Retour robot » le signale.
+     *
+     * @return array<int, string> les logins relancés
+     */
+    public static function relancerLesEchecs(): array
+    {
+        $relances = [];
+        foreach (self::loginsAutorises() as $login) {
+            $etat = self::etatConnexion($login);
+            $statut = $etat['statut'] ?? null;
+            $quand = isset($etat['quand']) ? \Illuminate\Support\Carbon::parse($etat['quand']) : null;
+
+            if (in_array($statut, ['ok', 'identifiants', 'mot_de_passe'], true)) {
+                continue;
+            }
+            if ($quand && $quand->gt(now()->subMinutes(30))) {
+                continue;
+            }
+            if (!\Illuminate\Support\Facades\Cache::add('portail-fne:relance:' . $login, true, now()->addMinutes(30))) {
+                continue;
+            }
+
+            self::tracer('notice', "fne[{$login}] : relance automatique (" . ($statut ?? 'jamais relevé') . ').');
+            self::lancerTout($login);
+            $relances[] = $login;
+        }
+
+        return $relances;
+    }
+
     /** Lancer le relevé de la fiche FNE uniquement pour les comptes autorisés. */
     public static function lancerPourTousLesLoginsAutorises(): bool
     {

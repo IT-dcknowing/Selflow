@@ -450,7 +450,10 @@
                     <td style="font-weight:700; color:var(--primary); white-space: nowrap;">{{ $vente->numero_facture }}</td>
                     <td style="white-space: nowrap;">{{ $vente->date_vente?->format('d/m/Y') ?? '—' }}</td>
                     <td style="white-space: nowrap;" title="Date et heure de création dans Selflow">{{ $vente->created_at?->format('d/m/Y H:i') ?? '—' }}</td>
-                    <td style="white-space: nowrap;">{{ $vente->client?->nom ?? '— Passage —' }}</td>
+                    <td style="white-space: nowrap;">{{ $vente->client?->nom ?? 'Passage' }}
+                        @if(filled($vente->nom_client_origine ?? null) && $vente->nom_client_origine !== $vente->client?->nom)
+                            <div style="font-size:11px; color:var(--text-3);">{{ $vente->nom_client_origine }}</div>
+                        @endif</td>
                     <td style="font-weight:500; color:var(--text-2); white-space: nowrap;"><i class="fas fa-store" style="font-size:11px; margin-right:4px;"></i>{{ $vente->pointDeVente->nom }}</td>
                     @php
                         // La colonne HT : sous-total HT brut de la facture.
