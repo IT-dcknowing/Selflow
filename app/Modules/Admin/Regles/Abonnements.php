@@ -73,6 +73,23 @@ final class Abonnements
     }
 
     /**
+     * L'inverse de remplir() (25/11/2026) : la date d'échéance et « il y a
+     * N jours » redeviennent des variables, pour que le message reste juste
+     * les jours suivants. Le superadministrateur voit les dates ; on garde
+     * le modèle.
+     */
+    public static function versModele(Entreprise $entreprise, string $texte): string
+    {
+        $echeance = $entreprise->abonnement_expire_le;
+        if ($echeance) {
+            $texte = str_replace($echeance->format('d/m/Y'), '{echeance}', $texte);
+        }
+        $texte = preg_replace('/\bil y a \d+ jours?\b/u', 'il y a {jours} jours', $texte) ?? $texte;
+
+        return str_replace((string) $entreprise->nom, '{entreprise}', $texte);
+    }
+
+    /**
      * Remplace {entreprise}, {echeance} et {jours} par les valeurs de
      * l'entreprise (25/11/2026) : le superadministrateur voit et enregistre
      * le message tel que l'entreprise le lira, dates comprises.

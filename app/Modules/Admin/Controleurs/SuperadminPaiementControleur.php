@@ -216,10 +216,10 @@ class SuperadminPaiementControleur
     public function message(Request $request, \App\Modules\Admin\Modeles\Entreprise $entreprise): RedirectResponse
     {
         $donnees = $request->validate(['message' => ['nullable', 'string', 'max:1000']]);
-        // Les variables éventuellement saisies à la main sont remplies tout de
-        // suite : le message enregistré est celui que l'entreprise lira.
+        // Le superadministrateur voit et écrit des dates ; on garde le modèle
+        // ({echeance}, {jours}) pour que le nombre de jours avance chaque jour.
         $texte = trim((string) ($donnees['message'] ?? ''));
-        $texte = $texte !== '' ? Abonnements::remplir($entreprise, $texte) : '';
+        $texte = $texte !== '' ? Abonnements::versModele($entreprise, $texte) : '';
 
         if (! \App\Support\Structure::aColonne('entreprises', 'message_abonnement')) {
             return back()->with('erreur', 'Lancez d\'abord php artisan migrate : la colonne du message n\'existe pas encore.');

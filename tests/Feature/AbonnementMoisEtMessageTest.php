@@ -80,7 +80,24 @@ class AbonnementMoisEtMessageTest extends TestCase
         $this->artisan('selflow:fixer-echeances', ['--appliquer' => true])->assertExitCode(0);
         $this->assertSame(now()->subDays(5)->addMonthNoOverflow()->toDateString(), $recente->fresh()->abonnement_expire_le->toDateString());
         $this->assertSame(Abonnements::BUSINESS, $recente->fresh()->plan_abonnement);
-        $this->assertTrue(Abonnements::estATerme($ancienne->fresh()), 'Le mois est écoulé : à terme maintenant.');
+        $this->assertTrue(Abonnements::estATerme($ancienne->fresh()), 'Le mois est écoulé : à terme.');
+        $this->assertSame(now()->subMonths(2)->addMonthNoOverflow()->toDateString(), $ancienne->fresh()->abonnement_expire_le->toDateString(),
+            'La vraie échéance, passée, et non aujourd\'hui.');
+    }
+
+    public function test_recaler_remet_la_vraie_echeance_et_le_message_compte_les_vrais_jours(): void
+    {
+        [$e] = $this->entreprise('Poissonnerie La Grace');
+        // Ce que la première version avait posé : à terme « aujourd'hui ».
+        $e->forceFill(['created_at' => Carbon::parse('2026-10-15 09:00'), 'abonnement_expire_le' => now()->subMinute(),
+            'message_abonnement' => 'Votre abonnement Selflow est arrivé à échéance le ' . now()->format('d/m/Y') . ', il y a 0 jours.'])->save();
+
+        $this->artisan('selflow:fixer-echeances', ['--recaler' => true, '--appliquer' => true])->assertExitCode(0);
+
+        $e->refresh();
+        $this->assertSame('2026-11-15', $e->abonnement_expire_le->toDateString());
+        $jours = (int) Carbon::parse('2026-11-15')->diffInDays(now()->startOfDay());
+        $this->assertSame("Votre abonnement Selflow est arrivé à échéance le 15/11/2026, il y a {$jours} jours.", Abonnements::messageDe($e));
     }
 
     public function test_le_message_du_superadmin_s_affiche_en_haut_et_dans_la_fenetre(): void
@@ -90,8 +107,9 @@ class AbonnementMoisEtMessageTest extends TestCase
 
         $this->actingAs($this->superadmin)->post(route('superadmin.paiements.message', $e), ['message' => Abonnements::MESSAGES['expire_longtemps']])
             ->assertSessionHas('succes');
-        $this->assertStringContainsString('le 01/10/2026', $e->fresh()->message_abonnement, 'Enregistré avec ses dates.');
-        $this->assertStringNotContainsString('{echeance}', $e->fresh()->message_abonnement);
+        // Gardé en modèle : la date et le nombre de jours se calculent à l'affichage.
+        $this->assertStringContainsString('{echeance}', $e->fresh()->message_abonnement);
+        $this->assertStringContainsString('il y a {jours} jours', $e->fresh()->message_abonnement);
 
         // Côté superadmin, les messages proposés arrivent déjà remplis.
         $this->actingAs($this->superadmin)->get(route('superadmin.paiements.index'))->assertOk()

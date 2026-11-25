@@ -11928,6 +11928,19 @@ option renommée « Prestataires », reprise des factures « apporteur »).
   enregistré tel que l'entreprise le lit (le nombre de jours est celui du
   jour de l'envoi).
 
+### Lot 176 — Vraie échéance (création + 1 mois) et jours réels dans le message — **TERMINÉ le 25/11/2026**
+
+- `selflow:fixer-echeances` posait « maintenant » comme échéance des
+  entreprises dont le mois était écoulé : le message disait « le
+  25/11/2026, il y a 0 jours ». L'échéance posée est désormais la vraie,
+  création + 1 mois, même passée (l'entreprise est à terme depuis cette
+  date). `--recaler [--appliquer]` remet à leur vraie date celles posées
+  par la première version (échéance des 3 derniers jours, sans paiement
+  confirmé) et convertit leur message.
+- Le message est gardé en modèle (`Abonnements::versModele`) : le
+  superadmin lit et écrit des dates, l'entreprise lit la date d'échéance et
+  le nombre de jours du jour (calculés à l'affichage).
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |
