@@ -120,10 +120,11 @@
                             <select class="form-control" onchange="if (this.value) this.form.message.value = this.value;">
                                 <option value="">Choisir un message proposé…</option>
                                 @foreach(Abonnements::MESSAGES as $cleMessage => $texteMessage)
-                                    <option value="{{ $texteMessage }}">{{ Abonnements::LIBELLES_MESSAGES[$cleMessage] }}</option>
+                                    {{-- Déjà rempli avec les dates de l'entreprise (25/11/2026). --}}
+                                    <option value="{{ Abonnements::remplir($e, $texteMessage) }}">{{ Abonnements::LIBELLES_MESSAGES[$cleMessage] }}</option>
                                 @endforeach
                             </select>
-                            <textarea name="message" class="form-control" rows="3" maxlength="1000" placeholder="Votre message, à reformuler à votre guise. {echeance}, {jours} et {entreprise} se remplacent à l'affichage.">{{ $e->message_abonnement ?? '' }}</textarea>
+                            <textarea name="message" class="form-control" rows="3" maxlength="1000" placeholder="Votre message, à reformuler à votre guise.">{{ filled($e->message_abonnement ?? null) ? Abonnements::remplir($e, $e->message_abonnement) : '' }}</textarea>
                             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                                 <button class="btn btn-primary btn-sm"><i class="fas fa-paper-plane"></i> Enregistrer le message</button>
                                 @if(filled($e->message_abonnement ?? null))

@@ -11919,6 +11919,15 @@ option renommée « Prestataires », reprise des factures « apporteur »).
   blocage (à terme ou paiement en attente). Migration `2026_11_25_000001`.
 - Tests : `AbonnementMoisEtMessageTest` (4). Suite : 212.
 
+### Lot 175 — Message d'abonnement rempli avec les dates — **TERMINÉ le 25/11/2026**
+
+- Côté superadmin, `{echeance}` et `{jours}` restaient visibles dans le
+  message proposé : ils n'étaient remplacés qu'à l'affichage chez
+  l'entreprise. Les messages proposés arrivent désormais remplis avec les
+  dates de chaque entreprise (`Abonnements::remplir`), et le message est
+  enregistré tel que l'entreprise le lit (le nombre de jours est celui du
+  jour de l'envoi).
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

@@ -90,6 +90,12 @@ class AbonnementMoisEtMessageTest extends TestCase
 
         $this->actingAs($this->superadmin)->post(route('superadmin.paiements.message', $e), ['message' => Abonnements::MESSAGES['expire_longtemps']])
             ->assertSessionHas('succes');
+        $this->assertStringContainsString('le 01/10/2026', $e->fresh()->message_abonnement, 'Enregistré avec ses dates.');
+        $this->assertStringNotContainsString('{echeance}', $e->fresh()->message_abonnement);
+
+        // Côté superadmin, les messages proposés arrivent déjà remplis.
+        $this->actingAs($this->superadmin)->get(route('superadmin.paiements.index'))->assertOk()
+            ->assertSee('arrivé à échéance le 01/10/2026', false);
 
         $page = $this->actingAs($admin)->withSession(['point_de_vente_actif_id' => $site->id])->get(route('admin.tableau_de_bord'))->getContent();
         $this->assertStringContainsString('Message de DC-Knowing', $page);

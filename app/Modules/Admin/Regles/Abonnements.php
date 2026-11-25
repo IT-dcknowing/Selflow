@@ -68,9 +68,17 @@ final class Abonnements
     public static function messageDe(?Entreprise $entreprise): ?string
     {
         $texte = trim((string) ($entreprise?->message_abonnement ?? ''));
-        if ($texte === '') {
-            return null;
-        }
+
+        return $texte === '' ? null : self::remplir($entreprise, $texte);
+    }
+
+    /**
+     * Remplace {entreprise}, {echeance} et {jours} par les valeurs de
+     * l'entreprise (25/11/2026) : le superadministrateur voit et enregistre
+     * le message tel que l'entreprise le lira, dates comprises.
+     */
+    public static function remplir(Entreprise $entreprise, string $texte): string
+    {
         $echeance = $entreprise->abonnement_expire_le;
 
         return strtr($texte, [
