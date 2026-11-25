@@ -97,7 +97,8 @@
                              règlent par référence de transaction (16/10/2026). --}}
                         <button type="button" class="btn btn-primary" style="width:100%; justify-content:center;"
                                 onclick="var c = this.nextElementSibling; c.style.display = c.style.display === 'none' ? 'block' : 'none';"><i class="fas fa-rotate"></i> Renouveler</button>
-                        @include('admin::abonnements.partials.champs-paiement', ['montant' => ($offre['prix'] ?? 0) > 0 ? $offre['prix'] : null])
+                        @include('admin::abonnements.partials.champs-paiement', ['montant' => ($offre['prix'] ?? 0) > 0 ? $offre['prix'] : null,
+                            'depart' => $entreprise->abonnement_expire_le?->isFuture() ? $entreprise->abonnement_expire_le : now()])
                     </form>
                 @elseif($superieure)
                     <form method="POST" action="{{ route('admin.abonnement.enregistrer') }}">

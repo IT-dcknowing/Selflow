@@ -98,6 +98,7 @@ class VerifierHabilitationRoute
         'superadmin.paiements.index'   => 'gestion_entreprises',
         'superadmin.paiements.traiter' => 'gestion_entreprises',
         'superadmin.paiements.prolonger' => 'gestion_entreprises',
+        'superadmin.paiements.message'   => 'gestion_entreprises',
         'superadmin.integrations.paiements.index' => 'gestion_entreprises',
         'superadmin.integrations.paiements.enregistrer' => 'gestion_entreprises',
         'superadmin.pannes.index'      => 'tableau_de_bord_superadmin',

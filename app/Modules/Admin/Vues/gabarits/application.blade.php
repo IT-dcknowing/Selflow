@@ -634,6 +634,11 @@
         ? \App\Modules\Admin\Regles\Abonnements::confirmationAAnnoncer(auth()->user()->entreprise)
         : null;
     $__bloque = $__aTerme || $__suspens;
+    // Le message du superadministrateur à l'entreprise (25/11/2026).
+    $__messageAbonnement = auth()->check() && !auth()->user()->estSuperAdmin() && !request()->routeIs('superadmin.*')
+        && \App\Support\Structure::aColonne('entreprises', 'message_abonnement')
+        ? \App\Modules\Admin\Regles\Abonnements::messageDe(auth()->user()->entreprise)
+        : null;
     $__surFacturation = request()->routeIs('admin.entreprise.parametres');
 @endphp
 <body class="{{ $__bloque ? 'abonnement-a-terme' : '' }} {{ $__bloque && $__surFacturation ? 'sur-facturation' : '' }}{{ request()->boolean('integre') ? ' integre' : '' }}">
@@ -2023,6 +2028,7 @@
         @endif
 
         @unless(request()->routeIs('superadmin.*'))
+            @include('admin::partials.message-abonnement', ['texte' => $__messageAbonnement])
             @include('admin::partials.avis-stickers')
             @include('admin::partials.avis-activation')
         @endunless
@@ -2045,6 +2051,7 @@
                         <i class="fas fa-hourglass-end"></i>
                     </div>
                     <h2 id="titre-a-terme" style="font-size:20px; font-weight:800; color:#1E293B; margin-bottom:8px;">Abonnement à terme</h2>
+                    @include('admin::partials.message-abonnement', ['texte' => $__messageAbonnement, 'dansLaFenetre' => true])
                     <p style="color:#64748B; font-size:14px; line-height:1.6; margin-bottom:22px;">
                         Votre abonnement est arrivé à échéance le {{ auth()->user()->entreprise->abonnement_expire_le->format('d/m/Y') }}.
                         Renouvelez-le, ou passez à une offre supérieure, pour continuer à travailler.

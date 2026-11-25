@@ -34,7 +34,8 @@ class SuperadminPaiementControleur
         // ont leur propre groupe, l'offre Business (25 000 F) proposée.
         $toutes = \App\Modules\Admin\Modeles\Entreprise::query()->horsCorbeille()
             ->orderBy('abonnement_expire_le')->orderBy('nom')
-            ->get(['id', 'uuid', 'nom', 'ncc', 'plan_abonnement', 'abonnement_statut', 'abonnement_expire_le', 'created_at']);
+            ->get(array_merge(['id', 'uuid', 'nom', 'ncc', 'plan_abonnement', 'abonnement_statut', 'abonnement_expire_le', 'created_at'],
+                \App\Support\Structure::aColonne('entreprises', 'message_abonnement') ? ['message_abonnement', 'message_abonnement_le'] : []));
         $entreprises = $toutes->filter(fn ($e) => $e->abonnement_expire_le !== null)->values();
         $maintenant = now();
         $abonnements = [
@@ -205,6 +206,28 @@ class SuperadminPaiementControleur
 
         return back()->with('succes', $entreprise->nom . ' : ' . Abonnements::libelle($entreprise->plan_abonnement)
             . ', échéance au ' . $entreprise->abonnement_expire_le?->format('d/m/Y') . '.');
+    }
+
+    /**
+     * Le message du superadministrateur à une entreprise (25/11/2026) : en
+     * haut de chacune de ses pages, et dans la fenêtre de blocage. Vide :
+     * le message est retiré.
+     */
+    public function message(Request $request, \App\Modules\Admin\Modeles\Entreprise $entreprise): RedirectResponse
+    {
+        $donnees = $request->validate(['message' => ['nullable', 'string', 'max:1000']]);
+        $texte = trim((string) ($donnees['message'] ?? ''));
+
+        if (! \App\Support\Structure::aColonne('entreprises', 'message_abonnement')) {
+            return back()->with('erreur', 'Lancez d\'abord php artisan migrate : la colonne du message n\'existe pas encore.');
+        }
+
+        $entreprise->forceFill([
+            'message_abonnement'    => $texte !== '' ? $texte : null,
+            'message_abonnement_le' => $texte !== '' ? now() : null,
+        ])->save();
+
+        return back()->with('succes', $entreprise->nom . ' : ' . ($texte !== '' ? 'message enregistré, il s\'affiche en haut de ses pages.' : 'message retiré.'));
     }
 
     public function traiter(Request $request, PaiementAbonnement $paiement): RedirectResponse

@@ -810,6 +810,7 @@ Route::prefix('superadmin')
             Route::get('/', [\App\Modules\Admin\Controleurs\SuperadminPaiementControleur::class, 'index'])->name('index');
             Route::put('/{paiement}', [\App\Modules\Admin\Controleurs\SuperadminPaiementControleur::class, 'traiter'])->name('traiter');
             Route::post('/entreprises/{entreprise}/prolonger', [\App\Modules\Admin\Controleurs\SuperadminPaiementControleur::class, 'prolonger'])->name('prolonger');
+            Route::post('/entreprises/{entreprise}/message', [\App\Modules\Admin\Controleurs\SuperadminPaiementControleur::class, 'message'])->name('message');
         });
 
         // ── Configuration des passerelles de paiement ──

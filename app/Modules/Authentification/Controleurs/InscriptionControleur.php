@@ -79,6 +79,7 @@ class InscriptionControleur
         $request->validate([
             'nom_entreprise'      => ['required', 'string', 'max:150'],
             'offre'               => ['required', 'string', Rule::in(array_keys(\App\Modules\Admin\Regles\Abonnements::offres()))],
+            'mois'                => ['nullable', 'integer', Rule::in(\App\Modules\Admin\Regles\Abonnements::DUREES_MOIS)],
             // La liste vivait ici, et n'était pas celle des autres écrans :
             // elle omettait TCE et RME. Voir Entreprise::REGIMES_IMPOSITION.
             'regime_imposition'   => ['nullable', 'string', Rule::in(Entreprise::regimesAcceptesPour())],
@@ -198,7 +199,8 @@ class InscriptionControleur
                 'quota_utilisateurs' => $offreChoisie['utilisateurs'] ?? \App\Modules\Admin\Regles\Abonnements::QUOTA_PAR_DEFAUT,
                 'abonnement_demande' => $request->offre,
                 'abonnement_demande_le' => now(),
-            ])->save();
+            ] + (\App\Support\Structure::aColonne('entreprises', 'abonnement_demande_mois')
+                ? ['abonnement_demande_mois' => (int) ($request->input('mois') ?: 1)] : []))->save();
 
             // Sans plan comptable ni journal, la premiere vente s'impute sur des
             // comptes inventes a la volee. L'entreprise recoit donc de quoi

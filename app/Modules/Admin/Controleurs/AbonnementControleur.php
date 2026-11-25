@@ -55,8 +55,8 @@ class AbonnementControleur
         // l'active (16/10/2026, en attendant l'API de paiement).
         $paiement = null;
         if (self::estPayante($offre)) {
-            $reglement = $request->validate(PaiementParReference::regles(), PaiementParReference::messages());
-            $paiement = $this->declarerLePaiement($entreprise, $offre, 'souscription', $reglement);
+            $reglement = $request->validate(PaiementParReference::regles() + self::regleMois(), PaiementParReference::messages());
+            $paiement = $this->declarerLePaiement($entreprise, $offre, 'souscription', $reglement, null, (int) ($reglement['mois'] ?? 1));
         }
 
         Abonnements::appliquer($entreprise, $offre);
@@ -94,11 +94,11 @@ class AbonnementControleur
         // avec le montant de son devis, que le client saisit (16/10/2026).
         $surMesure = $offre === Abonnements::SUR_MESURE;
         $reglement = $request->validate(
-            PaiementParReference::regles() + ($surMesure ? ['montant' => ['required', 'integer', 'min:1']] : []),
+            PaiementParReference::regles() + self::regleMois() + ($surMesure ? ['montant' => ['required', 'integer', 'min:1']] : []),
             PaiementParReference::messages() + ['montant.required' => 'Saisissez le montant payé, celui convenu dans votre devis.']
         );
         $paiement = $this->declarerLePaiement($entreprise, $offre, 'renouvellement', $reglement,
-            $surMesure ? (int) $reglement['montant'] : null);
+            $surMesure ? (int) $reglement['montant'] : null, (int) ($reglement['mois'] ?? 1));
 
         $entreprise->forceFill([
             'abonnement_demande'    => $offre,
@@ -155,7 +155,13 @@ class AbonnementControleur
     }
 
     /** @param array{operateur_paiement: string, reference_paiement: string} $reglement */
-    private function declarerLePaiement(\App\Modules\Admin\Modeles\Entreprise $entreprise, string $offre, string $nature, array $reglement, ?int $montant = null): PaiementAbonnement
+    /** La durée choisie, en mois (25/11/2026). */
+    private static function regleMois(): array
+    {
+        return ['mois' => ['nullable', 'integer', Rule::in(Abonnements::DUREES_MOIS)]];
+    }
+
+    private function declarerLePaiement(\App\Modules\Admin\Modeles\Entreprise $entreprise, string $offre, string $nature, array $reglement, ?int $montant = null, int $mois = 1): PaiementAbonnement
     {
         // Lu avant d'appliquer l'offre : sans période payée en cours, l'espace
         // reste bloqué jusqu'à la confirmation (22/10/2026). Une entreprise
@@ -170,8 +176,10 @@ class AbonnementControleur
             'utilisateur_id'     => Auth::id(),
             'offre'              => $offre,
             'nature'             => $nature,
-            'mois'               => 1,
-            'montant'            => $montant ?? (int) Abonnements::offres()[$offre]['prix'],
+            // Le montant suit la durée choisie ; l'échéance s'en déduit à la
+            // confirmation (SuperadminPaiementControleur::activer).
+            'mois'               => max(1, $mois),
+            'montant'            => $montant ?? (int) Abonnements::offres()[$offre]['prix'] * max(1, $mois),
             'operateur_paiement' => $reglement['operateur_paiement'],
             'reference_paiement' => trim($reglement['reference_paiement']),
             'statut'             => 'recu',

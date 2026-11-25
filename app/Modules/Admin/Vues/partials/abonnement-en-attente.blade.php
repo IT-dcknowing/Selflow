@@ -20,6 +20,7 @@
         <h2 id="titre-abonnement-en-attente" style="font-size:20px; font-weight:800; color:#1E293B; margin-bottom:8px;">
             {{ $echec ? 'Paiement non confirmé' : 'En attente de confirmation de l\'abonnement' }}
         </h2>
+        @include('admin::partials.message-abonnement', ['texte' => $__messageAbonnement ?? null, 'dansLaFenetre' => true])
         <p style="color:#64748B; font-size:14px; line-height:1.6; margin-bottom:14px;">
             @if($echec)
                 DC-Knowing n'a pas pu confirmer votre paiement. Votre espace reste bloqué

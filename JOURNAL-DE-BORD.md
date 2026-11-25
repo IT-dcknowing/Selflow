@@ -11894,6 +11894,31 @@ option renommée « Prestataires », reprise des factures « apporteur »).
   que si leur route existe (`Route::has`) : un cache en retard ne fait plus
   tomber les pages.
 
+### Lot 174 — Durée d'abonnement, échéances manquantes, message du superadmin — **TERMINÉ le 25/11/2026**
+
+- **Défaut** : valider une inscription (`validerInscription`) ouvrait
+  l'entreprise sans appliquer l'offre demandée ni poser d'échéance ; 61
+  entreprises sans échéance. Désormais `Abonnements::activerALaValidation`
+  applique l'offre et pose l'échéance (validation + mois choisis), avec une
+  ligne de paiement « INSCRIPTION-… ». Pass cadeau : ses 7 jours ; sur
+  mesure : sur devis.
+- **Durée** : à l'inscription, « Durée de l'abonnement » (1, 2, 3, 6, 12 mois),
+  montant et échéance prévue calculés à la volée
+  (`entreprises.abonnement_demande_mois`). Même choix au renouvellement et au
+  changement d'offre (Paramètres › Facturation, page des offres) : le
+  paiement déclaré porte les mois et le montant (prix × mois) ;
+  l'échéance avance d'autant à la confirmation du superadmin.
+- **Échéances manquantes** : `selflow:fixer-echeances [--exclure=…]
+  [--appliquer]` : un mois après la création ; si ce mois est écoulé, à
+  terme maintenant (bloquée) ; offre « à choisir » → Business ; inscriptions
+  non validées laissées (posées à la validation).
+- **Message à l'entreprise** : sur Abonnement / réabonnement, « Envoyer un
+  message » par entreprise, avec messages proposés à reformuler
+  (`Abonnements::MESSAGES`, {echeance}, {jours}, {entreprise}) ; affiché en
+  bandeau déroulant en haut de toutes ses pages, et dans la fenêtre de
+  blocage (à terme ou paiement en attente). Migration `2026_11_25_000001`.
+- Tests : `AbonnementMoisEtMessageTest` (4). Suite : 212.
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |

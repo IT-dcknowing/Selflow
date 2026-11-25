@@ -220,6 +220,35 @@
                     </small>
                 </div>
 
+                {{-- 25/11/2026 : la durée, le montant et l'échéance, calculés à la volée. --}}
+                <div class="champ" id="bloc-duree" style="margin-top:14px; display:none;">
+                    <label for="mois">Durée de l'abonnement</label>
+                    <select id="mois" name="mois">
+                        @foreach(\App\Modules\Admin\Regles\Abonnements::DUREES_MOIS as $m)
+                            <option value="{{ $m }}" @selected((int) old('mois', 1) === $m)>{{ $m }} mois</option>
+                        @endforeach
+                    </select>
+                    <div id="total-abonnement" style="margin-top:8px; padding:10px 12px; border-radius:10px; background:#F0FDF4; border:1px solid #BBF7D0; font-size:13px; color:#166534; line-height:1.6;"></div>
+                </div>
+                <script>
+                (function () {
+                    var prix = @json(collect($offres)->map(fn ($o) => $o['prix']));
+                    var offre = document.getElementById('offre'), mois = document.getElementById('mois');
+                    var bloc = document.getElementById('bloc-duree'), total = document.getElementById('total-abonnement');
+                    function f(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+                    function maj() {
+                        var p = prix[offre.value];
+                        if (!p) { bloc.style.display = 'none'; return; }
+                        bloc.style.display = 'block';
+                        var m = parseInt(mois.value, 10) || 1, fin = new Date();
+                        fin.setMonth(fin.getMonth() + m);
+                        total.innerHTML = '<strong>' + f(p * m) + ' F</strong> (' + f(p) + ' F × ' + m + ' mois)<br>'
+                            + 'Échéance prévue : <strong>' + fin.toLocaleDateString('fr-FR') + '</strong>, comptée à partir de la validation de votre inscription.';
+                    }
+                    offre.addEventListener('change', maj); mois.addEventListener('change', maj); maj();
+                })();
+                </script>
+
                 </section>
 
 

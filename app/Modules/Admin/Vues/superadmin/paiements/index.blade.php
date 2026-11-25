@@ -110,6 +110,29 @@
                         </form>
                         <div style="font-size:11.5px; color:var(--text-3); padding-top:6px;">Les mois s'ajoutent à l'échéance actuelle si elle n'est pas passée, sinon à aujourd'hui. Une échéance précise remplace ce calcul. Chaque prolongation est inscrite aux paiements.</div>
                     </details>
+                    {{-- Message à l'entreprise (25/11/2026) : en haut de ses pages et dans la fenêtre de blocage. --}}
+                    <details style="flex-basis:100%;">
+                        <summary class="btn btn-outline btn-sm" style="list-style:none; display:inline-flex;">
+                            <i class="fas fa-comment-dots"></i>&nbsp;{{ filled($e->message_abonnement ?? null) ? 'Message affiché · modifier' : 'Envoyer un message' }}
+                        </summary>
+                        <form method="POST" action="{{ route('superadmin.paiements.message', $e) }}" style="display:grid; gap:8px; padding-top:10px; max-width:760px;">
+                            @csrf
+                            <select class="form-control" onchange="if (this.value) this.form.message.value = this.value;">
+                                <option value="">Choisir un message proposé…</option>
+                                @foreach(Abonnements::MESSAGES as $cleMessage => $texteMessage)
+                                    <option value="{{ $texteMessage }}">{{ Abonnements::LIBELLES_MESSAGES[$cleMessage] }}</option>
+                                @endforeach
+                            </select>
+                            <textarea name="message" class="form-control" rows="3" maxlength="1000" placeholder="Votre message, à reformuler à votre guise. {echeance}, {jours} et {entreprise} se remplacent à l'affichage.">{{ $e->message_abonnement ?? '' }}</textarea>
+                            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                <button class="btn btn-primary btn-sm"><i class="fas fa-paper-plane"></i> Enregistrer le message</button>
+                                @if(filled($e->message_abonnement ?? null))
+                                    <button class="btn btn-outline btn-sm" name="message" value="" onclick="this.form.message.value='';"><i class="fas fa-eraser"></i> Retirer</button>
+                                    <span style="font-size:11.5px; color:var(--text-3);">Affiché depuis le {{ \Illuminate\Support\Carbon::parse($e->message_abonnement_le)->format('d/m/Y à H:i') }}</span>
+                                @endif
+                            </div>
+                        </form>
+                    </details>
                 </div>
             @empty
                 <p style="padding:16px 18px; color:var(--text-3); margin:0;">Aucune entreprise.</p>

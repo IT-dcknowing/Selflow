@@ -659,9 +659,12 @@ class SuperadminControleur
             return back()->with('erreur', 'Choisissez ou renseignez le pack de cette entreprise avant de valider son inscription.');
         }
 
-        DB::transaction(function () use ($entreprise) {
+        $mois = 0;
+        DB::transaction(function () use ($entreprise, &$mois) {
             $entreprise->forceFill(['statut' => 'actif'])->save();
             $entreprise->utilisateurs()->where('statut', 'en_attente')->update(['statut' => 'actif']);
+            // L'offre et l'échéance (25/11/2026) : elles n'étaient jamais posées.
+            $mois = \App\Modules\Admin\Regles\Abonnements::activerALaValidation($entreprise);
         });
 
         $entreprise->utilisateurs()->where('role', 'admin')->where('statut', 'actif')->get()
@@ -669,7 +672,8 @@ class SuperadminControleur
         $this->journaliser('validation_inscription_entreprise', 'Entreprise', $entreprise->id);
 
         return redirect()->route('superadmin.entreprises')
-            ->with('succes', "Inscription de « {$entreprise->nom} » validée. L'entreprise et son administrateur peuvent maintenant accéder à Selflow.");
+            ->with('succes', "Inscription de « {$entreprise->nom} » validée. L'entreprise et son administrateur peuvent maintenant accéder à Selflow."
+                . ($mois > 0 ? ' Abonnement ' . \App\Modules\Admin\Regles\Abonnements::libelle($entreprise->fresh()->plan_abonnement) . " : {$mois} mois, échéance le " . $entreprise->fresh()->abonnement_expire_le?->format('d/m/Y') . '.' : ''));
     }
 
     /**

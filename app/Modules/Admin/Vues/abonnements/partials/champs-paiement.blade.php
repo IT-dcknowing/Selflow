@@ -11,8 +11,20 @@
 @endphp
 <div class="champs-paiement" style="display:none; text-align:left; margin-top:10px; background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:12px;">
     @if($montant)
-    <div style="font-size:12.5px; font-weight:800; color:#92400e; margin-bottom:6px;">
-        Paiement : {{ number_format($montant, 0, ',', ' ') }} F
+    {{-- 25/11/2026 : la durée choisie, le montant et l'échéance se calculent à la volée. --}}
+    <label style="display:block; font-size:12px; font-weight:700; color:#92400e; margin-bottom:4px;">Durée</label>
+    <select name="mois" data-prix-mensuel="{{ (int) $montant }}" data-depart="{{ ($depart ?? now())->toDateString() }}"
+            onchange="(function (s) { var p = +s.dataset.prixMensuel, m = +s.value || 1, d = new Date(s.dataset.depart); d.setMonth(d.getMonth() + m);
+                var b = s.parentNode.querySelector('[data-total]'); b.querySelector('strong').textContent = String(p * m).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' F';
+                b.querySelector('em').textContent = p.toLocaleString('fr-FR') + ' F × ' + m + ' mois · échéance prévue le ' + d.toLocaleDateString('fr-FR'); })(this)"
+            style="width:100%; height:36px; border:1px solid #E2E8F0; border-radius:8px; padding:4px 8px; margin-bottom:6px; font-family:inherit;">
+        @foreach(\App\Modules\Admin\Regles\Abonnements::DUREES_MOIS as $m)
+            <option value="{{ $m }}">{{ $m }} mois</option>
+        @endforeach
+    </select>
+    <div data-total style="font-size:12.5px; font-weight:800; color:#92400e; margin-bottom:6px;">
+        Paiement : <strong>{{ number_format($montant, 0, ',', ' ') }} F</strong>
+        <em style="display:block; font-style:normal; font-weight:600; font-size:11.5px;">{{ number_format($montant, 0, ',', ' ') }} F × 1 mois · échéance prévue le {{ ($depart ?? now())->copy()->addMonthNoOverflow()->format('d/m/Y') }}</em>
     </div>
     @else
     {{-- Offre sur mesure : le montant est celui du devis convenu. --}}

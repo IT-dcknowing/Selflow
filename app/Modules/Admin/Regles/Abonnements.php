@@ -36,6 +36,97 @@ final class Abonnements
 
     public const DUREE_PASS_CADEAU_JOURS = 7;
 
+    /** Les durées proposées au choix d'une offre, en mois (25/11/2026). */
+    public const DUREES_MOIS = [1, 2, 3, 6, 12];
+
+    /**
+     * Les messages proposés au superadministrateur (25/11/2026), à reprendre
+     * tels quels ou à reformuler. {entreprise}, {echeance} et {jours} se
+     * remplacent à l'affichage.
+     *
+     * @var array<string, string>
+     */
+    public const MESSAGES = [
+        'expire_longtemps' => 'Votre abonnement Selflow est arrivé à échéance le {echeance}, il y a {jours} jours. Pour reprendre votre activité, renouvelez-le depuis Paramètres › Facturation, ou contactez l\'assistance DC-Knowing.',
+        'expire'           => 'Votre abonnement Selflow est arrivé à échéance le {echeance}. Renouvelez-le depuis Paramètres › Facturation pour continuer à travailler. Vos données sont conservées.',
+        'bientot'          => 'Votre abonnement Selflow arrive à échéance le {echeance}. Pensez à le renouveler dès maintenant pour éviter toute interruption.',
+        'reglement'        => 'Nous n\'avons pas encore reçu le règlement de votre abonnement. Merci de régulariser depuis Paramètres › Facturation, ou de contacter l\'assistance DC-Knowing.',
+        'essai'            => 'Votre période d\'essai est terminée. Choisissez votre offre depuis Paramètres › Facturation pour continuer à utiliser Selflow.',
+        'bienvenue'        => 'Bienvenue sur Selflow ! Votre abonnement est actif jusqu\'au {echeance}.',
+    ];
+
+    public const LIBELLES_MESSAGES = [
+        'expire_longtemps' => 'Abonnement expiré depuis un bon moment',
+        'expire'           => 'Abonnement expiré',
+        'bientot'          => 'Échéance proche',
+        'reglement'        => 'Règlement non reçu',
+        'essai'            => 'Fin de l\'essai',
+        'bienvenue'        => 'Bienvenue',
+    ];
+
+    /** Le message du superadministrateur, prêt à afficher, ou null. */
+    public static function messageDe(?Entreprise $entreprise): ?string
+    {
+        $texte = trim((string) ($entreprise?->message_abonnement ?? ''));
+        if ($texte === '') {
+            return null;
+        }
+        $echeance = $entreprise->abonnement_expire_le;
+
+        return strtr($texte, [
+            '{entreprise}' => (string) $entreprise->nom,
+            '{echeance}'   => $echeance ? $echeance->format('d/m/Y') : 'non fixée',
+            '{jours}'      => $echeance ? (string) max(0, (int) $echeance->copy()->startOfDay()->diffInDays(now()->startOfDay(), false)) : '0',
+        ]);
+    }
+
+    /**
+     * À la validation d'une inscription (25/11/2026) : l'offre demandée
+     * s'applique et l'échéance se calcule sur le nombre de mois choisi. Elle
+     * n'était jamais posée : 61 entreprises restaient sans échéance.
+     *
+     * @return int le nombre de mois accordés (0 si rien n'est payant)
+     */
+    public static function activerALaValidation(Entreprise $entreprise): int
+    {
+        $offre = (string) ($entreprise->abonnement_demande ?: $entreprise->plan_abonnement);
+        if (!array_key_exists($offre, self::offres()) || $entreprise->abonnement_expire_le !== null) {
+            return 0;
+        }
+
+        if (!in_array($offre, [self::SOLO, self::BUSINESS, self::PREMIUM], true)) {
+            // Pass cadeau : ses 7 jours ; sur mesure : sur devis.
+            self::appliquer($entreprise, $offre);
+
+            return 0;
+        }
+
+        $mois = max(1, min(24, (int) ($entreprise->abonnement_demande_mois ?? 1)));
+        self::appliquer($entreprise, $offre);
+        $entreprise->refresh()->forceFill([
+            'abonnement_statut'     => self::STATUT_ACTIF,
+            'abonnement_expire_le'  => now()->addMonthsNoOverflow($mois)->endOfDay(),
+            'abonnement_demande'    => null,
+            'abonnement_demande_le' => null,
+        ])->save();
+
+        PaiementAbonnement::create([
+            'entreprise_id'      => $entreprise->id,
+            'utilisateur_id'     => null,
+            'offre'              => $offre,
+            'nature'             => 'souscription',
+            'mois'               => $mois,
+            'montant'            => (int) self::offres()[$offre]['prix'] * $mois,
+            'operateur_paiement' => 'superadmin',
+            'reference_paiement' => 'INSCRIPTION-' . $entreprise->id . '-' . now()->format('YmdHis'),
+            'statut'             => 'active',
+            'active_le'          => now(),
+            'traite_par'         => auth()->id(),
+        ] + (PaiementAbonnement::colonnesEnPlace() ? ['bloquant' => false, 'confirmation_vue_le' => now()] : []));
+
+        return $mois;
+    }
+
     /**
      * @return array<string, array{nom: string, points_de_vente: ?int, utilisateurs: ?int, prix: ?int, accroche: string, details: array<int, string>}>
      */
