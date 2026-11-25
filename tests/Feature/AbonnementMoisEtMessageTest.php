@@ -123,4 +123,22 @@ class AbonnementMoisEtMessageTest extends TestCase
         $this->actingAs($this->superadmin)->post(route('superadmin.paiements.message', $e), ['message' => '']);
         $this->assertNull($e->fresh()->message_abonnement);
     }
+
+    public function test_un_reabonnement_confirme_efface_le_message_et_la_fenetre_se_ferme_sans_recharger(): void
+    {
+        [$e, $admin, $site] = $this->entreprise('Boutique Reabonnee');
+        Abonnements::appliquer($e, Abonnements::BUSINESS);
+        $e->forceFill(['abonnement_statut' => Abonnements::STATUT_ACTIF, 'abonnement_expire_le' => now()->subDays(3)])->save();
+        $this->actingAs($this->superadmin)->post(route('superadmin.paiements.message', $e), ['message' => Abonnements::MESSAGES['expire']]);
+
+        $this->actingAs($admin)->post(route('admin.abonnement.renouveler'), [
+            'depuis' => 'facturation', 'operateur_paiement' => 'WAVE', 'reference_paiement' => 'WV-2026-88', 'mois' => 1,
+        ]);
+        $p = PaiementAbonnement::where('entreprise_id', $e->id)->latest('id')->first();
+        $this->actingAs($this->superadmin)->put(route('superadmin.paiements.traiter', $p), ['action' => 'activer'])->assertSessionHas('succes');
+
+        $this->assertNull($e->fresh()->message_abonnement, 'Confirmé : le message disparaît.');
+
+        $this->actingAs($admin)->postJson(route('admin.abonnement.confirmation_vue'))->assertNoContent();
+    }
 }

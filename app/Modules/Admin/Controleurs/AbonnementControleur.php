@@ -134,7 +134,7 @@ class AbonnementControleur
     }
 
     /** « Abonnement confirmé » a été lu : il ne s'affiche plus. */
-    public function confirmationVue(): RedirectResponse
+    public function confirmationVue(): RedirectResponse|\Illuminate\Http\Response
     {
         $entreprise = Auth::user()->entreprise;
         abort_unless($entreprise, 403);
@@ -143,6 +143,11 @@ class AbonnementControleur
             PaiementAbonnement::where('entreprise_id', $entreprise->id)
                 ->where('statut', 'active')->whereNull('confirmation_vue_le')
                 ->update(['confirmation_vue_le' => now()]);
+        }
+
+        // Appel en arrière-plan depuis la fenêtre : pas de page à renvoyer.
+        if (request()->expectsJson()) {
+            return response()->noContent();
         }
 
         return back();

@@ -64,12 +64,35 @@ final class Abonnements
         'bienvenue'        => 'Bienvenue',
     ];
 
+    /**
+     * Ce qui efface le message du superadministrateur (25/11/2026) : un
+     * réabonnement confirmé le rend caduc. À fusionner dans un forceFill.
+     *
+     * @return array<string, null>
+     */
+    public static function sansMessage(): array
+    {
+        return \App\Support\Structure::aColonne('entreprises', 'message_abonnement')
+            ? ['message_abonnement' => null, 'message_abonnement_le' => null]
+            : [];
+    }
+
     /** Le message du superadministrateur, prêt à afficher, ou null. */
     public static function messageDe(?Entreprise $entreprise): ?string
     {
         $texte = trim((string) ($entreprise?->message_abonnement ?? ''));
+        if ($texte === '') {
+            return null;
+        }
 
-        return $texte === '' ? null : self::remplir($entreprise, $texte);
+        // Un paiement confirmé après le message le rend caduc (25/11/2026),
+        // y compris pour un message envoyé avant cette règle.
+        if ($entreprise->message_abonnement_le && PaiementAbonnement::where('entreprise_id', $entreprise->id)
+            ->where('statut', 'active')->where('active_le', '>', $entreprise->message_abonnement_le)->exists()) {
+            return null;
+        }
+
+        return self::remplir($entreprise, $texte);
     }
 
     /**
@@ -133,7 +156,7 @@ final class Abonnements
             'abonnement_expire_le'  => now()->addMonthsNoOverflow($mois)->endOfDay(),
             'abonnement_demande'    => null,
             'abonnement_demande_le' => null,
-        ])->save();
+        ] + self::sansMessage())->save();
 
         PaiementAbonnement::create([
             'entreprise_id'      => $entreprise->id,

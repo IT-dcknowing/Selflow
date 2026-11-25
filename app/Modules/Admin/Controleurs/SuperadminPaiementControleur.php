@@ -183,7 +183,7 @@ class SuperadminPaiementControleur
                 'abonnement_expire_le' => $nouvelleEcheance,
                 'abonnement_demande' => null,
                 'abonnement_demande_le' => null,
-            ])->save();
+            ] + ($nouvelleEcheance?->isFuture() ? Abonnements::sansMessage() : []))->save();
 
             if ($mois > 0) {
                 PaiementAbonnement::create([
@@ -284,7 +284,8 @@ class SuperadminPaiementControleur
                 'abonnement_expire_le'  => $depart->addMonthsNoOverflow(max(1, (int) $paiement->mois))->endOfDay(),
                 'abonnement_demande'    => null,
                 'abonnement_demande_le' => null,
-            ])->save();
+            // Réabonnement confirmé : le message d'échéance disparaît (25/11/2026).
+            ] + Abonnements::sansMessage())->save();
 
             $paiement->update($traite + ['statut' => 'active', 'active_le' => now()]);
         });

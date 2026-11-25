@@ -17,7 +17,14 @@
             @if($echeance) jusqu'au <strong>{{ $echeance->format('d/m/Y') }}</strong>@endif.
             Votre espace est ouvert : vous pouvez travailler.
         </p>
-        <form method="POST" action="{{ route('admin.abonnement.confirmation_vue') }}" style="margin:0;">@csrf
+        {{-- 25/11/2026 : la fenêtre se ferme aussitôt, la confirmation part en
+             arrière-plan. Le formulaire rechargeait toute la page (lent). --}}
+        <form method="POST" action="{{ route('admin.abonnement.confirmation_vue') }}" style="margin:0;"
+              onsubmit="if (!window.fetch) return true;
+                        var v = document.querySelector('.voile-abonnement-confirme'); if (v) v.remove();
+                        document.body.classList.remove('abonnement-a-terme');
+                        fetch(this.action, { method: 'POST', body: new FormData(this), keepalive: true, headers: { 'Accept': 'application/json' } });
+                        return false;">@csrf
             <button type="submit" id="btn-abonnement-confirme"
                     style="width:100%; display:flex; justify-content:center; align-items:center; gap:8px; padding:13px; background:#16A34A; color:#fff; border:none; border-radius:10px; font-weight:700; cursor:pointer;">
                 Commencer <i class="fas fa-arrow-right"></i>

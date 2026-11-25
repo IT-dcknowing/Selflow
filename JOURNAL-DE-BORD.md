@@ -11941,6 +11941,16 @@ option renommée « Prestataires », reprise des factures « apporteur »).
   superadmin lit et écrit des dates, l'entreprise lit la date d'échéance et
   le nombre de jours du jour (calculés à l'affichage).
 
+### Lot 177 — Message effacé au réabonnement, bouton « Commencer » instantané — **TERMINÉ le 25/11/2026**
+
+- Un réabonnement confirmé (paiement activé, prolongation, validation
+  d'inscription) efface le message du superadmin (`Abonnements::sansMessage`).
+  Un message antérieur au dernier paiement confirmé n'est plus affiché, même
+  enregistré avant cette règle.
+- Fenêtre « Abonnement confirmé » : « Commencer » rechargeait toute la page
+  des paramètres ; la fenêtre se ferme aussitôt et la confirmation part en
+  arrière-plan (réponse 204).
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |
