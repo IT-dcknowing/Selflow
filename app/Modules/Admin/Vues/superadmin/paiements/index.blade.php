@@ -84,7 +84,8 @@
                     </div>
                     <details style="flex:1; min-width:280px; max-width:640px;">
                         <summary class="btn btn-outline btn-sm" style="list-style:none; display:inline-flex; float:right;"><i class="fas fa-rotate"></i> {{ $jours === null ? 'Fixer l\'abonnement' : 'Prolonger / mettre à jour' }}</summary>
-                        <form method="POST" action="{{ route('superadmin.paiements.prolonger', $e) }}" style="clear:both; display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; align-items:end; padding-top:10px;"
+                        <form method="POST" action="{{ route('superadmin.paiements.prolonger', $e) }}" data-prolonger
+                              data-depart="{{ ($e->abonnement_expire_le?->isFuture() ? $e->abonnement_expire_le : now())->toDateString() }}" style="clear:both; display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; align-items:end; padding-top:10px;"
                               onsubmit="return confirm('Enregistrer la mise à jour de l\'abonnement de {{ addslashes($e->nom) }} ?');">
                             @csrf
                             <label style="font-size:12px; font-weight:700;">Offre
@@ -107,6 +108,7 @@
                                 <input type="number" name="montant_total" class="form-control" min="0" step="1" placeholder="Tarif × mois">
                             </label>
                             <button class="btn btn-primary btn-sm" style="height:38px;"><i class="fas fa-check"></i> Enregistrer</button>
+                            <div data-calcul style="grid-column:1/-1; font-size:12.5px; font-weight:700; color:#047857;"></div>
                         </form>
                         <div style="font-size:11.5px; color:var(--text-3); padding-top:6px;">Les mois s'ajoutent à l'échéance actuelle si elle n'est pas passée, sinon à aujourd'hui. Une échéance précise remplace ce calcul. Chaque prolongation est inscrite aux paiements.</div>
                     </details>
@@ -174,4 +176,47 @@
     </div>
 @endif
 </div>
+<script>
+// 25/11/2026 : l'offre et la durée remplissent l'échéance, le nombre de jours
+// et le montant réglé. Une date saisie à la main recalcule les jours.
+(function () {
+    var PRIX = @json(collect(Abonnements::offres())->map(fn ($o) => $o['prix']));
+    function iso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    function f(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+    function jours(dateIso) {
+        var a = new Date(); a.setHours(0, 0, 0, 0);
+        var b = new Date(dateIso + 'T00:00:00');
+        return Math.round((b - a) / 86400000);
+    }
+    function afficher(form) {
+        var ech = form.echeance.value, prix = PRIX[form.offre.value], mois = parseInt(form.mois.value, 10) || 0;
+        var zone = form.querySelector('[data-calcul]');
+        if (!ech) { zone.textContent = ''; return; }
+        var d = new Date(ech + 'T00:00:00');
+        zone.textContent = 'Échéance le ' + d.toLocaleDateString('fr-FR') + ' · ' + jours(ech) + ' jours'
+            + (prix && mois ? ' · ' + f(prix) + ' F × ' + mois + ' mois = ' + f(prix * mois) + ' F' : '');
+    }
+    function calculer(form) {
+        var mois = parseInt(form.mois.value, 10) || 0, prix = PRIX[form.offre.value];
+        if (mois > 0) {
+            var d = new Date(form.dataset.depart + 'T00:00:00');
+            var jour = d.getDate();
+            d.setMonth(d.getMonth() + mois);
+            if (d.getDate() !== jour) d.setDate(0); // 31 janvier + 1 mois = fin février
+            form.echeance.value = iso(d);
+            form.montant_total.value = prix ? prix * mois : '';
+        } else {
+            form.echeance.value = '';
+            form.montant_total.value = '';
+        }
+        afficher(form);
+    }
+    document.querySelectorAll('form[data-prolonger]').forEach(function (form) {
+        form.offre.addEventListener('change', function () { calculer(form); });
+        form.mois.addEventListener('change', function () { calculer(form); });
+        form.echeance.addEventListener('change', function () { afficher(form); });
+        calculer(form);
+    });
+})();
+</script>
 @endsection

@@ -11951,6 +11951,15 @@ option renommée « Prestataires », reprise des factures « apporteur »).
   des paramètres ; la fenêtre se ferme aussitôt et la confirmation part en
   arrière-plan (réponse 204).
 
+### Lot 178 — Prolonger : échéance, jours et montant calculés à la volée — **TERMINÉ le 25/11/2026**
+
+- Superadmin › Abonnement / réabonnement, « Prolonger / mettre à jour » :
+  choisir l'offre ou le nombre de mois remplit l'échéance (échéance actuelle
+  si elle court encore, sinon aujourd'hui, + mois), le montant réglé (prix ×
+  mois) et affiche « Échéance le … · N jours · prix × mois = total ». Une
+  date saisie à la main recalcule les jours. Vérifié au navigateur
+  (17/12/2026 + 2 mois = 17/02/2027, 50 000 F ; Premium : 90 000 F).
+
 ## Retour du 04/11/2026 (suite) — affichage multi-sites des entrées de stock
 
 | Lot | Branche | Demande | Correctif préparé |
